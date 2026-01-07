@@ -30,9 +30,59 @@ def login_required(view):
         return view(**kwargs)
     return wrapped_view
 
+@app.before_request
+def check_setup():
+    if not config.is_setup() and request.endpoint != 'setup' and '/static/' not in request.path:
+        return redirect(url_for('setup'))
+
 @app.context_processor
 def inject_config():
-    return dict(config=config.data)
+    # Only inject safe config data
+    safe_config = config.data.copy()
+    if 'influx' in safe_config:
+        safe_config['influx'] = safe_config['influx'].copy()
+        if 'token' in safe_config['influx']:
+            del safe_config['influx']['token']
+        if 'password' in safe_config['influx']:
+            del safe_config['influx']['password']
+    return dict(config=safe_config)
+
+@app.route('/setup', methods=['GET', 'POST'])
+def setup():
+    if config.is_setup():
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        # Save IDM
+        config.data['idm']['host'] = request.form.get('idm_host')
+        config.data['idm']['port'] = int(request.form.get('idm_port'))
+
+        # Save Influx
+        config.data['influx']['url'] = request.form.get('influx_url')
+        config.data['influx']['org'] = request.form.get('influx_org')
+        config.data['influx']['bucket'] = request.form.get('influx_bucket')
+        config.data['influx']['token'] = request.form.get('influx_token')
+
+        # Save Admin Password
+        password = request.form.get('password')
+        if len(password) < 6:
+            flash("Password must be at least 6 characters", "danger")
+            return render_template('setup.html')
+
+        config.set_admin_password(password)
+
+        # Enable features
+        config.data['web']['write_enabled'] = True # Default enable on setup? Or ask? User asked to be reconfigurable.
+        config.data['setup_completed'] = True
+
+        config.save()
+
+        # Restart required? Probably. But we can update running instances too if structured well.
+        # For now, we just redirect to login. The modbus client needs restart to pick up new host.
+        flash("Setup complete. Please restart the service to apply changes fully.", "success")
+        return redirect(url_for('login'))
+
+    return render_template('setup.html')
 
 @app.route('/')
 def index():
@@ -42,8 +92,7 @@ def index():
 def login():
     if request.method == 'POST':
         password = request.form.get('password')
-        admin_pass = config.get("web.admin_password", "admin")
-        if password == admin_pass:
+        if config.check_admin_password(password):
             session['logged_in'] = True
             next_url = request.args.get('next') or url_for('index')
             return redirect(next_url)
@@ -79,9 +128,18 @@ def config_page():
             if 'influx_url' in request.form:
                  config.data['influx']['url'] = request.form['influx_url']
 
+            # Handle password change
+            new_pass = request.form.get('new_password')
+            if new_pass:
+                if len(new_pass) < 6:
+                    flash("New password too short", "danger")
+                    return render_template('config.html')
+                config.set_admin_password(new_pass)
+                flash("Password updated", "success")
+
             # Save config
             config.save()
-            flash("Configuration saved. Restart required.", "success")
+            flash("Configuration saved. Restart required for some settings.", "success")
         except Exception as e:
             flash(f"Error saving config: {e}", "danger")
 

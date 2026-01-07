@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IDM Logger Setup</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-dark text-light">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0">Setup Wizard</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>Welcome to IDM Logger! Please configure your initial settings.</p>
+
+                        <form method="POST">
+                            <h5 class="mt-4 text-primary">IDM Heat Pump</h5>
+                            <div class="mb-3">
+                                <label for="idm_host" class="form-label">Host / IP</label>
+                                <input type="text" class="form-control" id="idm_host" name="idm_host" placeholder="192.168.1.100" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="idm_port" class="form-label">Modbus Port</label>
+                                <input type="number" class="form-control" id="idm_port" name="idm_port" value="502" required>
+                            </div>
+
+                            <h5 class="mt-4 text-primary">InfluxDB (v2)</h5>
+                            <div class="mb-3">
+                                <label for="influx_url" class="form-label">URL</label>
+                                <input type="text" class="form-control" id="influx_url" name="influx_url" placeholder="http://localhost:8086" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="influx_org" class="form-label">Organization</label>
+                                <input type="text" class="form-control" id="influx_org" name="influx_org" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="influx_bucket" class="form-label">Bucket</label>
+                                <input type="text" class="form-control" id="influx_bucket" name="influx_bucket" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="influx_token" class="form-label">Token</label>
+                                <input type="password" class="form-control" id="influx_token" name="influx_token" required>
+                            </div>
+
+                            <h5 class="mt-4 text-primary">Admin Access</h5>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Admin Password</label>
+                                <input type="password" class="form-control" id="password" name="password" minlength="6" required>
+                                <div class="form-text">Minimum 6 characters.</div>
+                            </div>
+
+                            <div class="d-grid mt-4">
+                                <button type="submit" class="btn btn-success btn-lg">Finish Setup</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
