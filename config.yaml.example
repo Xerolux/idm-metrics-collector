@@ -1,0 +1,22 @@
+idm:
+  host: "idm-heatpump"
+  port: 502
+  circuits: ["A"]
+influx:
+  version: 2
+  url: "http://influxdb:8086"
+  org: "my-org"
+  bucket: "idm"
+  token: "my-token"
+  username: ""
+  password: ""
+  database: "idm"
+web:
+  enabled: true
+  host: "0.0.0.0"
+  port: 5000
+  admin_password: "admin"
+  write_enabled: false
+logging:
+  interval: 60
+  level: "INFO"

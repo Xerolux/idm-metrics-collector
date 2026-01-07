@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">Manual Control</h2>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="sensor" class="form-label">Sensor / Setting</label>
+                        <select class="form-select" id="sensor" name="sensor" required>
+                            <option value="" disabled selected>Select a target...</option>
+                            {% for sensor in sensors %}
+                                <option value="{{ sensor.name }}">{{ sensor.name }} ({{ sensor.supported_features.name if sensor.supported_features.name else 'WRITABLE' }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="value" class="form-label">New Value</label>
+                        <input type="text" class="form-control" id="value" name="value" required placeholder="e.g. 21.5 or NORMAL">
+                        <div class="form-text">Enter numeric value or Enum name.</div>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-warning">Write Value</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

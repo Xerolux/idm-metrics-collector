@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">Automation Scheduler</h2>
+
+<div class="row">
+    <!-- Add New Job -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Add Scheduled Job</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="add">
+
+                    <div class="mb-3">
+                        <label for="sensor" class="form-label">Sensor</label>
+                        <select class="form-select" id="sensor" name="sensor" required>
+                            {% for sensor in sensors %}
+                                <option value="{{ sensor.name }}">{{ sensor.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="value" class="form-label">Value</label>
+                        <input type="text" class="form-control" id="value" name="value" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="time" class="form-label">Time (HH:MM)</label>
+                        <input type="time" class="form-control" id="time" name="time" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Days</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="days" value="{{ day }}" id="day_{{ day }}" checked>
+                                    <label class="form-check-label" for="day_{{ day }}">{{ day }}</label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success">Add Job</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Existing Jobs -->
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header">
+                <h5 class="mb-0">Active Schedules</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Time</th>
+                                <th>Days</th>
+                                <th>Sensor</th>
+                                <th>Value</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in jobs %}
+                            <tr>
+                                <td>{{ job.time }}</td>
+                                <td>
+                                    {% if job.days|length == 7 %}
+                                        Daily
+                                    {% else %}
+                                        {{ job.days|join(', ') }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ job.sensor }}</td>
+                                <td>{{ job.value }}</td>
+                                <td>
+                                    {% if job.enabled %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Disabled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="POST" class="d-inline">
+                                        <input type="hidden" name="action" value="toggle">
+                                        <input type="hidden" name="job_id" value="{{ job.id }}">
+                                        <input type="hidden" name="current_state" value="{{ job.enabled }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-power"></i>
+                                        </button>
+                                    </form>
+                                    <form method="POST" class="d-inline">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="job_id" value="{{ job.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-3 text-muted">No scheduled jobs yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

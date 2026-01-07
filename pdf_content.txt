@@ -1,0 +1,2288 @@
+                                                TECHNISCHE UNTERLAGEN
+                                                I N S TA L L AT I O N S A N L E I T U N G
+
+
+
+
+                                                   M o d b u s TC P
+                                      N a vi g a t o r re g e l u n g 2.0
+812170_Rev.10 - Originalanleitung
+
+
+
+
+                                    WÄRMEPUMPEN AUS ÖSTERREICH
+                                    www.idm-energie.at
+1.
+Inhalt                                                                                            D I E E N E RG I E FAM I L I E
+
+
+
+
+1. ALLGEMEINE INFORMATIONEN                                                                                                3
+1.1. Allgemeine Informationen                                                                                               3
+1.2. Allgemeines zur Netzwerkinstallation                                                                                   3
+
+2. INSTALLATION                                                                                                            4
+2.1. Beschreibung                                                                                                           4
+2.2. Netzwerkeinbindung                                                                                                     4
+2.3. Netzwerkkonﬁguration                                                                                                   5
+
+3. NAVIGATOREINSTELLUNGEN                                                                                                  8
+3.1. Konﬁguration Modbus TCP Kommunikation in der Navigator Regelung                                                     8
+3.1.1. Zusatzliche Konﬁgurationsmöglichkeiten                                                                            8
+3.2. Konﬁguration Modbus TCP Raumgerät für Heiz-/Kühlkreis in der Navigatorregelung                                      9
+3.3. Konﬁguration Modbus TCP Raumsensoren bei iDM Einzelraumregelung                                                    10
+
+4. PROGRAMMIERUNG                                                                                                      12
+4.1. Parameterliste                                                                                                     12
+4.2. Datentypen                                                                                                         32
+4.3. Anwendungsbeispiele                                                                                                32
+4.3.1. Außentemperatur und Feuchtewert von der GLT verwenden                                                            32
+4.3.2. Raumtemperatur und Feuchte von der GLT verwenden                                                                 32
+4.3.3. Heiz-/Kühlanforderung von der GLT an die Wärmepumpe                                                              32
+4.3.4. GLT Raumsensoren für iDM Einzelraumregelung verwenden                                                            33
+4.3.5. Raumtemperatur und Feuchtewert von Navigatorregelung auf GLT anzeigen                                            33
+4.3.6. Aktive Betriebsart Wärmepumpe und aktive Betriebsart Heiz-/Kühlkreis abfragen                                    33
+4.3.7. Einstellungen der Betriebsart der Wärmepumpe und der Betriebsart eines Heiz-/Kühlkreises
+       abfragen/ändern                                                                                                 33
+4.3.8. Abfrage aktuelle Störung bzw. Summenstörung (Verriegelnde Störung)                                              33
+4.3.9. Kommunikation des PV-Überschusses bzw. der Aufnahmeleistung der Wärmepumpe                                      33
+4.4. GLT Log/Monitor                                                                                                   34
+4.5. Kommunikation mit Loxone                                                                                          34
+
+5. FAQS                                                                                                                35
+5.1. Häuﬁge Fragen                                                                                                      35
+
+
+
+
+2                                       IDM Navigator MODBUS TCP                   (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E
+                                                                          1. Allgemeine Informationen
+1 . 1 . A l l g em e i n e I n f o r m a t i o n e n
+
+Lesen Sie diese Unterlagen bitte aufmerksam durch.
+Sie enthalten wichtige Hinweise für die korrekte In-
+stallation und den funktionellen Betrieb der Anlage.
+
+
+
+
+1 . 2 . A l l g em e i n e s z u r N e t z w e r k i n s t a lla ti o n
+
+In dieser Anleitung sind nur einige Möglichkeiten
+zum Einbinden der Wärmepumpe in ein Netzwerk
+dargestellt. Die Einbindung der Wärmepumpe in ein
+Netzwerk kann auch über andere Varianten erfolgen.
+
+
+
+                            Für die Einbindung der Wärmepum-
+                            pe in ein Netzwerk, sind Kenntnisse
+                            auf dem Gebiet Netzwerktechnik
+                            notwendig. Sollten Sie nicht über die
+                            notwendigen Kenntnisse verfügen,
+                            empfehlen wir Ihnen die Hilfe eines
+                            Netzwerktechnikers in Anspruch zu
+                            nehmen.
+
+
+
+
+                            Allgemeine Hinweise für den Betrieb der              Allgemeine Hinweise für die Montage der
+                            Wärmepumpe.                                          Wärmepumpe.
+
+
+
+                            Wichtige Hinweise zu Montage und                     Raum für die Kundendienst-
+                            Betrieb der Wärmepumpe. Diese sind                   telefonnummer
+                            unbedingt einzuhalten!
+
+
+(C) IDM ENERGIESYSTEME GMBH                             IDM Navigator MODBUS TCP                                       3
+2. Installation                                                                                    D I E E N E RG I E FAM I L I E
+
+
+
+
+2 . 1 . B e s c h r ei b u n g
+
+IDM Wärmepumpen können in ein Ethernet-Netzwerk
+eingebunden werden. Somit besteht die Möglichkeit
+auf die Navigatorregelung 2.0 über das Modbus TCP
+Protokoll zuzugreifen.
+
+Die Modbus TCP Kommunikation mit der Navigator-
+regelung 2.0 ist standardmäßig möglich, es ist kein
+Zubehör erforderlich.
+
+
+
+
+2.2. Netzwerkeinbindung
+
+Um die Wärmepumpe in ein Netzwerk einzubinden,
+muss die Navigatorregelung mittels eines bauseits
+vorhandenen Netzwerkkabels mit einem ebenfalls
+bauseits vorhandenen Switch, Hub oder Router
+verbunden werden. Auch eine direkte Verbindung
+zwischen Wärmepumpe und Computer ist möglich
+(dabei muss beidseitig eine statische IP-Adresse
+eingestellt werden).
+
+               Das Netzwerkkabel ist an der zweiten
+               LAN-Buchse am Bedienteil bzw. an
+               der LAN-Buchse im Verkleidungsteil                      LAN-Buchse Bedienteil
+               der Wärmepumpe anzustecken!
+
+
+
+– Die gelb/orange LED (1) an der Buchse leuchtet,                1                             2
+  sobald eine Verbindung zu einem Netzwerk,
+  Switch, Hub o.ä. vorhanden ist.
+– Die grüne LED (2) an der Buchse blinkt, sobald ein
+  Datenaustausch stattfindet.
+
+
+
+
+               Direkte Netzwerkverbindung                        Netzwerkverbindung über Router
+
+4                                           IDM Navigator MODBUS TCP              (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                          Installation
+
+2.3. Netzwerkkonfiguration
+
+Für den Zugriﬀ müssen an der Navigatorregelung
+die Netzwerkeinstellungen durchgeführt werden.
+Die Netzwerkadressen können wie nachfolgend be-
+schrieben eingestellt werden.
+
+
+
+
+                                                  Im Menü Einstellungen die „Allgemeine Einstellun-
+                                                  gen“ anwählen.
+
+
+
+
+                                                  Das Untermenü „Netzwerkeinstellung“ anwählen.
+
+
+
+
+                                                  Mit Umstellung des Parameters „DHCP“ auf „Ein“
+                                                  erhält die Wärmepumpe automatisch die Netzwerk-
+                                                  einstellungen.
+
+                                                  Achtung: Bei „DHCP = Ein“ kann sich die IP-Adresse
+                                                  ändern, z.B. bei einem Stromausfall, Neustart vom
+                                                  Router.
+
+
+
+
+                                                  Für die Modbus TCP Kommunikation wird deshalb die
+                                                  Einstellung einer statischen IP-Adresse empfohlen.
+
+                                                  Dazu den Parameter „IP-Adresse“ anwählen.
+
+
+
+
+(C) IDM ENERGIESYSTEME GMBH        IDM Navigator MODBUS TCP                                       5
+2. Installation
+Installation                                                                                D I E E N E RG I E FAM I L I E
+
+
+
+
+                                                  Die IP-Adresse, die Subnetmask und das Standard-
+                                                  gateway eingeben.
+
+
+
+
+                                                  Die Eingaben mit „Enter“ bestätigen.
+
+
+
+
+           Die in diesem Beispiel angegebenen Werte für Local IP, Subnetmask und Standardga-
+           teway sind nur Beispielwerte und müssen nicht mit den tatsächlich benötigten Werten
+           des vorhandenen Netzwerkes übereinstimmen.
+
+          Modbus TCP kommuniziert über den TCP-Port 502.
+          Modbus TCP und myIDM funktionieren parallel, wenn dasselbe Netzwerk und dieselbe
+          IP-Adresse verwendet wird!
+
+
+6                                  IDM Navigator MODBUS TCP                  (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                              Installation
+
+
+
+
+(C) IDM ENERGIESYSTEME GMBH     IDM Navigator MODBUS TCP             7
+3. Navigatoreinstellungen
+3. Navigatoreinstellungen
+Navigatoreinstellungen                                                                                                           D I E E N E RG I E FAM I L I E
+
+
+
+
+3 . 1 . Ko n fig u ra t i o n M o d b u s T C P K o m m u n i k a ti o n i n d e r N a v i g a to r R e g e l u n g
+
+Damit übergeordnete Systeme (Gebäudeleittechnik) mit iDM Wärmepumpen mit Navigatorregelung 2.0 über
+Modbus TCP kommunizieren können, müssen in der Navigatorregelung in der Heizungsbauer- bzw. Servicee-
+bene nachfolgende Einstellungen durchgeführt werden.
+
+
+
+
+                                                                                       Im Hauptmenü „Einstellungen“ den Menüpunkt
+                                                                                        „Gebäudeleittechnik“ anwählen
+
+
+
+
+                                                                                       „Modbus TCP“ auf „Ein“ stellen.
+
+
+
+
+3 . 1 . 1 . Zu s a t z li c h e K o n f i g u r a t i o n s m ö g l i c h k e i te n
+
+Die Außentemperatur und der Feuchtewert vom Modbus TCP System kann an die Wärmepumpe gesendet
+werden.
+
+
+
+
+                                                                                       Dazu den Parameter „GLT Außentemperatur“ auf
+                                                                                       „Ja“ stellen.
+
+
+
+
+                                                                                       Für die Kommunikation des Feuchtewertes ist der
+                                                                                       Parameter „GLT Feuchtewert“ auf „Ja“ zu stellen.
+
+
+
+
+8                                                           IDM Navigator MODBUS TCP                              (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E
+                                                                                                             Navigatoreinstellungen
+
+3 . 2 . Ko n fig u ra t i o n M o d b u s T C P R a u m g e rä t f ü r H e i z - / K ü h l k re i s i n d e r N a v i g a to rre g e l u n g
+
+Die Raumtemperatur für einen Heiz-/Kühlkreis kann über ein übergeordnetes System (GLT) mittels Modbus
+TCP an die Navigatorregelung kommuniziert werden. Dabei muss an der Navigatorregelung in der Service-
+ebene beim jeweiligen Heiz-/Kühlkreis die Raumtemperaturerfassung auf „GLT Raumsensor“ gestellt werden.
+
+
+
+
+                                                                          Im Hauptmenü „Einstellungen“ den Menüpunkt „Heiz-
+                                                                          kreis“ anwählen.
+
+
+
+
+                                                                          Den entsprechenden Heizkreis auswählen.
+
+
+
+
+                                                                          Den Parameter „Raumtemperaturerfassung“
+                                                                          anwählen.
+
+
+
+
+                                                                          „GLT Raumsensor“ einstellen.
+
+                                                                          Die Raumtemperatur für den jeweiligen Heizkreis
+                                                                          müssen über die Adressen 1650-1662 über Modbus
+
+                                                                          TCP zur Wärmepumpe kommuniziert werden.
+
+
+
+
+(C) IDM ENERGIESYSTEME GMBH                          IDM Navigator MODBUS TCP                                                                  9
+3. Navigatoreinstellungen
+Navigatoreinstellungen                                                                                                     D I E E N E RG I E FAM I L I E
+
+
+
+
+3 . 3 . Ko n fig u ra t i o n M o d b u s T C P R a u m s e n so re n b e i i D M E i n z e l ra u m re g e l u n g
+
+Die Raumtemperaturen für die iDM Einzelraumregelung können über ein übergeordnetes System (GLT) mit-
+tels Modbus TCP über die Navigatorregelung zum Zonenmodul kommuniziert werden. Dabei müssen in der
+Serviceebene beim jeweiligen Heiz-/Kühlkreis nachfolgende Einstellungen durchgeführt werden.
+
+
+
+
+                                                                        Im Hauptmenü „Einstellungen“ den Menüpunkt „Heiz-
+                                                                        kreis“ anwählen.
+
+
+
+
+                                                                        Den entsprechenden Heizkreis auswählen.
+
+
+
+
+                                                                        Den Parameter            „Navigator       Pro   Konfiguration“
+                                                                        anwählen.
+
+
+
+
+                                                                        Das entsprechende Zonenmodul auswählen.
+
+
+
+
+10                                                 IDM Navigator MODBUS TCP                                 (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E
+                                                                                                      Navigatoreinstellungen
+
+
+
+
+                                                                            „Raum mit Modbus TCP hinzufügen“ auswählen.
+
+
+
+
+                                                                            Den Raumnamen und die entsprechenden Raumein-
+                                                                            stellungen einstellen und mit „Ausführen“ bestätigen.
+
+
+
+
+                                                                            Bei Räumen mit Modbus TCP-Raumsensor wird bei
+                                                                            der Seriennummer „Modbus TCP“ angezeigt. Die
+                                                                            aktuelle Raumtemperatur muss über die jeweilige
+                                                                            Adresse kommuniziert werden, z.B. für Raum 3 wäre
+                                                                            das die Adresse 2016.
+
+
+
+
+                                Bei der Konfiguration der iDM Einzelraumregelung (Navigator Pro) wird der erste konfigurierte
+                                Raum automatisch zu Raum 1, der zweite zu Raum 2, usw.. Der Relaisausgang wo die NC-
+                                Stellantriebe angeschlossen sind, kann dem entsprechenden Raum zugeordnet werden.
+
+
+
+
+(C) IDM ENERGIESYSTEME GMBH                                 IDM Navigator MODBUS TCP                                            11
+4. Programmierung
+4.  Programmierung
+Programmierung                                                                                                                        D I E E N E RG I E FAM I L I E
+
+
+
+
+Die Programmierung der Modbus TCP-Kommunikation erfolgt über die Adressen, welche in der nachfolgen-
+den Parameterliste beschrieben sind (siehe Kapitel 4.1)
+
+Alle Adressen mit dem Zugriﬀsrecht (Access) „RO“ (Read Only) sind Wärmepumpenparameter (Fühlerwerte,
+usw.) welche von der Gebäudeleittechnik (GLT) nur abgefragt / gelesen werden können, um diese z.B. am
+GLT-System anzuzeigen.
+
+Beispiel:               Der iDM Feuchtesensor soll an der GLT angezeigt werden. Dies funktioniert über die
+                        Adresse 1392.
+
+Alle Adressen mit dem Zugriﬀsrecht (Access) „RW“ (Read Write) oder „W“ (Write) sind Wärmepumpen-
+parameter (Betriebsarten, usw.) welche von der Gebäudeleittechnik (GLT) gelesen und geschrieben werden
+können.
+
+Beispiel:               Der Feuchtewert der GLT soll zur Wärmepumpe gesendet werden. Dies funktioniert über
+                        die Adresse 1692.
+
+                Es ist unbedingt darauf zu achten, dass die Datenpunkte, welche in der nachfolgenden
+                Tabelle mit einem Stern-Symbol (*) markiert sind, nicht öfter als unbedingt notwendig
+                geändert werden. Diese Werte werden nämlich bei Wertänderungen direkt in den
+                EEPROM-Speicher der Navigatorregelung geschrieben.
+                Permanente Wertänderungen können zur Zerstörung des EEPROM-Speichers führen
+                (max. 300.000 Schreibzyklen)!
+
+4 . 1 . P a r a m e t e r li s t e
+
+ NAVIGATOR - MODBUS TCP Kommunikation
+ Stand: 20.04.2022                                                        Modbus TCP Port: 502                Unit ID: 1
+ Softwareversion Navigatorregelung: 20.21-101
+
+  Adresse        Daten-         Access    Bezeichnung                                       Parameter      Min.      Max.       Default-               Ein-
+   DEZ            type                                                                      Regelung       Wert      Wert        Wert                  heit
+
+   1000          FLOAT               RO   Außentemperatur (B32)                                                                                       [°C]
+
+   1002          FLOAT               RO   Gemittelte Außentemperatur                                                                                  [°C]
+
+   1004          UCHAR               RO   Interne Meldung
+
+                                          Bei Auftreten einer Meldung kann die aktuelle Meldungsnummer der Navigatorregelung (020 - 999)
+                                          über die Adresse 1004 abgefragt werden. Beschreibung der Meldungs-/Störungsnummern siehe
+                                          Navigatorregelung bzw. Navigator Bedienungsanleitung.
+
+  *1005          UCHAR               RW   Betriebsart System                                SYSMODE          0         5            1
+
+                                                                                                          0 ... Standby
+                                                                                                          1 ... Automatik
+                                                                                                          2 ... Abwesend
+                                                                                                          4 ... Nur Warmwasser
+                                                                                                          5 ... Nur Heizung/Kühlung
+
+   1006          UCHAR               RO   Smart Grid Status                                                  0         4
+
+                                          Der Smart Grid Status wird über zwei                            0 ... EVU-Sperre u. kein günstiger Strom
+                                          Digitaleingänge (EVU-Sperre und variabler                       1 ... EVU-Bezug u. kein günstiger Strom
+                                          Eingang) kommuniziert.                                          2 ... Kein EVU-Bezug u. günstiger Strom
+                                                                                                          4 ... EVU-Sperre u. günstiger Strom
+
+12                                                     IDM Navigator MODBUS TCP                                  (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                                                                    Programmierung
+
+    Adresse                     Daten-   Access   Bezeichnung                                       Parameter   Min.        Max.    Default-   Ein-
+     DEZ                         type                                                               Regelung    Wert        Wert     Wert      heit
+
+      1008                      FLOAT     RO      Wärmespeichertemperatur (B38)                                                                [°C]
+
+      1010                      FLOAT     RO      Kältespeichertemperatur (B40)                                                                [°C]
+
+      1012                      FLOAT     RO      Trinkwassererwärmertemp. unten (B41)                                                         [°C]
+
+      1014                      FLOAT     RO      Trinkwassererwärmertemp. oben (B48)                                                          [°C]
+
+      1030                      FLOAT     RO      Warmwasserzapftemperatur (B42)                                                               [°C]
+
+     *1032                      UCHAR     RW      Warmwasser-Solltemperatur                          FW030       35         95         46      [°C]
+
+     *1033                      UCHAR     RW      Warmwasserladung Einschalttemperatur               FW027       30         50         46      [°C]
+
+     *1034                      UCHAR     RW      Warmwasserladung Ausschalttemperatur               FW028       46         53         50      [°C]
+      1048                      FLOAT     RO      Aktueller Strompreis
+
+      1050                      FLOAT     RO      Wärmepumpen Vorlauftemperatur (B33)                                                          [°C]
+
+      1052                      FLOAT     RO      Wärmepumpen Rücklauftemperatur (B34)                                                         [°C]
+
+      1054                      FLOAT     RO      HGL Vorlauftemperatur (B35)                                                                  [°C]
+
+      1056                      FLOAT     RO      Wärmequelleneintrittstemperatur (B43)                                                        [°C]
+
+      1058                      FLOAT     RO      Wärmequellenaustrittstemperatur (B36)                                                        [°C]
+
+      1060                      FLOAT     RO      Luftansaugtemperatur (B37)                                                                   [°C]
+
+      1062                      FLOAT     RO      Luftwärmetauschertemperatur (B72)                                                            [°C]
+
+      1064                      FLOAT     RO      Luftansaugtemperatur 2 (B46)                                                                 [°C]
+
+      1066                      FLOAT     RO      Ladefühler (B45)                                                                             [°C]
+
+      1090                      UCHAR     RO      Betriebsart Wärmepumpe                                          0          8
+
+                                                                                                                0 ... Aus
+                                                                                                                1 ... Heizbetrieb
+                                                                                                                2 ... Kühlbetrieb
+                                                                                                                4 ... Warmwasser
+                                                                                                                8 ... Abtauung
+      1091                      UCHAR     RO      Heizanforderung                                                 0          1
+
+      1092                      UCHAR     RO      Kühlanforderung                                                 0          1
+
+      1093                      UCHAR     RO      Warmwasseranforderung                                           0          1
+
+      1098                      UCHAR     RO      EVU - Sperrkontakt                                              0          1
+
+                                                                                                                0 ... gesperrt
+                                                                                                                1 ... nicht gesperrt
+
+      1099                      UCHAR     RO      Summenstörung Wärmepumpe                                        0          1
+
+                                                  Bei einer Summenstörung (verriegelnden Störung)               0 ... Keine Störung
+                                                  läuft die Wärmepumpe nicht mehr an.                           1 ... Störung
+
+      1100                      UCHAR     RO      Status Verdichter 1                                             0          1
+
+                                                                                                                0 ... Aus
+                                                                                                                1 ... Ein
+
+      1101                      UCHAR     RO      Status Verdichter 2                                             0          1
+
+      1102                      UCHAR     RO      Status Verdichter 3                                             0          1
+
+      1103                      UCHAR     RO      Status Verdichter 4                                             0          1
+
+      1104                      WORD      RO      Status Ladepumpe (M73)                                          -1        100                [%]
+
+      1105                      WORD      RO      Status Sole/Zwischenkreispumpe (M16)                            -1        100                [%]
+
+(C) IDM ENERGIESYSTEME GMBH                                    IDM Navigator MODBUS TCP                                                          13
+4. Programmierung                                                                                           D I E E N E RG I E FAM I L I E
+
+
+
+
+ Adresse   Daten-   Access   Bezeichnung                                  Parameter   Min.      Max.    Default-            Ein-
+  DEZ       type                                                          Regelung    Wert      Wert     Wert               heit
+
+  1106     WORD      RO      Status Wärmequellen/Grundwasserpumpe                       -1      100                          [%]
+                             (M15)
+
+  1108     WORD      RO      Status ISC Kältespeicherpumpe (M84)                        -1      100                          [%]
+
+  1109     WORD      RO      Status ISC Rückkühlpumpe (M17)                             -1      100                          [%]
+
+  1110     WORD      RO      Umschaltventil Heizkreis Heizen/Kühlen                     0         1
+                             (M61)
+
+  1111     WORD      RO      Umschaltventil Speicher Heizen/Kühlen                      0         1
+                             (M62)
+
+  1112     WORD      RO      Umschaltventil Heizen/Warmwasser (M63)                     0         1
+
+  1113     WORD      RO      Umschaltventil Wärmequelle Heizen/Kühlen                   0         1
+                             (M74)
+
+  1114     WORD      RO      Umschaltventil Solar Heizen/Warmwasser                     0         1
+                             (M78)
+
+  1115     WORD      RO      Umschaltventil Solar Speicher/Wärmequelle                  0         1
+                             (M79)
+
+  1116     WORD      RO      Umschaltventil ISC Wärmequelle /Kältespei-                 0         1
+                             cher (M89)
+  1117     WORD      RO      Umschaltventil ISC Speicher / Bypass (M99)                 0         1
+
+  1118     WORD      RO      Zirkulationspumpe (M64)                                    0         1
+
+ *1120     WORD      RW      2. Wärmeerzeuger - Bivalenzpunkt 1            BV002       -90       40                         [°C]
+
+ *1121     WORD      RW      2. Wärmeerzeuger - Bivalenzpunkt 2            BV003       -90       40                         [°C]
+
+ *1122     WORD      RW      3. Wärmeerzeuger - Bivalenzpunkt 1            BV102       -90       40                         [°C]
+
+ *1123     WORD      RW      3. Wärmeerzeuger - Bivalenzpunkt 2            BV103       -90       40                         [°C]
+
+  1124     UCHAR     RO      Bivalenz Betriebszustand                                   0         3
+
+                                                                                      0 ... Aus
+                                                                                      1 ... Bivalenz 1 aktiv
+                                                                                      2 ... Bivalenz 2 aktiv
+                                                                                      3 ... Bivalenz 1+2 aktiv
+
+  1147     UCHAR     RO      Kaskade / Verfügbare Stufen Heizen                         0        20
+
+  1148     UCHAR     RO      Kaskade / Verfügbare Stufen Kühlen                         0        20
+
+  1149     UCHAR     RO      Kaskade / Verfügbare Stufen Warmwasser                     0        20
+
+  1150     UCHAR     RO      Kaskade / Laufende Stufen Heizen                           0        20
+
+  1151     UCHAR     RO      Kaskade / Laufende Stufen Kühlen                           0        20
+
+  1152     UCHAR     RO      Kaskade / Laufende Stufen Warmwasser                       0        20
+
+  1200     FLOAT     RO      Kaskade / Angeforderte Heiztemperatur                                                          [°C]
+
+  1202     FLOAT     RO      Kaskade / Angeforderte Kühltemperatur                                                          [°C]
+
+  1204     FLOAT     RO      Kaskade / Angeforderte Warmwasser-                                                             [°C]
+                             temperatur
+
+  1206     FLOAT     RO      Kaskade / Gemittelte Vorlauftemperatur                                                         [°C]
+                             Heizen
+
+  1208     FLOAT     RO      Kaskade / Gemittelte Vorlauftemperatur                                                         [°C]
+                             Kühlen
+
+
+
+14                                         IDM Navigator MODBUS TCP                          (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                                                         Programmierung
+
+    Adresse                     Daten-   Access   Bezeichnung                                 Parameter   Min.   Max.    Default-    Ein-
+     DEZ                         type                                                         Regelung    Wert   Wert     Wert       heit
+
+      1210                      FLOAT     RO      Kaskade / Gemittelte Vorlauftemperatur                                             [°C]
+                                                  Warmwasser
+
+      1220                      UCHAR     RW      Kaskade / Minimale Leistung Heizen                       0     100    SYSCAMLHM    [%]
+
+      1221                      UCHAR     RW      Kaskade / Maximale Leistung Heizen                       0     100     SYSCAMLH    [%]
+
+      1222                      UCHAR     RW      Kaskade / Minimale Leistung Kühlen                       0     100    SYSCAMLCM    [%]
+
+      1223                      UCHAR     RW      Kaskade / Maximale Leistung Kühlen                       0     100     SYSCAMLC    [%]
+
+      1224                      UCHAR     RW      Kaskade / Minimale Leistung Warmwasser                   0     100    SYSCAMLPM    [%]
+
+      1225                      UCHAR     RW      Kaskade / Maximale Leistung Warmwasser                   0     100     SYSCAMLP    [%]
+
+      1226                      WORD      RW      Kaskade / Bivalenzpunkt Heizen Parallel                 -90    40     SYSCAPVTHP   [°C]
+
+      1227                      WORD      RW      Kaskade / Bivalenzpunkt Heizen Alternativ               -90    40     SYSCAPVTHA   [°C]
+
+      1228                      WORD      RW      Kaskade / Bivalenzpunkt Kühlen Parallel                 -90    40     SYSCAPVTCP   [°C]
+
+      1229                      WORD      RW      Kaskade / Bivalenzpunkt Kühlen Alternativ               -90    40     SYSCAPVTCA   [°C]
+
+      1230                      WORD      RW      Kaskade / Bivalenzpunkt Warmwasser                      -90    40     SYSCAPVTPP   [°C]
+
+      1231                      WORD      RW      Kaskade / Bivalenzpunkt Warmwasser                      -90    40     SYSCAPVTPA   [°C]
+
+      1350                      FLOAT     RO      Heizkreis A Vorlauftemperatur (B51)                                                [°C]
+
+      1352                      FLOAT     RO      Heizkreis B Vorlauftemperatur (B52)                                                [°C]
+
+      1354                      FLOAT     RO      Heizkreis C Vorlauftemperatur (B53)                                                [°C]
+
+      1356                      FLOAT     RO      Heizkreis D Vorlauftemperatur (B54)                                                [°C]
+
+      1358                      FLOAT     RO      Heizkreis E Vorlauftemperatur (B55)                                                [°C]
+
+      1360                      FLOAT     RO      Heizkreis F Vorlauftemperatur (B56)                                                [°C]
+
+      1362                      FLOAT     RO      Heizkreis G Vorlauftemperatur (B57)                                                [°C]
+
+      1364                      FLOAT     RO      Heizkreis A Raumtemperatur (B61)                                                   [°C]
+
+      1366                      FLOAT     RO      Heizkreis B Raumtemperatur (B62)                                                   [°C]
+
+      1368                      FLOAT     RO      Heizkreis C Raumtemperatur (B63)                                                   [°C]
+
+      1370                      FLOAT     RO      Heizkreis D Raumtemperatur (B64)                                                   [°C]
+
+      1372                      FLOAT     RO      Heizkreis E Raumtemperatur (B65)                                                   [°C]
+
+      1374                      FLOAT     RO      Heizkreis F Raumtemperatur (B66)                                                   [°C]
+
+      1376                      FLOAT     RO      Heizkreis G Raumtemperatur (B67)                                                   [°C]
+
+      1378                      FLOAT     RO      Heizkreis A Sollvorlauftemperatur                                                  [°C]
+
+      1380                      FLOAT     RO      Heizkreis B Sollvorlauftemperatur                                                  [°C]
+
+      1382                      FLOAT     RO      Heizkreis C Sollvorlauftemperatur                                                  [°C]
+
+      1384                      FLOAT     RO      Heizkreis D Sollvorlauftemperatur                                                  [°C]
+
+      1386                      FLOAT     RO      Heizkreis E Sollvorlauftemperatur                                                  [°C]
+
+      1388                      FLOAT     RO      Heizkreis F Sollvorlauftemperatur                                                  [°C]
+
+      1390                      FLOAT     RO      Heizkreis G Sollvorlauftemperatur                                                  [°C]
+
+      1392                      FLOAT     RO      Feuchtesensor (B31)                                      0     100                 [%rF]
+
+     *1393                      UCHAR     RW      Betriebsart Heizkreis A                      HKA01       0      5         1
+
+
+
+
+(C) IDM ENERGIESYSTEME GMBH                                   IDM Navigator MODBUS TCP                                                  15
+4. Programmierung
+Programmierung                                                                                          D I E E N E RG I E FAM I L I E
+
+
+
+
+ Adresse   Daten-   Access   Bezeichnung                             Parameter   Min.      Max.    Default-             Ein-
+  DEZ       type                                                     Regelung    Wert      Wert     Wert                heit
+
+                                                                                 0 ... Aus
+                                                                                 1 ... Zeitprogramm
+                                                                                 2 ... Normal
+                                                                                 3 ... Eco
+                                                                                 4 ... Manuell Heizen
+                                                                                 5 ... Manuell Kühlen
+ *1394     UCHAR     RW      Betriebsart Heizkreis B                  HKB01        0         5          1
+
+ *1395     UCHAR     RW      Betriebsart Heizkreis C                  HKC01        0         5          1
+
+ *1396     UCHAR     RW      Betriebsart Heizkreis D                  HKD01        0         5          1
+
+ *1397     UCHAR     RW      Betriebsart Heizkreis E                  HKE01        0         5          1
+
+ *1398     UCHAR     RW      Betriebsart Heizkreis F                  HKF01        0         5          1
+
+ *1399     UCHAR     RW      Betriebsart Heizkreis G                  HKG01        0         5          1
+
+ *1401     FLOAT     RW      Raumsolltemperatur Heizen Normal HK A    HKA04       15        30       22                 [°C]
+
+ *1403     FLOAT     RW      Raumsolltemperatur Heizen Normal HK B    HKB04       15        30       22                 [°C]
+
+ *1405     FLOAT     RW      Raumsolltemperatur Heizen Normal HK C    HKC04       15        30       22                 [°C]
+
+ *1407     FLOAT     RW      Raumsolltemperatur Heizen Normal HK D    HKD04       15        30       22                 [°C]
+
+ *1409     FLOAT     RW      Raumsolltemperatur Heizen Normal HK E    HKE04       15        30       22                 [°C]
+
+ *1411     FLOAT     RW      Raumsolltemperatur Heizen Normal HK F    HKF04       15        30       22                 [°C]
+
+ *1413     FLOAT     RW      Raumsolltemperatur Heizen Normal HK G    HKG04       15        30       22                 [°C]
+
+ *1415     FLOAT     RW      Raumsolltemperatur Heizen Eco HK A       HKA05       10        25       18                 [°C]
+
+ *1417     FLOAT     RW      Raumsolltemperatur Heizen Eco HK B       HKB05       10        25       18                 [°C]
+
+ *1419     FLOAT     RW      Raumsolltemperatur Heizen Eco HK C       HKC05       10        25       18                 [°C]
+
+ *1421     FLOAT     RW      Raumsolltemperatur Heizen Eco HK D       HKD05       10        25       18                 [°C]
+
+ *1423     FLOAT     RW      Raumsolltemperatur Heizen Eco HK E       HKE05       10        25       18                 [°C]
+
+ *1425     FLOAT     RW      Raumsolltemperatur Heizen Eco HK F       HKF05       10        25       18                 [°C]
+
+ *1427     FLOAT     RW      Raumsolltemperatur Heizen Eco HK G       HKG05       10        25       18                 [°C]
+
+ *1429     FLOAT     RW      Heizkurve HK A                           HKA10       0,1       3,5      0,6
+
+ *1431     FLOAT     RW      Heizkurve HK B                           HKB10       0,1       3,5      0,6
+
+ *1433     FLOAT     RW      Heizkurve HK C                           HKC10       0,1       3,5      0,6
+
+ *1435     FLOAT     RW      Heizkurve HK D                           HKD10       0,1       3,5      0,6
+
+ *1437     FLOAT     RW      Heizkurve HK E                           HKE10       0,1       3,5      0,6
+
+ *1439     FLOAT     RW      Heizkurve HK F                           HKF10       0,1       3,5      0,6
+
+ *1441     FLOAT     RW      Heizkurve HK G                           HKG10       0,1       3,5      0,6
+
+ *1442     UCHAR     RW      Heizgrenze HK A                          HKA08        0        50       15                 [°C]
+
+ *1443     UCHAR     RW      Heizgrenze HK B                          HKB08        0        50       15                 [°C]
+
+ *1444     UCHAR     RW      Heizgrenze HK C                          HKC08        0        50       15                 [°C]
+
+ *1445     UCHAR     RW      Heizgrenze HK D                          HKD08        0        50       15                 [°C]
+
+ *1446     UCHAR     RW      Heizgrenze HK E                          HKE08        0        50       15                 [°C]
+
+ *1447     UCHAR     RW      Heizgrenze HK F                          HKF08        0        50       15                 [°C]
+
+ *1448     UCHAR     RW      Heizgrenze HK G                          HKG08        0        50       15                 [°C]
+
+
+16                                         IDM Navigator MODBUS TCP                     (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                                                           Programmierung
+
+   Adresse                      Daten-   Access   Bezeichnung                                Parameter   Min.     Max.    Default-   Ein-
+    DEZ                          type                                                        Regelung    Wert     Wert     Wert      heit
+
+    *1449                       UCHAR     RW      Sollvorlauftemperatur HK A (Konstant-HK)    HKA03       20       90       45       [°C]
+
+    *1450                       UCHAR     RW      Sollvorlauftemperatur HK B (Konstant-HK)    HKB03       20       90       45       [°C]
+
+    *1451                       UCHAR     RW      Sollvorlauftemperatur HK C (Konstant-HK)    HKC03       20       90       45       [°C]
+
+    *1452                       UCHAR     RW      Sollvorlauftemperatur HK D (Konstant-HK)    HKD03       20       90       45       [°C]
+
+    *1453                       UCHAR     RW      Sollvorlauftemperatur HK E (Konstant-HK)    HKE03       20       90       45       [°C]
+
+    *1454                       UCHAR     RW      Sollvorlauftemperatur HK F (Konstant-HK)    HKF03       20       90       45       [°C]
+
+    *1455                       UCHAR     RW      Sollvorlauftemperatur HK G (Konstant-HK)    HKG03       20       90       45       [°C]
+
+    *1457                       FLOAT     RW      Raumsolltemperatur Kühlen Normal HK A       HKA50       15       30       23       [°C]
+
+    *1459                       FLOAT     RW      Raumsolltemperatur Kühlen Normal HK B       HKB50       15       30       23       [°C]
+
+    *1461                       FLOAT     RW      Raumsolltemperatur Kühlen Normal HK C       HKC50       15       30       23       [°C]
+
+    *1463                       FLOAT     RW      Raumsolltemperatur Kühlen Normal HK D       HKD50       15       30       23       [°C]
+
+    *1465                       FLOAT     RW      Raumsolltemperatur Kühlen Normal HK E       HKE50       15       30       23       [°C]
+
+    *1467                       FLOAT     RW      Raumsolltemperatur Kühlen Normal HK F       HKF50       15       30       23       [°C]
+
+    *1469                       FLOAT     RW      Raumsolltemperatur Kühlen Normal HK G       HKG50       15       30       23       [°C]
+
+    *1471                       FLOAT     RW      Raumsolltemperatur Kühlen Eco HK A          HKA51       15       30       25       [°C]
+
+    *1473                       FLOAT     RW      Raumsolltemperatur Kühlen Eco HK B          HKB51       15       30       25       [°C]
+
+    *1475                       FLOAT     RW      Raumsolltemperatur Kühlen Eco HK C          HKC51       15       30       25       [°C]
+
+    *1477                       FLOAT     RW      Raumsolltemperatur Kühlen Eco HK D          HKD51       15       30       25       [°C]
+
+    *1479                       FLOAT     RW      Raumsolltemperatur Kühlen Eco HK E          HKE51       15       30       25       [°C]
+
+    *1481                       FLOAT     RW      Raumsolltemperatur Kühlen Eco HK F          HKF51       15       30       25       [°C]
+
+    *1483                       FLOAT     RW      Raumsolltemperatur Kühlen Eco HK G          HKG51       15       30       25       [°C]
+
+    *1484                       UCHAR     RW      Kühlgrenze HK A                             HKA58        0       36       25       [°C]
+
+    *1485                       UCHAR     RW      Kühlgrenze HK B                             HKB58        0       36       25       [°C]
+
+    *1486                       UCHAR     RW      Kühlgrenze HK C                             HKC58        0       36       25       [°C]
+
+    *1487                       UCHAR     RW      Kühlgrenze HK D                             HKD58        0       36       25       [°C]
+
+    *1488                       UCHAR     RW      Kühlgrenze HK E                             HKE58        0       36       25       [°C]
+
+    *1489                       UCHAR     RW      Kühlgrenze HK F                             HKF58        0       36       25       [°C]
+
+    *1490                       UCHAR     RW      Kühlgrenze HK G                             HKG58        0       36       25       [°C]
+
+    *1491                       UCHAR     RW      Sollvorlauftemperatur Kühlen HK A           HKA53        8       30       18       [°C]
+
+    *1492                       UCHAR     RW      Sollvorlauftemperatur Kühlen HK B           HKB53        8       30       18       [°C]
+
+    *1493                       UCHAR     RW      Sollvorlauftemperatur Kühlen HK C           HKC53        8       30       18       [°C]
+
+    *1494                       UCHAR     RW      Sollvorlauftemperatur Kühlen HK D           HKD53        8       30       18       [°C]
+
+    *1495                       UCHAR     RW      Sollvorlauftemperatur Kühlen HK E           HKE53        8       30       18       [°C]
+
+    *1496                       UCHAR     RW      Sollvorlauftemperatur Kühlen HK F           HKF53        8       30       18       [°C]
+
+    *1497                       UCHAR     RW      Sollvorlauftemperatur Kühlen HK G           HKG53        8       30       18       [°C]
+
+      1498                      UCHAR     RO      Aktive Betriebsart Heizkreis A                           0       2         0
+
+                                                                                                         0 ... Aus
+                                                                                                         1 ... Heizen
+                                                                                                         2 ... Kühlen
+
+
+(C) IDM ENERGIESYSTEME GMBH                                     IDM Navigator MODBUS TCP                                                17
+4. Programmierung
+Programmierung                                                                                         D I E E N E RG I E FAM I L I E
+
+
+
+
+ Adresse     Daten-   Access   Bezeichnung                             Parameter   Min.    Max.    Default-            Ein-
+  DEZ         type                                                     Regelung    Wert    Wert     Wert               heit
+
+  1499       UCHAR      RO     Aktive Betriebsart Heizkreis B                       0        2        0
+
+  1500       UCHAR      RO     Aktive Betriebsart Heizkreis C                       0        2        0
+
+  1501       UCHAR      RO     Aktive Betriebsart Heizkreis D                       0        2        0
+
+  1502       UCHAR      RO     Aktive Betriebsart Heizkreis E                       0        2        0
+
+  1503       UCHAR      RO     Aktive Betriebsart Heizkreis F                       0        2        0
+
+  1504       UCHAR      RO     Aktive Betriebsart Heizkreis G                       0        2        0
+
+ *1505       UCHAR     RW      Parallelverschiebung HK A                HKA03       0       30        0                [°C]
+
+ *1506       UCHAR     RW      Parallelverschiebung HK B                HKB03       0       30        0                [°C]
+
+ *1507       UCHAR     RW      Parallelverschiebung HK C                HKC03       0       30        0                [°C]
+
+ *1508       UCHAR     RW      Parallelverschiebung HK D                HKD03       0       30        0                [°C]
+
+ *1509       UCHAR     RW      Parallelverschiebung HK E                HKE03       0       30        0                [°C]
+
+ *1510       UCHAR     RW      Parallelverschiebung HK F                HKF03       0       30        0                [°C]
+
+ *1511       UCHAR     RW      Parallelverschiebung HK G                HKG03       0       30        0                [°C]
+
+  1650       FLOAT      W      Externe Raumtemperatur HK A                         15       30                         [°C]
+
+  1652       FLOAT      W      Externe Raumtemperatur HK B                         15       30                         [°C]
+
+  1654       FLOAT      W      Externe Raumtemperatur HK C                         15       30                         [°C]
+
+  1656       FLOAT      W      Externe Raumtemperatur HK D                         15       30                         [°C]
+
+  1658       FLOAT      W      Externe Raumtemperatur HK E                         15       30                         [°C]
+
+  1660       FLOAT      W      Externe Raumtemperatur HK F                         15       30                         [°C]
+
+  1662       FLOAT      W      Externe Raumtemperatur HK G                         15       30                         [°C]
+
+  1690       FLOAT      W      Externe Außentemperatur                                                                 [°C]
+
+  1692       FLOAT      W      Externe Feuchte                                      0      100                       [%rF]
+
+ *1694       UCHAR     RW      Externe Anforderungstemperatur Heizen    PH003      20       65       40                [°C]
+
+ *1695       UCHAR     RW      Externe Anforderungstemperatur Kühlen    PC004      10       25       18                [°C]
+ 7)
+      1696   FLOAT      W      GLT Temperaturanforderung Heizen                                       0                [°C]
+ 7)
+      1698   FLOAT      W      GLT Temperaturanforderung Kühlen                                     100                [°C]
+
+  1710       BOOL      RW      Anforderung Heizen                                   0        1        0
+
+  1711       BOOL      RW      Anforderung Kühlen                                   0        1        0
+
+  1712       BOOL      RW      Anforderung Warmwasserladung                         0        1        0
+
+
+
+             Die Anforderungen Heizen/Kühlen (Adressen 1710/1711) sollten zyklisch geschrieben werden,
+             damit nach einem Neustart der Touchdisplays bzw. der Anlage die Anforderung wieder anliegt!
+
+             Bei Warmwasseranforderung über die Adresse 1712 wird die Warmwasserladung unabhängig
+             von der Speichertemperatur gestartet. Zur Beendung der Warmwasserladung muss die Anforde-
+             rung weggenommen werden!
+
+             Die Anforderung/Ansteuerung der Sole-/Zwischenkreis- und der Grundwasserpumpe (Adressen
+             1714/1715) erfolgt automatisch über die Navigatorregelung. Eine Anforderung/Ansteuerung die-
+             ser Pumpen über die Gebäudeleittechnik ist somit nicht sinnvoll!
+
+18                                           IDM Navigator MODBUS TCP                   (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                                                               Programmierung
+
+     Adresse                    Daten-   Access   Bezeichnung                                  Parameter   Min.        Max.    Default-   Ein-
+      DEZ                        type                                                          Regelung    Wert        Wert     Wert      heit
+
+                                                  Die WW-Ladung muss mit „0“ beendet werden!               0 ... Aus
+                                                                                                           1 ... Ein
+
+      1713                      BOOL      RW      Ext. Ansteuerung „Einmalige WW-Ladung“                     0          1         0
+
+      1714                      UCHAR     RW      Externe Anforderung Grundwasserpumpe
+                                                  M15 (bei SW/SWM/SW Twin) und Sole-/
+                                                  Zwischenkreispumpe M16 (bei SW/SWM/
+                                                  SW Twin/SW Max)
+
+      1715                      UCHAR     RW      Externe Anforderung Grundwasserpumpe
+                                                  M15 (bei SW Max)
+
+      1716                      FLOAT     W       GLT Wärmespeichertemperatur                                                     -1      [°C}
+
+      1718                      FLOAT     W       GLT Kältespeichertemperatur                                                     -1      [°C}
+
+      1720                      FLOAT     W       GLT Trinkwarmwassererwärmertemp. unten                                          -1      [°C]
+
+      1722                      FLOAT     W       GLT Trinkwarmwassererwärmertemp. oben                                           -1      [°C]
+
+      1748                      FLOAT     RO      Wärmemenge Heizen2)                                                                     kWh
+
+      1750                      FLOAT     RO      Wärmemenge Gesamt1)                                                                     kWh
+
+      1752                      FLOAT     RO      Wärmemenge Kühlen2)                                                                     kWh
+
+      1754                      FLOAT     RO      Wärmemenge Warmwasser2)                                                                 kWh
+
+      1756                      FLOAT     RO      Wärmemenge Abtauung           2)
+                                                                                                                                          kWh
+
+      1758                      FLOAT     RO      Wärmemenge Passive Kühlung         3)
+                                                                                                                                          kWh
+
+      1760                      FLOAT     RO      Wärmemenge Solar         4)
+                                                                                                                                          kWh
+
+      1762                      FLOAT     RO      Wärmemenge Elektroheizeinsatz           2)
+                                                                                                                                          kWh
+
+      1790                      FLOAT     RO      Momentanleistung    5)
+                                                                                                                                          [kW]
+
+      1792                      FLOAT     RO      Momentanleistung Solar4)                                                                [kW]
+
+      1850                      FLOAT     RO      Solar Kollektortemperatur (B73)                                                         [°C]
+
+      1852                      FLOAT     RO      Solar Kollektorrücklauftemperatur (B75)                                                 [°C]
+
+      1854                      FLOAT     RO      Solar Ladetemperatur (B74)                                                              [°C]
+
+     *1856                      UCHAR     RW      Betriebsart Solar                             SC002        0          4         0
+
+                                                                                                           0 ... Automatik
+                                                                                                           1 ... Warmwasser
+                                                                                                           2 ... Heizung
+                                                                                                           3 ... Warmwasser + Heizung
+                                                                                                           4 ... Wärmequelle / Pool
+
+      1857                      FLOAT     RO      Solar WQ-Referenztemp./Pooltemp. (B76)                                                  [°C]
+
+      1870                      FLOAT     RO      ISC Ladetemperatur Kühlen (B44)                                                         [°C]
+
+      1872                      FLOAT     RO      ISC Rückkühltemperatur (B49)                                                            [°C]
+*)
+     Werte aus EEPROM, nur begrenzte Schreibzyklen möglich!
+1)
+     Bei Anlagen ohne Vortex-Sensor --> berechnete Wärmemenge (Heizen + Warmwasser)
+2)
+     Nur bei Anlagen mit Vortex-Sensor (iPump A/T/ALM, AERO SLM/ALM und TERRA SWM
+3)
+     Nur bei iPump T
+4)
+     Nur bei eingebautem Durchﬂusszähler
+5)
+     Bei Anlagen mit Vortex-Sensor --> gemessene Momentanleistung; Bei Anlagen ohne Vortex-Sensor --> berechnete Momentanleistung
+6)
+     Darf nicht permanent geschrieben werden, da sonst keine Störmeldungen mehr angezeigt werden!
+7)
+     Muss zyklisch (alle 10 Min.) geändert werden! Der Parameter PM003 wird hier nicht geändert!
+
+(C) IDM ENERGIESYSTEME GMBH                                   IDM Navigator MODBUS TCP                                                       19
+4. Programmierung
+Programmierung                                                                                                D I E E N E RG I E FAM I L I E
+
+
+
+
+ Adresse   Daten-    Access    Bezeichnung                                 Parameter    Min.       Max.   Default-            Ein-
+  DEZ       type                                                           Regelung     Wert       Wert    Wert               heit
+
+  1874     UCHAR       RO      ISC Modus                                                  0         8
+
+                                                                                       0 ... Keine Abwärme
+                                                                                       1 ... Heizung
+                                                                                       4 ... Warmwasser
+                                                                                       8 ... Wärmequelle
+
+  1999     UCHAR       W       Störmeldungen quittieren6)
+
+Navigator Pro - Einzelraumregelung
+  2000     UCHAR       RO      Zonenmodul 1 Modus Heizen/Kühlen A14                       0         1
+
+                                                                                       0 ... Kühlen
+                                                                                       1 ... Heizen
+
+  2001     UCHAR       RO      Zonenmodul 1 Entfeuchtungsausgang A12                      0         1        0
+
+                                                                                       0 ... Aus
+                                                                                       1 ... Ein
+
+  2002     FLOAT    RW/RO      Zonenmodul 1 Raumtemperatur Raum 1                        15        30                         [°C]
+
+                    RW ... Bei Verwendung von externen Raumsensoren
+                    RO ... Bei Verwendung von IDM Raumsensoren
+
+  2004     FLOAT      RW       Zonenmodul 1 Raumsolltemperatur Raum 1                                                         [°C]
+
+                               Hinweis: Wenn die Raumsolltemperatur über die Gebäudeleittechnik (GLT) vorgegeben wird,
+                               dann ist beim jeweiligen Raum die Betriebsart auf „Normal“ zu stellen!
+                               Die Solltemperatur kann nur in 0,5er Schritten kommuniziert werden!
+
+  2006     UCHAR    RW/RO      Zonenmodul 1 Raumfeuchte Raum 1                            0        100                      [%rF]
+
+                    RW ... Bei Verwendung von externen Raumsensoren
+                    RO ... Bei Verwendung von IDM Raumsensoren
+
+  2007     UCHAR      RW       Zonenmodul 1 Betriebsart Raum 1                            0         4
+
+                                                                                       0 ... Aus
+                                                                                       1 ... Automatik
+                                                                                       2 ... Eco
+                                                                                       3 ... Normal
+                                                                                       4 ... Komfort
+
+  2008     UCHAR       RO      Zonenmodul 1 Status Relais Raum 1                          0         1
+
+                                                                                       0 ... Aus
+                                                                                       1 ... Ein
+
+  2009     FLOAT    RW/RO      Zonenmodul 1 Raumtemperatur Raum 2                        15        30                         [°C]
+
+  2011     FLOAT      RW       Zonenmodul 1 Raumsolltemperatur Raum 2                                                         [°C]
+
+  2013     UCHAR    RW/RO      Zonenmodul 1 Raumfeuchte Raum 2                            0        100                      [%rF]
+
+  2014     UCHAR      RW       Zonenmodul 1 Betriebsart Raum 2                            0         4
+
+  2015     UCHAR       RO      Zonenmodul 1 Status Relais Raum 2                          0         1
+
+  2016     FLOAT    RW/RO      Zonenmodul 1 Raumtemperatur Raum 3                        15        30                         [°C]
+
+  2018     FLOAT      RW       Zonenmodul 1 Raumsolltemperatur Raum 3                                                         [°C]
+
+  2020     UCHAR    RW/RO      Zonenmodul 1 Raumfeuchte Raum 3                            0        100                      [%rF]
+
+  2021     UCHAR      RW       Zonenmodul 1 Betriebsart Raum 3                            0         4
+
+  2022     UCHAR       RO      Zonenmodul 1 Status Relais Raum 3                          0         1
+
+  2023     FLOAT    RW/RO      Zonenmodul 1 Raumtemperatur Raum 4                        15        30                         [°C]
+
+
+20                                           IDM Navigator MODBUS TCP                         (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                                                      Programmierung
+
+    Adresse                     Daten-   Access   Bezeichnung                              Parameter   Min.   Max.    Default-   Ein-
+     DEZ                         type                                                      Regelung    Wert   Wert     Wert      heit
+
+      2025                      FLOAT     RW      Zonenmodul 1 Raumsolltemperatur Raum 4                                         [°C]
+
+      2027                      UCHAR    RW/RO    Zonenmodul 1 Raumfeuchte Raum 4                       0     100                [%rF]
+
+      2028                      UCHAR     RW      Zonenmodul 1 Betriebsart Raum 4                       0      4
+
+      2029                      UCHAR     RO      Zonenmodul 1 Status Relais Raum 4                     0      1
+
+      2030                      FLOAT    RW/RO    Zonenmodul 1 Raumtemperatur Raum 5                   15     30                 [°C]
+
+      2032                      FLOAT     RW      Zonenmodul 1 Raumsolltemperatur Raum 5                                         [°C]
+
+      2034                      UCHAR    RW/RO    Zonenmodul 1 Raumfeuchte Raum 5                       0     100                [%rF]
+
+      2035                      UCHAR     RW      Zonenmodul 1 Betriebsart Raum 5                       0      4
+
+      2036                      UCHAR     RO      Zonenmodul 1 Status Relais Raum 5                     0      1
+
+      2037                      FLOAT    RW/RO    Zonenmodul 1 Raumtemperatur Raum 6                   15     30                 [°C]
+
+      2039                      FLOAT     RW      Zonenmodul 1 Raumsolltemperatur Raum 6                                         [°C]
+
+      2041                      UCHAR    RW/RO    Zonenmodul 1 Raumfeuchte Raum 6                       0     100                [%rF]
+
+      2042                      UCHAR     RW      Zonenmodul 1 Betriebsart Raum 6                       0      4
+
+      2043                      UCHAR     RO      Zonenmodul 1 Status Relais Raum 6                     0      1
+
+      2044                      FLOAT    RW/RO    Zonenmodul 1 Raumtemperatur Raum 7                   15     30                 [°C]
+
+      2046                      FLOAT     RW      Zonenmodul 1 Raumsolltemperatur Raum 7                                         [°C]
+
+      2048                      UCHAR    RW/RO    Zonenmodul 1 Raumfeuchte Raum 7                       0     100                [%rF]
+
+      2049                      UCHAR     RW      Zonenmodul 1 Betriebsart Raum 7                       0      4
+
+      2050                      UCHAR     RO      Zonenmodul 1 Status Relais Raum 7                     0      1
+
+      2051                      FLOAT    RW/RO    Zonenmodul 1 Raumtemperatur Raum 8                   15     30                 [°C]
+
+      2053                      FLOAT     RW      Zonenmodul 1 Raumsolltemperatur Raum 8                                         [°C]
+
+      2055                      UCHAR    RW/RO    Zonenmodul 1 Raumfeuchte Raum 8                       0     100                [%rF]
+
+      2056                      UCHAR     RW      Zonenmodul 1 Betriebsart Raum 8                       0      4
+
+      2057                      UCHAR     RO      Zonenmodul 1 Status Relais Raum 8                     0      1
+
+      2064                      UCHAR     RO      Zonenmodul 1 Status Relais Raum 9 (A9)                0      1
+
+      2065                      UCHAR     RO      Zonenmodul 2 Modus Heizen/Kühlen A14                  0      1
+
+      2066                      UCHAR     RO      Zonenmodul 2 Entfeuchtungsausgang A12                 0      1         0
+
+      2067                      FLOAT    RW/RO    Zonenmodul 2 Raumtemperatur Raum 1                   15     30                 [°C]
+
+      2069                      FLOAT     RW      Zonenmodul 2 Raumsolltemperatur Raum 1                                         [°C]
+
+      2071                      UCHAR    RW/RO    Zonenmodul 2 Raumfeuchte Raum 1                       0     100                [%rF]
+
+      2072                      UCHAR     RW      Zonenmodul 2 Betriebsart Raum 1                       0      4
+
+      2073                      UCHAR     RO      Zonenmodul 2 Status Relais Raum 1                     0      1
+
+      2074                      FLOAT    RW/RO    Zonenmodul 2 Raumtemperatur Raum 2                   15     30                 [°C]
+
+      2076                      FLOAT     RW      Zonenmodul 2 Raumsolltemperatur Raum 2                                         [°C]
+
+      2078                      UCHAR    RW/RO    Zonenmodul 2 Raumfeuchte Raum 2                       0     100                [%rF]
+
+      2079                      UCHAR     RW      Zonenmodul 2 Betriebsart Raum 2                       0      4
+
+      2080                      UCHAR     RO      Zonenmodul 2 Status Relais Raum 2                     0      1
+
+      2081                      FLOAT    RW/RO    Zonenmodul 2 Raumtemperatur Raum 3                   15     30                 [°C]
+
+
+(C) IDM ENERGIESYSTEME GMBH                                  IDM Navigator MODBUS TCP                                               21
+4. Programmierung
+Programmierung                                                                                        D I E E N E RG I E FAM I L I E
+
+
+
+
+ Adresse   Daten-   Access   Bezeichnung                              Parameter   Min.    Max.    Default-            Ein-
+  DEZ       type                                                      Regelung    Wert    Wert     Wert               heit
+
+  2083     FLOAT     RW      Zonenmodul 2 Raumsolltemperatur Raum 3                                                   [°C]
+
+  2085     UCHAR    RW/RO    Zonenmodul 2 Raumfeuchte Raum 3                       0      100                       [%rF]
+
+  2086     UCHAR     RW      Zonenmodul 2 Betriebsart Raum 3                       0        4
+
+  2087     UCHAR     RO      Zonenmodul 2 Status Relais Raum 3                     0        1
+
+  2088     FLOAT    RW/RO    Zonenmodul 2 Raumtemperatur Raum 4                   15       30                         [°C]
+
+  2090     FLOAT     RW      Zonenmodul 2 Raumsolltemperatur Raum 4                                                   [°C]
+
+  2092     UCHAR    RW/RO    Zonenmodul 2 Raumfeuchte Raum 4                       0      100                       [%rF]
+
+  2093     UCHAR     RW      Zonenmodul 2 Betriebsart Raum 4                       0        4
+
+  2094     UCHAR     RO      Zonenmodul 2 Status Relais Raum 4                     0        1
+
+  2095     FLOAT    RW/RO    Zonenmodul 2 Raumtemperatur Raum 5                   15       30                         [°C]
+
+  2097     FLOAT     RW      Zonenmodul 2 Raumsolltemperatur Raum 5                                                   [°C]
+
+  2099     UCHAR    RW/RO    Zonenmodul 2 Raumfeuchte Raum 5                       0      100                       [%rF]
+
+  2100     UCHAR     RW      Zonenmodul 2 Betriebsart Raum 5                       0        4
+
+  2101     UCHAR     RO      Zonenmodul 2 Status Relais Raum 5                     0        1
+
+  2102     FLOAT    RW/RO    Zonenmodul 2 Raumtemperatur Raum 6                   15       30                         [°C]
+
+  2104     FLOAT     RW      Zonenmodul 2 Raumsolltemperatur Raum 6                                                   [°C]
+
+  2106     UCHAR    RW/RO    Zonenmodul 2 Raumfeuchte Raum 6                       0      100                       [%rF]
+
+  2107     UCHAR     RW      Zonenmodul 2 Betriebsart Raum 6                       0        4
+
+  2108     UCHAR     RO      Zonenmodul 2 Status Relais Raum 6                     0        1
+
+  2109     FLOAT    RW/RO    Zonenmodul 2 Raumtemperatur Raum 7                   15       30                         [°C]
+
+  2111     FLOAT     RW      Zonenmodul 2 Raumsolltemperatur Raum 7                                                   [°C]
+
+  2113     UCHAR    RW/RO    Zonenmodul 2 Raumfeuchte Raum 7                       0      100                       [%rF]
+
+  2114     UCHAR     RW      Zonenmodul 2 Betriebsart Raum 7                       0        4
+
+  2115     UCHAR     RO      Zonenmodul 2 Status Relais Raum 7                     0        1
+
+  2116     FLOAT    RW/RO    Zonenmodul 2 Raumtemperatur Raum 8                   15       30                         [°C]
+
+  2118     FLOAT     RW      Zonenmodul 2 Raumsolltemperatur Raum 8                                                   [°C]
+
+  2120     UCHAR    RW/RO    Zonenmodul 2 Raumfeuchte Raum 8                       0      100                       [%rF]
+
+  2121     UCHAR     RW      Zonenmodul 2 Betriebsart Raum 8                       0        4
+
+  2122     UCHAR     RO      Zonenmodul 2 Status Relais Raum 8                     0        1
+
+  2129     UCHAR     RO      Zonenmodul 2 Status Relais Raum 9 (A9)                0        1
+
+  2130     UCHAR     RO      Zonenmodul 3 Modus Heizen/Kühlen A14                  0        1
+
+  2131     UCHAR     RO      Zonenmodul 3 Entfeuchtungsausgang A12                 0        1        0
+
+  2132     FLOAT    RW/RO    Zonenmodul 3 Raumtemperatur Raum 1                   15       30                         [°C]
+
+  2134     FLOAT     RW      Zonenmodul 3 Raumsolltemperatur Raum 1                                                   [°C]
+
+  2136     UCHAR    RW/RO    Zonenmodul 3 Raumfeuchte Raum 1                       0      100                       [%rF]
+
+  2137     UCHAR     RW      Zonenmodul 3 Betriebsart Raum 1                       0        4
+
+  2138     UCHAR     RO      Zonenmodul 3 Status Relais Raum 1                     0        1
+
+  2139     FLOAT    RW/RO    Zonenmodul 3 Raumtemperatur Raum 2                   15       30                         [°C]
+
+
+22                                         IDM Navigator MODBUS TCP                    (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                                                      Programmierung
+
+   Adresse                      Daten-   Access   Bezeichnung                              Parameter   Min.   Max.   Default-   Ein-
+    DEZ                          type                                                      Regelung    Wert   Wert    Wert      heit
+
+      2141                      FLOAT     RW      Zonenmodul 3 Raumsolltemperatur Raum 2                                        [°C]
+
+      2143                      UCHAR    RW/RO    Zonenmodul 3 Raumfeuchte Raum 2                       0     100               [%rF]
+
+      2144                      UCHAR     RW      Zonenmodul 3 Betriebsart Raum 2                       0      4
+
+      2145                      UCHAR     RO      Zonenmodul 3 Status Relais Raum 2                     0      1
+
+      2146                      FLOAT    RW/RO    Zonenmodul 3 Raumtemperatur Raum 3                   15     30                [°C]
+
+      2148                      FLOAT     RW      Zonenmodul 3 Raumsolltemperatur Raum 3                                        [°C]
+
+      2150                      UCHAR    RW/RO    Zonenmodul 3 Raumfeuchte Raum 3                       0     100               [%rF]
+
+      2151                      UCHAR     RW      Zonenmodul 3 Betriebsart Raum 3                       0      4
+
+      2152                      UCHAR     RO      Zonenmodul 3 Status Relais Raum 3                     0      1
+
+      2153                      FLOAT    RW/RO    Zonenmodul 3 Raumtemperatur Raum 4                   15     30                [°C]
+
+      2155                      FLOAT     RW      Zonenmodul 3 Raumsolltemperatur Raum 4                                        [°C]
+
+      2157                      UCHAR    RW/RO    Zonenmodul 3 Raumfeuchte Raum 4                       0     100               [%rF]
+
+      2158                      UCHAR     RW      Zonenmodul 3 Betriebsart Raum 4                       0      4
+
+      2159                      UCHAR     RO      Zonenmodul 3 Status Relais Raum 4                     0      1
+
+      2160                      FLOAT    RW/RO    Zonenmodul 3 Raumtemperatur Raum 5                   15     30                [°C]
+
+      2162                      FLOAT     RW      Zonenmodul 3 Raumsolltemperatur Raum 5                                        [°C]
+
+      2164                      UCHAR    RW/RO    Zonenmodul 3 Raumfeuchte Raum 5                       0     100               [%rF]
+
+      2165                      UCHAR     RW      Zonenmodul 3 Betriebsart Raum 5                       0      4
+
+      2166                      UCHAR     RO      Zonenmodul 3 Status Relais Raum 5                     0      1
+
+      2167                      FLOAT    RW/RO    Zonenmodul 3 Raumtemperatur Raum 6                   15     30                [°C]
+
+      2169                      FLOAT     RW      Zonenmodul 3 Raumsolltemperatur Raum 6                                        [°C]
+
+      2171                      UCHAR    RW/RO    Zonenmodul 3 Raumfeuchte Raum 6                       0     100               [%rF]
+
+      2172                      UCHAR     RW      Zonenmodul 3 Betriebsart Raum 6                       0      4
+
+      2173                      UCHAR     RO      Zonenmodul 3 Status Relais Raum 6                     0      1
+
+      2174                      FLOAT    RW/RO    Zonenmodul 3 Raumtemperatur Raum 7                   15     30                [°C]
+
+      2176                      FLOAT     RW      Zonenmodul 3 Raumsolltemperatur Raum 7                                        [°C]
+
+      2178                      UCHAR    RW/RO    Zonenmodul 3 Raumfeuchte Raum 7                       0     100               [%rF]
+
+      2179                      UCHAR     RW      Zonenmodul 3 Betriebsart Raum 7                       0      4
+
+      2180                      UCHAR     RO      Zonenmodul 3 Status Relais Raum 7                     0      1
+
+      2181                      FLOAT    RW/RO    Zonenmodul 3 Raumtemperatur Raum 8                   15     30                [°C]
+
+      2183                      FLOAT     RW      Zonenmodul 3 Raumsolltemperatur Raum 8                                        [°C]
+
+      2185                      UCHAR    RW/RO    Zonenmodul 3 Raumfeuchte Raum 8                       0     100               [%rF]
+
+      2186                      UCHAR     RW      Zonenmodul 3 Betriebsart Raum 8                       0      4
+
+      2187                      UCHAR     RO      Zonenmodul 3 Status Relais Raum 8                     0      1
+
+      2194                      UCHAR     RO      Zonenmodul 3 Status Raum 9 (A9)                       0      1
+
+      2195                      UCHAR     RO      Zonenmodul 4 Modus Heizen/Kühlen A14                  0      1
+
+      2196                      UCHAR     RO      Zonenmodul 4 Entfeuchtungsausgang A12                 0      1        0
+
+      2197                      FLOAT    RW/RO    Zonenmodul 4 Raumtemperatur Raum 1                   15     30                [°C]
+
+
+(C) IDM ENERGIESYSTEME GMBH                                     IDM Navigator MODBUS TCP                                           23
+4. Programmierung
+Programmierung                                                                                        D I E E N E RG I E FAM I L I E
+
+
+
+
+ Adresse   Daten-   Access   Bezeichnung                              Parameter   Min.    Max.    Default-            Ein-
+  DEZ       type                                                      Regelung    Wert    Wert     Wert               heit
+
+  2199     FLOAT     RW      Zonenmodul 4 Raumsolltemperatur Raum 1                                                   [°C]
+
+  2201     UCHAR    RW/RO    Zonenmodul 4 Raumfeuchte Raum 1                       0      100                       [%rF]
+
+  2202     UCHAR     RW      Zonenmodul 4 Betriebsart Raum 1                       0        4
+
+  2203     UCHAR     RO      Zonenmodul 4 Status Relais Raum 1                     0        1
+
+  2204     FLOAT    RW/RO    Zonenmodul 4 Raumtemperatur Raum 2                   15       30                         [°C]
+
+  2206     FLOAT     RW      Zonenmodul 4 Raumsolltemperatur Raum 2                                                   [°C]
+
+  2208     UCHAR    RW/RO    Zonenmodul 4 Raumfeuchte Raum 2                       0      100                       [%rF]
+
+  2209     UCHAR     RW      Zonenmodul 4 Betriebsart Raum 2                       0        4
+
+  2210     UCHAR     RO      Zonenmodul 4 Status Relais Raum 2                     0        1
+
+  2211     FLOAT    RW/RO    Zonenmodul 4 Raumtemperatur Raum 3                   15       30                         [°C]
+
+  2213     FLOAT     RW      Zonenmodul 4 Raumsolltemperatur Raum 3                                                   [°C]
+
+  2215     UCHAR    RW/RO    Zonenmodul 4 Raumfeuchte Raum 3                       0      100                       [%rF]
+
+  2216     UCHAR     RW      Zonenmodul 4 Betriebsart Raum 3                       0        4
+
+  2217     UCHAR     RO      Zonenmodul 4 Status Relais Raum 3                     0        1
+
+  2218     FLOAT    RW/RO    Zonenmodul 4 Raumtemperatur Raum 4                   15       30                         [°C]
+
+  2220     FLOAT     RW      Zonenmodul 4 Raumsolltemperatur Raum 4                                                   [°C]
+
+  2222     UCHAR    RW/RO    Zonenmodul 4 Raumfeuchte Raum 4                       0      100                       [%rF]
+
+  2223     UCHAR     RW      Zonenmodul 4 Betriebsart Raum 4                       0        4
+
+  2224     UCHAR     RO      Zonenmodul 4 Status Relais Raum 4                     0        1
+
+  2225     FLOAT    RW/RO    Zonenmodul 4 Raumtemperatur Raum 5                   15       30                         [°C]
+
+  2227     FLOAT     RW      Zonenmodul 4 Raumsolltemperatur Raum 5                                                   [°C]
+
+  2229     UCHAR    RW/RO    Zonenmodul 4 Raumfeuchte Raum 5                       0      100                       [%rF]
+
+  2230     UCHAR     RW      Zonenmodul 4 Betriebsart Raum 5                       0        4
+
+  2231     UCHAR     RO      Zonenmodul 4 Status Relais Raum 5                     0        1
+
+  2232     FLOAT    RW/RO    Zonenmodul 4 Raumtemperatur Raum 6                   15       30                         [°C]
+
+  2234     FLOAT     RW      Zonenmodul 4 Raumsolltemperatur Raum 6                                                   [°C]
+
+  2236     UCHAR    RW/RO    Zonenmodul 4 Raumfeuchte Raum 6                       0      100                       [%rF]
+
+  2237     UCHAR     RW      Zonenmodul 4 Betriebsart Raum 6                       0        4
+
+  2238     UCHAR     RO      Zonenmodul 4 Status Relais Raum 6                     0        1
+
+  2239     FLOAT    RW/RO    Zonenmodul 4 Raumtemperatur Raum 7                   15       30                         [°C]
+
+  2241     FLOAT     RW      Zonenmodul 4 Raumsolltemperatur Raum 7                                                   [°C]
+
+  2243     UCHAR    RW/RO    Zonenmodul 4 Raumfeuchte Raum 7                       0      100                       [%rF]
+
+  2244     UCHAR     RW      Zonenmodul 4 Betriebsart Raum 7                       0        4
+
+  2245     UCHAR     RO      Zonenmodul 4 Status Relais Raum 7                     0        1
+
+  2246     FLOAT    RW/RO    Zonenmodul 4 Raumtemperatur Raum 8                   15       30                         [°C]
+
+  2248     FLOAT     RW      Zonenmodul 4 Raumsolltemperatur Raum 8                                                   [°C]
+
+  2250     UCHAR    RW/RO    Zonenmodul 4 Raumfeuchte Raum 8                       0      100                       [%rF]
+
+  2251     UCHAR     RW      Zonenmodul 4 Betriebsart Raum 8                       0        4
+
+
+
+24                                         IDM Navigator MODBUS TCP                    (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                                                      Programmierung
+
+    Adresse                     Daten-   Access   Bezeichnung                              Parameter   Min.   Max.    Default-   Ein-
+     DEZ                         type                                                      Regelung    Wert   Wert     Wert      heit
+
+      2252                      UCHAR     RO      Zonenmodul 4 Status Relais Raum 8                     0      1
+
+      2259                      UCHAR     RO      Zonenmodul 4 Status Raum 9 (A9)                       0      1
+
+      2260                      UCHAR     RO      Zonenmodul 5 Modus Heizen/Kühlen A14                  0      1
+
+      2261                      UCHAR     RO      Zonenmodul 5 Entfeuchtungsausgang A12                 0      1         0
+
+      2262                      FLOAT    RW/RO    Zonenmodul 5 Raumtemperatur Raum 1                   15     30                 [°C]
+
+      2264                      FLOAT     RW      Zonenmodul 5 Raumsolltemperatur Raum 1                                         [°C]
+
+      2266                      UCHAR    RW/RO    Zonenmodul 5 Raumfeuchte Raum 1                       0     100                [%rF]
+
+      2267                      UCHAR     RW      Zonenmodul 5 Betriebsart Raum 1                       0      4
+
+      2268                      UCHAR     RO      Zonenmodul 5 Status Relais Raum 1                     0      1
+
+      2269                      FLOAT    RW/RO    Zonenmodul 5 Raumtemperatur Raum 2                   15     30                 [°C]
+
+      2271                      FLOAT     RW      Zonenmodul 5 Raumsolltemperatur Raum 2                                         [°C]
+
+      2273                      UCHAR    RW/RO    Zonenmodul 5 Raumfeuchte Raum 2                       0     100                [%rF]
+
+      2274                      UCHAR     RW      Zonenmodul 5 Betriebsart Raum 2                       0      4
+
+      2275                      UCHAR     RO      Zonenmodul 5 Status Relais Raum 2                     0      1
+
+      2276                      FLOAT    RW/RO    Zonenmodul 5 Raumtemperatur Raum 3                   15     30                 [°C]
+
+      2278                      FLOAT     RW      Zonenmodul 5 Raumsolltemperatur Raum 3                                         [°C]
+
+      2280                      UCHAR    RW/RO    Zonenmodul 5 Raumfeuchte Raum 3                       0     100                [%rF]
+
+      2281                      UCHAR     RW      Zonenmodul 5 Betriebsart Raum 3                       0      4
+
+      2282                      UCHAR     RO      Zonenmodul 5 Status Relais Raum 3                     0      1
+
+      2283                      FLOAT    RW/RO    Zonenmodul 5 Raumtemperatur Raum 4                   15     30                 [°C]
+
+      2285                      FLOAT     RW      Zonenmodul 5 Raumsolltemperatur Raum 4                                         [°C]
+
+      2287                      UCHAR    RW/RO    Zonenmodul 5 Raumfeuchte Raum 4                       0     100                [%rF]
+
+      2288                      UCHAR     RW      Zonenmodul 5 Betriebsart Raum 4                       0      4
+
+      2289                      UCHAR     RO      Zonenmodul 5 Status Relais Raum 4                     0      1
+
+      2290                      FLOAT    RW/RO    Zonenmodul 5 Raumtemperatur Raum 5                   15     30                 [°C]
+
+      2292                      FLOAT     RW      Zonenmodul 5 Raumsolltemperatur Raum 5                                         [°C]
+
+      2294                      UCHAR    RW/RO    Zonenmodul 5 Raumfeuchte Raum 5                       0     100                [%rF]
+
+      2295                      UCHAR     RW      Zonenmodul 5 Betriebsart Raum 5                       0      4
+
+      2296                      UCHAR     RO      Zonenmodul 5 Status Relais Raum 5                     0      1
+
+      2297                      FLOAT    RW/RO    Zonenmodul 5 Raumtemperatur Raum 6                   15     30                 [°C]
+
+      2299                      FLOAT     RW      Zonenmodul 5 Raumsolltemperatur Raum 6                                         [°C]
+
+      2301                      UCHAR    RW/RO    Zonenmodul 5 Raumfeuchte Raum 6                       0     100                [%rF]
+
+      2302                      UCHAR     RW      Zonenmodul 5 Betriebsart Raum 6                       0      4
+
+      2303                      UCHAR     RO      Zonenmodul 5 Status Relais Raum 6                     0      1
+
+      2304                      FLOAT    RW/RO    Zonenmodul 5 Raumtemperatur Raum 7                   15     30                 [°C]
+
+      2306                      FLOAT     RW      Zonenmodul 5 Raumsolltemperatur Raum 7                                         [°C]
+
+      2308                      UCHAR    RW/RO    Zonenmodul 5 Raumfeuchte Raum 7                       0     100                [%rF]
+
+      2309                      UCHAR     RW      Zonenmodul 5 Betriebsart Raum 7                       0      4
+
+
+(C) IDM ENERGIESYSTEME GMBH                                  IDM Navigator MODBUS TCP                                               25
+4. Programmierung
+Programmierung                                                                                        D I E E N E RG I E FAM I L I E
+
+
+
+
+ Adresse   Daten-   Access   Bezeichnung                              Parameter   Min.    Max.    Default-            Ein-
+  DEZ       type                                                      Regelung    Wert    Wert     Wert               heit
+
+  2310     UCHAR     RO      Zonenmodul 5 Status Relais Raum 7                     0        1
+
+  2311     FLOAT    RW/RO    Zonenmodul 5 Raumtemperatur Raum 8                   15       30                         [°C]
+
+  2313     FLOAT     RW      Zonenmodul 5 Raumsolltemperatur Raum 8                                                   [°C]
+
+  2315     UCHAR    RW/RO    Zonenmodul 5 Raumfeuchte Raum 8                       0      100                       [%rF]
+
+  2316     UCHAR     RW      Zonenmodul 5 Betriebsart Raum 8                       0        4
+
+  2317     UCHAR     RO      Zonenmodul 5 Status Relais Raum 8                     0        1
+
+  2324     UCHAR     RO      Zonenmodul 5 Status Raum 9 (A9)                       0        1
+
+  2325     UCHAR     RO      Zonenmodul 6 Modus Heizen/Kühlen A14                  0        1
+
+  2326     UCHAR     RO      Zonenmodul 6 Entfeuchtungsausgang A12                 0        1        0
+
+  2327     FLOAT    RW/RO    Zonenmodul 6 Raumtemperatur Raum 1                   15       30                         [°C]
+
+  2329     FLOAT     RW      Zonenmodul 6 Raumsolltemperatur Raum 1                                                   [°C]
+
+  2331     UCHAR    RW/RO    Zonenmodul 6 Raumfeuchte Raum 1                       0      100                       [%rF]
+
+  2332     UCHAR     RW      Zonenmodul 6 Betriebsart Raum 1                       0        4
+
+  2333     UCHAR     RO      Zonenmodul 6 Status Relais Raum 1                     0        1
+
+  2334     FLOAT    RW/RO    Zonenmodul 6 Raumtemperatur Raum 2                   15       30                         [°C]
+
+  2336     FLOAT     RW      Zonenmodul 6 Raumsolltemperatur Raum 2                                                   [°C]
+
+  2338     UCHAR    RW/RO    Zonenmodul 6 Raumfeuchte Raum 2                       0      100                       [%rF]
+
+  2339     UCHAR     RW      Zonenmodul 6 Betriebsart Raum 2                       0        4
+
+  2340     UCHAR     RO      Zonenmodul 6 Status Relais Raum 2                     0        1
+
+  2341     FLOAT    RW/RO    Zonenmodul 6 Raumtemperatur Raum 3                   15       30                         [°C]
+
+  2343     FLOAT     RW      Zonenmodul 6 Raumsolltemperatur Raum 3                                                   [°C]
+
+  2345     UCHAR    RW/RO    Zonenmodul 6 Raumfeuchte Raum 3                       0      100                       [%rF]
+
+  2346     UCHAR     RW      Zonenmodul 6 Betriebsart Raum 3                       0        4
+
+  2347     UCHAR     RO      Zonenmodul 6 Status Relais Raum 3                     0        1
+
+  2348     FLOAT    RW/RO    Zonenmodul 6 Raumtemperatur Raum 4                   15       30                         [°C]
+
+  2350     FLOAT     RW      Zonenmodul 6 Raumsolltemperatur Raum 4                                                   [°C]
+
+  2352     UCHAR    RW/RO    Zonenmodul 6 Raumfeuchte Raum 4                       0      100                       [%rF]
+
+  2353     UCHAR     RW      Zonenmodul 6 Betriebsart Raum 4                       0        4
+
+  2354     UCHAR     RO      Zonenmodul 6 Status Relais Raum 4                     0        1
+
+  2355     FLOAT    RW/RO    Zonenmodul 6 Raumtemperatur Raum 5                   15       30                         [°C]
+
+  2357     FLOAT     RW      Zonenmodul 6 Raumsolltemperatur Raum 5                                                   [°C]
+
+  2359     UCHAR    RW/RO    Zonenmodul 6 Raumfeuchte Raum 5                       0      100                       [%rF]
+
+  2360     UCHAR     RW      Zonenmodul 6 Betriebsart Raum 5                       0        4
+
+  2361     UCHAR     RO      Zonenmodul 6 Status Relais Raum 5                     0        1
+
+  2362     FLOAT    RW/RO    Zonenmodul 6 Raumtemperatur Raum 6                   15       30                         [°C]
+
+  2364     FLOAT     RW      Zonenmodul 6 Raumsolltemperatur Raum 6                                                   [°C]
+
+  2366     UCHAR    RW/RO    Zonenmodul 6 Raumfeuchte Raum 6                       0      100                       [%rF]
+
+  2367     UCHAR     RW      Zonenmodul 6 Betriebsart Raum 6                       0        4
+
+
+26                                         IDM Navigator MODBUS TCP                    (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                                                      Programmierung
+
+    Adresse                     Daten-   Access   Bezeichnung                              Parameter   Min.   Max.    Default-   Ein-
+     DEZ                         type                                                      Regelung    Wert   Wert     Wert      heit
+
+      2368                      UCHAR     RO      Zonenmodul 6 Status Relais Raum 6                     0      1
+
+      2369                      FLOAT    RW/RO    Zonenmodul 6 Raumtemperatur Raum 7                   15     30                 [°C]
+
+      2371                      FLOAT     RW      Zonenmodul 6 Raumsolltemperatur Raum 7                                         [°C]
+
+      2373                      UCHAR    RW/RO    Zonenmodul 6 Raumfeuchte Raum 7                       0     100                [%rF]
+
+      2374                      UCHAR     RW      Zonenmodul 6 Betriebsart Raum 7                       0      4
+
+      2375                      UCHAR     RO      Zonenmodul 6 Status Relais Raum 7                     0      1
+
+      2376                      FLOAT    RW/RO    Zonenmodul 6 Raumtemperatur Raum 8                   15     30                 [°C]
+
+      2378                      FLOAT     RW      Zonenmodul 6 Raumsolltemperatur Raum 8                                         [°C]
+
+      2380                      UCHAR    RW/RO    Zonenmodul 6 Raumfeuchte Raum 8                       0     100                [%rF]
+
+      2381                      UCHAR     RW      Zonenmodul 6 Betriebsart Raum 8                       0      4
+
+      2382                      UCHAR     RO      Zonenmodul 6 Status Relais Raum 8                     0      1
+
+      2389                      UCHAR     RO      Zonenmodul 6 Status Relais Raum 9 (A9)                0      1
+
+      2390                      UCHAR     RO      Zonenmodul 7 Modus Heizen/Kühlen A14                  0      1
+
+      2391                      UCHAR     RO      Zonenmodul 7 Entfeuchtungsausgang A12                 0      1         0
+
+      2392                      FLOAT    RW/RO    Zonenmodul 7 Raumtemperatur Raum 1                   15     30                 [°C]
+
+      2394                      FLOAT     RW      Zonenmodul 7 Raumsolltemperatur Raum 1                                         [°C]
+
+      2396                      UCHAR    RW/RO    Zonenmodul 7 Raumfeuchte Raum 1                       0     100                [%rF]
+
+      2397                      UCHAR     RW      Zonenmodul 7 Betriebsart Raum 1                       0      4
+
+      2398                      UCHAR     RO      Zonenmodul 7 Status Relais Raum 1                     0      1
+
+      2399                      FLOAT    RW/RO    Zonenmodul 7 Raumtemperatur Raum 2                   15     30                 [°C]
+
+      2401                      FLOAT     RW      Zonenmodul 7 Raumsolltemperatur Raum 2                                         [°C]
+
+      2403                      UCHAR    RW/RO    Zonenmodul 7 Raumfeuchte Raum 2                       0     100                [%rF]
+
+      2404                      UCHAR     RW      Zonenmodul 7 Betriebsart Raum 2                       0      4
+
+      2405                      UCHAR     RO      Zonenmodul 7 Status Relais Raum 2                     0      1
+
+      2406                      FLOAT    RW/RO    Zonenmodul 7 Raumtemperatur Raum 3                   15     30                 [°C]
+
+      2408                      FLOAT     RW      Zonenmodul 7 Raumsolltemperatur Raum 3                                         [°C]
+
+      2410                      UCHAR    RW/RO    Zonenmodul 7 Raumfeuchte Raum 3                       0     100                [%rF]
+
+      2411                      UCHAR     RW      Zonenmodul 7 Betriebsart Raum 3                       0      4
+
+      2412                      UCHAR     RO      Zonenmodul 7 Status Relais Raum 3                     0      1
+
+      2413                      FLOAT    RW/RO    Zonenmodul 7 Raumtemperatur Raum 4                   15     30                 [°C]
+
+      2415                      FLOAT     RW      Zonenmodul 7 Raumsolltemperatur Raum 4                                         [°C]
+
+      2417                      UCHAR    RW/RO    Zonenmodul 7 Raumfeuchte Raum 4                       0     100                [%rF]
+
+      2418                      UCHAR     RW      Zonenmodul 7 Betriebsart Raum 4                       0      4
+
+      2419                      UCHAR     RO      Zonenmodul 7 Status Relais Raum 4                     0      1
+
+      2420                      FLOAT    RW/RO    Zonenmodul 7 Raumtemperatur Raum 5                   15     30                 [°C]
+
+      2422                      FLOAT     RW      Zonenmodul 7 Raumsolltemperatur Raum 5                                         [°C]
+
+      2424                      UCHAR    RW/RO    Zonenmodul 7 Raumfeuchte Raum 5                       0     100                [%rF]
+
+      2425                      UCHAR     RW      Zonenmodul 7 Betriebsart Raum 5                       0      4
+
+
+(C) IDM ENERGIESYSTEME GMBH                                  IDM Navigator MODBUS TCP                                               27
+4. Programmierung
+Programmierung                                                                                        D I E E N E RG I E FAM I L I E
+
+
+
+
+ Adresse   Daten-   Access   Bezeichnung                              Parameter   Min.    Max.    Default-            Ein-
+  DEZ       type                                                      Regelung    Wert    Wert     Wert               heit
+
+  2426     UCHAR     RO      Zonenmodul 7 Status Relais Raum 5                     0        1
+
+  2427     FLOAT    RW/RO    Zonenmodul 7 Raumtemperatur Raum 6                   15       30                         [°C]
+
+  2429     FLOAT     RW      Zonenmodul 7 Raumsolltemperatur Raum 6                                                   [°C]
+
+  2431     UCHAR    RW/RO    Zonenmodul 7 Raumfeuchte Raum 6                       0      100                       [%rF]
+
+  2432     UCHAR     RW      Zonenmodul 7 Betriebsart Raum 6                       0        4
+
+  2433     UCHAR     RO      Zonenmodul 7 Status Relais Raum 6                     0        1
+
+  2434     FLOAT    RW/RO    Zonenmodul 7 Raumtemperatur Raum 7                   15       30                         [°C]
+
+  2436     FLOAT     RW      Zonenmodul 7 Raumsolltemperatur Raum 7                                                   [°C]
+
+  2438     UCHAR    RW/RO    Zonenmodul 7 Raumfeuchte Raum 7                       0      100                       [%rF]
+
+  2439     UCHAR     RW      Zonenmodul 7 Betriebsart Raum 7                       0        4
+
+  2440     UCHAR     RO      Zonenmodul 7 Status Relais Raum 7                     0        1
+
+  2441     FLOAT    RW/RO    Zonenmodul 7 Raumtemperatur Raum 8                   15       30                         [°C]
+
+  2443     FLOAT     RW      Zonenmodul 7 Raumsolltemperatur Raum 8                                                   [°C]
+
+  2445     UCHAR    RW/RO    Zonenmodul 7 Raumfeuchte Raum 8                       0      100                       [%rF]
+
+  2446     UCHAR     RW      Zonenmodul 7 Betriebsart Raum 8                       0        4
+
+  2447     UCHAR     RO      Zonenmodul 7 Status Relais Raum 8                     0        1
+
+  2454     UCHAR     RO      Zonenmodul 7 Status Raum 9 (A9)                       0        1
+
+  2455     UCHAR     RO      Zonenmodul 8 Modus Heizen/Kühlen A14                  0        1
+
+  2456     UCHAR     RO      Zonenmodul 8 Entfeuchtungsausgang A12                 0        1        0
+
+  2457     FLOAT    RW/RO    Zonenmodul 8 Raumtemperatur Raum 1                   15       30                         [°C]
+
+  2459     FLOAT     RW      Zonenmodul 8 Raumsolltemperatur Raum 1                                                   [°C]
+
+  2461     UCHAR    RW/RO    Zonenmodul 8 Raumfeuchte Raum 1                       0      100                       [%rF]
+
+  2462     UCHAR     RW      Zonenmodul 8 Betriebsart Raum 1                       0        4
+
+  2463     UCHAR     RO      Zonenmodul 8 Status Relais Raum 1                     0        1
+
+  2464     FLOAT    RW/RO    Zonenmodul 8 Raumtemperatur Raum 2                   15       30                         [°C]
+
+  2466     FLOAT     RW      Zonenmodul 8 Raumsolltemperatur Raum 2                                                   [°C]
+
+  2468     UCHAR    RW/RO    Zonenmodul 8 Raumfeuchte Raum 2                       0      100                       [%rF]
+
+  2469     UCHAR     RW      Zonenmodul 8 Betriebsart Raum 2                       0        4
+
+  2470     UCHAR     RO      Zonenmodul 8 Status Relais Raum 2                     0        1
+
+  2471     FLOAT    RW/RO    Zonenmodul 8 Raumtemperatur Raum 3                   15       30                         [°C]
+
+  2473     FLOAT     RW      Zonenmodul 8 Raumsolltemperatur Raum 3                                                   [°C]
+
+  2475     UCHAR    RW/RO    Zonenmodul 8 Raumfeuchte Raum 3                       0      100                       [%rF]
+
+  2476     UCHAR     RW      Zonenmodul 8 Betriebsart Raum 3                       0        4
+
+  2477     UCHAR     RO      Zonenmodul 8 Status Relais Raum 3                     0        1
+
+  2478     FLOAT    RW/RO    Zonenmodul 8 Raumtemperatur Raum 4                   15       30                         [°C]
+
+  2480     FLOAT     RW      Zonenmodul 8 Raumsolltemperatur Raum 4                                                   [°C]
+
+  2482     UCHAR    RW/RO    Zonenmodul 8 Raumfeuchte Raum 4                       0      100                       [%rF]
+
+  2483     UCHAR     RW      Zonenmodul 8 Betriebsart Raum 4                       0        4
+
+
+28                                         IDM Navigator MODBUS TCP                    (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                                                      Programmierung
+
+    Adresse                     Daten-   Access   Bezeichnung                              Parameter   Min.   Max.    Default-   Ein-
+     DEZ                         type                                                      Regelung    Wert   Wert     Wert      heit
+
+      2484                      UCHAR     RO      Zonenmodul 8 Status Relais Raum 4                     0      1
+
+      2485                      FLOAT    RW/RO    Zonenmodul 8 Raumtemperatur Raum 5                   15     30                 [°C]
+
+      2487                      FLOAT     RW      Zonenmodul 8 Raumsolltemperatur Raum 5                                         [°C]
+
+      2489                      UCHAR    RW/RO    Zonenmodul 8 Raumfeuchte Raum 5                       0     100                [%rF]
+
+      2490                      UCHAR     RW      Zonenmodul 8 Betriebsart Raum 5                       0      4
+
+      2491                      UCHAR     RO      Zonenmodul 8 Status Relais Raum 5                     0      1
+
+      2492                      FLOAT    RW/RO    Zonenmodul 8 Raumtemperatur Raum 6                   15     30                 [°C]
+
+      2494                      FLOAT     RW      Zonenmodul 8 Raumsolltemperatur Raum 6                                         [°C]
+
+      2496                      UCHAR    RW/RO    Zonenmodul 8 Raumfeuchte Raum 6                       0     100                [%rF]
+
+      2497                      UCHAR     RW      Zonenmodul 8 Betriebsart Raum 6                       0      4
+
+      2498                      UCHAR     RO      Zonenmodul 8 Status Relais Raum 6                     0      1
+
+      2499                      FLOAT    RW/RO    Zonenmodul 8 Raumtemperatur Raum 7                   15     30                 [°C]
+
+      2501                      FLOAT     RW      Zonenmodul 8 Raumsolltemperatur Raum 7                                         [°C]
+
+      2503                      UCHAR    RW/RO    Zonenmodul 8 Raumfeuchte Raum 7                       0     100                [%rF]
+
+      2504                      UCHAR     RW      Zonenmodul 8 Betriebsart Raum 7                       0      4
+
+      2505                      UCHAR     RO      Zonenmodul 8 Status Relais Raum 7                     0      1
+
+      2506                      FLOAT    RW/RO    Zonenmodul 8 Raumtemperatur Raum 8                   15     30                 [°C]
+
+      2508                      FLOAT     RW      Zonenmodul 8 Raumsolltemperatur Raum 8                                         [°C]
+
+      2510                      UCHAR    RW/RO    Zonenmodul 8 Raumfeuchte Raum 8                       0     100                [%rF]
+
+      2511                      UCHAR     RW      Zonenmodul 8 Betriebsart Raum 8                       0      4
+
+      2512                      UCHAR     RO      Zonenmodul 8 Status Relais Raum 8                     0      1
+
+      2519                      UCHAR     RO      Zonenmodul 8 Status Relais Raum 9 (A9)                0      1
+
+      2520                      UCHAR     RO      Zonenmodul 9 Modus Heizen/Kühlen A14                  0      1
+
+      2521                      UCHAR     RO      Zonenmodul 9 Entfeuchtungsausgang A12                 0      1         0
+
+      2522                      FLOAT    RW/RO    Zonenmodul 9 Raumtemperatur Raum 1                   15     30                 [°C]
+
+      2524                      FLOAT     RW      Zonenmodul 9 Raumsolltemperatur Raum 1                                         [°C]
+
+      2526                      UCHAR    RW/RO    Zonenmodul 9 Raumfeuchte Raum 1                       0     100                [%rF]
+
+      2527                      UCHAR     RW      Zonenmodul 9 Betriebsart Raum 1                       0      4
+
+      2528                      UCHAR     RO      Zonenmodul 9 Status Relais Raum 1                     0      1
+
+      2529                      FLOAT    RW/RO    Zonenmodul 9 Raumtemperatur Raum 2                   15     30                 [°C]
+
+      2531                      FLOAT     RW      Zonenmodul 9 Raumsolltemperatur Raum 2                                         [°C]
+
+      2533                      UCHAR    RW/RO    Zonenmodul 9 Raumfeuchte Raum 2                       0     100                [%rF]
+
+      2534                      UCHAR     RW      Zonenmodul 9 Betriebsart Raum 2                       0      4
+
+      2535                      UCHAR     RO      Zonenmodul 9 Status Relais Raum 2                     0      1
+
+      2536                      FLOAT    RW/RO    Zonenmodul 9 Raumtemperatur Raum 3                   15     30                 [°C]
+
+      2538                      FLOAT     RW      Zonenmodul 9 Raumsolltemperatur Raum 3                                         [°C]
+
+      2540                      UCHAR    RW/RO    Zonenmodul 9 Raumfeuchte Raum 3                       0     100                [%rF]
+
+      2541                      UCHAR     RW      Zonenmodul 9 Betriebsart Raum 3                       0      4
+
+
+(C) IDM ENERGIESYSTEME GMBH                                  IDM Navigator MODBUS TCP                                               29
+4. Programmierung
+Programmierung                                                                                         D I E E N E RG I E FAM I L I E
+
+
+
+
+ Adresse   Daten-   Access   Bezeichnung                               Parameter   Min.    Max.    Default-             Ein-
+  DEZ       type                                                       Regelung    Wert    Wert     Wert                heit
+
+  2542     UCHAR     RO      Zonenmodul 9 Status Relais Raum 3                      0        1
+
+  2543     FLOAT    RW/RO    Zonenmodul 9 Raumtemperatur Raum 4                    15       30                         [°C]
+
+  2545     FLOAT     RW      Zonenmodul 9 Raumsolltemperatur Raum 4                                                    [°C]
+
+  2547     UCHAR    RW/RO    Zonenmodul 9 Raumfeuchte Raum 4                        0       100                       [%rF]
+
+  2548     UCHAR     RW      Zonenmodul 9 Betriebsart Raum 4                        0        4
+
+  2549     UCHAR     RO      Zonenmodul 9 Status Relais Raum 4                      0        1
+
+  2550     FLOAT    RW/RO    Zonenmodul 9 Raumtemperatur Raum 5                    15       30                         [°C]
+
+  2552     FLOAT     RW      Zonenmodul 9 Raumsolltemperatur Raum 5                                                    [°C]
+
+  2554     UCHAR    RW/RO    Zonenmodul 9 Raumfeuchte Raum 5                        0       100                       [%rF]
+
+  2555     UCHAR     RW      Zonenmodul 9 Betriebsart Raum 5                        0        4
+
+  2556     UCHAR     RO      Zonenmodul 9 Status Relais Raum 5                      0        1
+
+  2557     FLOAT    RW/RO    Zonenmodul 9 Raumtemperatur Raum 6                    15       30                         [°C]
+
+  2559     FLOAT     RW      Zonenmodul 9 Raumsolltemperatur Raum 6                                                    [°C]
+
+  2561     UCHAR    RW/RO    Zonenmodul 9 Raumfeuchte Raum 6                        0       100                       [%rF]
+
+  2562     UCHAR     RW      Zonenmodul 9 Betriebsart Raum 6                        0        4
+
+  2563     UCHAR     RO      Zonenmodul 9 Status Relais Raum 6                      0        1
+
+  2564     FLOAT    RW/RO    Zonenmodul 9 Raumtemperatur Raum 7                    15       30                         [°C]
+
+  2566     FLOAT     RW      Zonenmodul 9 Raumsolltemperatur Raum 7                                                    [°C]
+
+  2568     UCHAR    RW/RO    Zonenmodul 9 Raumfeuchte Raum 7                        0       100                       [%rF]
+
+  2569     UCHAR     RW      Zonenmodul 9 Betriebsart Raum 7                        0        4
+
+  2570     UCHAR     RO      Zonenmodul 9 Status Relais Raum 7                      0        1
+
+  2571     FLOAT    RW/RO    Zonenmodul 9 Raumtemperatur Raum 8                    15       30                         [°C]
+
+  2573     FLOAT     RW      Zonenmodul 9 Raumsolltemperatur Raum 8                                                    [°C]
+
+  2575     UCHAR    RW/RO    Zonenmodul 9 Raumfeuchte Raum 8                        0       100                       [%rF]
+
+  2576     UCHAR     RW      Zonenmodul 9 Betriebsart Raum 8                        0        4
+
+  2577     UCHAR     RO      Zonenmodul 9 Status Relais Raum 8                      0        1
+
+  2584     UCHAR     RO      Zonenmodul 9 Status Relais Raum 9 (A9)                 0        1
+
+  2585     UCHAR     RO      Zonenmodul 10 Modus Heizen/Kühlen A14                  0        1
+
+  2586     UCHAR     RO      Zonenmodul 10 Entfeuchtungsausgang A12                 0        1        0
+
+  2587     FLOAT    RW/RO    Zonenmodul 10 Raumtemperatur Raum 1                   15       30                         [°C]
+
+  2589     FLOAT     RW      Zonenmodul 10 Raumsolltemperatur Raum 1                                                   [°C]
+
+  2591     UCHAR    RW/RO    Zonenmodul 10 Raumfeuchte Raum 1                       0       100                       [%rF]
+
+  2592     UCHAR     RW      Zonenmodul 10 Betriebsart Raum 1                       0        4
+
+  2593     UCHAR     RO      Zonenmodul 10 Status Relais Raum 1                     0        1
+
+  2594     FLOAT    RW/RO    Zonenmodul 10 Raumtemperatur Raum 2                   15       30                         [°C]
+
+  2596     FLOAT     RW      Zonenmodul 10 Raumsolltemperatur Raum 2                                                   [°C]
+
+  2598     UCHAR    RW/RO    Zonenmodul 10 Raumfeuchte Raum 2                       0       100                       [%rF]
+
+  2599     UCHAR     RW      Zonenmodul 10 Betriebsart Raum 2                       0        4
+
+
+30                                      IDM Navigator MODBUS TCP                        (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                                                       Programmierung
+
+    Adresse                     Daten-   Access   Bezeichnung                               Parameter   Min.   Max.    Default-   Ein-
+     DEZ                         type                                                       Regelung    Wert   Wert     Wert      heit
+
+      2600                      UCHAR     RO      Zonenmodul 10 Status Relais Raum 2                     0      1
+
+      2601                      FLOAT    RW/RO    Zonenmodul 10 Raumtemperatur Raum 3                   15     30                 [°C]
+
+      2603                      FLOAT     RW      Zonenmodul 10 Raumsolltemperatur Raum 3                                         [°C]
+
+      2605                      UCHAR    RW/RO    Zonenmodul 10 Raumfeuchte Raum 3                       0     100                [%rF]
+
+      2606                      UCHAR     RW      Zonenmodul 10 Betriebsart Raum 3                       0      4
+
+      2607                      UCHAR     RO      Zonenmodul 10 Status Relais Raum 3                     0      1
+
+      2608                      FLOAT    RW/RO    Zonenmodul 10 Raumtemperatur Raum 4                   15     30                 [°C]
+
+      2610                      FLOAT     RW      Zonenmodul 10 Raumsolltemperatur Raum 4                                         [°C]
+
+      2612                      UCHAR    RW/RO    Zonenmodul 10 Raumfeuchte Raum 4                       0     100                [%rF]
+
+      2613                      UCHAR     RW      Zonenmodul 10 Betriebsart Raum 4                       0      4
+
+      2614                      UCHAR     RO      Zonenmodul 10 Status Relais Raum 4                     0      1
+
+      2615                      FLOAT    RW/RO    Zonenmodul 10 Raumtemperatur Raum 5                   15     30                 [°C]
+
+      2617                      FLOAT     RW      Zonenmodul 10 Raumsolltemperatur Raum 5                                         [°C]
+
+      2619                      UCHAR    RW/RO    Zonenmodul 10 Raumfeuchte Raum 5                       0     100                [%rF]
+
+      2620                      UCHAR     RW      Zonenmodul 10 Betriebsart Raum 5                       0      4
+
+      2621                      UCHAR     RO      Zonenmodul 10 Status Relais Raum 5                     0      1
+
+      2622                      FLOAT    RW/RO    Zonenmodul 10 Raumtemperatur Raum 6                   15     30                 [°C]
+
+      2624                      FLOAT     RW      Zonenmodul 10 Raumsolltemperatur Raum 6                                         [°C]
+
+      2626                      UCHAR    RW/RO    Zonenmodul 10 Raumfeuchte Raum 6                       0     100                [%rF]
+
+      2627                      UCHAR     RW      Zonenmodul 10 Betriebsart Raum 6                       0      4
+
+      2628                      UCHAR     RO      Zonenmodul 10 Status Relais Raum 6                     0      1
+
+      2629                      FLOAT    RW/RO    Zonenmodul 10 Raumtemperatur Raum 7                   15     30                 [°C]
+
+      2631                      FLOAT     RW      Zonenmodul 10 Raumsolltemperatur Raum 7                                         [°C]
+
+      2633                      UCHAR    RW/RO    Zonenmodul 10 Raumfeuchte Raum 7                       0     100                [%rF]
+
+      2634                      UCHAR     RW      Zonenmodul 10 Betriebsart Raum 7                       0      4
+
+      2635                      UCHAR     RO      Zonenmodul 10 Status Relais Raum 7                     0      1
+
+      2636                      FLOAT    RW/RO    Zonenmodul 10 Raumtemperatur Raum 8                   15     30                 [°C]
+
+      2638                      FLOAT     RW      Zonenmodul 10 Raumsolltemperatur Raum 8                                         [°C]
+
+      2640                      UCHAR    RW/RO    Zonenmodul 10 Raumfeuchte Raum 8                       0     100                [%rF]
+
+      2641                      UCHAR     RW      Zonenmodul 10 Betriebsart Raum 8                       0      4
+
+      2642                      UCHAR     RO      Zonenmodul 10 Status Relais Raum 8                     0      1
+
+      2649                      UCHAR     RO      Zonenmodul 10 Status Relais Raum 9 (A9)                0      1
+
+  Photovoltaik
+         74                     FLOAT    RW/RO    Aktueller PV-Überschuss                                                         [kW]
+
+         76                     FLOAT    RW/RO    Leistung E-Heizstab                                                             [kW]
+
+         78                     FLOAT    RW/RO    Aktuelle PV Produktion                                                          [kW]
+
+
+                                 Die Aktualisierung der Parameter erfolgt zyklisch, dies kann dazu führen, dass sich
+                                 Änderungen zeitverzögert (ca. 15 sec) auswirken!
+(C) IDM ENERGIESYSTEME GMBH                                   IDM Navigator MODBUS TCP                                               31
+   4. Programmierung
+   Programmierung                                                                                                               D I E E N E RG I E FAM I L I E
+
+
+
+
+     Adresse      Daten-        Access     Bezeichnung                                        Parameter      Min.   Max.    Default-            Ein-
+      DEZ          type                                                                       Regelung       Wert   Wert     Wert               heit
+
+        82         FLOAT       RW/RO       Hausverbrauch                                                                       0               [kW]
+
+        84         FLOAT       RW/RO       Batterieentladung                                                                   0               [kW]
+
+        86        WORD         RW/RO       Batteriefüllstand                                                                   -1                [%]
+
+      4122         FLOAT          RO       Aktuelle Leistungsaufnahme Wärmepumpe                                                               [kW]
+
+      4126         FLOAT          RO       thermische Leistung (Durchflusssensor)                                              0               [kW]
+
+      4128         FLOAT          RO       Wärmemenge gesamt                                                                   0              [kWh]
+
+
+
+4.2 . D a t en t y p en
+
+
+                       32-Bit-Zahlen                     Reg_L (Bit 15..0)                         Reg_H (Bit 31..16)
+                                                     HByte                LByte                HByte                LByte
+                                                        1.                   2.                    3.                4.
+
+
+   – Standardisierte Datentypen: Byte (8-Bit) und Register (16-Bit). Gemäß Modbus-Spezifikation wird bei
+     einem Register immer zuerst das High-Byte, gefolgt vom Low-Byte übertragen.
+   – Erweiterte Datentype: 32-Bit-Float wird als 2 aufeinander folgende 16-Bit-Register übertragen. Das
+     Format der Float-Zahl entspricht dem IEEE Standard 754.
+     Übertragungsreihenfolge der Register:
+
+   4 . 3 . A n w en d u n g s b e i s p i e le
+
+
+
+   4 . 3 . 1 . A u ß en t e m p e r a t u r u n d F e u c h t e w e r t v o n d e r G LT v e r w e n d e n
+
+   Die Wärmepumpenparameter „GLT Außentemperatur“ und „GLT Feuchtewert“ im Wärmepumpenmenü „Ge-
+   bäudeleittechnik“ auf „Ja“ stellen. Die GLT Außentemperatur muss über die Adresse 1690 zur Wärmepumpe
+   gesendet werden und der Feuchtewert über die Adresse 1692 .
+
+
+
+   4 . 3 . 2 . R a u m te m p e r a t u r u n d F e u c h t e v o n d e r G LT v e r w e n d e n
+
+   Soll eine Raumtemperatur und ein Feuchtewert an einen Heiz-/Kühlkreis der Navigatorregelung gesendet
+   werden, muss dies z.B. für den Heiz-/Kühlkreis A über die Adresse 1650 (Externe Raumtemperatur) erfolgen.
+   Für den Feuchtewert muss die Adresse 1692 verwendet werden.
+
+
+
+   4 . 3 . 3 . H e iz - / K ü h la n f o r d e r u n g vo n d e r G LT a n d i e Wä r m e p u m p e
+
+   Bei Anlagen wo nur eine Puﬀerbewirtschaftung durchgeführt werden soll (keine Heiz-/Kühlregelung) muss die
+   Heizanforderung an die Wärmepumpe über die Adresse 1710 erfolgen. Die Solltemperatur für den Heizbe-
+
+                   Die Passivkühlung kann, wie die Aktivkühlung, über die Adresse 1711 angefordert
+                   werden. Wird bei Passivkühlung gleichzeitig noch der Heizbetrieb benötigt, muss die
+                   Heizanforderung über die Adresse 1710 erfolgen.
+
+   32                                                    IDM Navigator MODBUS TCP                               (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                                                             Programmierung
+
+trieb kann über die Adresse 1694 kommuniziert werden, bzw. es kann auch ein 0-10 V Vorgabesignal an die
+Navigatorregelung angeschlossen werden. Die Kühlanforderung muss über die Adresse 1711 erfolgen. Die
+Solltemperatur für den Kühlbetrieb kann über die Adresse 1695 kommuniziert werden.
+
+
+
+4 . 3 . 4 . GLT Ra u m s e n s o r e n f ü r i D M Ei n z e l ra u m re g e l u n g v e r w e n d e n
+
+GLT-Raumsensoren können in Verbindung mit einer iDM Einzelraumregelung verwendet werden. Die Kom-
+munikation der Raumtemperaturen z.B. für den Raum 1 vom Zonenmodul 1 erfolgt über die Adresse 2002.
+Die Raumfeuchte für den Raum 1 vom Zonenmodul 1 kann über die Adresse 2006 kommuniziert werden. Der
+Raumfeuchtewert ist für den Kühlbetrieb zwingend erforderlich.
+
+
+
+4 . 3 . 5 . R a u m te m p e r a t u r u n d F e u c h t e w e r t v o n N a v i g a to rre g e l u n g a u f G LT a n z e i g e n
+
+Die Raumtemperatur z.B. vom Heiz-/Kühlkreis A kann über die Adresse1364 abgefragt werden. Der Feuchte-
+wert kann über die Adresse 1392 abgefragt werden.
+
+
+
+4 . 3 . 6 . A k t iv e B e t r i e b s a r t Wä r m e p u m p e u n d a k ti v e B e tri e b sa r t H e i z - /K ü h l k re i s a b f ra g e n
+
+Die Betriebsart der Wärmepumpe kann über die Adresse 1090 abgefragt werden. Die Betriebsart z.B. vom
+Heiz-/Kühlkreis A kann über die Adresse 1498 (0...Aus / 1...Heizen / 2...Kühlen) abgefragt werden.
+
+
+
+4 . 3 . 7 . E in s t ellu n g e n d e r B e t r i e b s a r t de r Wä r m e p u m p e u n d d e r B e tri e b sa r t e i n e s H e i z - /
+            Kü h l k r e i s e s a b f r a g e n / ä n d e r n
+
+Die eingestellte Betriebsart der Wärmepumpe kann über die Adresse 1005 abgefragt/geändert werden. Die
+eingestellte Betriebsart z.B. vom Heiz-/Kühlkreis A kann über die Adresse 1393 abgefragt/geändert werden.
+
+
+
+4 . 3 . 8 . A b fr a g e a k t u e lle S t ö r u n g b z w. S u m m e n stö r u n g ( Ve rri e g e l n d e S tö r u n g )
+
+Die Abfrage der aktuellen Störungsnummer der Navigatorregelung (020 - 999) kann über die Adresse 1004
+durchgeführt werden. Die Beschreibung der Störungsnummern findet man auf der Navigatorregelung
+bzw. in der Navigator Bedienungsanleitung.
+Die Abfrage einer Summenstörung bzw. verriegelnden Störung (dies ist eine Störung wo die Wärme-
+pumpe aufgrund der Störung nicht mehr startet) kann über die Adresse 1099 durchgeführt werden.
+Erhält man bei der Abfrage den Wert „1“, dann liegt eine Summenstörung an.
+
+
+
+4 . 3 . 9 . K o m m u n i k a t i o n d e s P V- Ü b e r s c h u sse s b z w. d e r A u f n a h m e l e i stu n g d e r Wä r m e p u m p e
+
+Der PV Überschuss (Wert in kW) kann über die Adresse 74 kommuniziert werden. Die momentane bzw.
+prognostizierte Aufnahmeleistung der Wärmepumpe kann über die Adresse 4122 abgefragt werden.
+Sobald der PV-Überschuss höher ist als die Aufnahmeleistung startet die Wärmepumpe und bewirtschaftet
+das System laut den Einstellungen vom PV-Menü.
+(C) IDM ENERGIESYSTEME GMBH                           IDM Navigator MODBUS TCP                                                                   33
+4. Programmierung
+Programmierung                                                                                              D I E E N E RG I E FAM I L I E
+
+
+
+
+4 . 4 . G LT L o g / M o n i t o r
+
+Die Kommunikation kann in der Navigatorregelung im Menü „Gebäudeleittechnik“ überprüft werden.
+
+                                                       Zur Überprüfung der Kommunikation den Parameter
+                                                       „GLT Monitor“ anwählen. Dieser Parameter wird nach
+                                                       einer Stunde wieder automatisch zurückgesetzt.
+
+                                                       In der vorletzten Spalte wird der aktuelle interne Wert
+                                                       angezeigt.
+
+                                                       In der letzten Spalte wird der letzte geschriebene
+                                                       Wert von der GLT angezeigt, sofern dieser erfolgreich
+                                                       kommuniziert werden konnte (ansonsten wird die
+                                                       Fehlermeldung ausgegeben).
+
+
+
+                                                       4 . 5 . K o m m u n i k a ti o n m i t L o x o n e
+
+                                                       Bei der Modbus TCP Kommunikation mit Loxone
+                                                       Systemen sind die Datentypen wie nachfolgend be-
+                                                       schrieben zu programmieren.
+
+
+
+Datentyp „FLOAT (RO)“ (z.B. Register 1000):            Datentyp „UCHAR (RW/RO)“ (z.B. Register 2006):
+
+– IO-Adresse: 1000                                     – IO-Adresse: 2006
+– Befehl: 4 - Read Input Register                      – Befehl: 6 - Preset Single Register
+                                                       – Datentyp: 16-bit Unsigned Integer
+– Datentyp: 32-bit Floating Point                      – Abfragezyklus: 60 Sekunden
+– 2 Register für 32-bit (Haken setzen)
+– Abfragezyklus: 60 Sekunden
+
+
+
+Datentyp „FLOAT (RW/RO)“ (z.B. Register 2002):         Datentyp „BOOL“ (z.B. Register 1710):
+
+– IO-Adresse: 2002                                     – IO-Adresse: 1710
+– Befehl: 16 - Preset Multiple Register                – Befehl: 6 - Preset Single Register
+– Datentyp: 32-bit Floating Point                      – Datentyp: 16-bit Unsigned Integer
+– 2 Register für 32-bit (Haken setzen)                 – Abfragezyklus: 60 Sekunden
+– Zyklisch senden: 60 Sekunden
+
+
+
+
+34                                        IDM Navigator MODBUS TCP                         (C) IDM ENERGIESYSTEME GMBH
+D I E E N E RGI E FAM I L I E                                                           5. FAQs
+
+5 . 1 . H ä u fig e F r a g e n
+
+Modbus TCP Kommunikation funktioniert nicht?
+
+- Ist „Modbus TCP“ im Menü „Gebäudeleittechnik“ ausgewählt?
+- Ist das Modbus TCP Gerät und die Wärmepumpe im selben Netzwerk?
+- Gibt es einen IP-Adressen Konflikt?
+- Wurde die IP-Adresse von der Wärmepumpe manuell eingestellt? IP-Adresse sollte manuell eingestellt
+   werden, denn bei „DHCP“ kann sich die IP-Adresse (z.B. nach einem Stromausfall) ändern.
+- Wurde die Einbindung über einen Switch gemacht, evtl. blockiert dieser die Kommunikation? Wenn ja,
+   Modbus TCP Gerät direkt (ohne Switch) einbinden.
+- „GLT Monitor“ einschalten, Störung bzw. Kommunikation wird angezeigt.
+
+
+
+Wieso zeigen Räume falsche Werte an?
+
+- Bei Räumen wurde der falsche Relaisausgang konfiguriert (die Zuordnung bezieht sich immer auf den Raum
+  und nicht auf den Relaisausgang)
+
+
+
+Was muss bei der Kommunikation von Werten über Modbus TCP beachtet werden?
+
+- Werte müssen zyklisch kommuniziert werden
+- Navigator Pro: Solltemperaturen dürfen nicht permanent geschrieben werden --> Neustart vom Zonenmodul
+
+
+
+
+(C) IDM ENERGIESYSTEME GMBH           IDM Navigator Modbus TCP                                       35
+IMMER FÜR SIE DA:
+
+                          © iDM ENERGIESYSTEME GMBH
+                      Seblas 16-18 | A-9971 Matrei in Osttirol
+                     www.idm-energie.at | team@idm-energie.at
+
+
+
+
+iDM Systemtechnik:
+
+INBETRIEBNAHME – WARTUNG – SERVICE-VOR-ORT
+Unsere Ser vice -Te chniker helf en gern vor Or t. Ihren re gionalen Anspre ch -
+par tner mit Kontaktdaten er fahren Sie auf unserer Website.
+
+
+
+
+iDM Akademie:
+
+PRAXISWISSEN FÜR VERKAUF UND TECHNIK
+Das umfangreiche Seminarangebot für Fachleute bei der
+iDM Energiefamilie steht für Sie je derzeit auf unserer Website zur
+Ver f ügung. Wir freuen uns üb er Ihre Anmeldung!
+
+
+
+
+IHR iDM VERTRIEBSPARTNER:
+

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-12 text-end">
+        <small id="last-update" class="text-muted">Waiting for data...</small>
+    </div>
+</div>
+
+<div class="row" id="dashboard-content">
+    <div class="col-12 text-center">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    function formatKey(key) {
+        return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function getCategory(key) {
+        if (key.includes('temp')) return 'Temperatures';
+        if (key.includes('power') || key.includes('energy')) return 'Power & Energy';
+        if (key.includes('status') || key.includes('mode') || key.includes('state') || key.includes('failure')) return 'Status';
+        return 'Other';
+    }
+
+    function updateDashboard(data) {
+        const container = document.getElementById('dashboard-content');
+        const categories = {
+            'Temperatures': [],
+            'Power & Energy': [],
+            'Status': [],
+            'Other': []
+        };
+
+        for (const [key, value] of Object.entries(data)) {
+            if (key.endsWith('_str')) continue; // Skip string variants
+            const cat = getCategory(key);
+            categories[cat].push({key, value});
+        }
+
+        let html = '';
+        for (const [catName, items] of Object.entries(categories)) {
+            if (items.length === 0) continue;
+
+            html += `<h3 class="mb-3 border-bottom pb-2">${catName}</h3>`;
+            html += '<div class="row mb-4">';
+
+            items.forEach(item => {
+                // Try to find string representation if available
+                let displayValue = item.value;
+                if (data[item.key + '_str']) {
+                    displayValue = data[item.key + '_str'];
+                } else if (typeof item.value === 'number') {
+                        displayValue = Math.round(item.value * 100) / 100;
+                }
+
+                html += `
+                    <div class="col-md-3 col-sm-6 mb-3">
+                        <div class="card card-sensor h-100 shadow-sm border-0 bg-dark-subtle">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted text-truncate" title="${formatKey(item.key)}">${formatKey(item.key)}</h6>
+                                <div class="sensor-value text-primary">${displayValue}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+        }
+
+        container.innerHTML = html;
+        document.getElementById('last-update').innerText = 'Last updated: ' + new Date().toLocaleTimeString();
+    }
+
+    function fetchData() {
+        fetch('/api/data')
+            .then(response => response.json())
+            .then(data => {
+                if (Object.keys(data).length > 0) {
+                    updateDashboard(data);
+                }
+            })
+            .catch(err => console.error(err));
+    }
+
+    setInterval(fetchData, 5000);
+    window.onload = fetchData;
+</script>
+{% endblock %}
