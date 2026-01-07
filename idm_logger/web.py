@@ -87,6 +87,42 @@ def config_page():
 
     return render_template('config.html')
 
+def validate_write(sensor_name, value):
+    """Validates the value against sensor constraints."""
+    if not modbus_client_instance:
+        return False, "Modbus client not available"
+
+    sensor = modbus_client_instance.sensors.get(sensor_name) or modbus_client_instance.binary_sensors.get(sensor_name)
+    if not sensor:
+        return False, "Sensor not found"
+
+    # Enum validation
+    if hasattr(sensor, "enum") and sensor.enum:
+        try:
+            if str(value).isdigit():
+                val_int = int(value)
+                if val_int not in [m.value for m in sensor.enum]:
+                     return False, f"Value {value} is not a valid option"
+            else:
+                 # Try key lookup
+                 if value not in sensor.enum.__members__:
+                      return False, f"Option {value} not found"
+        except Exception:
+             return False, "Invalid enum value"
+
+    # Range validation
+    elif hasattr(sensor, "min_value") and hasattr(sensor, "max_value"):
+        try:
+            val_float = float(value)
+            if sensor.min_value is not None and val_float < sensor.min_value:
+                return False, f"Value {value} below minimum ({sensor.min_value})"
+            if sensor.max_value is not None and val_float > sensor.max_value:
+                return False, f"Value {value} above maximum ({sensor.max_value})"
+        except ValueError:
+            return False, "Invalid number"
+
+    return True, None
+
 @app.route('/control', methods=['GET', 'POST'])
 @login_required
 def control_page():
@@ -97,14 +133,19 @@ def control_page():
     if request.method == 'POST':
         sensor_name = request.form.get('sensor')
         value = request.form.get('value')
-        try:
-            if modbus_client_instance:
-                modbus_client_instance.write_sensor(sensor_name, value)
-                flash(f"Successfully wrote {value} to {sensor_name}", "success")
-            else:
-                 flash("Modbus client not available", "danger")
-        except Exception as e:
-            flash(f"Failed to write: {e}", "danger")
+
+        valid, msg = validate_write(sensor_name, value)
+        if not valid:
+             flash(f"Validation Error: {msg}", "danger")
+        else:
+            try:
+                if modbus_client_instance:
+                    modbus_client_instance.write_sensor(sensor_name, value)
+                    flash(f"Successfully wrote {value} to {sensor_name}", "success")
+                else:
+                     flash("Modbus client not available", "danger")
+            except Exception as e:
+                flash(f"Failed to write: {e}", "danger")
 
     # Filter writable sensors
     writable_sensors = []
@@ -130,15 +171,23 @@ def schedule_page():
         action = request.form.get('action')
 
         if action == 'add':
-            job = {
-                'sensor': request.form.get('sensor'),
-                'value': request.form.get('value'),
-                'time': request.form.get('time'),
-                'days': request.form.getlist('days')
-            }
-            if scheduler_instance:
-                scheduler_instance.add_job(job)
-                flash("Schedule added", "success")
+            sensor = request.form.get('sensor')
+            value = request.form.get('value')
+
+            # Validate input for schedule too
+            valid, msg = validate_write(sensor, value)
+            if not valid:
+                 flash(f"Validation Error: {msg}", "danger")
+            else:
+                job = {
+                    'sensor': sensor,
+                    'value': value,
+                    'time': request.form.get('time'),
+                    'days': request.form.getlist('days')
+                }
+                if scheduler_instance:
+                    scheduler_instance.add_job(job)
+                    flash("Schedule added", "success")
 
         elif action == 'delete':
             job_id = request.form.get('job_id')
@@ -151,6 +200,22 @@ def schedule_page():
              current_state = request.form.get('current_state') == 'True'
              if scheduler_instance:
                   scheduler_instance.update_job(job_id, {'enabled': not current_state})
+                  state_text = "paused" if current_state else "resumed"
+                  flash(f"Schedule {state_text}", "info")
+
+        elif action == 'run_now':
+             job_id = request.form.get('job_id')
+             if scheduler_instance:
+                 job = next((j for j in scheduler_instance.jobs if j['id'] == job_id), None)
+                 if job and modbus_client_instance:
+                     try:
+                         # We skip validation here as it was validated on add, but double check doesn't hurt
+                         modbus_client_instance.write_sensor(job['sensor'], job['value'])
+                         flash(f"Executed: {job['sensor']} = {job['value']}", "success")
+                     except Exception as e:
+                         flash(f"Execution failed: {e}", "danger")
+                 else:
+                     flash("Job not found or system unavailable", "danger")
 
     jobs = scheduler_instance.jobs if scheduler_instance else []
 

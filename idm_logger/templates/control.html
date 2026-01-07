@@ -5,29 +5,59 @@
 
 <div class="row justify-content-center">
     <div class="col-md-8">
-        <div class="card shadow">
+        {% for sensor in sensors %}
+        <div class="card shadow mb-3">
             <div class="card-body">
-                <form method="POST">
-                    <div class="mb-3">
-                        <label for="sensor" class="form-label">Sensor / Setting</label>
-                        <select class="form-select" id="sensor" name="sensor" required>
-                            <option value="" disabled selected>Select a target...</option>
-                            {% for sensor in sensors %}
-                                <option value="{{ sensor.name }}">{{ sensor.name }} ({{ sensor.supported_features.name if sensor.supported_features.name else 'WRITABLE' }})</option>
-                            {% endfor %}
-                        </select>
+                <form method="POST" class="row g-3 align-items-center">
+                    <input type="hidden" name="sensor" value="{{ sensor.name }}">
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold mb-0">{{ sensor.name|replace('_', ' ')|title }}</label>
+                        <div class="text-muted small">
+                            {% if sensor.min_value is not none and sensor.max_value is not none %}
+                                Range: {{ sensor.min_value }} - {{ sensor.max_value }} {{ sensor.unit if sensor.unit else '' }}
+                            {% elif sensor.enum %}
+                                Options available
+                            {% elif sensor.datatype == 'uint16' or sensor.datatype == 'bool' %}
+                                Toggle
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="value" class="form-label">New Value</label>
-                        <input type="text" class="form-control" id="value" name="value" required placeholder="e.g. 21.5 or NORMAL">
-                        <div class="form-text">Enter numeric value or Enum name.</div>
+
+                    <div class="col-md-5">
+                        {% if sensor.enum %}
+                            <select class="form-select" name="value" required>
+                                {% for item in sensor.enum %}
+                                    <option value="{{ item.value }}">{{ item.name }} ({{ item.value }})</option>
+                                {% endfor %}
+                            </select>
+                        {% elif sensor.datatype == 'bool' or (sensor.min_value == 0 and sensor.max_value == 1 and not sensor.unit) %}
+                            <select class="form-select" name="value" required>
+                                <option value="0">Off / False</option>
+                                <option value="1">On / True</option>
+                            </select>
+                        {% else %}
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="value" step="0.1"
+                                    {% if sensor.min_value is not none %}min="{{ sensor.min_value }}"{% endif %}
+                                    {% if sensor.max_value is not none %}max="{{ sensor.max_value }}"{% endif %}
+                                    required placeholder="Value">
+                                {% if sensor.unit %}
+                                    <span class="input-group-text">{{ sensor.unit }}</span>
+                                {% endif %}
+                            </div>
+                        {% endif %}
                     </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-warning">Write Value</button>
+
+                    <div class="col-md-3 text-end">
+                        <button type="submit" class="btn btn-warning w-100">
+                            <i class="bi bi-pencil-square"></i> Write
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}
