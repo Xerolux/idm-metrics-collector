@@ -17,53 +17,110 @@
 
 <script>
     function formatKey(key) {
-        return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        // Humanize keys: "temp_heat_pump_flow" -> "Heat Pump Flow"
+        // Remove common prefixes for cleaner display
+        let display = key;
+
+        // Remove known prefixes
+        const prefixes = ['temp_', 'power_', 'energy_', 'status_', 'mode_', 'state_', 'request_', 'count_', 'valve_state_', 'charge_'];
+        for (const p of prefixes) {
+            if (display.startsWith(p)) {
+                // Keep the prefix meaning but maybe put it in unit or subtitle?
+                // Actually users usually want to see "Flow Temp", "Outside Temp".
+                // Let's just capitalize and replace underscores.
+                break;
+            }
+        }
+
+        return display.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
 
     function getCategory(key) {
-        if (key.includes('temp')) return 'Temperatures';
-        if (key.includes('power') || key.includes('energy')) return 'Power & Energy';
-        if (key.includes('status') || key.includes('mode') || key.includes('state') || key.includes('failure')) return 'Status';
+        if (key.includes('solar') || key.includes('pv')) return 'Photovoltaics & Solar';
+        if (key.includes('circuit') || key.includes('room_') || key.includes('zone_')) return 'Heating Circuits & Zones';
+        if (key.includes('storage') || key.includes('water_heater')) return 'Storage & Hot Water';
+        if (key.includes('heat_pump') || key.includes('compressor') || key.includes('brine') || key.includes('ground_water') || key.includes('isc')) return 'Heat Pump & Source';
+        if (key.includes('energy') || key.includes('power')) return 'Energy & Power';
+        if (key.includes('temp_outside')) return 'System';
         return 'Other';
+    }
+
+    function getUnit(key) {
+        if (key.includes('temp')) return '°C';
+        if (key.includes('humidity')) return '%';
+        if (key.includes('power')) return 'kW';
+        if (key.includes('energy')) return 'kWh';
+        if (key.includes('pressure')) return 'bar';
+        if (key.includes('percent') || key.includes('load') || key.includes('state_charge')) return '%';
+        return '';
     }
 
     function updateDashboard(data) {
         const container = document.getElementById('dashboard-content');
-        const categories = {
-            'Temperatures': [],
-            'Power & Energy': [],
-            'Status': [],
+
+        // Grouping
+        const groups = {
+            'System': [],
+            'Heat Pump & Source': [],
+            'Storage & Hot Water': [],
+            'Heating Circuits & Zones': [],
+            'Photovoltaics & Solar': [],
+            'Energy & Power': [],
             'Other': []
         };
 
         for (const [key, value] of Object.entries(data)) {
-            if (key.endsWith('_str')) continue; // Skip string variants
+            if (key.endsWith('_str')) continue;
+
+            // Skip binary sensor internal logic if needed, but display is good.
+
             const cat = getCategory(key);
-            categories[cat].push({key, value});
+            if (groups[cat]) {
+                groups[cat].push({key, value});
+            } else {
+                groups['Other'].push({key, value});
+            }
         }
 
         let html = '';
-        for (const [catName, items] of Object.entries(categories)) {
-            if (items.length === 0) continue;
+        // Order of display
+        const order = ['System', 'Heat Pump & Source', 'Storage & Hot Water', 'Heating Circuits & Zones', 'Photovoltaics & Solar', 'Energy & Power', 'Other'];
 
-            html += `<h3 class="mb-3 border-bottom pb-2">${catName}</h3>`;
+        for (const catName of order) {
+            const items = groups[catName];
+            if (!items || items.length === 0) continue;
+
+            // Sort items by name
+            items.sort((a, b) => a.key.localeCompare(b.key));
+
+            html += `<h4 class="mb-3 mt-2 border-bottom pb-2 text-white-50">${catName}</h4>`;
             html += '<div class="row mb-4">';
 
             items.forEach(item => {
-                // Try to find string representation if available
                 let displayValue = item.value;
+                let unit = getUnit(item.key);
+
+                // Use string representation if available
                 if (data[item.key + '_str']) {
                     displayValue = data[item.key + '_str'];
+                    unit = ''; // Enums usually don't have units displayed next to text
                 } else if (typeof item.value === 'number') {
-                        displayValue = Math.round(item.value * 100) / 100;
+                     // Rounding
+                     displayValue = Math.round(item.value * 100) / 100;
+                } else if (typeof item.value === 'boolean') {
+                     displayValue = item.value ? 'ON' : 'OFF';
+                     unit = '';
                 }
 
                 html += `
-                    <div class="col-md-3 col-sm-6 mb-3">
+                    <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
                         <div class="card card-sensor h-100 shadow-sm border-0 bg-dark-subtle">
-                            <div class="card-body">
-                                <h6 class="card-subtitle mb-2 text-muted text-truncate" title="${formatKey(item.key)}">${formatKey(item.key)}</h6>
-                                <div class="sensor-value text-primary">${displayValue}</div>
+                            <div class="card-body d-flex flex-column">
+                                <div class="text-muted small text-truncate mb-1" title="${item.key}">${formatKey(item.key)}</div>
+                                <div class="mt-auto d-flex align-items-baseline">
+                                    <span class="sensor-value text-primary me-1">${displayValue}</span>
+                                    <span class="sensor-unit">${unit}</span>
+                                </div>
                             </div>
                         </div>
                     </div>

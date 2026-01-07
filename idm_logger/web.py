@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
 from .config import config
 from .sensor_addresses import SensorFeatures
+from .log_handler import memory_handler
 import threading
 import logging
 import functools
@@ -59,6 +60,14 @@ def logout():
 def get_data():
     with data_lock:
         return jsonify(current_data)
+
+@app.route('/logs')
+@login_required
+def logs_page():
+    logs = list(memory_handler.log_records)
+    # Reverse to show newest first
+    logs.reverse()
+    return render_template('logs.html', logs=logs)
 
 @app.route('/config', methods=['GET', 'POST'])
 @login_required

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">System Logs</h2>
+
+<div class="card shadow">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0" style="font-family: monospace; font-size: 0.9rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 180px;">Timestamp</th>
+                        <th style="width: 100px;">Level</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.timestamp }}</td>
+                        <td>
+                            {% if log.level == 'INFO' %}
+                                <span class="badge bg-info text-dark">INFO</span>
+                            {% elif log.level == 'WARNING' %}
+                                <span class="badge bg-warning text-dark">WARN</span>
+                            {% elif log.level == 'ERROR' %}
+                                <span class="badge bg-danger">ERROR</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ log.level }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-break">{{ log.message }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted py-3">No logs available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

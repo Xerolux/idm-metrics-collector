@@ -8,11 +8,16 @@ from .modbus import ModbusClient
 from .influx import InfluxWriter
 from .web import run_web, update_current_data
 from .scheduler import Scheduler
+from .log_handler import memory_handler
 
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, config.get("logging.level", "INFO")),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        memory_handler
+    ]
 )
 logger = logging.getLogger("idm_logger")
 

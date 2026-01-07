@@ -34,6 +34,11 @@
                         <a class="nav-link" href="{{ url_for('schedule_page') }}">Schedule</a>
                     </li>
                     {% endif %}
+                    {% if session.get('logged_in') %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logs_page') }}">Logs</a>
+                    </li>
+                    {% endif %}
                 </ul>
                 <div class="d-flex">
                     <a href="{{ url_for('config_page') }}" class="btn btn-outline-light me-2">Config</a>
