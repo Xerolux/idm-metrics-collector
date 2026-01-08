@@ -156,14 +156,14 @@ def config_page():
             if 'idm_host' in request.form:
                 config.data['idm']['host'] = request.form['idm_host']
 
-            # Web Port
-            if 'web_port' in request.form:
+            # IDM Modbus Port
+            if 'idm_port' in request.form:
                 try:
-                    port = int(request.form['web_port'])
-                    if 1024 <= port <= 65535:
-                        config.data['web']['port'] = port
+                    port = int(request.form['idm_port'])
+                    if 1 <= port <= 65535:
+                        config.data['idm']['port'] = port
                     else:
-                        flash("Port must be between 1024 and 65535", "danger")
+                        flash("Port must be between 1 and 65535", "danger")
                         return render_template('config.html')
                 except ValueError:
                     flash("Invalid port number", "danger")
