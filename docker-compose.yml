@@ -5,7 +5,7 @@ services:
     pull_policy: always
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "5008:5000"
     volumes:
       - idm-data:/app/data
     depends_on:
