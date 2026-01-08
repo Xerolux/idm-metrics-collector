@@ -39,6 +39,19 @@ A Debian tool to log data from IDM Heat Pumps (Navigator 2.0) to InfluxDB (v1 or
 
 ## Installation (Docker)
 
+### Docker Image (GHCR)
+
+The repository publishes a ready-to-use image to GitHub Container Registry (GHCR).
+
+```bash
+docker pull ghcr.io/<github-org-or-user>/idm-logger:latest
+docker run --rm -p 5000:5000 \
+  -v $(pwd)/config.yaml:/app/data/config.yaml \
+  ghcr.io/<github-org-or-user>/idm-logger:latest
+```
+
+> Replace `<github-org-or-user>` with your GitHub org/user. The image is built automatically on pushes to `main` and tags starting with `v`.
+
 This project includes a `docker-compose.yml` file to run the Logger, InfluxDB v2, and Grafana in containers.
 
 1.  Clone the repository and cd into it.
