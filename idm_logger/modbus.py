@@ -45,9 +45,6 @@ class ModbusClient:
         # Reading sensors
         for name, sensor in self.sensors.items():
             try:
-                if not self.client.connected:
-                     self.client.connect()
-
                 # Pymodbus 2.x API vs 3.x
                 # 2.x read_holding_registers(address, count, unit=1)
                 rr = self.client.read_holding_registers(sensor.address, count=sensor.size, unit=1)
@@ -72,9 +69,6 @@ class ModbusClient:
         # Reading binary sensors
         for name, sensor in self.binary_sensors.items():
             try:
-                if not self.client.connected:
-                     self.client.connect()
-
                 rr = self.client.read_holding_registers(sensor.address, count=sensor.size, unit=1)
                 if rr.isError():
                     logger.warning(f"Error reading binary {name} at {sensor.address}: {rr}")
