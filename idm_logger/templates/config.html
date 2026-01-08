@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Configuration - IDM Logger</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
@@ -39,6 +40,24 @@
                                 <input type="text" class="form-control" id="idm_host" name="idm_host" value="{{ config.idm.host }}">
                             </div>
 
+                            <h5 class="mb-3 mt-4">Web Interface</h5>
+                            <div class="mb-3">
+                                <label for="web_port" class="form-label">Web Server Port</label>
+                                <input type="number" class="form-control" id="web_port" name="web_port" value="{{ config.web.port }}" min="1024" max="65535">
+                                <div class="form-text">Change requires container restart to take effect</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Write Capabilities</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="write_enabled" name="write_enabled" {{ 'checked' if config.web.write_enabled else '' }}>
+                                    <label class="form-check-label" for="write_enabled">
+                                        Enable write operations and scheduling
+                                    </label>
+                                </div>
+                                <div class="form-text text-warning">Requires restart to activate scheduler</div>
+                            </div>
+
                             <h5 class="mb-3 mt-4">InfluxDB Connection</h5>
                             <div class="mb-3">
                                 <label for="influx_url" class="form-label">InfluxDB URL (v2)</label>
@@ -46,12 +65,7 @@
                             </div>
 
                             <div class="alert alert-info mt-3">
-                                <small>Note: Other settings like Authentication Tokens, Passwords, or Logging Interval must be changed in the <code>config.yaml</code> file directly for security reasons.</small>
-                            </div>
-
-                            <div class="alert alert-warning mt-3">
-                                <strong>Write Capabilities:</strong> Currently {{ "Enabled" if config.web.write_enabled else "Disabled" }}.
-                                <small>To change this, edit <code>config.yaml</code> and set <code>web.write_enabled</code>.</small>
+                                <small>Note: Other settings like Authentication Tokens, Passwords, or Logging Interval must be changed in the database directly for security reasons.</small>
                             </div>
 
                             <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
@@ -59,6 +73,22 @@
                                 <button type="submit" class="btn btn-primary">Save Changes</button>
                             </div>
                         </form>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1">Service Management</h5>
+                                <p class="text-muted small mb-0">Restart the service to apply configuration changes</p>
+                            </div>
+                            <div>
+                                <form method="POST" action="/restart" onsubmit="return confirm('Are you sure you want to restart the service? This will disconnect all active sessions.');">
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="bi bi-arrow-clockwise"></i> Restart Service
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

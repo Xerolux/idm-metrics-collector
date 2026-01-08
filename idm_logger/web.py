@@ -5,6 +5,9 @@ from .log_handler import memory_handler
 import threading
 import logging
 import functools
+import os
+import sys
+import signal
 
 logger = logging.getLogger(__name__)
 
@@ -149,8 +152,27 @@ def logs_page():
 def config_page():
     if request.method == 'POST':
         try:
+            # IDM Host
             if 'idm_host' in request.form:
                 config.data['idm']['host'] = request.form['idm_host']
+
+            # Web Port
+            if 'web_port' in request.form:
+                try:
+                    port = int(request.form['web_port'])
+                    if 1024 <= port <= 65535:
+                        config.data['web']['port'] = port
+                    else:
+                        flash("Port must be between 1024 and 65535", "danger")
+                        return render_template('config.html')
+                except ValueError:
+                    flash("Invalid port number", "danger")
+                    return render_template('config.html')
+
+            # Write Enabled
+            config.data['web']['write_enabled'] = 'write_enabled' in request.form
+
+            # InfluxDB URL
             if 'influx_url' in request.form:
                  config.data['influx']['url'] = request.form['influx_url']
 
@@ -170,6 +192,25 @@ def config_page():
             flash(f"Error saving config: {e}", "danger")
 
     return render_template('config.html')
+
+@app.route('/restart', methods=['POST'])
+@login_required
+def restart_service():
+    """Restart the service by sending SIGTERM to the main process."""
+    flash("Restarting service...", "info")
+    logger.info("Service restart requested by user")
+
+    # Use threading to delay the restart so the response can be sent
+    def delayed_restart():
+        import time
+        time.sleep(1)  # Give time for the response to be sent
+        logger.info("Initiating restart...")
+        # Send SIGTERM to main process (PID 1 in container)
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    threading.Thread(target=delayed_restart, daemon=True).start()
+
+    return redirect(url_for('config_page'))
 
 def validate_write(sensor_name, value):
     """Validates the value against sensor constraints."""
@@ -251,6 +292,10 @@ def schedule_page():
          flash("Write capabilities (and scheduling) are disabled.", "warning")
          return redirect(url_for('index'))
 
+    if not scheduler_instance:
+        flash("Scheduler not available. Please restart the service.", "danger")
+        return redirect(url_for('index'))
+
     if request.method == 'POST':
         action = request.form.get('action')
 
@@ -306,10 +351,14 @@ def schedule_page():
     # Get sensors for dropdown
     writable_sensors = []
     if modbus_client_instance:
-        all_sensors = {**modbus_client_instance.sensors, **modbus_client_instance.binary_sensors}
-        for name, sensor in all_sensors.items():
-            if sensor.supported_features != SensorFeatures.NONE:
-                writable_sensors.append(sensor)
+        try:
+            all_sensors = {**modbus_client_instance.sensors, **modbus_client_instance.binary_sensors}
+            for name, sensor in all_sensors.items():
+                if sensor.supported_features != SensorFeatures.NONE:
+                    writable_sensors.append(sensor)
+        except Exception as e:
+            logger.error(f"Error loading sensors for schedule: {e}")
+            flash("Error loading sensors. Please check Modbus connection.", "danger")
     writable_sensors.sort(key=lambda s: s.name)
 
     return render_template('schedule.html', jobs=jobs, sensors=writable_sensors)
