@@ -1,79 +1,144 @@
-# IDM Heat Pump Logger
+# IDM Metrics Collector
 
-A Debian tool to log data from IDM Heat Pumps (Navigator 2.0) to InfluxDB (v1 or v2).
+A comprehensive monitoring and control system for IDM Heat Pumps (Navigator 2.0) with InfluxDB metrics storage and Grafana visualization.
 
 ## Features
 
-*   **Automatic Startup**: Runs as a systemd service.
-*   **Data Source**: Reads from IDM Heat Pump via Modbus TCP.
-*   **Data Sink**: Supports InfluxDB v1 and v2.
-*   **Web Interface**: Modern dashboard for live data, configuration, manual control, and scheduling.
-*   **Automation**: Built-in scheduler to write values (e.g., temperatures) at specific times.
-*   **Docker Support**: Ready-to-use Docker Compose stack.
-*   **Easy Installation**: Interactive installer script for Debian.
+*   **Multiple Installation Options**: Bare Metal, Docker, or Docker Compose (with full stack)
+*   **Automated Setup**: Interactive installer handles all dependencies
+*   **Data Source**: Reads from IDM Heat Pump via Modbus TCP
+*   **Data Sink**: Supports InfluxDB v1 and v2
+*   **Web Interface**: Modern dashboard for live data, configuration, manual control, and scheduling
+*   **Automation**: Built-in scheduler to write values (e.g., temperatures) at specific times
+*   **Zero-Config Docker**: Complete stack with InfluxDB and Grafana pre-configured
+*   **Production Ready**: Systemd service, health checks, automatic restarts
 
-## Installation (Debian/Ubuntu)
+## Quick Start
 
-1.  Clone this repository:
-    ```bash
-    git clone https://github.com/yourusername/idm-logger.git
-    cd idm-logger
-    ```
+### One-Command Installation
 
-2.  Run the installation script (as root):
-    ```bash
-    sudo ./install.sh
-    ```
-    The script will ask if you want to install InfluxDB and Grafana locally on your system.
+```bash
+curl -fsSL https://raw.githubusercontent.com/Xerolux/idm-metrics-collector/main/install.sh | sudo bash
+```
 
-3.  Edit the configuration file:
-    ```bash
-    sudo nano /opt/idm-logger/config.yaml
-    ```
-    *Tip: Set `web.write_enabled: true` to enable control and scheduling features.*
+Or clone and run:
 
-4.  Start the service:
-    ```bash
-    sudo systemctl start idm-logger
-    ```
+```bash
+git clone https://github.com/Xerolux/idm-metrics-collector.git
+cd idm-metrics-collector
+sudo chmod +x install.sh
+sudo ./install.sh
+```
 
-## Installation (Docker)
+The installer will:
+1. Detect your OS and update system packages
+2. Install required dependencies (git, curl, etc.)
+3. Ask you to choose installation method:
+   - **Bare Metal**: Installs as systemd service with Python virtual environment
+   - **Docker**: Single container deployment
+   - **Docker Compose**: Complete stack (App + InfluxDB + Grafana)
+4. Configure and start all services
+
+### Installation Methods
+
+#### 1. Bare Metal (Systemd Service)
+
+Best for: Direct system installation, maximum control
+
+```bash
+sudo ./install.sh
+# Choose option 1: Bare Metal
+```
+
+After installation:
+```bash
+# Edit configuration
+sudo nano /opt/idm-metrics-collector/data/config.yaml
+
+# Restart service
+sudo systemctl restart idm-metrics-collector
+
+# View logs
+sudo journalctl -u idm-metrics-collector -f
+```
+
+#### 2. Docker (Single Container)
+
+Best for: Simple containerized deployment
+
+```bash
+sudo ./install.sh
+# Choose option 2: Docker
+```
+
+After installation:
+```bash
+# View logs
+docker logs -f idm-metrics-collector
+
+# Restart
+docker restart idm-metrics-collector
+```
+
+#### 3. Docker Compose (Full Stack)
+
+Best for: Complete turnkey solution with monitoring
+
+```bash
+sudo ./install.sh
+# Choose option 3: Docker Compose
+```
+
+This installs:
+- IDM Metrics Collector (Web UI + API)
+- InfluxDB 2 (Time-series database)
+- Grafana (Visualization platform)
+
+All services are pre-configured and ready to use!
+
+## Accessing Services
+
+### After Installation
+
+**Web UI** (IDM Metrics Collector)
+- URL: `http://your-server-ip:5000`
+- Default Login: `admin` / `admin` (change after first login)
+- Features: Live dashboard, control panel, scheduling, configuration
+
+**Grafana** (Docker Compose only)
+- URL: `http://your-server-ip:3000`
+- Default Login: `admin` / `admin`
+- Pre-configured with InfluxDB datasource and IDM dashboard
+
+**InfluxDB** (Docker Compose only)
+- URL: `http://your-server-ip:8086`
+- Default Credentials:
+  - User: `admin`
+  - Password: `adminpassword123`
+  - Organization: `my-org`
+  - Bucket: `idm`
+  - Token: `my-super-secret-token-change-me`
 
 ### Docker Image (GHCR)
 
-The repository publishes a ready-to-use image to GitHub Container Registry (GHCR).
+Pre-built images are available from GitHub Container Registry:
 
 ```bash
-docker pull ghcr.io/<github-org-or-user>/idm-logger:latest
+docker pull ghcr.io/xerolux/idm-metrics-collector:latest
 docker run --rm -p 5000:5000 \
-  -v $(pwd)/config.yaml:/app/data/config.yaml \
-  ghcr.io/<github-org-or-user>/idm-logger:latest
+  -v $(pwd)/data:/app/data \
+  ghcr.io/xerolux/idm-metrics-collector:latest
 ```
 
-> Replace `<github-org-or-user>` with your GitHub org/user. The image is built automatically on pushes to `main` and tags starting with `v`.
-
-This project includes a `docker-compose.yml` file to run the Logger, InfluxDB v2, and Grafana in containers.
-
-1.  Clone the repository and cd into it.
-2.  **Create the configuration file:**
-    ```bash
-    cp config.yaml.example config.yaml
-    nano config.yaml
-    ```
-    *You MUST verify the settings, especially `idm.host`.*
-
-3.  Start the stack:
-    ```bash
-    docker-compose up -d
-    ```
-4.  Access the services:
-    *   **Logger Web UI**: `http://localhost:5000` (Default Login: `admin`)
-    *   **Grafana**: `http://localhost:3000` (Login: `admin` / `admin`)
-    *   **InfluxDB**: `http://localhost:8086` (User: `admin`, Pass: `adminpassword`, Org: `my-org`, Token: `my-token`)
+Images are automatically built on:
+- Pushes to `main` branch (tagged as `latest`)
+- Git tags starting with `v` (e.g., `v1.0.0`)
 
 ## Configuration
 
-The configuration file is located at `/opt/idm-logger/config.yaml` (native install) or `./config.yaml` (Docker).
+Configuration file locations:
+- **Bare Metal**: `/opt/idm-metrics-collector/data/config.yaml`
+- **Docker/Compose**: `./config.yaml` in installation directory
 
 Example:
 

@@ -2,10 +2,6 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install curl for health checks
-RUN apt-get update && apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
-
 # Install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -22,8 +18,8 @@ WORKDIR /app/data
 
 EXPOSE 5000
 
-# Health check
+# Health check using Python instead of curl (no extra packages needed)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:5000/api/health || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health', timeout=5)" || exit 1
 
 CMD ["python", "-m", "idm_logger.logger"]
