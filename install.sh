@@ -198,9 +198,9 @@ install_docker_only() {
         docker rm ${APP_NAME} 2>/dev/null || true
     fi
 
-    # Build image
-    print_info "Building Docker image..."
-    docker build -t ${APP_NAME}:latest .
+    # Pull image from GHCR
+    print_info "Pulling Docker image from GitHub Container Registry..."
+    docker pull ghcr.io/xerolux/${APP_NAME}:latest
 
     # Create data directory
     mkdir -p ${INSTALL_DIR}/data
@@ -213,7 +213,7 @@ install_docker_only() {
         -p 5000:5000 \
         -v ${INSTALL_DIR}/config.yaml:/app/data/config.yaml:ro \
         -v ${INSTALL_DIR}/data:/app/data \
-        ${APP_NAME}:latest
+        ghcr.io/xerolux/${APP_NAME}:latest
 
     print_success "Docker installation complete"
     print_info ""
@@ -253,16 +253,20 @@ install_docker_compose_stack() {
     print_info "Stopping existing services..."
     docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
 
-    # Pull images
-    print_info "Pulling Docker images..."
-    docker compose pull 2>/dev/null || docker-compose pull 2>/dev/null || true
+    # Pull images from registries
+    print_info "Pulling Docker images from registries..."
+    if docker compose version &> /dev/null; then
+        docker compose pull
+    else
+        docker-compose pull
+    fi
 
     # Start stack
     print_info "Starting Docker Compose stack..."
     if docker compose version &> /dev/null; then
-        docker compose up -d --build
+        docker compose up -d
     else
-        docker-compose up -d --build
+        docker-compose up -d
     fi
 
     print_success "Docker Compose installation complete"

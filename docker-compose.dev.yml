@@ -1,8 +1,10 @@
+# Development docker-compose with local build
+# Use: docker compose -f docker-compose.dev.yml up -d
+
 services:
   idm-logger:
-    image: ghcr.io/xerolux/idm-metrics-collector:latest
+    build: .
     container_name: idm-logger
-    pull_policy: always
     restart: unless-stopped
     ports:
       - "5000:5000"
