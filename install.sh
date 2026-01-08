@@ -1,7 +1,7 @@
 #!/bin/bash
 ################################################################################
 # IDM Metrics Collector - Installation Script
-# Supports: Bare Metal, Docker, Docker Compose installations
+# Supports: Docker and Docker Compose installations
 ################################################################################
 
 set -e
@@ -16,8 +16,6 @@ NC='\033[0m' # No Color
 # Variables
 APP_NAME="idm-metrics-collector"
 INSTALL_DIR="/opt/${APP_NAME}"
-SERVICE_NAME="${APP_NAME}"
-USER="${APP_NAME}"
 GITHUB_REPO="Xerolux/idm-metrics-collector"
 
 # Print functions
@@ -66,46 +64,18 @@ detect_os() {
     fi
 }
 
-# Update system packages
-update_system() {
-    print_header "Updating System Packages"
-
-    case $OS in
-        ubuntu|debian)
-            apt-get update
-            apt-get upgrade -y
-            print_success "System updated successfully"
-            ;;
-        centos|rhel|fedora)
-            yum update -y
-            print_success "System updated successfully"
-            ;;
-        *)
-            print_warning "Unknown OS. Skipping system update."
-            ;;
-    esac
-}
-
 # Install basic dependencies
 install_basic_dependencies() {
     print_header "Installing Basic Dependencies"
 
     case $OS in
         ubuntu|debian)
-            # Install dependencies (software-properties-common only on Ubuntu)
-            local packages="curl wget git apt-transport-https ca-certificates gnupg lsb-release net-tools"
-            if [[ "$OS" == "ubuntu" ]]; then
-                packages="$packages software-properties-common"
-            fi
-            apt-get install -y $packages
+            apt-get update
+            apt-get install -y curl wget git ca-certificates gnupg
             ;;
         centos|rhel|fedora)
-            yum install -y \
-                curl \
-                wget \
-                git \
-                ca-certificates \
-                net-tools
+            yum update -y
+            yum install -y curl wget git ca-certificates
             ;;
         *)
             print_error "Unsupported OS for automatic installation"
@@ -127,10 +97,7 @@ install_docker() {
 
     case $OS in
         ubuntu|debian)
-            # Remove old versions
-            apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
-
-            # Install Docker
+            # Install Docker using official script
             curl -fsSL https://get.docker.com -o get-docker.sh
             sh get-docker.sh
             rm get-docker.sh
@@ -157,158 +124,48 @@ install_docker() {
 install_docker_compose() {
     print_header "Installing Docker Compose"
 
-    if command -v docker-compose &> /dev/null; then
-        print_info "Docker Compose is already installed ($(docker-compose --version))"
+    # Check if docker compose plugin is available
+    if docker compose version &> /dev/null; then
+        print_info "Docker Compose plugin is already installed ($(docker compose version))"
         return 0
     fi
 
-    # Get latest version
-    DOCKER_COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+    # Check if standalone docker-compose is available
+    if command -v docker-compose &> /dev/null; then
+        print_info "Docker Compose standalone is already installed ($(docker-compose --version))"
+        return 0
+    fi
 
-    # Download and install
-    curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-
-    # Create symlink
-    ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose || true
-
-    print_success "Docker Compose installed successfully ($(docker-compose --version))"
-}
-
-# Install Python and dependencies for bare metal
-install_python_dependencies() {
-    print_header "Installing Python and Dependencies"
-
+    # Install Docker Compose plugin (preferred method)
     case $OS in
         ubuntu|debian)
-            # Detect available Python version
-            if apt-cache show python3.11 &>/dev/null; then
-                PYTHON_VERSION="python3.11"
-            elif apt-cache show python3.13 &>/dev/null; then
-                PYTHON_VERSION="python3.13"
-                print_info "Using Python 3.13 (Debian Trixie default)"
-            else
-                PYTHON_VERSION="python3"
-                print_warning "Using default Python 3 version"
-            fi
-
-            apt-get install -y \
-                $PYTHON_VERSION \
-                ${PYTHON_VERSION}-venv \
-                python3-pip \
-                build-essential \
-                libssl-dev \
-                libffi-dev \
-                python3-dev
+            apt-get install -y docker-compose-plugin
             ;;
         centos|rhel|fedora)
-            PYTHON_VERSION="python3.11"
-            yum install -y \
-                python311 \
-                python311-devel \
-                python3-pip \
-                gcc \
-                openssl-devel \
-                libffi-devel
+            yum install -y docker-compose-plugin
             ;;
         *)
-            print_error "Unsupported OS for Python installation"
-            exit 1
+            # Fallback: Install standalone docker-compose
+            print_info "Installing standalone Docker Compose..."
+            DOCKER_COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+            curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            chmod +x /usr/local/bin/docker-compose
+            ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose || true
             ;;
     esac
 
-    # Update pip
-    $PYTHON_VERSION -m pip install --upgrade pip
-
-    print_success "Python and dependencies installed (using $PYTHON_VERSION)"
-}
-
-# Install application (Bare Metal)
-install_bare_metal() {
-    print_header "Installing ${APP_NAME} (Bare Metal)"
-
-    # Install Python dependencies
-    install_python_dependencies
-
-    # Create user
-    if ! id -u $USER &>/dev/null; then
-        useradd -r -s /bin/false $USER
-        print_info "Created user: $USER"
-    fi
-
-    # Create directory
-    mkdir -p $INSTALL_DIR
-    cd $INSTALL_DIR
-
-    # Clone or update repository
-    if [[ -d "${INSTALL_DIR}/.git" ]]; then
-        print_info "Updating existing installation..."
-        sudo -u $USER git pull
+    # Verify installation
+    if docker compose version &> /dev/null; then
+        print_success "Docker Compose plugin installed successfully ($(docker compose version))"
+    elif command -v docker-compose &> /dev/null; then
+        print_success "Docker Compose standalone installed successfully ($(docker-compose --version))"
     else
-        print_info "Cloning repository..."
-        git clone https://github.com/${GITHUB_REPO}.git .
+        print_error "Failed to install Docker Compose"
+        exit 1
     fi
-
-    # Create virtual environment
-    $PYTHON_VERSION -m venv venv
-    source venv/bin/activate
-
-    # Install requirements
-    pip install --no-cache-dir -r requirements.txt
-
-    # Create data directory
-    mkdir -p ${INSTALL_DIR}/data
-
-    # Copy example config if not exists
-    if [[ ! -f ${INSTALL_DIR}/data/config.yaml ]]; then
-        cp config.yaml.example ${INSTALL_DIR}/data/config.yaml
-        print_info "Created default config at ${INSTALL_DIR}/data/config.yaml"
-    fi
-
-    # Set permissions
-    chown -R $USER:$USER $INSTALL_DIR
-    chmod -R 755 $INSTALL_DIR
-
-    # Create systemd service
-    create_systemd_service
-
-    # Enable and start service
-    systemctl daemon-reload
-    systemctl enable $SERVICE_NAME
-    systemctl start $SERVICE_NAME
-
-    print_success "Bare metal installation complete"
-    print_info "Service status: systemctl status $SERVICE_NAME"
-    print_info "Configuration: ${INSTALL_DIR}/data/config.yaml"
 }
 
-# Create systemd service
-create_systemd_service() {
-    print_info "Creating systemd service..."
-
-    cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
-[Unit]
-Description=IDM Metrics Collector
-After=network.target
-
-[Service]
-Type=simple
-User=$USER
-Group=$USER
-WorkingDirectory=${INSTALL_DIR}/data
-Environment="PATH=${INSTALL_DIR}/venv/bin"
-ExecStart=${INSTALL_DIR}/venv/bin/python -m idm_logger.logger
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    print_info "Systemd service created: /etc/systemd/system/${SERVICE_NAME}.service"
-}
-
-# Install with Docker
+# Install with Docker (single container)
 install_docker_only() {
     print_header "Installing ${APP_NAME} (Docker)"
 
@@ -316,11 +173,11 @@ install_docker_only() {
     install_docker
 
     # Create working directory
-    mkdir -p /opt/${APP_NAME}
-    cd /opt/${APP_NAME}
+    mkdir -p ${INSTALL_DIR}
+    cd ${INSTALL_DIR}
 
     # Clone repository
-    if [[ -d "/opt/${APP_NAME}/.git" ]]; then
+    if [[ -d "${INSTALL_DIR}/.git" ]]; then
         print_info "Updating existing installation..."
         git pull
     else
@@ -331,12 +188,22 @@ install_docker_only() {
     # Copy example config if not exists
     if [[ ! -f config.yaml ]]; then
         cp config.yaml.example config.yaml
-        print_warning "Created default config. Please edit config.yaml before starting!"
+        print_warning "Created default config at ${INSTALL_DIR}/config.yaml"
+    fi
+
+    # Stop and remove old container if exists
+    if docker ps -a | grep -q ${APP_NAME}; then
+        print_info "Removing old container..."
+        docker stop ${APP_NAME} 2>/dev/null || true
+        docker rm ${APP_NAME} 2>/dev/null || true
     fi
 
     # Build image
     print_info "Building Docker image..."
     docker build -t ${APP_NAME}:latest .
+
+    # Create data directory
+    mkdir -p ${INSTALL_DIR}/data
 
     # Create and start container
     print_info "Starting container..."
@@ -344,16 +211,18 @@ install_docker_only() {
         --name ${APP_NAME} \
         --restart unless-stopped \
         -p 5000:5000 \
-        -v /opt/${APP_NAME}/data:/app/data \
+        -v ${INSTALL_DIR}/config.yaml:/app/data/config.yaml:ro \
+        -v ${INSTALL_DIR}/data:/app/data \
         ${APP_NAME}:latest
 
     print_success "Docker installation complete"
+    print_info ""
     print_info "Container status: docker ps | grep ${APP_NAME}"
-    print_info "Logs: docker logs ${APP_NAME}"
-    print_info "Configuration: /opt/${APP_NAME}/config.yaml"
+    print_info "Logs: docker logs -f ${APP_NAME}"
+    print_info "Configuration: ${INSTALL_DIR}/config.yaml"
 }
 
-# Install with Docker Compose
+# Install with Docker Compose (full stack)
 install_docker_compose_stack() {
     print_header "Installing ${APP_NAME} (Docker Compose)"
 
@@ -362,11 +231,11 @@ install_docker_compose_stack() {
     install_docker_compose
 
     # Create working directory
-    mkdir -p /opt/${APP_NAME}
-    cd /opt/${APP_NAME}
+    mkdir -p ${INSTALL_DIR}
+    cd ${INSTALL_DIR}
 
     # Clone repository
-    if [[ -d "/opt/${APP_NAME}/.git" ]]; then
+    if [[ -d "${INSTALL_DIR}/.git" ]]; then
         print_info "Updating existing installation..."
         git pull
     else
@@ -377,29 +246,39 @@ install_docker_compose_stack() {
     # Copy example config if not exists
     if [[ ! -f config.yaml ]]; then
         cp config.yaml.example config.yaml
-        print_warning "Created default config. Please edit config.yaml before starting!"
+        print_warning "Created default config at ${INSTALL_DIR}/config.yaml"
     fi
+
+    # Stop existing stack
+    print_info "Stopping existing services..."
+    docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
 
     # Pull images
     print_info "Pulling Docker images..."
-    docker-compose pull || true
+    docker compose pull 2>/dev/null || docker-compose pull 2>/dev/null || true
 
     # Start stack
     print_info "Starting Docker Compose stack..."
-    docker-compose up -d --build
+    if docker compose version &> /dev/null; then
+        docker compose up -d --build
+    else
+        docker-compose up -d --build
+    fi
 
     print_success "Docker Compose installation complete"
     print_info ""
     print_info "Services:"
-    print_info "  - Web UI:     http://localhost:5000 (Default login: admin/admin)"
-    print_info "  - Grafana:    http://localhost:3000 (Login: admin/admin)"
-    print_info "  - InfluxDB:   http://localhost:8086 (User: admin, Pass: adminpassword123)"
+    print_info "  - Web UI:     http://$(hostname -I | awk '{print $1}'):5000 (Login: admin/admin)"
+    print_info "  - Grafana:    http://$(hostname -I | awk '{print $1}'):3000 (Login: admin/admin)"
+    print_info "  - InfluxDB:   http://$(hostname -I | awk '{print $1}'):8086 (User: admin, Pass: adminpassword123)"
     print_info ""
     print_info "Useful commands:"
-    print_info "  - Status:     docker-compose ps"
-    print_info "  - Logs:       docker-compose logs -f"
-    print_info "  - Stop:       docker-compose down"
-    print_info "  - Restart:    docker-compose restart"
+    print_info "  - Status:     cd ${INSTALL_DIR} && docker compose ps"
+    print_info "  - Logs:       cd ${INSTALL_DIR} && docker compose logs -f"
+    print_info "  - Stop:       cd ${INSTALL_DIR} && docker compose down"
+    print_info "  - Restart:    cd ${INSTALL_DIR} && docker compose restart"
+    print_info ""
+    print_info "Configuration: ${INSTALL_DIR}/config.yaml"
 }
 
 # Show installation menu
@@ -408,24 +287,20 @@ show_menu() {
 
     echo "Please select installation method:"
     echo ""
-    echo "  1) Bare Metal       - Install directly on system (systemd service)"
-    echo "  2) Docker           - Install as Docker container (single container)"
-    echo "  3) Docker Compose   - Install complete stack (App + InfluxDB + Grafana)"
-    echo "  4) Exit"
+    echo "  1) Docker           - Single container (App only)"
+    echo "  2) Docker Compose   - Full stack (App + InfluxDB + Grafana) [RECOMMENDED]"
+    echo "  3) Exit"
     echo ""
-    read -p "Enter your choice [1-4]: " choice
+    read -p "Enter your choice [1-3]: " choice
 
     case $choice in
         1)
-            INSTALL_TYPE="bare_metal"
-            ;;
-        2)
             INSTALL_TYPE="docker"
             ;;
-        3)
+        2)
             INSTALL_TYPE="docker_compose"
             ;;
-        4)
+        3)
             print_info "Installation cancelled"
             exit 0
             ;;
@@ -447,12 +322,6 @@ main() {
     # Detect OS
     detect_os
 
-    # Update system
-    read -p "Update system packages? (recommended) [Y/n]: " update_choice
-    if [[ ! $update_choice =~ ^[Nn]$ ]]; then
-        update_system
-    fi
-
     # Install basic dependencies
     install_basic_dependencies
 
@@ -461,9 +330,6 @@ main() {
 
     # Install based on choice
     case $INSTALL_TYPE in
-        bare_metal)
-            install_bare_metal
-            ;;
         docker)
             install_docker_only
             ;;
@@ -475,18 +341,9 @@ main() {
     print_header "Installation Complete!"
 
     case $INSTALL_TYPE in
-        bare_metal)
-            echo -e "${GREEN}Next steps:${NC}"
-            echo "  1. Edit configuration: nano ${INSTALL_DIR}/data/config.yaml"
-            echo "  2. Restart service: systemctl restart ${SERVICE_NAME}"
-            echo "  3. Check status: systemctl status ${SERVICE_NAME}"
-            echo "  4. View logs: journalctl -u ${SERVICE_NAME} -f"
-            echo ""
-            echo "Web UI: http://$(hostname -I | awk '{print $1}'):5000"
-            ;;
         docker)
             echo -e "${GREEN}Next steps:${NC}"
-            echo "  1. Edit configuration: nano /opt/${APP_NAME}/config.yaml"
+            echo "  1. Edit configuration: nano ${INSTALL_DIR}/config.yaml"
             echo "  2. Restart container: docker restart ${APP_NAME}"
             echo "  3. View logs: docker logs -f ${APP_NAME}"
             echo ""
@@ -497,6 +354,9 @@ main() {
             echo "  - Web UI:   http://$(hostname -I | awk '{print $1}'):5000"
             echo "  - Grafana:  http://$(hostname -I | awk '{print $1}'):3000"
             echo "  - InfluxDB: http://$(hostname -I | awk '{print $1}'):8086"
+            echo ""
+            echo -e "${YELLOW}IMPORTANT: Edit ${INSTALL_DIR}/config.yaml and set your heat pump IP address!${NC}"
+            echo "Then restart: cd ${INSTALL_DIR} && docker compose restart"
             ;;
     esac
 

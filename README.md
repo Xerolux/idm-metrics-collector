@@ -4,14 +4,14 @@ A comprehensive monitoring and control system for IDM Heat Pumps (Navigator 2.0)
 
 ## Features
 
-*   **Multiple Installation Options**: Bare Metal, Docker, or Docker Compose (with full stack)
-*   **Automated Setup**: Interactive installer handles all dependencies
+*   **Docker-First**: Optimized for Docker and Docker Compose deployments
+*   **Zero-Config Setup**: Complete stack with InfluxDB and Grafana pre-configured
+*   **Automated Installer**: One command installation handles everything
 *   **Data Source**: Reads from IDM Heat Pump via Modbus TCP
-*   **Data Sink**: Supports InfluxDB v1 and v2
+*   **Data Sink**: Supports InfluxDB v2
 *   **Web Interface**: Modern dashboard for live data, configuration, manual control, and scheduling
 *   **Automation**: Built-in scheduler to write values (e.g., temperatures) at specific times
-*   **Zero-Config Docker**: Complete stack with InfluxDB and Grafana pre-configured
-*   **Production Ready**: Systemd service, health checks, automatic restarts
+*   **Production Ready**: Health checks, automatic restarts, persistent data
 
 ## Quick Start
 
@@ -31,70 +31,60 @@ sudo ./install.sh
 ```
 
 The installer will:
-1. Detect your OS and update system packages
+1. Detect your OS and install Docker/Docker Compose
 2. Install required dependencies (git, curl, etc.)
 3. Ask you to choose installation method:
-   - **Bare Metal**: Installs as systemd service with Python virtual environment
-   - **Docker**: Single container deployment
-   - **Docker Compose**: Complete stack (App + InfluxDB + Grafana)
-4. Configure and start all services
+   - **Docker**: Single container deployment (App only)
+   - **Docker Compose**: Complete stack (App + InfluxDB + Grafana) **[RECOMMENDED]**
+4. Clone repository, build images, and start all services
 
 ### Installation Methods
 
-#### 1. Bare Metal (Systemd Service)
+#### Option 1: Docker (Single Container)
 
-Best for: Direct system installation, maximum control
+Best for: Connecting to existing InfluxDB instance
 
 ```bash
 sudo ./install.sh
-# Choose option 1: Bare Metal
+# Choose option 1: Docker
 ```
 
 After installation:
 ```bash
 # Edit configuration
-sudo nano /opt/idm-metrics-collector/data/config.yaml
+sudo nano /opt/idm-metrics-collector/config.yaml
 
-# Restart service
-sudo systemctl restart idm-metrics-collector
+# Restart container
+docker restart idm-metrics-collector
 
-# View logs
-sudo journalctl -u idm-metrics-collector -f
-```
-
-#### 2. Docker (Single Container)
-
-Best for: Simple containerized deployment
-
-```bash
-sudo ./install.sh
-# Choose option 2: Docker
-```
-
-After installation:
-```bash
 # View logs
 docker logs -f idm-metrics-collector
-
-# Restart
-docker restart idm-metrics-collector
 ```
 
-#### 3. Docker Compose (Full Stack)
+#### Option 2: Docker Compose (Full Stack) **[RECOMMENDED]**
 
 Best for: Complete turnkey solution with monitoring
 
 ```bash
 sudo ./install.sh
-# Choose option 3: Docker Compose
+# Choose option 2: Docker Compose
 ```
 
 This installs:
-- IDM Metrics Collector (Web UI + API)
-- InfluxDB 2 (Time-series database)
-- Grafana (Visualization platform)
+- **IDM Metrics Collector** (Web UI + API)
+- **InfluxDB 2** (Time-series database)
+- **Grafana** (Visualization platform)
 
 All services are pre-configured and ready to use!
+
+After installation:
+```bash
+# Edit configuration (set your heat pump IP)
+sudo nano /opt/idm-metrics-collector/config.yaml
+
+# Restart stack
+cd /opt/idm-metrics-collector && docker compose restart
+```
 
 ## Accessing Services
 
@@ -136,9 +126,7 @@ Images are automatically built on:
 
 ## Configuration
 
-Configuration file locations:
-- **Bare Metal**: `/opt/idm-metrics-collector/data/config.yaml`
-- **Docker/Compose**: `./config.yaml` in installation directory
+Configuration file location: `/opt/idm-metrics-collector/config.yaml`
 
 Example:
 
