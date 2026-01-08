@@ -1,9 +1,5 @@
 import logging
-# Compatibility with pymodbus < 3.0.0
-try:
-    from pymodbus.client.sync import ModbusTcpClient
-except ImportError:
-    from pymodbus.client import ModbusTcpClient
+from pymodbus.client import ModbusTcpClient
 
 from .config import config
 from .sensor_addresses import SENSOR_ADDRESSES, BINARY_SENSOR_ADDRESSES, heating_circuit_sensors, HeatingCircuit, SensorFeatures
@@ -45,9 +41,8 @@ class ModbusClient:
         # Reading sensors
         for name, sensor in self.sensors.items():
             try:
-                # Pymodbus 2.x API vs 3.x
-                # 2.x read_holding_registers(address, count, unit=1)
-                rr = self.client.read_holding_registers(sensor.address, count=sensor.size, unit=1)
+                # Pymodbus 3.x API: read_holding_registers(address, count=1, device_id=1)
+                rr = self.client.read_holding_registers(sensor.address, count=sensor.size, device_id=1)
                 if rr.isError():
                     logger.warning(f"Error reading {name} at {sensor.address}: {rr}")
                     continue
@@ -69,7 +64,7 @@ class ModbusClient:
         # Reading binary sensors
         for name, sensor in self.binary_sensors.items():
             try:
-                rr = self.client.read_holding_registers(sensor.address, count=sensor.size, unit=1)
+                rr = self.client.read_holding_registers(sensor.address, count=sensor.size, device_id=1)
                 if rr.isError():
                     logger.warning(f"Error reading binary {name} at {sensor.address}: {rr}")
                     continue
@@ -127,8 +122,8 @@ class ModbusClient:
 
         # Write
         try:
-            # write_registers(address, values, unit=1)
-            rr = self.client.write_registers(sensor.address, registers, unit=1)
+            # Pymodbus 3.x API: write_registers(address, values, device_id=1)
+            rr = self.client.write_registers(sensor.address, registers, device_id=1)
             if rr.isError():
                  raise IOError(f"Modbus write error: {rr}")
         except Exception as e:
