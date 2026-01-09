@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, abort
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, abort, send_from_directory
 from waitress import serve
 from .config import config
 from .sensor_addresses import SensorFeatures
@@ -159,7 +159,7 @@ def setup():
 
 @app.route('/')
 def index():
-    return app.send_static_file('index.html')
+    return send_from_directory('static', 'index.html')
 
 @app.route('/login', methods=['POST'])
 def login():
