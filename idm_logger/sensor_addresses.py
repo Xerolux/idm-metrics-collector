@@ -440,12 +440,12 @@ ROOM_OFFSETS = [2 + 7 * i for i in range(8)]
 SENSOR_ADDRESSES: dict[str, IdmSensorAddress] = {
     s.name: s
     for s in [
-        _FloatSensorAddress(
-            address=74,
-            name="power_solar_surplus",
-            unit=UnitOfPower.KILO_WATT,
-            supported_features=SensorFeatures.SET_POWER,
-        ),
+        # _FloatSensorAddress(
+        #     address=74,
+        #     name="power_solar_surplus",
+        #     unit=UnitOfPower.KILO_WATT,
+        #     supported_features=SensorFeatures.SET_POWER,
+        # ),
         _FloatSensorAddress(
             address=76,
             name="power_resistive_heater",
@@ -887,7 +887,7 @@ SENSOR_ADDRESSES: dict[str, IdmSensorAddress] = {
             address=1874,
             name="mode_isc",
         ),
-        _UCharSensorAddress(address=1999, name="acknowledge_faults", supported_features=SensorFeatures.SET_BINARY),
+        # _UCharSensorAddress(address=1999, name="acknowledge_faults", supported_features=SensorFeatures.SET_BINARY),
 
         _FloatSensorAddress(
             address=4122,
@@ -897,6 +897,11 @@ SENSOR_ADDRESSES: dict[str, IdmSensorAddress] = {
         ),
     ]
 }
+
+# Add sensors for all heating circuits
+for circuit in HeatingCircuit:
+    for sensor in heating_circuit_sensors(circuit):
+        SENSOR_ADDRESSES[sensor.name] = sensor
 
 
 BINARY_SENSOR_ADDRESSES: dict[str, IdmBinarySensorAddress] = {

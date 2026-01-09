@@ -68,19 +68,24 @@ onMounted(async () => {
     });
 
     const savedLayout = localStorage.getItem('dashboard_layout');
-    let layoutToLoad = [
-        { x: 0, y: 0, w: 2, h: 2, id: 'w1', sensor: 'temp_outdoor', title: 'Outdoor Temp', unit: '°C' },
-        { x: 2, y: 0, w: 2, h: 2, id: 'w2', sensor: 'temp_flow', title: 'Flow Temp', unit: '°C' },
-        { x: 4, y: 0, w: 2, h: 2, id: 'w3', sensor: 'temp_return', title: 'Return Temp', unit: '°C' },
-        { x: 0, y: 2, w: 2, h: 2, id: 'w4', sensor: 'temp_heat_storage', title: 'Storage Temp', unit: '°C' },
-        { x: 2, y: 2, w: 2, h: 2, id: 'w5', sensor: 'temp_domestic_water', title: 'Hot Water', unit: '°C' },
-        { x: 4, y: 2, w: 2, h: 2, id: 'w6', sensor: 'power_usage', title: 'Power Usage', unit: 'kW' },
+    let layoutToLoad = [];
+    const defaults = [
+        { x: 0, y: 0, w: 2, h: 2, id: 'w1', sensor: 'temp_outside', title: 'Outdoor Temp', unit: '°C' },
+        { x: 2, y: 0, w: 2, h: 2, id: 'w2', sensor: 'energy_heat_total', title: 'Heat Quantity', unit: 'kWh' },
+        { x: 4, y: 0, w: 2, h: 2, id: 'w3', sensor: 'status_system', title: 'Status', unit: '' },
+        { x: 0, y: 2, w: 2, h: 2, id: 'w4', sensor: 'mode_circuit_a', title: 'System Mode', unit: '' },
+        { x: 2, y: 2, w: 2, h: 2, id: 'w5', sensor: 'temp_flow_current_circuit_a', title: 'Flow Temp A', unit: '°C' },
+        { x: 4, y: 2, w: 2, h: 2, id: 'w6', sensor: 'power_current', title: 'Thermal Power', unit: 'kW' },
     ];
 
-        if (savedLayout) {
+    if (savedLayout) {
         try {
             layoutToLoad = JSON.parse(savedLayout);
         } catch (e) { console.error(e) }
+    }
+
+    if (!layoutToLoad || layoutToLoad.length === 0) {
+        layoutToLoad = defaults;
     }
 
     loadGrid(layoutToLoad);
@@ -115,18 +120,32 @@ const loadGrid = (layout) => {
 
 const addWidgetToGrid = (item) => {
     const id = item.id || `w_${Date.now()}`;
+    const contentHtml = `<div id="mount_${id}" class="h-full w-full relative"></div>`;
+
+    // Create widget without content first to avoid escaping issues
     const el = grid.value.addWidget({
         x: item.x,
         y: item.y,
         w: item.w,
         h: item.h,
         id: id,
-        content: `<div id="mount_${id}" class="h-full w-full relative"></div>`
+        content: ''
     });
 
-    widgets.value.push({
-        ...item,
-        id: id
+    // Manually set innerHTML of the content div
+    if (el) {
+        const contentEl = el.querySelector('.grid-stack-item-content');
+        if (contentEl) {
+            contentEl.innerHTML = contentHtml;
+        }
+    }
+
+    // Ensure DOM is ready before Vue tries to Teleport
+    nextTick(() => {
+        widgets.value.push({
+            ...item,
+            id: id
+        });
     });
 };
 
@@ -191,7 +210,8 @@ const removeWidget = (id) => {
 };
 
 const openGrafana = () => {
-    window.open('http://localhost:3001', '_blank');
+    const hostname = window.location.hostname;
+    window.open(`http://${hostname}:3001`, '_blank');
 };
 </script>
 
