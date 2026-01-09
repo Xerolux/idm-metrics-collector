@@ -70,12 +70,12 @@ onMounted(async () => {
     const savedLayout = localStorage.getItem('dashboard_layout');
     let layoutToLoad = [];
     const defaults = [
-        { x: 0, y: 0, w: 2, h: 2, id: 'w1', sensor: 'temp_outdoor', title: 'Outdoor Temp', unit: '°C' },
-        { x: 2, y: 0, w: 2, h: 2, id: 'w2', sensor: 'temp_flow', title: 'Flow Temp', unit: '°C' },
-        { x: 4, y: 0, w: 2, h: 2, id: 'w3', sensor: 'temp_return', title: 'Return Temp', unit: '°C' },
+        { x: 0, y: 0, w: 2, h: 2, id: 'w1', sensor: 'temp_outside', title: 'Outdoor Temp', unit: '°C' },
+        { x: 2, y: 0, w: 2, h: 2, id: 'w2', sensor: 'temp_heat_pump_flow', title: 'Flow Temp', unit: '°C' },
+        { x: 4, y: 0, w: 2, h: 2, id: 'w3', sensor: 'temp_heat_pump_return', title: 'Return Temp', unit: '°C' },
         { x: 0, y: 2, w: 2, h: 2, id: 'w4', sensor: 'temp_heat_storage', title: 'Storage Temp', unit: '°C' },
-        { x: 2, y: 2, w: 2, h: 2, id: 'w5', sensor: 'temp_domestic_water', title: 'Hot Water', unit: '°C' },
-        { x: 4, y: 2, w: 2, h: 2, id: 'w6', sensor: 'power_usage', title: 'Power Usage', unit: 'kW' },
+        { x: 2, y: 2, w: 2, h: 2, id: 'w5', sensor: 'temp_water_heater_top', title: 'Hot Water', unit: '°C' },
+        { x: 4, y: 2, w: 2, h: 2, id: 'w6', sensor: 'power_current_draw', title: 'Power Usage', unit: 'kW' },
     ];
 
     if (savedLayout) {

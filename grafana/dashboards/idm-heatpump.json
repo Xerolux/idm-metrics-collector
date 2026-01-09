@@ -214,11 +214,10 @@
           "color": {"mode": "thresholds"},
           "mappings": [
             {"options": {"0": {"color": "red", "index": 0, "text": "Aus"}}, "type": "value"},
-            {"options": {"1": {"color": "yellow", "index": 1, "text": "Standby"}}, "type": "value"},
-            {"options": {"2": {"color": "green", "index": 2, "text": "Heizen"}}, "type": "value"},
-            {"options": {"3": {"color": "blue", "index": 3, "text": "Kuehlen"}}, "type": "value"},
-            {"options": {"4": {"color": "orange", "index": 4, "text": "Warmwasser"}}, "type": "value"},
-            {"options": {"5": {"color": "purple", "index": 5, "text": "Abtauen"}}, "type": "value"}
+            {"options": {"1": {"color": "green", "index": 1, "text": "Heizen"}}, "type": "value"},
+            {"options": {"2": {"color": "blue", "index": 2, "text": "Kuehlen"}}, "type": "value"},
+            {"options": {"4": {"color": "orange", "index": 3, "text": "Warmwasser"}}, "type": "value"},
+            {"options": {"8": {"color": "purple", "index": 4, "text": "Abtauen"}}, "type": "value"}
           ],
           "thresholds": {
             "mode": "absolute",
@@ -226,7 +225,7 @@
           }
         }
       },
-      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 1},
+      "gridPos": {"h": 4, "w": 3, "x": 16, "y": 1},
       "id": 6,
       "options": {
         "colorMode": "background",
@@ -244,6 +243,83 @@
         }
       ],
       "title": "Status WP",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "influxdb", "uid": "${DS_INFLUXDB}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "blue", "value": null},
+              {"color": "green", "value": 20},
+              {"color": "yellow", "value": 35},
+              {"color": "red", "value": 45}
+            ]
+          },
+          "unit": "celsius"
+        }
+      },
+      "gridPos": {"h": 4, "w": 3, "x": 19, "y": 1},
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {"type": "influxdb", "uid": "${DS_INFLUXDB}"},
+          "query": "from(bucket: \"idm\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_flow_current_circuit_A\")\n  |> last()",
+          "refId": "A"
+        }
+      ],
+      "title": "Heizkreis A Vorlauf",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "influxdb", "uid": "${DS_INFLUXDB}"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 2},
+              {"color": "green", "value": 3},
+              {"color": "dark-green", "value": 4}
+            ]
+          },
+          "unit": "none"
+        }
+      },
+      "gridPos": {"h": 4, "w": 2, "x": 22, "y": 1},
+      "id": 8,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {"type": "influxdb", "uid": "${DS_INFLUXDB}"},
+          "query": "power_current = from(bucket: \"idm\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"power_current\")\n  |> last()\n\npower_draw = from(bucket: \"idm\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"power_current_draw\")\n  |> last()\n\njoin(\n  tables: {power: power_current, draw: power_draw},\n  on: [\"_time\"]\n)\n|> map(fn: (r) => ({\n  _time: r._time,\n  _value: if r._value_draw > 0.0 then r._value_power / r._value_draw else 0.0\n}))",
+          "refId": "A"
+        }
+      ],
+      "title": "COP",
       "type": "stat"
     },
     {

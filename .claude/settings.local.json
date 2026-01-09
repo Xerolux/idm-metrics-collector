@@ -9,7 +9,13 @@
       "Bash(python:*)",
       "Bash(pip install:*)",
       "Bash(docker build:*)",
-      "Bash(docker:*)"
+      "Bash(docker:*)",
+      "Bash(curl:*)",
+      "Bash(npm run build:*)",
+      "Bash(cmd //c \"npm run build\")",
+      "Bash(cmd //c \"npm install && npm run build\")",
+      "Bash(npm ci:*)",
+      "Bash(dir:*)"
     ]
   }
 }
