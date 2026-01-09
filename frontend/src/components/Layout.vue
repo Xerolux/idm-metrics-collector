@@ -16,27 +16,27 @@ const items = ref([
     {
         label: 'Dashboard',
         icon: 'pi pi-home',
-        to: '/'
+        command: () => router.push('/')
     },
     {
         label: 'Control',
         icon: 'pi pi-sliders-h',
-        to: '/control'
+        command: () => router.push('/control')
     },
     {
         label: 'Schedule',
         icon: 'pi pi-calendar',
-        to: '/schedule'
+        command: () => router.push('/schedule')
     },
     {
         label: 'Logs',
         icon: 'pi pi-list',
-        to: '/logs'
+        command: () => router.push('/logs')
     },
     {
         label: 'Settings',
         icon: 'pi pi-cog',
-        to: '/config'
+        command: () => router.push('/config')
     }
 ]);
 
@@ -52,11 +52,11 @@ const logout = async () => {
              <template #start>
                <span class="text-xl font-bold px-4">IDM Logger</span>
             </template>
-            <template #item="{ item }">
-                <router-link v-if="item.to" :to="item.to" class="flex items-center gap-2 px-3 py-2 hover:bg-gray-700 rounded cursor-pointer">
+            <template #item="{ item, props }">
+                <a v-ripple class="flex items-center gap-2 px-3 py-2 hover:bg-gray-700 rounded cursor-pointer" v-bind="props.action">
                     <i :class="item.icon"></i>
                     <span>{{ item.label }}</span>
-                </router-link>
+                </a>
             </template>
             <template #end>
                 <div class="flex items-center gap-2">
