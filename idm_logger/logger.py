@@ -15,8 +15,7 @@ logging.basicConfig(
     level=getattr(logging, config.get("logging.level", "INFO")),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout),
-        memory_handler
+        logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger("idm_logger")
@@ -33,27 +32,56 @@ def main():
 
     logger.info("Starting IDM Heat Pump Logger")
 
-    # Modbus Client
-    modbus = ModbusClient(
-        host=config.get("idm.host"),
-        port=config.get("idm.port")
-    )
+    # Initialize these as None first
+    modbus = None
+    scheduler = None
+    influx = None
 
-    # Scheduler
-    scheduler = Scheduler(modbus)
-    if config.get("web.write_enabled"):
-        scheduler.start()
-    else:
-        logger.info("Scheduler disabled (write_enabled is False)")
-
-    # Start Web UI in background
+    # Start Web UI FIRST in background, so it's available even if Modbus/InfluxDB fails
     if config.get("web.enabled"):
-        web_thread = threading.Thread(target=run_web, args=(modbus, scheduler), daemon=True)
+        web_thread = threading.Thread(target=run_web, args=(None, None), daemon=True)
         web_thread.start()
+        logger.info("Web UI thread started")
+        # Give the web server a moment to start
+        import time
+        time.sleep(1)
+
+    # Now initialize the backend components
+    try:
+        # Modbus Client
+        modbus = ModbusClient(
+            host=config.get("idm.host"),
+            port=config.get("idm.port")
+        )
+        logger.info(f"Modbus client initialized for {config.get('idm.host')}:{config.get('idm.port')}")
+    except Exception as e:
+        logger.error(f"Failed to initialize Modbus client: {e}")
 
     # Influx Writer
-    influx = InfluxWriter()
-    set_influx_writer(influx)
+    try:
+        influx = InfluxWriter()
+        set_influx_writer(influx)
+        logger.info("InfluxDB writer initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize InfluxDB writer: {e}")
+
+    # Scheduler (only if we have a working modbus client)
+    if modbus:
+        scheduler = Scheduler(modbus)
+        if config.get("web.write_enabled"):
+            scheduler.start()
+            logger.info("Scheduler started")
+        else:
+            logger.info("Scheduler disabled (write_enabled is False)")
+    else:
+        logger.warning("Scheduler not started (Modbus client unavailable)")
+
+    # Update web.py with the actual instances
+    if config.get("web.enabled"):
+        from .web import modbus_client_instance, scheduler_instance
+        import idm_logger.web as web_module
+        web_module.modbus_client_instance = modbus
+        web_module.scheduler_instance = scheduler
 
     try:
         while not stop_event.is_set():
@@ -66,19 +94,23 @@ def main():
             # In realtime mode, use minimum interval (1 second)
             effective_interval = 1 if realtime_mode else interval
 
-            # Read
-            logger.debug("Reading sensors...")
-            data = modbus.read_sensors()
+            # Read only if modbus is available
+            if modbus:
+                logger.debug("Reading sensors...")
+                data = modbus.read_sensors()
 
-            if data:
-                # Update Web UI
-                update_current_data(data)
+                if data:
+                    # Update Web UI
+                    update_current_data(data)
 
-                # Write to Influx
-                logger.debug(f"Writing {len(data)} points to InfluxDB")
-                influx.write(data)
+                    # Write to Influx
+                    if influx:
+                        logger.debug(f"Writing {len(data)} points to InfluxDB")
+                        influx.write(data)
+                else:
+                    logger.warning("No data read from Modbus")
             else:
-                logger.warning("No data read from Modbus")
+                logger.debug("Modbus client not available, skipping sensor read")
 
             # Sleep
             elapsed = time.time() - start_time
@@ -91,9 +123,10 @@ def main():
     except Exception as e:
         logger.error(f"Main loop error: {e}")
     finally:
-        if config.get("web.write_enabled"):
+        if scheduler and config.get("web.write_enabled"):
             scheduler.stop()
-        modbus.close()
+        if modbus:
+            modbus.close()
         logger.info("Stopped")
 
 if __name__ == "__main__":
