@@ -30,14 +30,19 @@ def login_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         if not session.get('logged_in'):
-            return redirect(url_for('login', next=request.path))
+            if request.path.startswith('/api/'):
+                 return jsonify({"error": "Unauthorized"}), 401
+            # For non-API routes (if any left), we could redirect, but we are SPA now
+            # so usually we just return 401 and let frontend handle it.
+            return jsonify({"error": "Unauthorized"}), 401
         return view(**kwargs)
     return wrapped_view
 
 @app.before_request
 def check_setup():
-    if not config.is_setup() and request.endpoint != 'setup' and '/static/' not in request.path:
-        return redirect(url_for('setup'))
+    # If not setup, only allow setup related calls or static files
+    # Frontend will check /api/health to see if setup is needed
+    pass
 
 @app.context_processor
 def inject_config():
@@ -51,63 +56,64 @@ def inject_config():
             del safe_config['influx']['password']
     return dict(config=safe_config)
 
-@app.route('/setup', methods=['GET', 'POST'])
+@app.route('/api/setup', methods=['POST'])
 def setup():
     if config.is_setup():
-        return redirect(url_for('index'))
+        return jsonify({"error": "Already setup"}), 400
 
-    if request.method == 'POST':
+    data = request.get_json()
+    try:
         # Save IDM
-        config.data['idm']['host'] = request.form.get('idm_host')
-        config.data['idm']['port'] = int(request.form.get('idm_port'))
+        config.data['idm']['host'] = data.get('idm_host')
+        config.data['idm']['port'] = int(data.get('idm_port'))
 
         # Save Influx
-        config.data['influx']['url'] = request.form.get('influx_url')
-        config.data['influx']['org'] = request.form.get('influx_org')
-        config.data['influx']['bucket'] = request.form.get('influx_bucket')
-        config.data['influx']['token'] = request.form.get('influx_token')
+        config.data['influx']['url'] = data.get('influx_url')
+        config.data['influx']['org'] = data.get('influx_org')
+        config.data['influx']['bucket'] = data.get('influx_bucket')
+        config.data['influx']['token'] = data.get('influx_token')
 
         # Save Admin Password
-        password = request.form.get('password')
-        if len(password) < 6:
-            flash("Password must be at least 6 characters", "danger")
-            return render_template('setup.html')
+        password = data.get('password')
+        if not password or len(password) < 6:
+            return jsonify({"error": "Password must be at least 6 characters"}), 400
 
         config.set_admin_password(password)
 
         # Enable features
-        config.data['web']['write_enabled'] = True # Default enable on setup? Or ask? User asked to be reconfigurable.
+        config.data['web']['write_enabled'] = True
         config.data['setup_completed'] = True
 
         config.save()
 
-        # Restart required? Probably. But we can update running instances too if structured well.
-        # For now, we just redirect to login. The modbus client needs restart to pick up new host.
-        flash("Setup complete. Please restart the service to apply changes fully.", "success")
-        return redirect(url_for('login'))
+        return jsonify({"success": True, "message": "Setup complete. Please restart service."})
 
-    return render_template('setup.html')
+    except Exception as e:
+        logger.error(f"Setup error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return app.send_static_file('index.html')
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['POST'])
 def login():
-    if request.method == 'POST':
-        password = request.form.get('password')
-        if config.check_admin_password(password):
-            session['logged_in'] = True
-            next_url = request.args.get('next') or url_for('index')
-            return redirect(next_url)
-        else:
-            flash("Invalid password", "danger")
-    return render_template('login.html')
+    data = request.get_json()
+    password = data.get('password')
+    if config.check_admin_password(password):
+        session['logged_in'] = True
+        return jsonify({"success": True})
+    else:
+        return jsonify({"success": False, "message": "Invalid password"}), 401
+
+@app.route('/api/auth/check')
+def check_auth():
+    return jsonify({"authenticated": session.get('logged_in', False)})
 
 @app.route('/logout')
 def logout():
     session.pop('logged_in', None)
-    return redirect(url_for('index'))
+    return jsonify({"success": True})
 
 @app.route('/api/data')
 def get_data():
@@ -139,65 +145,70 @@ def status_check():
         "scheduler_running": scheduler_instance is not None and config.get("web.write_enabled")
     })
 
-@app.route('/logs')
+@app.route('/api/logs')
 @login_required
 def logs_page():
     logs = list(memory_handler.log_records)
-    # Reverse to show newest first
     logs.reverse()
-    return render_template('logs.html', logs=logs)
+    return jsonify(logs)
 
-@app.route('/config', methods=['GET', 'POST'])
+@app.route('/api/config', methods=['GET', 'POST'])
 @login_required
 def config_page():
+    if request.method == 'GET':
+        # Return safe config
+        safe_config = config.data.copy()
+        if 'influx' in safe_config:
+            safe_config['influx'] = safe_config['influx'].copy()
+            if 'token' in safe_config['influx']:
+                 safe_config['influx']['token'] = '******' # Don't send token
+            if 'password' in safe_config['influx']:
+                 safe_config['influx']['password'] = '******'
+        return jsonify(safe_config)
+
     if request.method == 'POST':
+        data = request.get_json()
         try:
             # IDM Host
-            if 'idm_host' in request.form:
-                config.data['idm']['host'] = request.form['idm_host']
+            if 'idm_host' in data:
+                config.data['idm']['host'] = data['idm_host']
 
             # IDM Modbus Port
-            if 'idm_port' in request.form:
+            if 'idm_port' in data:
                 try:
-                    port = int(request.form['idm_port'])
+                    port = int(data['idm_port'])
                     if 1 <= port <= 65535:
                         config.data['idm']['port'] = port
                     else:
-                        flash("Port must be between 1 and 65535", "danger")
-                        return render_template('config.html')
+                        return jsonify({"error": "Port must be between 1 and 65535"}), 400
                 except ValueError:
-                    flash("Invalid port number", "danger")
-                    return render_template('config.html')
+                    return jsonify({"error": "Invalid port number"}), 400
 
             # Write Enabled
-            config.data['web']['write_enabled'] = 'write_enabled' in request.form
+            if 'write_enabled' in data:
+                config.data['web']['write_enabled'] = bool(data['write_enabled'])
 
             # InfluxDB URL
-            if 'influx_url' in request.form:
-                 config.data['influx']['url'] = request.form['influx_url']
+            if 'influx_url' in data:
+                 config.data['influx']['url'] = data['influx_url']
 
             # Handle password change
-            new_pass = request.form.get('new_password')
+            new_pass = data.get('new_password')
             if new_pass:
                 if len(new_pass) < 6:
-                    flash("New password too short", "danger")
-                    return render_template('config.html')
+                    return jsonify({"error": "New password too short"}), 400
                 config.set_admin_password(new_pass)
-                flash("Password updated", "success")
 
             # Save config
             config.save()
-            flash("Configuration saved. Restart required for some settings.", "success")
+            return jsonify({"success": True, "message": "Configuration saved. Restart required."})
         except Exception as e:
-            flash(f"Error saving config: {e}", "danger")
+            return jsonify({"error": str(e)}), 500
 
-    return render_template('config.html')
-
-@app.route('/restart', methods=['POST'])
+@app.route('/api/restart', methods=['POST'])
 @login_required
 def restart_service():
     """Restart the service by sending SIGTERM to the main process."""
-    flash("Restarting service...", "info")
     logger.info("Service restart requested by user")
 
     # Use threading to delay the restart so the response can be sent
@@ -210,7 +221,7 @@ def restart_service():
 
     threading.Thread(target=delayed_restart, daemon=True).start()
 
-    return redirect(url_for('config_page'))
+    return jsonify({"success": True, "message": "Restarting service..."})
 
 def validate_write(sensor_name, value):
     """Validates the value against sensor constraints."""
@@ -248,29 +259,29 @@ def validate_write(sensor_name, value):
 
     return True, None
 
-@app.route('/control', methods=['GET', 'POST'])
+@app.route('/api/control', methods=['GET', 'POST'])
 @login_required
 def control_page():
     if not config.get("web.write_enabled"):
-        flash("Write capabilities are disabled in configuration.", "warning")
-        return redirect(url_for('index'))
+        return jsonify({"error": "Write capabilities disabled"}), 403
 
     if request.method == 'POST':
-        sensor_name = request.form.get('sensor')
-        value = request.form.get('value')
+        data = request.get_json()
+        sensor_name = data.get('sensor')
+        value = data.get('value')
 
         valid, msg = validate_write(sensor_name, value)
         if not valid:
-             flash(f"Validation Error: {msg}", "danger")
-        else:
-            try:
-                if modbus_client_instance:
-                    modbus_client_instance.write_sensor(sensor_name, value)
-                    flash(f"Successfully wrote {value} to {sensor_name}", "success")
-                else:
-                     flash("Modbus client not available", "danger")
-            except Exception as e:
-                flash(f"Failed to write: {e}", "danger")
+             return jsonify({"error": msg}), 400
+
+        try:
+            if modbus_client_instance:
+                modbus_client_instance.write_sensor(sensor_name, value)
+                return jsonify({"success": True, "message": f"Successfully wrote {value} to {sensor_name}"})
+            else:
+                 return jsonify({"error": "Modbus client not available"}), 503
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     # Filter writable sensors
     writable_sensors = []
@@ -278,73 +289,83 @@ def control_page():
         all_sensors = {**modbus_client_instance.sensors, **modbus_client_instance.binary_sensors}
         for name, sensor in all_sensors.items():
             if sensor.supported_features != SensorFeatures.NONE:
-                writable_sensors.append(sensor)
+                # Serialize sensor info for frontend
+                s_info = {
+                    "name": sensor.name,
+                    "unit": getattr(sensor, "unit", ""),
+                    "description": getattr(sensor, "description", ""),
+                    "features": sensor.supported_features.name if hasattr(sensor.supported_features, "name") else sensor.supported_features,
+                    "min": getattr(sensor, "min_value", None),
+                    "max": getattr(sensor, "max_value", None),
+                    "enum": [{"name": m.name, "value": m.value} for m in sensor.enum] if hasattr(sensor, "enum") and sensor.enum else None
+                }
+                writable_sensors.append(s_info)
 
     # Sort by name
-    writable_sensors.sort(key=lambda s: s.name)
+    writable_sensors.sort(key=lambda s: s['name'])
 
-    return render_template('control.html', sensors=writable_sensors)
+    return jsonify(writable_sensors)
 
-@app.route('/schedule', methods=['GET', 'POST'])
+@app.route('/api/schedule', methods=['GET', 'POST'])
 @login_required
 def schedule_page():
     if not config.get("web.write_enabled"):
-         flash("Write capabilities (and scheduling) are disabled.", "warning")
-         return redirect(url_for('index'))
+         return jsonify({"error": "Write capabilities disabled"}), 403
 
     if not scheduler_instance:
-        flash("Scheduler not available. Please restart the service.", "danger")
-        return redirect(url_for('index'))
+        return jsonify({"error": "Scheduler not available"}), 503
 
     if request.method == 'POST':
-        action = request.form.get('action')
+        data = request.get_json()
+        action = data.get('action')
 
         if action == 'add':
-            sensor = request.form.get('sensor')
-            value = request.form.get('value')
+            sensor = data.get('sensor')
+            value = data.get('value')
 
             # Validate input for schedule too
             valid, msg = validate_write(sensor, value)
             if not valid:
-                 flash(f"Validation Error: {msg}", "danger")
+                 return jsonify({"error": msg}), 400
             else:
                 job = {
                     'sensor': sensor,
                     'value': value,
-                    'time': request.form.get('time'),
-                    'days': request.form.getlist('days')
+                    'time': data.get('time'),
+                    'days': data.get('days', [])
                 }
                 if scheduler_instance:
                     scheduler_instance.add_job(job)
-                    flash("Schedule added", "success")
+                    return jsonify({"success": True, "message": "Schedule added"})
 
         elif action == 'delete':
-            job_id = request.form.get('job_id')
+            job_id = data.get('job_id')
             if scheduler_instance:
                 scheduler_instance.delete_job(job_id)
-                flash("Schedule deleted", "success")
+                return jsonify({"success": True, "message": "Schedule deleted"})
 
         elif action == 'toggle':
-             job_id = request.form.get('job_id')
-             current_state = request.form.get('current_state') == 'True'
+             job_id = data.get('job_id')
+             current_state = data.get('current_state')
              if scheduler_instance:
                   scheduler_instance.update_job(job_id, {'enabled': not current_state})
                   state_text = "paused" if current_state else "resumed"
-                  flash(f"Schedule {state_text}", "info")
+                  return jsonify({"success": True, "message": f"Schedule {state_text}"})
 
         elif action == 'run_now':
-             job_id = request.form.get('job_id')
+             job_id = data.get('job_id')
              if scheduler_instance:
                  job = next((j for j in scheduler_instance.jobs if j['id'] == job_id), None)
                  if job and modbus_client_instance:
                      try:
-                         # We skip validation here as it was validated on add, but double check doesn't hurt
                          modbus_client_instance.write_sensor(job['sensor'], job['value'])
-                         flash(f"Executed: {job['sensor']} = {job['value']}", "success")
+                         return jsonify({"success": True, "message": f"Executed: {job['sensor']} = {job['value']}"})
                      except Exception as e:
-                         flash(f"Execution failed: {e}", "danger")
+                         return jsonify({"error": str(e)}), 500
                  else:
-                     flash("Job not found or system unavailable", "danger")
+                     return jsonify({"error": "Job not found or system unavailable"}), 404
+
+        return jsonify({"error": "Invalid action"}), 400
 
     jobs = scheduler_instance.jobs if scheduler_instance else []
 
@@ -355,13 +376,18 @@ def schedule_page():
             all_sensors = {**modbus_client_instance.sensors, **modbus_client_instance.binary_sensors}
             for name, sensor in all_sensors.items():
                 if sensor.supported_features != SensorFeatures.NONE:
-                    writable_sensors.append(sensor)
+                    s_info = {
+                        "name": sensor.name,
+                        "unit": getattr(sensor, "unit", ""),
+                        "enum": [{"name": m.name, "value": m.value} for m in sensor.enum] if hasattr(sensor, "enum") and sensor.enum else None
+                    }
+                    writable_sensors.append(s_info)
         except Exception as e:
             logger.error(f"Error loading sensors for schedule: {e}")
-            flash("Error loading sensors. Please check Modbus connection.", "danger")
-    writable_sensors.sort(key=lambda s: s.name)
 
-    return render_template('schedule.html', jobs=jobs, sensors=writable_sensors)
+    writable_sensors.sort(key=lambda s: s['name'])
+
+    return jsonify({"jobs": jobs, "sensors": writable_sensors})
 
 def set_influx_writer(writer):
     """Set the InfluxDB writer instance for status reporting."""

@@ -41,8 +41,11 @@ class ModbusClient:
         # Reading sensors
         for name, sensor in self.sensors.items():
             try:
-                # Pymodbus 3.x API: read_holding_registers(address, count=1, device_id=1)
-                rr = self.client.read_holding_registers(sensor.address, count=sensor.size, device_id=1)
+                # Pymodbus 3.x API: read_holding_registers(address, count=1, slave=1)
+                # Note: `unit` was renamed to `slave` in 3.0, and `device_id` might be used in some contexts but `slave` is common.
+                # Actually, check what ModbusTcpClient uses.
+                # In 3.8, it uses `slave`.
+                rr = self.client.read_holding_registers(sensor.address, count=sensor.size, slave=1)
                 if rr.isError():
                     logger.warning(f"Error reading {name} at {sensor.address}: {rr}")
                     continue
@@ -64,7 +67,7 @@ class ModbusClient:
         # Reading binary sensors
         for name, sensor in self.binary_sensors.items():
             try:
-                rr = self.client.read_holding_registers(sensor.address, count=sensor.size, device_id=1)
+                rr = self.client.read_holding_registers(sensor.address, count=sensor.size, slave=1)
                 if rr.isError():
                     logger.warning(f"Error reading binary {name} at {sensor.address}: {rr}")
                     continue
@@ -122,8 +125,8 @@ class ModbusClient:
 
         # Write
         try:
-            # Pymodbus 3.x API: write_registers(address, values, device_id=1)
-            rr = self.client.write_registers(sensor.address, registers, device_id=1)
+            # Pymodbus 3.x API: write_registers(address, values, slave=1)
+            rr = self.client.write_registers(sensor.address, registers, slave=1)
             if rr.isError():
                  raise IOError(f"Modbus write error: {rr}")
         except Exception as e:
