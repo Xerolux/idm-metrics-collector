@@ -266,22 +266,18 @@
       "gridPos": {"h": 4, "w": 3, "x": 19, "y": 1},
       "id": 7,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
-        "textMode": "auto"
+        "legend": {"calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
       },
       "targets": [
         {
           "datasource": {"type": "influxdb", "uid": "${DS_INFLUXDB}"},
-          "query": "from(bucket: \"idm\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_flow_current_circuit_A\")\n  |> last()",
+          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_flow_current_circuit_a\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ],
       "title": "Heizkreis A Vorlauf",
-      "type": "stat"
+      "type": "timeseries"
     },
     {
       "datasource": {"type": "influxdb", "uid": "${DS_INFLUXDB}"},
@@ -305,22 +301,18 @@
       "gridPos": {"h": 4, "w": 2, "x": 22, "y": 1},
       "id": 8,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
-        "textMode": "auto"
+        "legend": {"calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
       },
       "targets": [
         {
           "datasource": {"type": "influxdb", "uid": "${DS_INFLUXDB}"},
-          "query": "power_current = from(bucket: \"idm\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"power_current\")\n  |> last()\n\npower_draw = from(bucket: \"idm\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"power_current_draw\")\n  |> last()\n\njoin(\n  tables: {power: power_current, draw: power_draw},\n  on: [\"_time\"]\n)\n|> map(fn: (r) => ({\n  _time: r._time,\n  _value: if r._value_draw > 0.0 then r._value_power / r._value_draw else 0.0\n}))",
+          "query": "power_current = from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"power_current\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n\npower_draw = from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"power_current_draw\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n\njoin(\n  tables: {power: power_current, draw: power_draw},\n  on: [\"_time\"]\n)\n|> map(fn: (r) => ({\n  _time: r._time,\n  _value: if r._value_draw > 0.0 then r._value_power / r._value_draw else 0.0\n}))",
           "refId": "A"
         }
       ],
       "title": "COP",
-      "type": "stat"
+      "type": "timeseries"
     },
     {
       "collapsed": false,
@@ -635,25 +627,25 @@
       "targets": [
         {
           "datasource": {"type": "influxdb", "uid": "${DS_INFLUXDB}"},
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_flow_current_circuit_A\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_flow_current_circuit_a\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         },
         {
           "datasource": {"type": "influxdb", "uid": "${DS_INFLUXDB}"},
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_flow_target_circuit_A\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_flow_target_circuit_a\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "B"
         },
         {
           "datasource": {"type": "influxdb", "uid": "${DS_INFLUXDB}"},
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_room_circuit_A\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_room_circuit_a\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "C"
         }
       ],
       "title": "Heizkreis A - Temperaturen",
       "transformations": [
-        {"id": "renameByRegex", "options": {"regex": ".*temp_flow_current_circuit_A.*", "renamePattern": "Vorlauf Ist"}},
-        {"id": "renameByRegex", "options": {"regex": ".*temp_flow_target_circuit_A.*", "renamePattern": "Vorlauf Soll"}},
-        {"id": "renameByRegex", "options": {"regex": ".*temp_room_circuit_A.*", "renamePattern": "Raum"}}
+        {"id": "renameByRegex", "options": {"regex": ".*temp_flow_current_circuit_a.*", "renamePattern": "Vorlauf Ist"}},
+        {"id": "renameByRegex", "options": {"regex": ".*temp_flow_target_circuit_a.*", "renamePattern": "Vorlauf Soll"}},
+        {"id": "renameByRegex", "options": {"regex": ".*temp_room_circuit_a.*", "renamePattern": "Raum"}}
       ],
       "type": "timeseries"
     },
