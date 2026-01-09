@@ -82,6 +82,9 @@ def main():
 
             # Sleep
             elapsed = time.time() - start_time
+            if elapsed > effective_interval:
+                logger.warning(f"Loop took {elapsed:.2f}s, which is longer than interval {effective_interval}s")
+
             sleep_time = max(0, effective_interval - elapsed)
             stop_event.wait(sleep_time)
 

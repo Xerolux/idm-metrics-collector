@@ -24,9 +24,26 @@ class MemoryLogHandler(logging.Handler):
         except Exception:
             self.handleError(record)
 
-    def get_logs(self):
+    def get_logs(self, limit=None):
         """Thread-safe method to retrieve logs."""
         with self.lock:
+            if limit:
+                # Optimized slicing without full list copy
+                if limit >= len(self.log_records):
+                    return list(self.log_records)
+
+                # Deque rotation/slicing is not direct, but we can iterate from the end
+                # Or just use the fact that list(deque) is relatively fast, but let's be smarter if possible.
+                # Actually, for a deque, casting to list is O(N). Slicing a list is O(K).
+                # To avoid O(N) copy, we can use itertools.islice.
+                # However, islice on deque iterates from start. We want end.
+                # Simplest optimized way for 'last N':
+                start_index = len(self.log_records) - limit
+                if start_index < 0: start_index = 0
+
+                import itertools
+                return list(itertools.islice(self.log_records, start_index, None))
+
             return list(self.log_records)
 
 # Global instance

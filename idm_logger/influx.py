@@ -153,6 +153,9 @@ class InfluxWriter:
 
     def write(self, measurements: dict) -> bool:
         """Write measurements to InfluxDB with error handling and retry."""
+        if not measurements:
+            return True
+
         if not self.client:
             # Try to reconnect if not connected
             if not self._connected:

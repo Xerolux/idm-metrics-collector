@@ -52,54 +52,127 @@ class ModbusClient:
     def close(self):
         self.client.close()
 
+    def _build_read_blocks(self):
+        """Groups sensors into contiguous blocks for optimized reading."""
+        # Combine all read-supported sensors
+        all_sensors = []
+        for s in list(self.sensors.values()) + list(self.binary_sensors.values()):
+            if s.read_supported:
+                all_sensors.append(s)
+
+        # Sort by address
+        all_sensors.sort(key=lambda s: s.address)
+
+        blocks = []
+        if not all_sensors:
+            return blocks
+
+        current_block = [all_sensors[0]]
+
+        # Max registers to read in one request (safe limit)
+        MAX_BLOCK_SIZE = 100
+
+        # Max gap size to bridge (reading useless data is cheaper than new request)
+        MAX_GAP = 10
+
+        # Addresses that MUST NOT be read (read_supported=False)
+        forbidden_addresses = set()
+        for s in list(self.sensors.values()) + list(self.binary_sensors.values()):
+            if not s.read_supported:
+                # Mark all registers occupied by this sensor as forbidden
+                for i in range(s.size):
+                    forbidden_addresses.add(s.address + i)
+
+        for i in range(1, len(all_sensors)):
+            sensor = all_sensors[i]
+            prev_sensor = current_block[-1]
+
+            # Calculate end of previous sensor
+            prev_end = prev_sensor.address + prev_sensor.size
+
+            # Calculate gap
+            gap = sensor.address - prev_end
+
+            # Check if we should extend the block
+            should_extend = True
+
+            # 1. Check max block size
+            # Current block size + gap + new sensor size
+            new_block_size = (sensor.address + sensor.size) - current_block[0].address
+            if new_block_size > MAX_BLOCK_SIZE:
+                should_extend = False
+
+            # 2. Check max gap
+            if gap > MAX_GAP:
+                should_extend = False
+
+            # 3. Check for forbidden addresses in the gap
+            if should_extend and gap > 0:
+                for addr in range(prev_end, sensor.address):
+                    if addr in forbidden_addresses:
+                        should_extend = False
+                        break
+
+            if should_extend:
+                current_block.append(sensor)
+            else:
+                blocks.append(current_block)
+                current_block = [sensor]
+
+        if current_block:
+            blocks.append(current_block)
+
+        return blocks
+
     def read_sensors(self):
         data = {}
         if not self.connect():
             logger.error("Could not connect to Modbus server")
             return data
 
-        # Reading sensors
-        for name, sensor in self.sensors.items():
-            if not sensor.read_supported:
+        # Build blocks if not already done (could be cached if sensors don't change)
+        # For now we rebuild since sensors can be added dynamically? No, they are set in __init__
+        # But let's cache it for performance
+        if not hasattr(self, '_read_blocks'):
+            self._read_blocks = self._build_read_blocks()
+            logger.info(f"Optimized Modbus reading: {len(self._read_blocks)} requests for {len(self.sensors) + len(self.binary_sensors)} sensors")
+
+        for block in self._read_blocks:
+            if not block:
                 continue
+
+            start_addr = block[0].address
+            end_addr = max(s.address + s.size for s in block)
+            count = end_addr - start_addr
+
             try:
-                # Pymodbus 3.x API: read_holding_registers(address, count=1, device_id=1)
-                # Note: `slave` parameter was renamed to `device_id` in pymodbus 3.x
-                rr = self.client.read_holding_registers(sensor.address, count=sensor.size, device_id=1)
+                rr = self.client.read_holding_registers(start_addr, count=count, device_id=1)
                 if rr.isError():
-                    logger.warning(f"Error reading {name} at {sensor.address}: {rr}")
+                    logger.warning(f"Error reading block {start_addr}-{end_addr}: {rr}")
+                    # Fallback? Or just skip?
+                    # If a block fails, we could try individual reads, but usually it means connection issue.
                     continue
 
-                success, value = sensor.decode(rr.registers)
-                if success:
-                    # Handle Enums and Flags by converting to int or str
-                    if hasattr(value, "value"):
-                        data[name] = value.value
-                        data[f"{name}_str"] = str(value)
-                    else:
-                        data[name] = value
-                else:
-                    logger.debug(f"Sensor {name} unavailable/invalid")
+                # Parse sensors in this block
+                for sensor in block:
+                    # Calculate offset in the response registers
+                    offset = sensor.address - start_addr
+                    sensor_registers = rr.registers[offset : offset + sensor.size]
+
+                    try:
+                        success, value = sensor.decode(sensor_registers)
+                        if success:
+                            # Handle Enums and Flags
+                            if hasattr(value, "value"):
+                                data[sensor.name] = value.value
+                                data[f"{sensor.name}_str"] = str(value)
+                            else:
+                                data[sensor.name] = value
+                    except Exception as e:
+                        logger.debug(f"Error decoding {sensor.name}: {e}")
 
             except Exception as e:
-                logger.error(f"Exception reading {name}: {e}")
-
-        # Reading binary sensors
-        for name, sensor in self.binary_sensors.items():
-            if not sensor.read_supported:
-                continue
-            try:
-                rr = self.client.read_holding_registers(sensor.address, count=sensor.size, device_id=1)
-                if rr.isError():
-                    logger.warning(f"Error reading binary {name} at {sensor.address}: {rr}")
-                    continue
-
-                success, value = sensor.decode(rr.registers)
-                if success:
-                    data[name] = value
-
-            except Exception as e:
-                logger.error(f"Exception reading binary {name}: {e}")
+                logger.error(f"Exception reading block starting at {start_addr}: {e}")
 
         return data
 
