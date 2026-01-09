@@ -138,6 +138,8 @@ const saveConfig = async () => {
             idm_host: config.value.idm.host,
             idm_port: config.value.idm.port,
             influx_url: config.value.influx.url,
+            influx_org: config.value.influx.org,
+            influx_bucket: config.value.influx.bucket,
             write_enabled: config.value.web.write_enabled,
             logging_interval: config.value.logging.interval,
             realtime_mode: config.value.logging.realtime_mode,

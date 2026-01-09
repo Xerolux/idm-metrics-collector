@@ -206,6 +206,10 @@ def config_page():
             # InfluxDB URL
             if 'influx_url' in data:
                  config.data['influx']['url'] = data['influx_url']
+            if 'influx_org' in data:
+                 config.data['influx']['org'] = data['influx_org']
+            if 'influx_bucket' in data:
+                 config.data['influx']['bucket'] = data['influx_bucket']
 
             # Handle password change
             new_pass = data.get('new_password')
