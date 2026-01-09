@@ -91,12 +91,13 @@ cd /opt/idm-metrics-collector && docker compose restart
 ### After Installation
 
 **Web UI** (IDM Metrics Collector)
-- URL: `http://your-server-ip:5000`
+- URL (Docker Compose default): `http://your-server-ip:5008`
+- URL (single container default): `http://your-server-ip:5000`
 - Default Login: `admin` / `admin` (change after first login)
 - Features: Live dashboard, control panel, scheduling, configuration
 
 **Grafana** (Docker Compose only)
-- URL: `http://your-server-ip:3000`
+- URL: `http://your-server-ip:3001`
 - Default Login: `admin` / `admin`
 - Pre-configured with InfluxDB datasource and IDM dashboard
 
@@ -159,9 +160,21 @@ logging:
 
 ## Web Interface
 
-Access the web interface at `http://<your-server-ip>:5000`.
+Access the web interface at `http://<your-server-ip>:5008` when using Docker Compose, or `http://<your-server-ip>:5000` for the single-container setup.
 
 *   **Live Dashboard**: Shows categorized sensor values with auto-refresh.
 *   **Control**: (If enabled) Write values to writable sensors.
 *   **Schedule**: (If enabled) Automate setting values based on time and day.
 *   **Configuration**: Update connection settings.
+
+## Usage & Disclaimer
+
+Use this project as-is and at your own risk. Ensure you understand the implications of reading from or writing to your heat pump before enabling control features.
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
+
+---
+
+This project is not affiliated with or endorsed by IDM Energiesysteme GmbH and is provided independently.
