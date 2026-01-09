@@ -163,8 +163,11 @@ logging:
 Access the web interface at `http://<your-server-ip>:5008` when using Docker Compose, or `http://<your-server-ip>:5000` for the single-container setup.
 
 *   **Live Dashboard**: Shows categorized sensor values with auto-refresh.
+    ![Dashboard](docs/images/dashboard.png)
 *   **Control**: (If enabled) Write values to writable sensors.
+    ![Control](docs/images/control.png)
 *   **Schedule**: (If enabled) Automate setting values based on time and day.
+    ![Schedule](docs/images/schedule.png)
 *   **Configuration**: Update connection settings.
 
 ## Usage & Disclaimer
