@@ -528,7 +528,14 @@ def run_web(modbus_client, scheduler):
         host = config.get("web.host", "0.0.0.0")
         port = config.get("web.port", 5000)
         try:
-            logger.info(f"Starting web server on {host}:{port}")
-            serve(app, host=host, port=port)
+            logger.info(f"Starting production web server (Waitress) on {host}:{port}")
+            serve(
+                app,
+                host=host,
+                port=port,
+                threads=4,  # Use 4 threads for better concurrency
+                channel_timeout=60,  # Timeout for idle connections
+                url_scheme='http'  # Explicitly set URL scheme
+            )
         except Exception as e:
             logger.error(f"Failed to start web server: {e}")
