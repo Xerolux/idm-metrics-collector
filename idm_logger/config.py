@@ -79,6 +79,14 @@ class Config:
         if os.environ.get("WEB_WRITE_ENABLED"):
             self.data["web"]["write_enabled"] = os.environ["WEB_WRITE_ENABLED"].lower() in ("true", "1", "yes")
 
+        # Network Security settings from environment
+        if os.environ.get("NETWORK_SECURITY_ENABLED"):
+            self.data["network_security"]["enabled"] = os.environ["NETWORK_SECURITY_ENABLED"].lower() in ("true", "1", "yes")
+        if os.environ.get("NETWORK_SECURITY_WHITELIST"):
+            self.data["network_security"]["whitelist"] = [x.strip() for x in os.environ["NETWORK_SECURITY_WHITELIST"].split(",") if x.strip()]
+        if os.environ.get("NETWORK_SECURITY_BLACKLIST"):
+            self.data["network_security"]["blacklist"] = [x.strip() for x in os.environ["NETWORK_SECURITY_BLACKLIST"].split(",") if x.strip()]
+
         # Logging settings
         if os.environ.get("LOG_LEVEL"):
             self.data["logging"]["level"] = os.environ["LOG_LEVEL"].upper()
@@ -122,6 +130,11 @@ class Config:
                 "host": "0.0.0.0",
                 "port": 5000,
                 "write_enabled": False
+            },
+            "network_security": {
+                "enabled": False,
+                "whitelist": [],
+                "blacklist": []
             },
             "logging": {
                 "interval": 60,
@@ -184,6 +197,11 @@ class Config:
         """Reload configuration from database."""
         self.data = self._load_data()
         self._apply_env_overrides()
+
+    def get_flask_secret_key(self):
+        """Returns the stable secret key for Flask sessions."""
+        # Use the persistent Fernet key as the Flask secret key
+        return self.key
 
 
 config = Config()

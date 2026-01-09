@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, abort
 from waitress import serve
 from .config import config
 from .sensor_addresses import SensorFeatures
@@ -9,11 +9,18 @@ import functools
 import os
 import sys
 import signal
+import ipaddress
+import time
 
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = "super_secret_key_change_me_in_prod" # In real app, make random
+app.secret_key = config.get_flask_secret_key()
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# Rate limiting storage
+login_attempts = {}
 
 # Shared state
 current_data = {}
@@ -44,6 +51,57 @@ def check_setup():
     # If not setup, only allow setup related calls or static files
     # Frontend will check /api/health to see if setup is needed
     pass
+
+@app.before_request
+def check_ip_whitelist():
+    """Check if the request IP is allowed based on whitelist/blacklist."""
+    if not config.get("network_security.enabled", False):
+        return
+
+    client_ip = request.remote_addr
+    if not client_ip:
+        return
+
+    try:
+        ip = ipaddress.ip_address(client_ip)
+    except ValueError:
+        logger.warning(f"Invalid client IP: {client_ip}")
+        abort(403)
+        return
+
+    whitelist = config.get("network_security.whitelist", [])
+    blacklist = config.get("network_security.blacklist", [])
+
+    # Check blacklist first
+    for block in blacklist:
+        try:
+            if ip in ipaddress.ip_network(block, strict=False):
+                logger.warning(f"Blocked IP {client_ip} (matched blacklist {block})")
+                abort(403)
+        except ValueError:
+            logger.error(f"Invalid blacklist entry: {block}")
+
+    # Check whitelist if it exists and is not empty
+    if whitelist:
+        allowed = False
+        for allow in whitelist:
+            try:
+                if ip in ipaddress.ip_network(allow, strict=False):
+                    allowed = True
+                    break
+            except ValueError:
+                logger.error(f"Invalid whitelist entry: {allow}")
+
+        if not allowed:
+            logger.warning(f"Blocked IP {client_ip} (not in whitelist)")
+            abort(403)
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    return response
 
 @app.context_processor
 def inject_config():
@@ -105,12 +163,35 @@ def index():
 
 @app.route('/login', methods=['POST'])
 def login():
+    # Rate limiting
+    ip = request.remote_addr
+    now = time.time()
+
+    # Clean old attempts (older than 5 minutes)
+    if ip in login_attempts:
+        login_attempts[ip] = [t for t in login_attempts[ip] if now - t < 300]
+        if len(login_attempts[ip]) >= 5:
+            logger.warning(f"Login rate limit exceeded for IP {ip}")
+            return jsonify({"success": False, "message": "Too many failed attempts. Try again later."}), 429
+
     data = request.get_json()
     password = data.get('password')
+
     if config.check_admin_password(password):
+        # Reset attempts on success
+        if ip in login_attempts:
+            del login_attempts[ip]
+
         session['logged_in'] = True
+        session.permanent = True # Use permanent session (defaults to 31 days)
         return jsonify({"success": True})
     else:
+        # Record failed attempt
+        if ip not in login_attempts:
+            login_attempts[ip] = []
+        login_attempts[ip].append(now)
+
+        logger.warning(f"Failed login attempt from {ip}")
         return jsonify({"success": False, "message": "Invalid password"}), 401
 
 @app.route('/api/auth/check')
@@ -155,7 +236,7 @@ def status_check():
 @app.route('/api/logs')
 @login_required
 def logs_page():
-    logs = list(memory_handler.log_records)
+    logs = memory_handler.get_logs()
     logs.reverse()
     return jsonify(logs)
 
