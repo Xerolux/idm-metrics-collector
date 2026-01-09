@@ -60,6 +60,8 @@ class ModbusClient:
 
         # Reading sensors
         for name, sensor in self.sensors.items():
+            if not sensor.read_supported:
+                continue
             try:
                 # Pymodbus 3.x API: read_holding_registers(address, count=1, device_id=1)
                 # Note: `slave` parameter was renamed to `device_id` in pymodbus 3.x
@@ -84,6 +86,8 @@ class ModbusClient:
 
         # Reading binary sensors
         for name, sensor in self.binary_sensors.items():
+            if not sensor.read_supported:
+                continue
             try:
                 rr = self.client.read_holding_registers(sensor.address, count=sensor.size, device_id=1)
                 if rr.isError():
