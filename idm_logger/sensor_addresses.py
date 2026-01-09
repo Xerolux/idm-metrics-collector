@@ -147,6 +147,7 @@ class BaseSensorAddress(ABC, Generic[_T]):
     unit: str | None = None
     eeprom_sensitive: bool = False
     cyclic_change_required: bool = False
+    read_supported: bool = True
 
     @property
     def size(self) -> int:
@@ -466,7 +467,7 @@ ROOM_OFFSETS = [2 + 7 * i for i in range(8)]
 
 # Renamed SENSOR_LIST to COMMON_SENSORS to make it clear this is the base list
 COMMON_SENSORS = [
-        _FloatSensorAddress(address=74, name="power_solar_surplus", unit=UnitOfPower.KILO_WATT, supported_features=SensorFeatures.SET_POWER),
+        _FloatSensorAddress(address=74, name="power_solar_surplus", unit=UnitOfPower.KILO_WATT, supported_features=SensorFeatures.SET_POWER, read_supported=False),
         _FloatSensorAddress(address=76, name="power_resistive_heater", unit=UnitOfPower.KILO_WATT),
         _FloatSensorAddress(address=78, name="power_solar_production", unit=UnitOfPower.KILO_WATT, min_value=0, supported_features=SensorFeatures.SET_POWER),
         _FloatSensorAddress(address=82, name="power_use_house", unit=UnitOfPower.KILO_WATT, min_value=0, supported_features=SensorFeatures.SET_POWER),
@@ -579,7 +580,7 @@ COMMON_SENSORS = [
         _FloatSensorAddress(address=1870, name="temp_isc_charge_cooling", unit=UnitOfTemperature.CELSIUS),
         _FloatSensorAddress(address=1872, name="temp_isc_recooling", unit=UnitOfTemperature.CELSIUS),
         _BitFieldSensorAddress(address=1874, name="mode_isc", flag=IscMode),
-        _UCharSensorAddress(address=1999, name="acknowledge_faults", supported_features=SensorFeatures.SET_BINARY),
+        _UCharSensorAddress(address=1999, name="acknowledge_faults", supported_features=SensorFeatures.SET_BINARY, read_supported=False),
         _FloatSensorAddress(address=4122, name=NAME_POWER_USAGE, unit=UnitOfPower.KILO_WATT, min_value=0),
         _FloatSensorAddress(address=4126, name="power_thermal", unit=UnitOfPower.KILO_WATT),
         _FloatSensorAddress(address=4128, name="energy_heat_total_flow_sensor", unit=UnitOfEnergy.KILO_WATT_HOUR),
