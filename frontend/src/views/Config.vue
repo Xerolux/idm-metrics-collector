@@ -180,6 +180,135 @@
             <Button label="Restart Service" icon="pi pi-refresh" severity="danger" @click="confirmRestart" />
         </div>
 
+        <!-- Backup & Restore Section -->
+        <div class="mt-8">
+            <Card class="bg-gray-800 text-white">
+                <template #title>
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-database text-blue-400"></i>
+                        <span>Backup & Restore</span>
+                    </div>
+                </template>
+                <template #content>
+                    <div class="flex flex-col gap-4">
+                        <!-- Create Backup -->
+                        <div class="flex flex-col gap-3 p-4 border border-blue-600 rounded bg-blue-900/10">
+                            <h3 class="text-lg font-semibold flex items-center gap-2">
+                                <i class="pi pi-download"></i>
+                                Create Backup
+                            </h3>
+                            <div class="flex items-center gap-2">
+                                <Checkbox v-model="backupIncludeInflux" binary inputId="backup_include_influx" />
+                                <label for="backup_include_influx">Include InfluxDB credentials (sensitive)</label>
+                            </div>
+                            <Button
+                                label="Create Backup Now"
+                                icon="pi pi-download"
+                                @click="createBackup"
+                                :loading="creatingBackup"
+                                severity="info"
+                            />
+                        </div>
+
+                        <!-- Backup List -->
+                        <div class="flex flex-col gap-3">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-lg font-semibold flex items-center gap-2">
+                                    <i class="pi pi-list"></i>
+                                    Available Backups
+                                </h3>
+                                <Button
+                                    label="Refresh"
+                                    icon="pi pi-refresh"
+                                    @click="loadBackups"
+                                    size="small"
+                                    text
+                                />
+                            </div>
+
+                            <div v-if="loadingBackups" class="flex justify-center p-4">
+                                <i class="pi pi-spin pi-spinner text-2xl"></i>
+                            </div>
+
+                            <div v-else-if="backups.length === 0" class="text-center text-gray-400 p-4">
+                                No backups available
+                            </div>
+
+                            <div v-else class="flex flex-col gap-2">
+                                <div
+                                    v-for="backup in backups"
+                                    :key="backup.filename"
+                                    class="flex items-center justify-between p-3 bg-gray-700 rounded hover:bg-gray-600"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-mono text-sm">{{ backup.filename }}</span>
+                                        <span class="text-xs text-gray-400">
+                                            {{ formatDate(backup.created_at) }} • {{ formatSize(backup.size) }}
+                                        </span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <Button
+                                            icon="pi pi-download"
+                                            @click="downloadBackup(backup.filename)"
+                                            size="small"
+                                            severity="info"
+                                            text
+                                        />
+                                        <Button
+                                            icon="pi pi-upload"
+                                            @click="confirmRestore(backup.filename)"
+                                            size="small"
+                                            severity="warning"
+                                            text
+                                        />
+                                        <Button
+                                            icon="pi pi-trash"
+                                            @click="confirmDeleteBackup(backup.filename)"
+                                            size="small"
+                                            severity="danger"
+                                            text
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Upload Backup -->
+                        <div class="flex flex-col gap-3 p-4 border border-yellow-600 rounded bg-yellow-900/10">
+                            <h3 class="text-lg font-semibold flex items-center gap-2">
+                                <i class="pi pi-upload"></i>
+                                Restore from File
+                            </h3>
+                            <div class="flex items-start gap-2 text-yellow-400">
+                                <i class="pi pi-exclamation-triangle mt-1"></i>
+                                <small>Warning: Restoring will overwrite current configuration!</small>
+                            </div>
+                            <input
+                                type="file"
+                                ref="fileInput"
+                                @change="handleFileSelect"
+                                accept=".zip"
+                                class="block w-full text-sm text-gray-400
+                                    file:mr-4 file:py-2 file:px-4
+                                    file:rounded file:border-0
+                                    file:text-sm file:font-semibold
+                                    file:bg-blue-600 file:text-white
+                                    hover:file:bg-blue-700"
+                            />
+                            <Button
+                                label="Restore from Selected File"
+                                icon="pi pi-upload"
+                                @click="restoreFromFile"
+                                :disabled="!selectedFile"
+                                :loading="restoringBackup"
+                                severity="warning"
+                            />
+                        </div>
+                    </div>
+                </template>
+            </Card>
+        </div>
+
         <Toast />
         <ConfirmDialog />
     </div>
@@ -216,6 +345,15 @@ const saving = ref(false);
 const toast = useToast();
 const confirm = useConfirm();
 
+// Backup & Restore state
+const backups = ref([]);
+const loadingBackups = ref(false);
+const creatingBackup = ref(false);
+const restoringBackup = ref(false);
+const backupIncludeInflux = ref(true);
+const selectedFile = ref(null);
+const fileInput = ref(null);
+
 onMounted(async () => {
     try {
         const res = await axios.get('/api/config');
@@ -234,6 +372,9 @@ onMounted(async () => {
         } catch (e) {
             console.error('Failed to get client IP', e);
         }
+
+        // Load backups
+        loadBackups();
     } catch (e) {
         toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load config', life: 3000 });
     } finally {
@@ -284,5 +425,149 @@ const confirmRestart = () => {
             }
         }
     });
+};
+
+// Backup & Restore functions
+const loadBackups = async () => {
+    loadingBackups.value = true;
+    try {
+        const res = await axios.get('/api/backup/list');
+        backups.value = res.data.backups || [];
+    } catch (e) {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load backups', life: 3000 });
+    } finally {
+        loadingBackups.value = false;
+    }
+};
+
+const createBackup = async () => {
+    creatingBackup.value = true;
+    try {
+        const res = await axios.post('/api/backup/create', {
+            include_influx_config: backupIncludeInflux.value
+        });
+        if (res.data.success) {
+            toast.add({ severity: 'success', summary: 'Success', detail: `Backup created: ${res.data.filename}`, life: 3000 });
+            loadBackups();
+        } else {
+            toast.add({ severity: 'error', summary: 'Error', detail: res.data.error, life: 3000 });
+        }
+    } catch (e) {
+        toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || 'Failed to create backup', life: 3000 });
+    } finally {
+        creatingBackup.value = false;
+    }
+};
+
+const downloadBackup = async (filename) => {
+    try {
+        const response = await axios.get(`/api/backup/download/${filename}`, {
+            responseType: 'blob'
+        });
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast.add({ severity: 'success', summary: 'Success', detail: 'Backup downloaded', life: 2000 });
+    } catch (e) {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to download backup', life: 3000 });
+    }
+};
+
+const confirmRestore = (filename) => {
+    confirm.require({
+        message: `Restore configuration from "${filename}"? This will overwrite your current settings!`,
+        header: 'Restore Backup',
+        icon: 'pi pi-exclamation-triangle',
+        acceptClass: 'p-button-warning',
+        accept: async () => {
+            restoringBackup.value = true;
+            try {
+                const res = await axios.post('/api/backup/restore', { filename });
+                if (res.data.success) {
+                    toast.add({ severity: 'success', summary: 'Success', detail: res.data.message, life: 5000 });
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    toast.add({ severity: 'error', summary: 'Error', detail: res.data.error, life: 5000 });
+                }
+            } catch (e) {
+                toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || 'Restore failed', life: 5000 });
+            } finally {
+                restoringBackup.value = false;
+            }
+        }
+    });
+};
+
+const confirmDeleteBackup = (filename) => {
+    confirm.require({
+        message: `Delete backup "${filename}"?`,
+        header: 'Delete Backup',
+        icon: 'pi pi-trash',
+        acceptClass: 'p-button-danger',
+        accept: async () => {
+            try {
+                await axios.delete(`/api/backup/delete/${filename}`);
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Backup deleted', life: 2000 });
+                loadBackups();
+            } catch (e) {
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete backup', life: 3000 });
+            }
+        }
+    });
+};
+
+const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    selectedFile.value = file;
+};
+
+const restoreFromFile = async () => {
+    if (!selectedFile.value) return;
+
+    confirm.require({
+        message: 'Restore configuration from uploaded file? This will overwrite your current settings!',
+        header: 'Restore from File',
+        icon: 'pi pi-exclamation-triangle',
+        acceptClass: 'p-button-warning',
+        accept: async () => {
+            restoringBackup.value = true;
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile.value);
+                formData.append('restore_secrets', 'false');
+
+                const res = await axios.post('/api/backup/restore', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+
+                if (res.data.success) {
+                    toast.add({ severity: 'success', summary: 'Success', detail: res.data.message, life: 5000 });
+                    selectedFile.value = null;
+                    if (fileInput.value) fileInput.value.value = '';
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    toast.add({ severity: 'error', summary: 'Error', detail: res.data.error, life: 5000 });
+                }
+            } catch (e) {
+                toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || 'Restore failed', life: 5000 });
+            } finally {
+                restoringBackup.value = false;
+            }
+        }
+    });
+};
+
+const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleString();
+};
+
+const formatSize = (bytes) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
 };
 </script>

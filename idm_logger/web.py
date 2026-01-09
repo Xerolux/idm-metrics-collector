@@ -1,8 +1,9 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, abort, send_from_directory
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, abort, send_from_directory, send_file
 from waitress import serve
 from .config import config
 from .sensor_addresses import SensorFeatures
 from .log_handler import memory_handler
+from .backup import backup_manager
 import threading
 import logging
 import functools
@@ -11,6 +12,7 @@ import sys
 import signal
 import ipaddress
 import time
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -551,6 +553,128 @@ def schedule_page():
 def catch_all(path):
     # Serve index.html for all non-API routes to support Vue Router
     return send_from_directory(app.static_folder, 'index.html')
+
+
+# ============================================================================
+# BACKUP & RESTORE API
+# ============================================================================
+
+@app.route('/api/backup/create', methods=['POST'])
+@login_required
+def create_backup():
+    """Create a new backup."""
+    data = request.get_json() or {}
+    include_influx = data.get('include_influx_config', True)
+
+    result = backup_manager.create_backup(include_influx_config=include_influx)
+
+    if result.get('success'):
+        # Clean up old backups (keep last 10)
+        backup_manager.cleanup_old_backups(keep_count=10)
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 500
+
+
+@app.route('/api/backup/list', methods=['GET'])
+@login_required
+def list_backups():
+    """List all available backups."""
+    backups = backup_manager.list_backups()
+    return jsonify({"backups": backups}), 200
+
+
+@app.route('/api/backup/download/<filename>', methods=['GET'])
+@login_required
+def download_backup(filename):
+    """Download a backup file."""
+    # Security check
+    if ".." in filename or "/" in filename or "\\" in filename:
+        return jsonify({"error": "Invalid filename"}), 400
+
+    backup_path = Path(backup_manager.BACKUP_DIR) / filename
+
+    if not backup_path.exists():
+        return jsonify({"error": "Backup not found"}), 404
+
+    try:
+        return send_file(
+            backup_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/zip'
+        )
+    except Exception as e:
+        logger.error(f"Failed to send backup file: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/backup/restore', methods=['POST'])
+@login_required
+def restore_backup():
+    """Restore from a backup file."""
+    # Check if file was uploaded
+    if 'file' not in request.files:
+        data = request.get_json() or {}
+        filename = data.get('filename')
+
+        if not filename:
+            return jsonify({"error": "No backup file specified"}), 400
+
+        # Restore from existing backup
+        backup_path = Path(backup_manager.BACKUP_DIR) / filename
+    else:
+        # Handle uploaded file
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+
+        # Save uploaded file temporarily
+        temp_path = Path(backup_manager.BACKUP_DIR) / f"temp_{file.filename}"
+        file.save(temp_path)
+        backup_path = temp_path
+
+    try:
+        restore_secrets = request.form.get('restore_secrets', 'false').lower() == 'true'
+        result = backup_manager.restore_backup(str(backup_path), restore_secrets=restore_secrets)
+
+        # Clean up temp file if uploaded
+        if 'file' in request.files and backup_path.exists():
+            backup_path.unlink()
+
+        if result.get('success'):
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 500
+
+    except Exception as e:
+        logger.error(f"Restore failed: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/backup/delete/<filename>', methods=['DELETE'])
+@login_required
+def delete_backup(filename):
+    """Delete a backup file."""
+    result = backup_manager.delete_backup(filename)
+
+    if result.get('success'):
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 500
+
+
+@app.route('/api/backup/export/influx', methods=['GET'])
+@login_required
+def export_influx_config():
+    """Export InfluxDB configuration as JSON."""
+    result = backup_manager.export_influxdb_config()
+
+    if result.get('success'):
+        return jsonify(result['data']), 200
+    else:
+        return jsonify(result), 500
+
 
 def set_influx_writer(writer):
     """Set the InfluxDB writer instance for status reporting."""
