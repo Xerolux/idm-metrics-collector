@@ -188,6 +188,21 @@ def config_page():
             if 'write_enabled' in data:
                 config.data['web']['write_enabled'] = bool(data['write_enabled'])
 
+            # Logging Interval
+            if 'logging_interval' in data:
+                try:
+                    interval = int(data['logging_interval'])
+                    if 1 <= interval <= 3600:  # 1 second to 1 hour
+                        config.data['logging']['interval'] = interval
+                    else:
+                        return jsonify({"error": "Interval must be between 1 and 3600 seconds"}), 400
+                except ValueError:
+                    return jsonify({"error": "Invalid interval value"}), 400
+
+            # Realtime Mode
+            if 'realtime_mode' in data:
+                config.data['logging']['realtime_mode'] = bool(data['realtime_mode'])
+
             # InfluxDB URL
             if 'influx_url' in data:
                  config.data['influx']['url'] = data['influx_url']

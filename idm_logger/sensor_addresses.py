@@ -4,8 +4,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, IntEnum, IntFlag
 from typing import Generic, TypeVar, Any
-from pymodbus.payload import BinaryPayloadDecoder, BinaryPayloadBuilder
-from pymodbus.constants import Endian
 
 from .const import (
     ActiveCircuitMode,
@@ -26,6 +24,8 @@ from .const import (
 )
 
 import logging
+import struct
+
 LOGGER = logging.getLogger(__name__)
 
 _T = TypeVar("_T")
@@ -42,6 +42,98 @@ class UnitOfTemperature:
     CELSIUS = "°C"
 
 NAME_POWER_USAGE = "power_current_draw"
+
+
+def _decode_registers(registers: list[int], datatype: str, byteorder: str = "big", wordorder: str = "little"):
+    """Decode registers to value using struct (replacement for BinaryPayloadDecoder)."""
+    # Convert registers to bytes
+    # With Big endian byte order and Little endian word order
+    if wordorder.lower() == "little":
+        # Reverse word order for multi-register values
+        if len(registers) > 1:
+            registers = list(reversed(registers))
+
+    # Pack registers to bytes (each register is 16 bits)
+    byte_data = b''
+    for reg in registers:
+        if byteorder.lower() == "big":
+            byte_data += struct.pack('>H', reg)  # Big endian 16-bit
+        else:
+            byte_data += struct.pack('<H', reg)  # Little endian 16-bit
+
+    # Decode based on datatype
+    if datatype == 'float32':
+        if byteorder.lower() == "big":
+            return struct.unpack('>f', byte_data)[0]
+        else:
+            return struct.unpack('<f', byte_data)[0]
+    elif datatype == 'int16':
+        if byteorder.lower() == "big":
+            return struct.unpack('>h', byte_data[:2])[0]
+        else:
+            return struct.unpack('<h', byte_data[:2])[0]
+    elif datatype == 'uint16':
+        if byteorder.lower() == "big":
+            return struct.unpack('>H', byte_data[:2])[0]
+        else:
+            return struct.unpack('<H', byte_data[:2])[0]
+    elif datatype == 'int32':
+        if byteorder.lower() == "big":
+            return struct.unpack('>i', byte_data)[0]
+        else:
+            return struct.unpack('<i', byte_data)[0]
+    elif datatype == 'uint32':
+        if byteorder.lower() == "big":
+            return struct.unpack('>I', byte_data)[0]
+        else:
+            return struct.unpack('<I', byte_data)[0]
+    return registers[0]
+
+
+def _encode_value(value: int | float, datatype: str, byteorder: str = "big", wordorder: str = "little") -> list[int]:
+    """Encode value to registers using struct (replacement for BinaryPayloadBuilder)."""
+    # Pack value to bytes based on datatype
+    if datatype == 'float32':
+        if byteorder.lower() == "big":
+            byte_data = struct.pack('>f', float(value))
+        else:
+            byte_data = struct.pack('<f', float(value))
+    elif datatype == 'int16':
+        if byteorder.lower() == "big":
+            byte_data = struct.pack('>h', int(value))
+        else:
+            byte_data = struct.pack('<h', int(value))
+    elif datatype == 'uint16':
+        if byteorder.lower() == "big":
+            byte_data = struct.pack('>H', int(value))
+        else:
+            byte_data = struct.pack('<H', int(value))
+    elif datatype == 'int32':
+        if byteorder.lower() == "big":
+            byte_data = struct.pack('>i', int(value))
+        else:
+            byte_data = struct.pack('<i', int(value))
+    elif datatype == 'uint32':
+        if byteorder.lower() == "big":
+            byte_data = struct.pack('>I', int(value))
+        else:
+            byte_data = struct.pack('<I', int(value))
+    else:
+        byte_data = struct.pack('>H', int(value))
+
+    # Convert bytes to registers (16-bit chunks)
+    registers = []
+    for i in range(0, len(byte_data), 2):
+        if byteorder.lower() == "big":
+            registers.append(struct.unpack('>H', byte_data[i:i+2])[0])
+        else:
+            registers.append(struct.unpack('<H', byte_data[i:i+2])[0])
+
+    # Apply word order
+    if wordorder.lower() == "little" and len(registers) > 1:
+        registers = list(reversed(registers))
+
+    return registers
 
 
 @dataclass(kw_only=True)
@@ -68,39 +160,10 @@ class BaseSensorAddress(ABC, Generic[_T]):
         """Get the datatype name."""
 
     def _decode_raw(self, registers: list[int]):
-        decoder = BinaryPayloadDecoder.fromRegisters(
-            registers,
-            byteorder=Endian.Big,
-            wordorder=Endian.Little
-        )
-
-        if self.datatype == 'float32':
-            return decoder.decode_32bit_float()
-        elif self.datatype == 'int16':
-            return decoder.decode_16bit_int()
-        elif self.datatype == 'uint16':
-            return decoder.decode_16bit_uint()
-        elif self.datatype == 'int32':
-            return decoder.decode_32bit_int()
-        elif self.datatype == 'uint32':
-            return decoder.decode_32bit_uint()
-        return registers[0]
+        return _decode_registers(registers, self.datatype, byteorder="big", wordorder="little")
 
     def _encode_raw(self, value: int | float) -> list[int]:
-        builder = BinaryPayloadBuilder(byteorder=Endian.Big, wordorder=Endian.Little)
-
-        if self.datatype == 'float32':
-            builder.add_32bit_float(float(value))
-        elif self.datatype == 'int16':
-            builder.add_16bit_int(int(value))
-        elif self.datatype == 'uint16':
-            builder.add_16bit_uint(int(value))
-        elif self.datatype == 'int32':
-            builder.add_32bit_int(int(value))
-        elif self.datatype == 'uint32':
-            builder.add_32bit_uint(int(value))
-
-        return builder.to_registers()
+        return _encode_value(value, self.datatype, byteorder="big", wordorder="little")
 
     @abstractmethod
     def decode(self, registers: list[int]) -> tuple[bool, _T]:

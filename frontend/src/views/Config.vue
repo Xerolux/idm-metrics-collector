@@ -44,6 +44,23 @@
             </Card>
 
             <Card class="bg-gray-800 text-white">
+                <template #title>Data Collection</template>
+                <template #content>
+                     <div class="flex flex-col gap-4">
+                         <div class="flex items-center gap-2">
+                             <Checkbox v-model="config.logging.realtime_mode" binary inputId="realtime_mode" />
+                             <label for="realtime_mode">Realtime Mode (1 second interval)</label>
+                         </div>
+                         <div class="flex flex-col gap-2" v-if="!config.logging.realtime_mode">
+                             <label>Polling Interval (seconds)</label>
+                             <InputNumber v-model="config.logging.interval" :min="1" :max="3600" :useGrouping="false" />
+                             <small class="text-gray-400">How often to read data from heat pump (1-3600 seconds)</small>
+                         </div>
+                     </div>
+                </template>
+            </Card>
+
+            <Card class="bg-gray-800 text-white">
                 <template #title>Web Interface</template>
                 <template #content>
                      <div class="flex flex-col gap-4">
@@ -94,7 +111,8 @@ import { useConfirm } from 'primevue/useconfirm';
 const config = ref({
     idm: { host: '', port: 502 },
     influx: { url: '', org: '', bucket: '' },
-    web: { write_enabled: false }
+    web: { write_enabled: false },
+    logging: { interval: 60, realtime_mode: false }
 });
 const newPassword = ref('');
 const loading = ref(true);
@@ -121,10 +139,12 @@ const saveConfig = async () => {
             idm_port: config.value.idm.port,
             influx_url: config.value.influx.url,
             write_enabled: config.value.web.write_enabled,
+            logging_interval: config.value.logging.interval,
+            realtime_mode: config.value.logging.realtime_mode,
             new_password: newPassword.value || undefined
         };
         const res = await axios.post('/api/config', payload);
-        toast.add({ severity: 'success', summary: 'Success', detail: res.data.message, life: 3000 });
+        toast.add({ severity: 'success', summary: 'Success', detail: res.data.message || 'Settings saved successfully', life: 3000 });
         newPassword.value = '';
     } catch (e) {
         toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || e.message, life: 5000 });

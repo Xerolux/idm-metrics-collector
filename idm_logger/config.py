@@ -124,6 +124,7 @@ class Config:
             },
             "logging": {
                 "interval": 60,
+                "realtime_mode": False,
                 "level": "INFO"
             },
             "setup_completed": False

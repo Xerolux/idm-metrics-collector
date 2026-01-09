@@ -55,11 +55,16 @@ def main():
     influx = InfluxWriter()
     set_influx_writer(influx)
 
-    interval = config.get("logging.interval", 60)
-
     try:
         while not stop_event.is_set():
             start_time = time.time()
+
+            # Get current settings (can be changed via web UI)
+            interval = config.get("logging.interval", 60)
+            realtime_mode = config.get("logging.realtime_mode", False)
+
+            # In realtime mode, use minimum interval (1 second)
+            effective_interval = 1 if realtime_mode else interval
 
             # Read
             logger.debug("Reading sensors...")
@@ -77,7 +82,7 @@ def main():
 
             # Sleep
             elapsed = time.time() - start_time
-            sleep_time = max(0, interval - elapsed)
+            sleep_time = max(0, effective_interval - elapsed)
             stop_event.wait(sleep_time)
 
     except Exception as e:
