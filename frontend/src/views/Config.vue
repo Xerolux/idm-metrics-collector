@@ -98,6 +98,73 @@
             </Card>
 
             <Card class="bg-gray-800 text-white">
+                <template #title>
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-send text-blue-400"></i>
+                        <span>MQTT Publishing</span>
+                    </div>
+                </template>
+                <template #content>
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-center gap-2">
+                            <Checkbox v-model="config.mqtt.enabled" binary inputId="mqtt_enabled" />
+                            <label for="mqtt_enabled" class="font-bold">Enable MQTT Publishing</label>
+                        </div>
+
+                        <div v-if="config.mqtt.enabled" class="flex flex-col gap-4 p-3 border border-blue-600 rounded bg-blue-900/10">
+                            <div class="flex flex-col gap-2">
+                                <label>Broker Address</label>
+                                <InputText v-model="config.mqtt.broker" placeholder="mqtt.example.com" />
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <label>Port</label>
+                                <InputNumber v-model="config.mqtt.port" :useGrouping="false" :min="1" :max="65535" />
+                                <small class="text-gray-400">Default: 1883 (non-TLS) or 8883 (TLS)</small>
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <label>Username (Optional)</label>
+                                <InputText v-model="config.mqtt.username" placeholder="Optional" />
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <label>Password (Optional)</label>
+                                <InputText v-model="mqttPassword" type="password" placeholder="Leave empty to keep current" />
+                                <small class="text-gray-400">Only updated if provided</small>
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <label>Topic Prefix</label>
+                                <InputText v-model="config.mqtt.topic_prefix" placeholder="idm/heatpump" />
+                                <small class="text-gray-400">Topics will be: {prefix}/{sensor_name}</small>
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <label>QoS Level</label>
+                                <select v-model="config.mqtt.qos" class="p-2 bg-gray-700 border border-gray-600 rounded">
+                                    <option :value="0">0 - At most once</option>
+                                    <option :value="1">1 - At least once</option>
+                                    <option :value="2">2 - Exactly once</option>
+                                </select>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <Checkbox v-model="config.mqtt.use_tls" binary inputId="mqtt_use_tls" />
+                                <label for="mqtt_use_tls">Use TLS/SSL encryption</label>
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <label>Publish Interval (seconds)</label>
+                                <InputNumber v-model="config.mqtt.publish_interval" :min="1" :max="3600" :useGrouping="false" />
+                                <small class="text-gray-400">How often to publish sensor data (1-3600 seconds)</small>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </Card>
+
+            <Card class="bg-gray-800 text-white">
                 <template #title>Admin Security</template>
                 <template #content>
                     <div class="flex flex-col gap-4">
@@ -334,9 +401,11 @@ const config = ref({
     influx: { url: '', org: '', bucket: '' },
     web: { write_enabled: false },
     logging: { interval: 60, realtime_mode: false },
+    mqtt: { enabled: false, broker: '', port: 1883, username: '', topic_prefix: 'idm/heatpump', qos: 0, use_tls: false, publish_interval: 60 },
     network_security: { enabled: false, whitelist: [], blacklist: [] }
 });
 const newPassword = ref('');
+const mqttPassword = ref('');
 const whitelistText = ref('');
 const blacklistText = ref('');
 const currentClientIP = ref('');
@@ -396,6 +465,15 @@ const saveConfig = async () => {
             write_enabled: config.value.web.write_enabled,
             logging_interval: config.value.logging.interval,
             realtime_mode: config.value.logging.realtime_mode,
+            mqtt_enabled: config.value.mqtt?.enabled || false,
+            mqtt_broker: config.value.mqtt?.broker || '',
+            mqtt_port: config.value.mqtt?.port || 1883,
+            mqtt_username: config.value.mqtt?.username || '',
+            mqtt_password: mqttPassword.value || undefined,
+            mqtt_topic_prefix: config.value.mqtt?.topic_prefix || 'idm/heatpump',
+            mqtt_qos: config.value.mqtt?.qos || 0,
+            mqtt_use_tls: config.value.mqtt?.use_tls || false,
+            mqtt_publish_interval: config.value.mqtt?.publish_interval || 60,
             network_security_enabled: config.value.network_security?.enabled || false,
             network_security_whitelist: whitelistText.value,
             network_security_blacklist: blacklistText.value,
@@ -404,6 +482,7 @@ const saveConfig = async () => {
         const res = await axios.post('/api/config', payload);
         toast.add({ severity: 'success', summary: 'Success', detail: res.data.message || 'Settings saved successfully', life: 3000 });
         newPassword.value = '';
+        mqttPassword.value = '';
     } catch (e) {
         toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || e.message, life: 5000 });
     } finally {
