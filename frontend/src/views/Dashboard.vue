@@ -1,6 +1,6 @@
 <template>
     <div class="p-4 flex flex-col h-full">
-         <div class="flex justify-between items-center mb-4">
+         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 sm:gap-0">
             <h1 class="text-2xl font-bold">Dashboard</h1>
             <div class="flex gap-2">
                  <Button label="Open Grafana" icon="pi pi-chart-line" @click="openGrafana" severity="secondary" />
@@ -64,7 +64,9 @@ onMounted(async () => {
         minRow: 1,
         margin: 5,
         column: 6,
-        disableOneColumnMode: true
+        disableOneColumnMode: false,
+        oneColumnModeDomSort: true,
+        oneColumnModeWidth: 768
     });
 
     const savedLayout = localStorage.getItem('dashboard_layout');
