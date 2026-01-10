@@ -15,7 +15,8 @@ logging.basicConfig(
     level=getattr(logging, config.get("logging.level", "INFO")),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout)
+        logging.StreamHandler(sys.stdout),
+        memory_handler
     ]
 )
 logger = logging.getLogger("idm_logger")
