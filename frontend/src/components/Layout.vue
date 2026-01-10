@@ -61,7 +61,9 @@ const logout = async () => {
             </template>
             <template #end>
                 <div class="flex items-center gap-2">
-                    <Button label="Logout" icon="pi pi-power-off" severity="danger" text @click="logout" />
+                    <Button icon="pi pi-power-off" severity="danger" text @click="logout">
+                        <span class="hidden sm:inline ml-2">Logout</span>
+                    </Button>
                 </div>
             </template>
         </Menubar>
