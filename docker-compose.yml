@@ -20,6 +20,14 @@ services:
       - INFLUX_ORG=my-org
       - INFLUX_BUCKET=idm
       - INFLUX_TOKEN=my-super-secret-token-change-me
+      # MQTT settings (optional - configure via web UI or uncomment below)
+      # - MQTT_ENABLED=false
+      # - MQTT_BROKER=mqtt.example.com
+      # - MQTT_PORT=1883
+      # - MQTT_USERNAME=
+      # - MQTT_PASSWORD=
+      # - MQTT_USE_TLS=false
+      # - MQTT_TOPIC_PREFIX=idm/heatpump
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health', timeout=5)"]
       interval: 30s

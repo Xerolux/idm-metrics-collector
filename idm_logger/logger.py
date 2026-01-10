@@ -9,6 +9,7 @@ from .influx import InfluxWriter
 from .web import run_web, update_current_data, set_influx_writer
 from .scheduler import Scheduler
 from .log_handler import memory_handler
+from .mqtt import mqtt_publisher
 
 # Configure logging
 logging.basicConfig(
@@ -37,6 +38,7 @@ def main():
     modbus = None
     scheduler = None
     influx = None
+    mqtt = None
 
     # Start Web UI FIRST in background, so it's available even if Modbus/InfluxDB fails
     if config.get("web.enabled"):
@@ -65,6 +67,15 @@ def main():
         logger.info("InfluxDB writer initialized")
     except Exception as e:
         logger.error(f"Failed to initialize InfluxDB writer: {e}")
+
+    # MQTT Publisher
+    try:
+        if config.get("mqtt.enabled", False):
+            mqtt_publisher.start()
+            mqtt = mqtt_publisher
+            logger.info("MQTT publisher initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize MQTT publisher: {e}")
 
     # Scheduler (only if we have a working modbus client)
     if modbus:
@@ -108,6 +119,11 @@ def main():
                     if influx:
                         logger.debug(f"Writing {len(data)} points to InfluxDB")
                         influx.write(data)
+
+                    # Publish to MQTT
+                    if mqtt and mqtt.connected:
+                        logger.debug(f"Publishing {len(data)} points to MQTT")
+                        mqtt.publish_data(data)
                 else:
                     logger.warning("No data read from Modbus")
             else:
@@ -126,6 +142,8 @@ def main():
     finally:
         if scheduler and config.get("web.write_enabled"):
             scheduler.stop()
+        if mqtt:
+            mqtt.stop()
         if modbus:
             modbus.close()
         logger.info("Stopped")

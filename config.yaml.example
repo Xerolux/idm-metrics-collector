@@ -38,3 +38,22 @@ logging:
   interval: 60
   # Log level (DEBUG, INFO, WARNING, ERROR)
   level: "INFO"
+
+mqtt:
+  # Enable MQTT publishing
+  enabled: false
+  # MQTT broker address
+  broker: ""
+  # MQTT broker port (default: 1883 for non-TLS, 8883 for TLS)
+  port: 1883
+  # MQTT authentication (optional)
+  username: ""
+  password: ""
+  # Enable TLS encryption
+  use_tls: false
+  # Topic prefix for all published messages
+  topic_prefix: "idm/heatpump"
+  # Publish interval in seconds (uses logging interval if not set)
+  publish_interval: 60
+  # Quality of Service (0, 1, or 2)
+  qos: 1

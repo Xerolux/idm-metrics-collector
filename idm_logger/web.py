@@ -4,6 +4,7 @@ from .config import config
 from .sensor_addresses import SensorFeatures
 from .log_handler import memory_handler
 from .backup import backup_manager
+from .mqtt import mqtt_publisher
 import threading
 import logging
 import functools
@@ -228,10 +229,13 @@ def status_check():
     if influx_writer_instance:
         influx_status = influx_writer_instance.get_status()
 
+    mqtt_status = mqtt_publisher.get_status() if mqtt_publisher else None
+
     return jsonify({
         "status": "running",
         "setup_completed": config.is_setup(),
         "influx": influx_status,
+        "mqtt": mqtt_status,
         "modbus_connected": modbus_client_instance is not None,
         "scheduler_running": scheduler_instance is not None and config.get("web.write_enabled")
     })
@@ -307,6 +311,56 @@ def config_page():
                  config.data['influx']['org'] = data['influx_org']
             if 'influx_bucket' in data:
                  config.data['influx']['bucket'] = data['influx_bucket']
+
+            # MQTT Settings
+            if 'mqtt_enabled' in data:
+                config.data['mqtt']['enabled'] = bool(data['mqtt_enabled'])
+
+            if 'mqtt_broker' in data:
+                config.data['mqtt']['broker'] = data['mqtt_broker']
+
+            if 'mqtt_port' in data:
+                try:
+                    port = int(data['mqtt_port'])
+                    if 1 <= port <= 65535:
+                        config.data['mqtt']['port'] = port
+                    else:
+                        return jsonify({"error": "MQTT port must be between 1 and 65535"}), 400
+                except ValueError:
+                    return jsonify({"error": "Invalid MQTT port number"}), 400
+
+            if 'mqtt_username' in data:
+                config.data['mqtt']['username'] = data['mqtt_username']
+
+            if 'mqtt_password' in data and data['mqtt_password']:
+                # Only update password if provided (not empty)
+                config.data['mqtt']['password'] = data['mqtt_password']
+
+            if 'mqtt_use_tls' in data:
+                config.data['mqtt']['use_tls'] = bool(data['mqtt_use_tls'])
+
+            if 'mqtt_topic_prefix' in data:
+                config.data['mqtt']['topic_prefix'] = data['mqtt_topic_prefix']
+
+            if 'mqtt_publish_interval' in data:
+                try:
+                    interval = int(data['mqtt_publish_interval'])
+                    if 1 <= interval <= 3600:
+                        config.data['mqtt']['publish_interval'] = interval
+                    else:
+                        return jsonify({"error": "MQTT publish interval must be between 1 and 3600 seconds"}), 400
+                except ValueError:
+                    return jsonify({"error": "Invalid MQTT publish interval"}), 400
+
+            if 'mqtt_qos' in data:
+                try:
+                    qos = int(data['mqtt_qos'])
+                    if qos in [0, 1, 2]:
+                        config.data['mqtt']['qos'] = qos
+                    else:
+                        return jsonify({"error": "MQTT QoS must be 0, 1, or 2"}), 400
+                except ValueError:
+                    return jsonify({"error": "Invalid MQTT QoS value"}), 400
 
             # Network Security Settings
             if 'network_security_enabled' in data:

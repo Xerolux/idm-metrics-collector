@@ -93,6 +93,22 @@ class Config:
         if os.environ.get("LOG_INTERVAL"):
             self.data["logging"]["interval"] = int(os.environ["LOG_INTERVAL"])
 
+        # MQTT settings from environment
+        if os.environ.get("MQTT_ENABLED"):
+            self.data["mqtt"]["enabled"] = os.environ["MQTT_ENABLED"].lower() in ("true", "1", "yes")
+        if os.environ.get("MQTT_BROKER"):
+            self.data["mqtt"]["broker"] = os.environ["MQTT_BROKER"]
+        if os.environ.get("MQTT_PORT"):
+            self.data["mqtt"]["port"] = int(os.environ["MQTT_PORT"])
+        if os.environ.get("MQTT_USERNAME"):
+            self.data["mqtt"]["username"] = os.environ["MQTT_USERNAME"]
+        if os.environ.get("MQTT_PASSWORD"):
+            self.data["mqtt"]["password"] = os.environ["MQTT_PASSWORD"]
+        if os.environ.get("MQTT_USE_TLS"):
+            self.data["mqtt"]["use_tls"] = os.environ["MQTT_USE_TLS"].lower() in ("true", "1", "yes")
+        if os.environ.get("MQTT_TOPIC_PREFIX"):
+            self.data["mqtt"]["topic_prefix"] = os.environ["MQTT_TOPIC_PREFIX"]
+
     def _load_data(self):
         # Load from DB, structure into dict like old yaml
         raw = db.get_setting("config")
@@ -103,6 +119,8 @@ class Config:
                 if "influx" in data:
                     data["influx"]["token"] = self._decrypt(data["influx"].get("encrypted_token", ""))
                     data["influx"]["password"] = self._decrypt(data["influx"].get("encrypted_password", ""))
+                if "mqtt" in data:
+                    data["mqtt"]["password"] = self._decrypt(data["mqtt"].get("encrypted_password", ""))
                 return data
             except json.JSONDecodeError:
                 pass
@@ -141,6 +159,17 @@ class Config:
                 "realtime_mode": False,
                 "level": "INFO"
             },
+            "mqtt": {
+                "enabled": False,
+                "broker": "",
+                "port": 1883,
+                "username": "",
+                "password": "",
+                "use_tls": False,
+                "topic_prefix": "idm/heatpump",
+                "publish_interval": 60,
+                "qos": 1
+            },
             "setup_completed": False
         }
 
@@ -156,6 +185,12 @@ class Config:
                 del to_save["influx"]["token"]
             if "password" in to_save["influx"]:
                 del to_save["influx"]["password"]
+
+        if "mqtt" in to_save:
+            to_save["mqtt"]["encrypted_password"] = self._encrypt(to_save["mqtt"].get("password", ""))
+            # Remove plain text from storage dict
+            if "password" in to_save["mqtt"]:
+                del to_save["mqtt"]["password"]
 
         db.set_setting("config", json.dumps(to_save))
 
