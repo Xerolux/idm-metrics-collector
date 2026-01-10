@@ -1,3 +1,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Global dark mode overrides for PrimeVue Dialogs */
+.p-confirm-dialog .p-dialog-header,
+.p-confirm-dialog .p-dialog-content,
+.p-confirm-dialog .p-dialog-footer {
+    @apply bg-gray-800 text-white;
+}
+
+.p-confirm-dialog .p-dialog-header-icon {
+    @apply text-gray-400 hover:text-white;
+}
+
+.p-confirm-dialog .p-button-text {
+    @apply text-gray-300 hover:text-white;
+}

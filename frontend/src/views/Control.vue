@@ -46,7 +46,8 @@
                 </template>
             </Card>
         </div>
-         <Toast />
+        <Toast />
+        <ConfirmDialog group="eeprom" class="eeprom-confirm-dialog" />
     </div>
 </template>
 
@@ -58,7 +59,9 @@ import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import Dropdown from 'primevue/dropdown';
 import Toast from 'primevue/toast';
+import ConfirmDialog from 'primevue/confirmdialog';
 import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 
 const sensors = ref([]);
 const formValues = ref({});
@@ -66,6 +69,7 @@ const loading = ref(true);
 const error = ref(null);
 const writing = ref({});
 const toast = useToast();
+const confirm = useConfirm();
 
 onMounted(async () => {
     try {
@@ -86,25 +90,7 @@ onMounted(async () => {
     }
 });
 
-const writeSensor = async (sensor) => {
-    const value = formValues.value[sensor.name];
-    if (value === undefined || value === null) return;
-
-    // Extra confirmation for EEPROM-sensitive registers
-    if (sensor.eeprom_sensitive) {
-        const confirmed = confirm(
-            `⚠️ ACHTUNG: EEPROM-SENSITIVES REGISTER!\n\n` +
-            `Register: ${sensor.name}\n` +
-            `Neuer Wert: ${value}\n\n` +
-            `Dieses Register hat begrenzte Schreibzyklen (EEPROM).\n` +
-            `Häufiges Schreiben kann das Register beschädigen!\n\n` +
-            `Möchten Sie wirklich fortfahren?`
-        );
-        if (!confirmed) {
-            return;
-        }
-    }
-
+const executeWrite = async (sensor, value) => {
     writing.value[sensor.name] = true;
     try {
         const res = await axios.post('/api/control', {
@@ -120,4 +106,59 @@ const writeSensor = async (sensor) => {
         writing.value[sensor.name] = false;
     }
 };
+
+const writeSensor = (sensor) => {
+    const value = formValues.value[sensor.name];
+    if (value === undefined || value === null) return;
+
+    // Extra confirmation for EEPROM-sensitive registers
+    if (sensor.eeprom_sensitive) {
+        confirm.require({
+            group: 'eeprom',
+            message: `Register: ${sensor.name}\nNew Value: ${value}\n\nThis register has limited write cycles. Frequent writing may damage the hardware.`,
+            header: 'EEPROM Warning',
+            icon: 'pi pi-exclamation-triangle',
+            rejectProps: {
+                label: 'Cancel',
+                severity: 'secondary',
+                outlined: true
+            },
+            acceptProps: {
+                label: 'Proceed',
+                severity: 'danger'
+            },
+            accept: () => {
+                executeWrite(sensor, value);
+            },
+            reject: () => {
+                // do nothing
+            }
+        });
+    } else {
+        executeWrite(sensor, value);
+    }
+};
 </script>
+
+<style>
+/* Global styles for the confirmation dialog to handle teleportation */
+.eeprom-confirm-dialog .p-dialog-message {
+    white-space: pre-line;
+}
+
+/* Dark mode overrides for this specific dialog */
+.eeprom-confirm-dialog .p-dialog-header,
+.eeprom-confirm-dialog .p-dialog-content,
+.eeprom-confirm-dialog .p-dialog-footer {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: white !important;
+    border-color: #374151; /* gray-700 */
+}
+
+.eeprom-confirm-dialog .p-dialog-header-icon {
+    color: #9ca3af !important; /* gray-400 */
+}
+.eeprom-confirm-dialog .p-dialog-header-icon:hover {
+    color: white !important;
+}
+</style>
