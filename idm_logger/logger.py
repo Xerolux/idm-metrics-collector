@@ -22,7 +22,7 @@ def signal_handler(sig, frame):
 
 def main():
     # Configure logging
-    logger.setLevel(getattr(logging, config.get("logging.level", "INFO")))
+    logger.setLevel(logging.INFO)
 
     # Create formatters and handlers
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -40,6 +40,14 @@ def main():
 
     logger.info("Starting IDM Heat Pump Logger")
 
+    # Update log level from config
+    try:
+        log_level = config.get("logging.level", "INFO")
+        logger.setLevel(getattr(logging, log_level))
+        logger.info(f"Log level set to {log_level}")
+    except Exception as e:
+        logger.error(f"Failed to set log level from config: {e}")
+
     # Initialize these as None first
     modbus = None
     scheduler = None
@@ -47,19 +55,16 @@ def main():
     mqtt = None
 
     # Start Web UI FIRST in background, so it's available even if Modbus/InfluxDB fails
-    logger.info("Checking if web is enabled...")
-    web_enabled = config.get("web.enabled")
-    logger.info(f"Web enabled: {web_enabled}")
-    if web_enabled:
-        logger.info("Creating web thread...")
-        web_thread = threading.Thread(target=run_web, args=(None, None), daemon=True)
-        logger.info("Starting web thread...")
-        web_thread.start()
-        logger.info("Web UI thread started")
-        # Give the web server a moment to start
-        logger.info("Sleeping for 1 second...")
-        time.sleep(1)
-        logger.info("Sleep complete")
+    try:
+        web_enabled = config.get("web.enabled")
+        if web_enabled:
+            web_thread = threading.Thread(target=run_web, args=(None, None), daemon=True)
+            web_thread.start()
+            logger.info("Web UI started")
+            # Give the web server a moment to start
+            time.sleep(1)
+    except Exception as e:
+        logger.error(f"Failed to start web server: {e}", exc_info=True)
 
     # Now initialize the backend components
     try:
@@ -70,7 +75,7 @@ def main():
         )
         logger.info(f"Modbus client initialized for {config.get('idm.host')}:{config.get('idm.port')}")
     except Exception as e:
-        logger.error(f"Failed to initialize Modbus client: {e}")
+        logger.error(f"Failed to initialize Modbus client: {e}", exc_info=True)
 
     # Influx Writer
     try:
@@ -78,7 +83,7 @@ def main():
         set_influx_writer(influx)
         logger.info("InfluxDB writer initialized")
     except Exception as e:
-        logger.error(f"Failed to initialize InfluxDB writer: {e}")
+        logger.error(f"Failed to initialize InfluxDB writer: {e}", exc_info=True)
 
     # MQTT Publisher
     try:
@@ -87,7 +92,7 @@ def main():
             mqtt = mqtt_publisher
             logger.info("MQTT publisher initialized")
     except Exception as e:
-        logger.error(f"Failed to initialize MQTT publisher: {e}")
+        logger.error(f"Failed to initialize MQTT publisher: {e}", exc_info=True)
 
     # Scheduler (only if we have a working modbus client)
     if modbus:
@@ -106,6 +111,8 @@ def main():
         import idm_logger.web as web_module
         web_module.modbus_client_instance = modbus
         web_module.scheduler_instance = scheduler
+
+    logger.info("Entering main loop...")
 
     try:
         while not stop_event.is_set():

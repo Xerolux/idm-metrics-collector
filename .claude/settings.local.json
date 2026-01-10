@@ -25,7 +25,9 @@
       "Bash(robocopy:*)",
       "Bash(git rm:*)",
       "Bash(git stash:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(echo:*)",
+      "Bash(docker-compose stop:*)"
     ]
   }
 }

@@ -8,25 +8,36 @@ class MemoryLogHandler(logging.Handler):
         super().__init__()
         self.log_records = deque(maxlen=capacity)
         self.formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        self.lock = threading.Lock()
+        # Use a separate lock for the deque (don't conflict with Handler's lock)
+        self._records_lock = threading.RLock()
 
     def emit(self, record):
         try:
-            msg = self.format(record)
+            # Format the message manually to avoid potential blocking issues
+            timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            msg = record.getMessage()
+            full_msg = f"{timestamp} - {record.levelname} - {msg}"
+
             record_entry = {
-                'timestamp': datetime.datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S'),
+                'timestamp': timestamp,
                 'level': record.levelname,
-                'message': record.getMessage(), # Get the raw message or formatted? format() gets the full string.
-                'full_message': msg
+                'message': msg,
+                'full_message': full_msg
             }
-            with self.lock:
+            with self._records_lock:
                 self.log_records.append(record_entry)
-        except Exception:
-            self.handleError(record)
+        except Exception as e:
+            # Failsafe: don't let logging errors crash the app
+            import sys
+            print(f"ERROR in MemoryLogHandler.emit: {e}", file=sys.stderr, flush=True)
+            try:
+                self.handleError(record)
+            except:
+                pass
 
     def get_logs(self, limit=None):
         """Thread-safe method to retrieve logs."""
-        with self.lock:
+        with self._records_lock:
             if limit:
                 # Optimized slicing without full list copy
                 if limit >= len(self.log_records):
