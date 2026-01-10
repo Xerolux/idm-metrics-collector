@@ -20,7 +20,12 @@
       "Bash(docker-compose down:*)",
       "Bash(docker-compose build:*)",
       "Bash(docker-compose up:*)",
-      "Bash(timeout 5 docker logs:*)"
+      "Bash(timeout 5 docker logs:*)",
+      "Bash(xcopy /E /I /Y dist ..idm_loggerstatic)",
+      "Bash(robocopy:*)",
+      "Bash(git rm:*)",
+      "Bash(git stash:*)",
+      "Bash(findstr:*)"
     ]
   }
 }

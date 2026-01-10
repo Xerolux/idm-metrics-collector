@@ -22,7 +22,8 @@ class MQTTPublisher:
         self.running = False
         self.stop_event = Event()
         self.last_publish_time = 0
-        self._setup_client()
+        # Don't setup client during import, wait for explicit start()
+        # self._setup_client()
 
     def _setup_client(self):
         """Setup MQTT client with authentication and TLS."""
@@ -38,7 +39,7 @@ class MQTTPublisher:
         try:
             # Create MQTT client
             client_id = f"idm_logger_{int(time.time())}"
-            self.client = mqtt.Client(client_id=client_id, protocol=mqtt.MQTTv311)
+            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=client_id, protocol=mqtt.MQTTv311)
 
             # Set callbacks
             self.client.on_connect = self._on_connect
@@ -217,6 +218,10 @@ class MQTTPublisher:
         if not config.get("mqtt.enabled", False):
             logger.info("MQTT publishing disabled")
             return
+
+        # Setup client if not already done
+        if not self.client:
+            self._setup_client()
 
         self.running = True
         self.stop_event.clear()

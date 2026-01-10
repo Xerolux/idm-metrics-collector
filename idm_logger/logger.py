@@ -11,15 +11,7 @@ from .scheduler import Scheduler
 from .log_handler import memory_handler
 from .mqtt import mqtt_publisher
 
-# Configure logging
-logging.basicConfig(
-    level=getattr(logging, config.get("logging.level", "INFO")),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        memory_handler
-    ]
-)
+# Get logger instance (configure in main())
 logger = logging.getLogger("idm_logger")
 
 stop_event = threading.Event()
@@ -29,6 +21,25 @@ def signal_handler(sig, frame):
     stop_event.set()
 
 def main():
+    # Configure logging
+    logger.setLevel(getattr(logging, config.get("logging.level", "INFO")))
+
+    # Create formatters and handlers
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    # Console handler with forced flush
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.stream.reconfigure(line_buffering=True)  # Force line buffering
+
+    # Add handlers
+    logger.addHandler(console_handler)
+    logger.addHandler(memory_handler)
+
+    # Force flush after adding handlers
+    sys.stdout.flush()
+    sys.stderr.flush()
+
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
@@ -41,13 +52,19 @@ def main():
     mqtt = None
 
     # Start Web UI FIRST in background, so it's available even if Modbus/InfluxDB fails
-    if config.get("web.enabled"):
+    logger.info("Checking if web is enabled...")
+    web_enabled = config.get("web.enabled")
+    logger.info(f"Web enabled: {web_enabled}")
+    if web_enabled:
+        logger.info("Creating web thread...")
         web_thread = threading.Thread(target=run_web, args=(None, None), daemon=True)
+        logger.info("Starting web thread...")
         web_thread.start()
         logger.info("Web UI thread started")
         # Give the web server a moment to start
-        import time
+        logger.info("Sleeping for 1 second...")
         time.sleep(1)
+        logger.info("Sleep complete")
 
     # Now initialize the backend components
     try:
