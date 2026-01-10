@@ -135,9 +135,10 @@ class ModbusClient:
         # But let's cache it for performance
         if not hasattr(self, '_read_blocks'):
             self._read_blocks = self._build_read_blocks()
+            self._failed_blocks = set()  # Track blocks that consistently fail
             logger.info(f"Optimized Modbus reading: {len(self._read_blocks)} requests for {len(self.sensors) + len(self.binary_sensors)} sensors")
 
-        for block in self._read_blocks:
+        for block_idx, block in enumerate(self._read_blocks):
             if not block:
                 continue
 
@@ -145,27 +146,25 @@ class ModbusClient:
             end_addr = max(s.address + s.size for s in block)
             count = end_addr - start_addr
 
+            # Skip blocks that have failed multiple times
+            block_key = (start_addr, end_addr)
+            if block_key in self._failed_blocks:
+                # Directly read individual sensors for known failed blocks
+                self._read_block_individually(block, data)
+                continue
+
             try:
                 rr = self.client.read_holding_registers(start_addr, count=count, device_id=1)
                 if rr.isError():
-                    logger.warning(f"Bulk read failed for block {start_addr}-{end_addr}: {rr}. Falling back to individual reads.")
-                    # Fallback to individual sensor reads
-                    for sensor in block:
-                        try:
-                            sensor_rr = self.client.read_holding_registers(sensor.address, count=sensor.size, device_id=1)
-                            if sensor_rr.isError():
-                                logger.debug(f"Individual read failed for {sensor.name} @ {sensor.address}: {sensor_rr}")
-                                continue
+                    # Check if this is an illegal address error (exception code 2)
+                    if hasattr(rr, 'exception_code') and rr.exception_code == 2:
+                        logger.debug(f"Bulk read failed for block {start_addr}-{end_addr}: Illegal Data Address. Marking block for individual reads.")
+                        self._failed_blocks.add(block_key)
+                    else:
+                        logger.warning(f"Bulk read failed for block {start_addr}-{end_addr}: {rr}. Falling back to individual reads.")
 
-                            success, value = sensor.decode(sensor_rr.registers)
-                            if success:
-                                if hasattr(value, "value"):
-                                    data[sensor.name] = value.value
-                                    data[f"{sensor.name}_str"] = str(value)
-                                else:
-                                    data[sensor.name] = value
-                        except Exception as e:
-                            logger.debug(f"Exception reading individual sensor {sensor.name}: {e}")
+                    # Fallback to individual sensor reads
+                    self._read_block_individually(block, data)
                     continue
 
                 # Parse sensors in this block
@@ -188,22 +187,30 @@ class ModbusClient:
 
             except Exception as e:
                 logger.error(f"Exception reading block starting at {start_addr}: {e}")
-                # Also try fallback for exceptions
-                for sensor in block:
-                    try:
-                        sensor_rr = self.client.read_holding_registers(sensor.address, count=sensor.size, device_id=1)
-                        if not sensor_rr.isError():
-                            success, value = sensor.decode(sensor_rr.registers)
-                            if success:
-                                if hasattr(value, "value"):
-                                    data[sensor.name] = value.value
-                                    data[f"{sensor.name}_str"] = str(value)
-                                else:
-                                    data[sensor.name] = value
-                    except Exception:
-                        pass
+                # Mark block as failed and use individual reads
+                self._failed_blocks.add(block_key)
+                self._read_block_individually(block, data)
 
         return data
+
+    def _read_block_individually(self, block, data):
+        """Reads each sensor in a block individually and updates the data dictionary."""
+        for sensor in block:
+            try:
+                sensor_rr = self.client.read_holding_registers(sensor.address, count=sensor.size, device_id=1)
+                if sensor_rr.isError():
+                    logger.debug(f"Individual read failed for {sensor.name} @ {sensor.address}: {sensor_rr}")
+                    continue
+
+                success, value = sensor.decode(sensor_rr.registers)
+                if success:
+                    if hasattr(value, "value"):
+                        data[sensor.name] = value.value
+                        data[f"{sensor.name}_str"] = str(value)
+                    else:
+                        data[sensor.name] = value
+            except Exception as e:
+                logger.debug(f"Exception reading individual sensor {sensor.name}: {e}")
 
     def write_sensor(self, name, value):
         if name not in self.sensors and name not in self.binary_sensors:

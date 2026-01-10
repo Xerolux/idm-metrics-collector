@@ -27,69 +27,235 @@
         {% endwith %}
 
         <div class="row justify-content-center">
-            <div class="col-md-8">
+            <div class="col-lg-10">
                 <div class="card shadow">
                     <div class="card-header bg-dark-subtle">
-                        <h4 class="mb-0">System Configuration</h4>
+                        <h4 class="mb-0"><i class="bi bi-gear-fill"></i> System Configuration</h4>
                     </div>
                     <div class="card-body">
-                        <form method="POST">
-                            <h5 class="mb-3">IDM Heat Pump Connection</h5>
-                            <div class="mb-3">
-                                <label for="idm_host" class="form-label">Host IP Address</label>
-                                <input type="text" class="form-control" id="idm_host" name="idm_host" value="{{ config.idm.host }}" placeholder="192.168.1.100">
-                            </div>
+                        <form method="POST" id="configForm">
+                            <ul class="nav nav-tabs mb-4" id="configTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="device-tab" data-bs-toggle="tab" data-bs-target="#device-pane" type="button" role="tab">
+                                        <i class="bi bi-hdd-network"></i> Device
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="database-tab" data-bs-toggle="tab" data-bs-target="#database-pane" type="button" role="tab">
+                                        <i class="bi bi-database"></i> Database
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="mqtt-tab" data-bs-toggle="tab" data-bs-target="#mqtt-pane" type="button" role="tab">
+                                        <i class="bi bi-broadcast"></i> MQTT
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security-pane" type="button" role="tab">
+                                        <i class="bi bi-shield-lock"></i> Security
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system-pane" type="button" role="tab">
+                                        <i class="bi bi-sliders"></i> System
+                                    </button>
+                                </li>
+                            </ul>
 
-                            <div class="mb-3">
-                                <label for="idm_port" class="form-label">Modbus Port</label>
-                                <input type="number" class="form-control" id="idm_port" name="idm_port" value="{{ config.idm.port }}" min="1" max="65535">
-                                <div class="form-text">Standard Modbus TCP port is 502</div>
-                            </div>
-
-                            <h5 class="mb-3 mt-4">Web Interface</h5>
-
-                            <div class="mb-3">
-                                <label class="form-label">Write Capabilities</label>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" role="switch" id="write_enabled" name="write_enabled" {{ 'checked' if config.web.write_enabled else '' }}>
-                                    <label class="form-check-label" for="write_enabled">
-                                        Enable write operations and scheduling
-                                    </label>
+                            <div class="tab-content" id="configTabContent">
+                                <!-- Device Tab -->
+                                <div class="tab-pane fade show active" id="device-pane" role="tabpanel">
+                                    <h5 class="mb-3"><i class="bi bi-thermometer-half"></i> IDM Heat Pump Connection</h5>
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <div class="mb-3">
+                                                <label for="idm_host" class="form-label">Host IP Address</label>
+                                                <input type="text" class="form-control" id="idm_host" name="idm_host" value="{{ config.idm.host }}" placeholder="192.168.1.100">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="idm_port" class="form-label">Modbus Port</label>
+                                                <input type="number" class="form-control" id="idm_port" name="idm_port" value="{{ config.idm.port }}" min="1" max="65535">
+                                                <div class="form-text">Default: 502</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="form-text text-warning">Requires restart to activate scheduler</div>
+
+                                <!-- Database Tab -->
+                                <div class="tab-pane fade" id="database-pane" role="tabpanel">
+                                    <h5 class="mb-3"><i class="bi bi-server"></i> InfluxDB Connection</h5>
+                                    <div class="mb-3">
+                                        <label for="influx_url" class="form-label">InfluxDB URL (v2)</label>
+                                        <input type="text" class="form-control" id="influx_url" name="influx_url" value="{{ config.influx.url }}" placeholder="http://idm-influxdb:8086">
+                                        <div class="form-text">Docker default: <code>http://idm-influxdb:8086</code></div>
+                                    </div>
+
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle"></i> <strong>Note:</strong> Organization, Bucket, Token and other sensitive settings must be changed in the database directly for security reasons.
+                                    </div>
+                                </div>
+
+                                <!-- MQTT Tab -->
+                                <div class="tab-pane fade" id="mqtt-pane" role="tabpanel">
+                                    <h5 class="mb-3"><i class="bi bi-broadcast-pin"></i> MQTT Configuration</h5>
+
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="mqtt_enabled" name="mqtt_enabled" {{ 'checked' if config.mqtt.enabled else '' }}>
+                                            <label class="form-check-label" for="mqtt_enabled">
+                                                <strong>Enable MQTT Publishing</strong>
+                                            </label>
+                                        </div>
+                                        <div class="form-text">Publish sensor data to an MQTT broker</div>
+                                    </div>
+
+                                    <div id="mqttSettings" class="{{ 'd-none' if not config.mqtt.enabled else '' }}">
+                                        <div class="row">
+                                            <div class="col-md-8">
+                                                <div class="mb-3">
+                                                    <label for="mqtt_broker" class="form-label">Broker Address</label>
+                                                    <input type="text" class="form-control" id="mqtt_broker" name="mqtt_broker" value="{{ config.mqtt.broker }}" placeholder="mqtt.example.com">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label for="mqtt_port" class="form-label">Port</label>
+                                                    <input type="number" class="form-control" id="mqtt_port" name="mqtt_port" value="{{ config.mqtt.port }}" min="1" max="65535">
+                                                    <div class="form-text">Default: 1883</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="mqtt_username" class="form-label">Username</label>
+                                                    <input type="text" class="form-control" id="mqtt_username" name="mqtt_username" value="{{ config.mqtt.username }}" placeholder="Optional">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="mqtt_password" class="form-label">Password</label>
+                                                    <input type="password" class="form-control" id="mqtt_password" name="mqtt_password" placeholder="Leave empty to keep current">
+                                                    <div class="form-text">Only updated if provided</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-md-8">
+                                                <div class="mb-3">
+                                                    <label for="mqtt_topic_prefix" class="form-label">Topic Prefix</label>
+                                                    <input type="text" class="form-control" id="mqtt_topic_prefix" name="mqtt_topic_prefix" value="{{ config.mqtt.topic_prefix }}" placeholder="idm/heatpump">
+                                                    <div class="form-text">Topics will be: prefix/sensor_name</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label for="mqtt_qos" class="form-label">QoS Level</label>
+                                                    <select class="form-select" id="mqtt_qos" name="mqtt_qos">
+                                                        <option value="0" {{ 'selected' if config.mqtt.qos == 0 else '' }}>0 - At most once</option>
+                                                        <option value="1" {{ 'selected' if config.mqtt.qos == 1 else '' }}>1 - At least once</option>
+                                                        <option value="2" {{ 'selected' if config.mqtt.qos == 2 else '' }}>2 - Exactly once</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" role="switch" id="mqtt_use_tls" name="mqtt_use_tls" {{ 'checked' if config.mqtt.use_tls else '' }}>
+                                                <label class="form-check-label" for="mqtt_use_tls">
+                                                    Use TLS/SSL encryption
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="mqtt_publish_interval" class="form-label">Publish Interval (seconds)</label>
+                                            <input type="number" class="form-control" id="mqtt_publish_interval" name="mqtt_publish_interval" value="{{ config.mqtt.publish_interval }}" min="1" max="3600">
+                                            <div class="form-text">How often to publish sensor data (1-3600 seconds)</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Security Tab -->
+                                <div class="tab-pane fade" id="security-pane" role="tabpanel">
+                                    <h5 class="mb-3"><i class="bi bi-shield-check"></i> Network Security</h5>
+
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="network_security_enabled" name="network_security_enabled" {{ 'checked' if config.network_security.enabled else '' }}>
+                                            <label class="form-check-label" for="network_security_enabled">
+                                                <strong>Enable Network Access Control</strong>
+                                            </label>
+                                        </div>
+                                        <div class="form-text">Restrict access to the web interface by IP address</div>
+                                    </div>
+
+                                    <div id="securitySettings" class="{{ 'd-none' if not config.network_security.enabled else '' }}">
+                                        <div class="alert alert-warning">
+                                            <i class="bi bi-exclamation-triangle"></i> <strong>Warning:</strong> Incorrect configuration may lock you out of the web interface. Make sure to include your current IP address in the whitelist.
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="network_security_whitelist" class="form-label">Allowed IP Addresses/Networks (Whitelist)</label>
+                                            <textarea class="form-control font-monospace" id="network_security_whitelist" name="network_security_whitelist" rows="5" placeholder="192.168.1.0/24&#10;10.0.0.1&#10;172.16.0.0/16">{{ '\n'.join(config.network_security.whitelist) if config.network_security.whitelist else '' }}</textarea>
+                                            <div class="form-text">One IP address or CIDR network per line. Example: 192.168.1.0/24 or 10.0.0.1</div>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label for="network_security_blacklist" class="form-label">Blocked IP Addresses/Networks (Blacklist)</label>
+                                            <textarea class="form-control font-monospace" id="network_security_blacklist" name="network_security_blacklist" rows="3" placeholder="192.168.1.100&#10;10.0.0.5">{{ '\n'.join(config.network_security.blacklist) if config.network_security.blacklist else '' }}</textarea>
+                                            <div class="form-text">Blacklist takes priority over whitelist</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- System Tab -->
+                                <div class="tab-pane fade" id="system-pane" role="tabpanel">
+                                    <h5 class="mb-3"><i class="bi bi-sliders"></i> System Settings</h5>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Write Capabilities</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="write_enabled" name="write_enabled" {{ 'checked' if config.web.write_enabled else '' }}>
+                                            <label class="form-check-label" for="write_enabled">
+                                                Enable write operations and scheduling
+                                            </label>
+                                        </div>
+                                        <div class="form-text text-warning"><i class="bi bi-exclamation-circle"></i> Requires restart to activate scheduler</div>
+                                    </div>
+
+                                    <hr class="my-4">
+
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h5 class="mb-1"><i class="bi bi-arrow-clockwise"></i> Service Management</h5>
+                                            <p class="text-muted small mb-0">Restart the service to apply configuration changes</p>
+                                        </div>
+                                        <div>
+                                            <button type="button" class="btn btn-warning" onclick="restartService()">
+                                                <i class="bi bi-arrow-clockwise"></i> Restart Service
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <h5 class="mb-3 mt-4">InfluxDB Connection</h5>
-                            <div class="mb-3">
-                                <label for="influx_url" class="form-label">InfluxDB URL (v2)</label>
-                                <input type="text" class="form-control" id="influx_url" name="influx_url" value="{{ config.influx.url }}">
-                            </div>
+                            <hr class="my-4">
 
-                            <div class="alert alert-info mt-3">
-                                <small>Note: Other settings like Authentication Tokens, Passwords, or Logging Interval must be changed in the database directly for security reasons.</small>
-                            </div>
-
-                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                                <a href="/" class="btn btn-secondary me-md-2">Cancel</a>
-                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="/" class="btn btn-secondary me-md-2">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-circle"></i> Save Changes
+                                </button>
                             </div>
                         </form>
-
-                        <hr class="my-4">
-
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h5 class="mb-1">Service Management</h5>
-                                <p class="text-muted small mb-0">Restart the service to apply configuration changes</p>
-                            </div>
-                            <div>
-                                <form method="POST" action="/restart" onsubmit="return confirm('Are you sure you want to restart the service? This will disconnect all active sessions.');">
-                                    <button type="submit" class="btn btn-warning">
-                                        <i class="bi bi-arrow-clockwise"></i> Restart Service
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -97,5 +263,43 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toggle MQTT settings visibility
+        document.getElementById('mqtt_enabled').addEventListener('change', function() {
+            const mqttSettings = document.getElementById('mqttSettings');
+            if (this.checked) {
+                mqttSettings.classList.remove('d-none');
+            } else {
+                mqttSettings.classList.add('d-none');
+            }
+        });
+
+        // Toggle Security settings visibility
+        document.getElementById('network_security_enabled').addEventListener('change', function() {
+            const securitySettings = document.getElementById('securitySettings');
+            if (this.checked) {
+                securitySettings.classList.remove('d-none');
+            } else {
+                securitySettings.classList.add('d-none');
+            }
+        });
+
+        // Restart service function
+        function restartService() {
+            if (confirm('Are you sure you want to restart the service? This will disconnect all active sessions.')) {
+                fetch('/restart', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                }).then(response => {
+                    if (response.ok) {
+                        alert('Service is restarting...');
+                        setTimeout(() => window.location.reload(), 5000);
+                    }
+                });
+            }
+        }
+    </script>
 </body>
 </html>
