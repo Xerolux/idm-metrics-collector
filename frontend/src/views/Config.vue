@@ -6,374 +6,392 @@
             <i class="pi pi-spin pi-spinner text-4xl"></i>
         </div>
 
-        <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card class="bg-gray-800 text-white">
-                <template #title>IDM Heat Pump</template>
-                <template #content>
-                    <div class="flex flex-col gap-4">
-                        <div class="flex flex-col gap-2">
-                            <label>Host / IP</label>
-                            <InputText v-model="config.idm.host" />
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <label>Port</label>
-                            <InputNumber v-model="config.idm.port" :useGrouping="false" />
-                        </div>
+        <div v-else>
+            <TabView>
+                <TabPanel header="General">
+                    <div class="flex flex-col gap-6">
+                        <Card class="bg-gray-800 text-white">
+                            <template #title>IDM Heat Pump</template>
+                            <template #content>
+                                <div class="flex flex-col gap-4">
+                                    <div class="flex flex-col gap-2">
+                                        <label>Host / IP</label>
+                                        <InputText v-model="config.idm.host" />
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Port</label>
+                                        <InputNumber v-model="config.idm.port" :useGrouping="false" />
+                                    </div>
 
-                        <div class="flex flex-col gap-2">
-                            <label class="font-bold">Enabled Features</label>
-                            <div class="flex flex-col gap-2 p-2 border border-gray-700 rounded bg-gray-900/50">
+                                    <div class="flex flex-col gap-2">
+                                        <label class="font-bold">Enabled Features</label>
+                                        <div class="flex flex-col gap-2 p-2 border border-gray-700 rounded bg-gray-900/50">
+                                            <div class="flex items-center gap-2">
+                                                <Checkbox v-model="config.idm.circuits" inputId="circuitA" value="A" disabled />
+                                                <label for="circuitA" class="opacity-50">Circuit A (Always On)</label>
+                                            </div>
+                                            <div class="flex flex-wrap gap-4">
+                                                <div v-for="c in ['B', 'C', 'D', 'E', 'F', 'G']" :key="c" class="flex items-center gap-2">
+                                                    <Checkbox v-model="config.idm.circuits" :inputId="'circuit'+c" :value="c" />
+                                                    <label :for="'circuit'+c">Circuit {{ c }}</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col gap-2 p-2 border border-gray-700 rounded bg-gray-900/50">
+                                            <label class="text-sm text-gray-400">Zone Modules</label>
+                                            <div class="flex flex-wrap gap-4">
+                                                <div v-for="z in 10" :key="z" class="flex items-center gap-2">
+                                                    <Checkbox v-model="config.idm.zones" :inputId="'zone'+(z-1)" :value="(z-1)" />
+                                                    <label :for="'zone'+(z-1)">Zone {{ z }}</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </Card>
+
+                        <Card class="bg-gray-800 text-white">
+                            <template #title>InfluxDB</template>
+                            <template #content>
+                                <div class="flex flex-col gap-4">
+                                    <div class="flex flex-col gap-2">
+                                        <label>URL</label>
+                                        <InputText v-model="config.influx.url" />
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Organization</label>
+                                        <InputText v-model="config.influx.org" />
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Bucket</label>
+                                        <InputText v-model="config.influx.bucket" />
+                                    </div>
+                                </div>
+                            </template>
+                        </Card>
+                    </div>
+                </TabPanel>
+
+                <TabPanel header="Collection">
+                    <Card class="bg-gray-800 text-white">
+                        <template #title>Data Collection</template>
+                        <template #content>
+                            <div class="flex flex-col gap-4">
                                 <div class="flex items-center gap-2">
-                                    <Checkbox v-model="config.idm.circuits" inputId="circuitA" value="A" disabled />
-                                    <label for="circuitA" class="opacity-50">Circuit A (Always On)</label>
+                                    <Checkbox v-model="config.logging.realtime_mode" binary inputId="realtime_mode" />
+                                    <label for="realtime_mode">Realtime Mode (1 second interval)</label>
                                 </div>
-                                <div class="flex flex-wrap gap-4">
-                                    <div v-for="c in ['B', 'C', 'D', 'E', 'F', 'G']" :key="c" class="flex items-center gap-2">
-                                        <Checkbox v-model="config.idm.circuits" :inputId="'circuit'+c" :value="c" />
-                                        <label :for="'circuit'+c">Circuit {{ c }}</label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex flex-col gap-2 p-2 border border-gray-700 rounded bg-gray-900/50">
-                                <label class="text-sm text-gray-400">Zone Modules</label>
-                                <div class="flex flex-wrap gap-4">
-                                    <div v-for="z in 10" :key="z" class="flex items-center gap-2">
-                                        <Checkbox v-model="config.idm.zones" :inputId="'zone'+(z-1)" :value="(z-1)" />
-                                        <label :for="'zone'+(z-1)">Zone {{ z }}</label>
-                                    </div>
+                                <div class="flex flex-col gap-2" v-if="!config.logging.realtime_mode">
+                                    <label>Polling Interval (seconds)</label>
+                                    <InputNumber v-model="config.logging.interval" :min="1" :max="3600" :useGrouping="false" />
+                                    <small class="text-gray-400">How often to read data from heat pump (1-3600 seconds)</small>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </template>
-            </Card>
+                        </template>
+                    </Card>
+                </TabPanel>
 
-            <Card class="bg-gray-800 text-white">
-                <template #title>InfluxDB</template>
-                <template #content>
-                    <div class="flex flex-col gap-4">
-                         <div class="flex flex-col gap-2">
-                            <label>URL</label>
-                            <InputText v-model="config.influx.url" />
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <label>Organization</label>
-                            <InputText v-model="config.influx.org" />
-                        </div>
-                         <div class="flex flex-col gap-2">
-                            <label>Bucket</label>
-                            <InputText v-model="config.influx.bucket" />
-                        </div>
-                    </div>
-                </template>
-            </Card>
-
-            <Card class="bg-gray-800 text-white">
-                <template #title>Data Collection</template>
-                <template #content>
-                     <div class="flex flex-col gap-4">
-                         <div class="flex items-center gap-2">
-                             <Checkbox v-model="config.logging.realtime_mode" binary inputId="realtime_mode" />
-                             <label for="realtime_mode">Realtime Mode (1 second interval)</label>
-                         </div>
-                         <div class="flex flex-col gap-2" v-if="!config.logging.realtime_mode">
-                             <label>Polling Interval (seconds)</label>
-                             <InputNumber v-model="config.logging.interval" :min="1" :max="3600" :useGrouping="false" />
-                             <small class="text-gray-400">How often to read data from heat pump (1-3600 seconds)</small>
-                         </div>
-                     </div>
-                </template>
-            </Card>
-
-            <Card class="bg-gray-800 text-white">
-                <template #title>Web Interface</template>
-                <template #content>
-                     <div class="flex flex-col gap-4">
-                         <div class="flex items-center gap-2">
-                             <Checkbox v-model="config.web.write_enabled" binary inputId="write_enabled" />
-                             <label for="write_enabled">Enable Write Access (Manual Control & Schedule)</label>
-                         </div>
-                     </div>
-                </template>
-            </Card>
-
-            <Card class="bg-gray-800 text-white">
-                <template #title>
-                    <div class="flex items-center gap-2">
-                        <i class="pi pi-send text-blue-400"></i>
-                        <span>MQTT Publishing</span>
-                    </div>
-                </template>
-                <template #content>
-                    <div class="flex flex-col gap-4">
-                        <div class="flex items-center gap-2">
-                            <Checkbox v-model="config.mqtt.enabled" binary inputId="mqtt_enabled" />
-                            <label for="mqtt_enabled" class="font-bold">Enable MQTT Publishing</label>
-                        </div>
-
-                        <div v-if="config.mqtt.enabled" class="flex flex-col gap-4 p-3 border border-blue-600 rounded bg-blue-900/10">
-                            <div class="flex flex-col gap-2">
-                                <label>Broker Address</label>
-                                <InputText v-model="config.mqtt.broker" placeholder="mqtt.example.com" />
-                            </div>
-
-                            <div class="flex flex-col gap-2">
-                                <label>Port</label>
-                                <InputNumber v-model="config.mqtt.port" :useGrouping="false" :min="1" :max="65535" />
-                                <small class="text-gray-400">Default: 1883 (non-TLS) or 8883 (TLS)</small>
-                            </div>
-
-                            <div class="flex flex-col gap-2">
-                                <label>Username (Optional)</label>
-                                <InputText v-model="config.mqtt.username" placeholder="Optional" />
-                            </div>
-
-                            <div class="flex flex-col gap-2">
-                                <label>Password (Optional)</label>
-                                <InputText v-model="mqttPassword" type="password" placeholder="Leave empty to keep current" />
-                                <small class="text-gray-400">Only updated if provided</small>
-                            </div>
-
-                            <div class="flex flex-col gap-2">
-                                <label>Topic Prefix</label>
-                                <InputText v-model="config.mqtt.topic_prefix" placeholder="idm/heatpump" />
-                                <small class="text-gray-400">Topics will be: {prefix}/{sensor_name}</small>
-                            </div>
-
-                            <div class="flex flex-col gap-2">
-                                <label>QoS Level</label>
-                                <select v-model="config.mqtt.qos" class="p-2 bg-gray-700 border border-gray-600 rounded">
-                                    <option :value="0">0 - At most once</option>
-                                    <option :value="1">1 - At least once</option>
-                                    <option :value="2">2 - Exactly once</option>
-                                </select>
-                            </div>
-
+                <TabPanel header="MQTT">
+                    <Card class="bg-gray-800 text-white" v-if="config.mqtt">
+                        <template #title>
                             <div class="flex items-center gap-2">
-                                <Checkbox v-model="config.mqtt.use_tls" binary inputId="mqtt_use_tls" />
-                                <label for="mqtt_use_tls">Use TLS/SSL encryption</label>
+                                <i class="pi pi-send text-blue-400"></i>
+                                <span>MQTT Publishing</span>
                             </div>
+                        </template>
+                        <template #content>
+                            <div class="flex flex-col gap-4">
+                                <div class="flex items-center gap-2">
+                                    <Checkbox v-model="config.mqtt.enabled" binary inputId="mqtt_enabled" />
+                                    <label for="mqtt_enabled" class="font-bold">Enable MQTT Publishing</label>
+                                </div>
 
-                            <div class="flex flex-col gap-2">
-                                <label>Publish Interval (seconds)</label>
-                                <InputNumber v-model="config.mqtt.publish_interval" :min="1" :max="3600" :useGrouping="false" />
-                                <small class="text-gray-400">How often to publish sensor data (1-3600 seconds)</small>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-            </Card>
+                                <div v-if="config.mqtt.enabled" class="flex flex-col gap-4 p-3 border border-blue-600 rounded bg-blue-900/10">
+                                    <div class="flex flex-col gap-2">
+                                        <label>Broker Address</label>
+                                        <InputText v-model="config.mqtt.broker" placeholder="mqtt.example.com" />
+                                    </div>
 
-            <Card class="bg-gray-800 text-white">
-                <template #title>Admin Security</template>
-                <template #content>
-                    <div class="flex flex-col gap-4">
-                        <div class="flex flex-col gap-2">
-                             <label>New Password</label>
-                             <InputText v-model="newPassword" type="password" />
-                        </div>
-                    </div>
-                </template>
-            </Card>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Port</label>
+                                        <InputNumber v-model="config.mqtt.port" :useGrouping="false" :min="1" :max="65535" />
+                                        <small class="text-gray-400">Default: 1883 (non-TLS) or 8883 (TLS)</small>
+                                    </div>
 
-            <Card class="bg-gray-800 text-white">
-                <template #title>
-                    <div class="flex items-center gap-2">
-                        <i class="pi pi-shield text-yellow-400"></i>
-                        <span>Network Access Control</span>
-                    </div>
-                </template>
-                <template #content>
-                    <div class="flex flex-col gap-4">
-                        <div class="flex items-center gap-2">
-                            <Checkbox v-model="config.network_security.enabled" binary inputId="network_security_enabled" />
-                            <label for="network_security_enabled" class="font-bold">Enable IP-based Access Control</label>
-                        </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Username (Optional)</label>
+                                        <InputText v-model="config.mqtt.username" placeholder="Optional" />
+                                    </div>
 
-                        <div v-if="config.network_security.enabled" class="flex flex-col gap-4 p-3 border border-yellow-600 rounded bg-yellow-900/10">
-                            <div class="flex items-start gap-2 text-yellow-400">
-                                <i class="pi pi-exclamation-triangle mt-1"></i>
-                                <small>Warning: Make sure your IP is whitelisted before enabling, or you will be locked out!</small>
-                            </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Password (Optional)</label>
+                                        <InputText v-model="mqttPassword" type="password" placeholder="Leave empty to keep current" />
+                                        <small class="text-gray-400">Only updated if provided</small>
+                                    </div>
 
-                            <div class="flex flex-col gap-2">
-                                <label class="font-semibold">
-                                    <i class="pi pi-check-circle text-green-400"></i> Whitelist (Allow these IPs)
-                                </label>
-                                <Textarea
-                                    v-model="whitelistText"
-                                    placeholder="192.168.1.0/24&#10;10.0.0.5&#10;172.16.0.0/16"
-                                    rows="4"
-                                    class="font-mono text-sm"
-                                />
-                                <small class="text-gray-400">
-                                    One IP address or network (CIDR) per line. If whitelist is empty, all IPs are allowed (unless blacklisted).
-                                    <br>Example: 192.168.1.0/24 allows 192.168.1.1 - 192.168.1.254
-                                </small>
-                            </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Topic Prefix</label>
+                                        <InputText v-model="config.mqtt.topic_prefix" placeholder="idm/heatpump" />
+                                        <small class="text-gray-400">Topics will be: {prefix}/{sensor_name}</small>
+                                    </div>
 
-                            <div class="flex flex-col gap-2">
-                                <label class="font-semibold">
-                                    <i class="pi pi-ban text-red-400"></i> Blacklist (Block these IPs)
-                                </label>
-                                <Textarea
-                                    v-model="blacklistText"
-                                    placeholder="203.0.113.0/24&#10;198.51.100.5"
-                                    rows="4"
-                                    class="font-mono text-sm"
-                                />
-                                <small class="text-gray-400">
-                                    One IP address or network (CIDR) per line. Blacklist is checked first (blocks before whitelist).
-                                </small>
-                            </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>QoS Level</label>
+                                        <select v-model="config.mqtt.qos" class="p-2 bg-gray-700 border border-gray-600 rounded">
+                                            <option :value="0">0 - At most once</option>
+                                            <option :value="1">1 - At least once</option>
+                                            <option :value="2">2 - Exactly once</option>
+                                        </select>
+                                    </div>
 
-                            <div class="p-3 bg-blue-900/30 border border-blue-600 rounded">
-                                <div class="flex items-start gap-2">
-                                    <i class="pi pi-info-circle text-blue-400 mt-1"></i>
-                                    <div class="text-sm text-blue-200">
-                                        <strong>Your current IP:</strong> {{ currentClientIP || 'Loading...' }}
-                                        <br><small class="text-blue-300">Make sure to add this to the whitelist!</small>
+                                    <div class="flex items-center gap-2">
+                                        <Checkbox v-model="config.mqtt.use_tls" binary inputId="mqtt_use_tls" />
+                                        <label for="mqtt_use_tls">Use TLS/SSL encryption</label>
+                                    </div>
+
+                                    <div class="flex flex-col gap-2">
+                                        <label>Publish Interval (seconds)</label>
+                                        <InputNumber v-model="config.mqtt.publish_interval" :min="1" :max="3600" :useGrouping="false" />
+                                        <small class="text-gray-400">How often to publish sensor data (1-3600 seconds)</small>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </template>
-            </Card>
-        </div>
+                        </template>
+                    </Card>
+                </TabPanel>
 
-        <div class="flex gap-4 mt-4">
-            <Button label="Save Configuration" icon="pi pi-save" @click="saveConfig" :loading="saving" />
-            <Button label="Restart Service" icon="pi pi-refresh" severity="danger" @click="confirmRestart" />
-        </div>
-
-        <!-- Backup & Restore Section -->
-        <div class="mt-8">
-            <Card class="bg-gray-800 text-white">
-                <template #title>
-                    <div class="flex items-center gap-2">
-                        <i class="pi pi-database text-blue-400"></i>
-                        <span>Backup & Restore</span>
-                    </div>
-                </template>
-                <template #content>
-                    <div class="flex flex-col gap-4">
-                        <!-- Create Backup -->
-                        <div class="flex flex-col gap-3 p-4 border border-blue-600 rounded bg-blue-900/10">
-                            <h3 class="text-lg font-semibold flex items-center gap-2">
-                                <i class="pi pi-download"></i>
-                                Create Backup
-                            </h3>
-                            <div class="flex items-center gap-2">
-                                <Checkbox v-model="backupIncludeInflux" binary inputId="backup_include_influx" />
-                                <label for="backup_include_influx">Include InfluxDB credentials (sensitive)</label>
-                            </div>
-                            <Button
-                                label="Create Backup Now"
-                                icon="pi pi-download"
-                                @click="createBackup"
-                                :loading="creatingBackup"
-                                severity="info"
-                            />
-                        </div>
-
-                        <!-- Backup List -->
-                        <div class="flex flex-col gap-3">
-                            <div class="flex justify-between items-center">
-                                <h3 class="text-lg font-semibold flex items-center gap-2">
-                                    <i class="pi pi-list"></i>
-                                    Available Backups
-                                </h3>
-                                <Button
-                                    label="Refresh"
-                                    icon="pi pi-refresh"
-                                    @click="loadBackups"
-                                    size="small"
-                                    text
-                                />
-                            </div>
-
-                            <div v-if="loadingBackups" class="flex justify-center p-4">
-                                <i class="pi pi-spin pi-spinner text-2xl"></i>
-                            </div>
-
-                            <div v-else-if="backups.length === 0" class="text-center text-gray-400 p-4">
-                                No backups available
-                            </div>
-
-                            <div v-else class="flex flex-col gap-2">
-                                <div
-                                    v-for="backup in backups"
-                                    :key="backup.filename"
-                                    class="flex items-center justify-between p-3 bg-gray-700 rounded hover:bg-gray-600"
-                                >
-                                    <div class="flex flex-col">
-                                        <span class="font-mono text-sm">{{ backup.filename }}</span>
-                                        <span class="text-xs text-gray-400">
-                                            {{ formatDate(backup.created_at) }} • {{ formatSize(backup.size) }}
-                                        </span>
+                <TabPanel header="Security">
+                    <div class="flex flex-col gap-6">
+                        <Card class="bg-gray-800 text-white">
+                            <template #title>Admin Security</template>
+                            <template #content>
+                                <div class="flex flex-col gap-4">
+                                    <div class="flex flex-col gap-2">
+                                        <label>New Password</label>
+                                        <InputText v-model="newPassword" type="password" />
                                     </div>
-                                    <div class="flex gap-2">
+                                </div>
+                            </template>
+                        </Card>
+
+                        <Card class="bg-gray-800 text-white" v-if="config.network_security">
+                            <template #title>
+                                <div class="flex items-center gap-2">
+                                    <i class="pi pi-shield text-yellow-400"></i>
+                                    <span>Network Access Control</span>
+                                </div>
+                            </template>
+                            <template #content>
+                                <div class="flex flex-col gap-4">
+                                    <div class="flex items-center gap-2">
+                                        <Checkbox v-model="config.network_security.enabled" binary inputId="network_security_enabled" />
+                                        <label for="network_security_enabled" class="font-bold">Enable IP-based Access Control</label>
+                                    </div>
+
+                                    <div v-if="config.network_security.enabled" class="flex flex-col gap-4 p-3 border border-yellow-600 rounded bg-yellow-900/10">
+                                        <div class="flex items-start gap-2 text-yellow-400">
+                                            <i class="pi pi-exclamation-triangle mt-1"></i>
+                                            <small>Warning: Make sure your IP is whitelisted before enabling, or you will be locked out!</small>
+                                        </div>
+
+                                        <div class="flex flex-col gap-2">
+                                            <label class="font-semibold">
+                                                <i class="pi pi-check-circle text-green-400"></i> Whitelist (Allow these IPs)
+                                            </label>
+                                            <Textarea
+                                                v-model="whitelistText"
+                                                placeholder="192.168.1.0/24&#10;10.0.0.5&#10;172.16.0.0/16"
+                                                rows="4"
+                                                class="font-mono text-sm"
+                                            />
+                                            <small class="text-gray-400">
+                                                One IP address or network (CIDR) per line. If whitelist is empty, all IPs are allowed (unless blacklisted).
+                                                <br>Example: 192.168.1.0/24 allows 192.168.1.1 - 192.168.1.254
+                                            </small>
+                                        </div>
+
+                                        <div class="flex flex-col gap-2">
+                                            <label class="font-semibold">
+                                                <i class="pi pi-ban text-red-400"></i> Blacklist (Block these IPs)
+                                            </label>
+                                            <Textarea
+                                                v-model="blacklistText"
+                                                placeholder="203.0.113.0/24&#10;198.51.100.5"
+                                                rows="4"
+                                                class="font-mono text-sm"
+                                            />
+                                            <small class="text-gray-400">
+                                                One IP address or network (CIDR) per line. Blacklist is checked first (blocks before whitelist).
+                                            </small>
+                                        </div>
+
+                                        <div class="p-3 bg-blue-900/30 border border-blue-600 rounded">
+                                            <div class="flex items-start gap-2">
+                                                <i class="pi pi-info-circle text-blue-400 mt-1"></i>
+                                                <div class="text-sm text-blue-200">
+                                                    <strong>Your current IP:</strong> {{ currentClientIP || 'Loading...' }}
+                                                    <br><small class="text-blue-300">Make sure to add this to the whitelist!</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </Card>
+                    </div>
+                </TabPanel>
+
+                <TabPanel header="System">
+                    <div class="flex flex-col gap-6">
+                        <Card class="bg-gray-800 text-white">
+                            <template #title>Web Interface</template>
+                            <template #content>
+                                <div class="flex flex-col gap-4">
+                                    <div class="flex items-center gap-2">
+                                        <Checkbox v-model="config.web.write_enabled" binary inputId="write_enabled" />
+                                        <label for="write_enabled">Enable Write Access (Manual Control & Schedule)</label>
+                                    </div>
+                                </div>
+                            </template>
+                        </Card>
+
+                        <Card class="bg-gray-800 text-white">
+                            <template #title>
+                                <div class="flex items-center gap-2">
+                                    <i class="pi pi-database text-blue-400"></i>
+                                    <span>Backup & Restore</span>
+                                </div>
+                            </template>
+                            <template #content>
+                                <div class="flex flex-col gap-4">
+                                    <!-- Create Backup -->
+                                    <div class="flex flex-col gap-3 p-4 border border-blue-600 rounded bg-blue-900/10">
+                                        <h3 class="text-lg font-semibold flex items-center gap-2">
+                                            <i class="pi pi-download"></i>
+                                            Create Backup
+                                        </h3>
+                                        <div class="flex items-center gap-2">
+                                            <Checkbox v-model="backupIncludeInflux" binary inputId="backup_include_influx" />
+                                            <label for="backup_include_influx">Include InfluxDB credentials (sensitive)</label>
+                                        </div>
                                         <Button
+                                            label="Create Backup Now"
                                             icon="pi pi-download"
-                                            @click="downloadBackup(backup.filename)"
-                                            size="small"
+                                            @click="createBackup"
+                                            :loading="creatingBackup"
                                             severity="info"
-                                            text
+                                        />
+                                    </div>
+
+                                    <!-- Backup List -->
+                                    <div class="flex flex-col gap-3">
+                                        <div class="flex justify-between items-center">
+                                            <h3 class="text-lg font-semibold flex items-center gap-2">
+                                                <i class="pi pi-list"></i>
+                                                Available Backups
+                                            </h3>
+                                            <Button
+                                                label="Refresh"
+                                                icon="pi pi-refresh"
+                                                @click="loadBackups"
+                                                size="small"
+                                                text
+                                            />
+                                        </div>
+
+                                        <div v-if="loadingBackups" class="flex justify-center p-4">
+                                            <i class="pi pi-spin pi-spinner text-2xl"></i>
+                                        </div>
+
+                                        <div v-else-if="backups.length === 0" class="text-center text-gray-400 p-4">
+                                            No backups available
+                                        </div>
+
+                                        <div v-else class="flex flex-col gap-2">
+                                            <div
+                                                v-for="backup in backups"
+                                                :key="backup.filename"
+                                                class="flex items-center justify-between p-3 bg-gray-700 rounded hover:bg-gray-600"
+                                            >
+                                                <div class="flex flex-col">
+                                                    <span class="font-mono text-sm">{{ backup.filename }}</span>
+                                                    <span class="text-xs text-gray-400">
+                                                        {{ formatDate(backup.created_at) }} • {{ formatSize(backup.size) }}
+                                                    </span>
+                                                </div>
+                                                <div class="flex gap-2">
+                                                    <Button
+                                                        icon="pi pi-download"
+                                                        @click="downloadBackup(backup.filename)"
+                                                        size="small"
+                                                        severity="info"
+                                                        text
+                                                    />
+                                                    <Button
+                                                        icon="pi pi-upload"
+                                                        @click="confirmRestore(backup.filename)"
+                                                        size="small"
+                                                        severity="warning"
+                                                        text
+                                                    />
+                                                    <Button
+                                                        icon="pi pi-trash"
+                                                        @click="confirmDeleteBackup(backup.filename)"
+                                                        size="small"
+                                                        severity="danger"
+                                                        text
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Upload Backup -->
+                                    <div class="flex flex-col gap-3 p-4 border border-yellow-600 rounded bg-yellow-900/10">
+                                        <h3 class="text-lg font-semibold flex items-center gap-2">
+                                            <i class="pi pi-upload"></i>
+                                            Restore from File
+                                        </h3>
+                                        <div class="flex items-start gap-2 text-yellow-400">
+                                            <i class="pi pi-exclamation-triangle mt-1"></i>
+                                            <small>Warning: Restoring will overwrite current configuration!</small>
+                                        </div>
+                                        <input
+                                            type="file"
+                                            ref="fileInput"
+                                            @change="handleFileSelect"
+                                            accept=".zip"
+                                            class="block w-full text-sm text-gray-400
+                                                file:mr-4 file:py-2 file:px-4
+                                                file:rounded file:border-0
+                                                file:text-sm file:font-semibold
+                                                file:bg-blue-600 file:text-white
+                                                hover:file:bg-blue-700"
                                         />
                                         <Button
+                                            label="Restore from Selected File"
                                             icon="pi pi-upload"
-                                            @click="confirmRestore(backup.filename)"
-                                            size="small"
+                                            @click="restoreFromFile"
+                                            :disabled="!selectedFile"
+                                            :loading="restoringBackup"
                                             severity="warning"
-                                            text
-                                        />
-                                        <Button
-                                            icon="pi pi-trash"
-                                            @click="confirmDeleteBackup(backup.filename)"
-                                            size="small"
-                                            severity="danger"
-                                            text
                                         />
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                            </template>
+                        </Card>
 
-                        <!-- Upload Backup -->
-                        <div class="flex flex-col gap-3 p-4 border border-yellow-600 rounded bg-yellow-900/10">
-                            <h3 class="text-lg font-semibold flex items-center gap-2">
-                                <i class="pi pi-upload"></i>
-                                Restore from File
-                            </h3>
-                            <div class="flex items-start gap-2 text-yellow-400">
-                                <i class="pi pi-exclamation-triangle mt-1"></i>
-                                <small>Warning: Restoring will overwrite current configuration!</small>
-                            </div>
-                            <input
-                                type="file"
-                                ref="fileInput"
-                                @change="handleFileSelect"
-                                accept=".zip"
-                                class="block w-full text-sm text-gray-400
-                                    file:mr-4 file:py-2 file:px-4
-                                    file:rounded file:border-0
-                                    file:text-sm file:font-semibold
-                                    file:bg-blue-600 file:text-white
-                                    hover:file:bg-blue-700"
-                            />
-                            <Button
-                                label="Restore from Selected File"
-                                icon="pi pi-upload"
-                                @click="restoreFromFile"
-                                :disabled="!selectedFile"
-                                :loading="restoringBackup"
-                                severity="warning"
-                            />
+                        <div class="flex justify-end">
+                             <Button label="Restart Service" icon="pi pi-refresh" severity="danger" @click="confirmRestart" />
                         </div>
                     </div>
-                </template>
-            </Card>
+                </TabPanel>
+            </TabView>
+        </div>
+
+        <div class="flex gap-4 mt-4 justify-end border-t border-gray-700 pt-4">
+            <Button label="Save Configuration" icon="pi pi-save" @click="saveConfig" :loading="saving" size="large" />
         </div>
 
         <Toast />
@@ -390,11 +408,12 @@ import InputNumber from 'primevue/inputnumber';
 import Checkbox from 'primevue/checkbox';
 import Button from 'primevue/button';
 import Textarea from 'primevue/textarea';
+import TabView from 'primevue/tabview';
+import TabPanel from 'primevue/tabpanel';
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
-import { computed } from 'vue';
 
 const config = ref({
     idm: { host: '', port: 502, circuits: ['A'], zones: [] },

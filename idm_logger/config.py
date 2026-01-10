@@ -109,24 +109,18 @@ class Config:
         if os.environ.get("MQTT_TOPIC_PREFIX"):
             self.data["mqtt"]["topic_prefix"] = os.environ["MQTT_TOPIC_PREFIX"]
 
-    def _load_data(self):
-        # Load from DB, structure into dict like old yaml
-        raw = db.get_setting("config")
-        if raw:
-            try:
-                data = json.loads(raw)
-                # Decrypt sensitive fields
-                if "influx" in data:
-                    data["influx"]["token"] = self._decrypt(data["influx"].get("encrypted_token", ""))
-                    data["influx"]["password"] = self._decrypt(data["influx"].get("encrypted_password", ""))
-                if "mqtt" in data:
-                    data["mqtt"]["password"] = self._decrypt(data["mqtt"].get("encrypted_password", ""))
-                return data
-            except json.JSONDecodeError:
-                pass
+    def _merge_dicts(self, default, override):
+        """Recursively merge override dictionary into default."""
+        new_dict = default.copy()
+        for k, v in override.items():
+            if k in new_dict and isinstance(new_dict[k], dict) and isinstance(v, dict):
+                new_dict[k] = self._merge_dicts(new_dict[k], v)
+            else:
+                new_dict[k] = v
+        return new_dict
 
-        # Default structure with Docker-friendly defaults
-        return {
+    def _load_data(self):
+        defaults = {
             "idm": {
                 "host": "",
                 "port": 502,
@@ -172,6 +166,26 @@ class Config:
             },
             "setup_completed": False
         }
+
+        # Load from DB, structure into dict like old yaml
+        raw = db.get_setting("config")
+        if raw:
+            try:
+                data = json.loads(raw)
+                # Decrypt sensitive fields
+                if "influx" in data:
+                    data["influx"]["token"] = self._decrypt(data["influx"].get("encrypted_token", ""))
+                    data["influx"]["password"] = self._decrypt(data["influx"].get("encrypted_password", ""))
+                if "mqtt" in data:
+                    data["mqtt"]["password"] = self._decrypt(data["mqtt"].get("encrypted_password", ""))
+
+                # Merge loaded data into defaults
+                return self._merge_dicts(defaults, data)
+            except json.JSONDecodeError:
+                pass
+
+        # Default structure with Docker-friendly defaults
+        return defaults
 
     def save(self):
         # Encrypt sensitive fields before saving
