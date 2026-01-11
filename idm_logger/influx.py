@@ -66,10 +66,13 @@ class InfluxWriter:
         if not token and not url: # Minimal check
              pass
 
+        # InfluxDB 3 client expects host without protocol prefix
+        host = url.replace("http://", "").replace("https://", "")
+
         # In InfluxDB 3, 'database' is the bucket
         self.bucket = bucket
         self.client = InfluxDBClient3(
-            host=url,
+            host=host,
             token=token,
             org=org,
             database=bucket
