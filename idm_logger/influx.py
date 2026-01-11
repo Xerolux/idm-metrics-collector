@@ -152,18 +152,15 @@ class InfluxWriter:
         return False
 
     def _write_internal(self, measurements: dict) -> bool:
-        """Internal write method using InfluxDB 3 Line Protocol or Point."""
+        """Internal write method using InfluxDB 3 Point objects."""
         if Point is None:
-             return False
+            return False
 
         # Create a point
         # Measurement name matches what we used in v2: "idm_heatpump"
         p = Point("idm_heatpump")
 
-        # Add timestamp in nanoseconds for InfluxDB 3
-        import time as time_module
-        p = p.time(int(time_module.time() * 1e9))
-
+        # Add fields - let the library handle timestamp automatically
         has_fields = False
         for key, value in measurements.items():
             # Skip string representation fields
@@ -178,8 +175,9 @@ class InfluxWriter:
                 has_fields = True
 
         if has_fields:
-            # write() method accepts Point objects or line protocol strings
+            # write() method accepts Point objects
             # For influxdb3-python, we just pass the point - database is set in client init
+            # Don't set explicit timestamp - let the client handle it
             self.client.write(p)
             return True
 
