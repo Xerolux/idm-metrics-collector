@@ -27,7 +27,19 @@
       "Bash(git stash:*)",
       "Bash(findstr:*)",
       "Bash(echo:*)",
-      "Bash(docker-compose stop:*)"
+      "Bash(docker-compose stop:*)",
+      "Bash(xcopy:*)",
+      "Bash(cmd //c \"robocopy frontend\\\\dist idm_logger\\\\static /MIR\")",
+      "Bash(if exist .githubFUNDING.yml type .githubFUNDING.yml)",
+      "Bash(docker-compose ps:*)",
+      "Bash(timeout 10 docker logs:*)",
+      "Bash(timeout 15 docker logs:*)",
+      "Bash(timeout 20 docker logs:*)",
+      "Bash(git restore:*)",
+      "Bash(cat:*)",
+      "Bash(docker-compose start:*)",
+      "Bash(timeout 25 docker logs:*)",
+      "Bash(docker-compose restart:*)"
     ]
   }
 }
