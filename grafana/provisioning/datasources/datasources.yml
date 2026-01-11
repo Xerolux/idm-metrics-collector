@@ -10,7 +10,7 @@ datasources:
     jsonData:
       host: "idm-influxdb:8181"
       secure: false
-      token: "tokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentoken"
+      token: "apiv3_aYQGyrln2911uk_jo73qEHs1GmP6lrcbCnPLcHIoYZhS2iAUEGcK8308eHd_OQ8DqazzBMwEOFt7GWQi1zDh8w"
       defaultDatabase: "idm_heatpump"
     secureJsonData:
-      token: "tokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentoken"
+      token: "apiv3_aYQGyrln2911uk_jo73qEHs1GmP6lrcbCnPLcHIoYZhS2iAUEGcK8308eHd_OQ8DqazzBMwEOFt7GWQi1zDh8w"

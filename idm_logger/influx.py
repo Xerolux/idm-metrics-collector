@@ -77,6 +77,18 @@ class InfluxWriter:
             database=bucket
         )
 
+        # Ensure database exists in InfluxDB v3
+        self._ensure_database_exists()
+
+    def _ensure_database_exists(self):
+        """Ensure the database (bucket) exists in InfluxDB v3."""
+        try:
+            # In InfluxDB 3 Core, databases are created automatically on first write
+            # We don't need to explicitly create them, which avoids auth issues during setup
+            logger.info(f"Database '{self.bucket}' will be auto-created on first write")
+        except Exception as e:
+            logger.debug(f"Database setup note: {e}")
+
     def is_connected(self) -> bool:
         """Return current connection status."""
         return self._connected
@@ -167,8 +179,8 @@ class InfluxWriter:
 
         if has_fields:
             # write() method accepts Point objects or line protocol strings
-            # database parameter is already set during client initialization
-            self.client.write(record=p, database=self.bucket)
+            # For influxdb3-python, we just pass the point - database is set in client init
+            self.client.write(p)
             return True
 
         return False

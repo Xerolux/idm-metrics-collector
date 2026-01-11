@@ -19,8 +19,8 @@ services:
       - INFLUX_URL=http://idm-influxdb:8181
       - INFLUX_ORG=docs # v3 Core might not use org same way, but keeping for client compat
       - INFLUX_BUCKET=idm_heatpump
-      # Token matching the InfluxDB container config
-      - INFLUX_TOKEN=tokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentoken
+      # Token - use the admin token created in InfluxDB v3
+      - INFLUX_TOKEN=apiv3_aYQGyrln2911uk_jo73qEHs1GmP6lrcbCnPLcHIoYZhS2iAUEGcK8308eHd_OQ8DqazzBMwEOFt7GWQi1zDh8w
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health', timeout=5)"]
       interval: 30s
@@ -45,9 +45,9 @@ services:
       - influxdb-data:/var/lib/influxdb3/data
       - influxdb-plugins:/var/lib/influxdb3/plugins
     environment:
-      - INFLUXDB3_AUTH_TOKEN=tokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentoken
+      - INFLUXDB3_AUTH_TOKEN=apiv3_aYQGyrln2911uk_jo73qEHs1GmP6lrcbCnPLcHIoYZhS2iAUEGcK8308eHd_OQ8DqazzBMwEOFt7GWQi1zDh8w
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -H 'Authorization: Bearer tokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentoken' http://localhost:8181/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f -H 'Authorization: Bearer apiv3_aYQGyrln2911uk_jo73qEHs1GmP6lrcbCnPLcHIoYZhS2iAUEGcK8308eHd_OQ8DqazzBMwEOFt7GWQi1zDh8w' http://localhost:8181/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -62,7 +62,7 @@ services:
     environment:
       - INFLUXDB_URL=http://idm-influxdb:8181
       - INFLUXDB_VERSION=3
-      - INFLUXDB_TOKEN=tokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentoken
+      - INFLUXDB_TOKEN=apiv3_aYQGyrln2911uk_jo73qEHs1GmP6lrcbCnPLcHIoYZhS2iAUEGcK8308eHd_OQ8DqazzBMwEOFt7GWQi1zDh8w
       - INFLUXDB_DATABASE=idm_heatpump
     depends_on:
       influxdb:
