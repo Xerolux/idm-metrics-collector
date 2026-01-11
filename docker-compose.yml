@@ -31,6 +31,7 @@ services:
   influxdb:
     image: influxdb:3-core
     container_name: idm-influxdb
+    user: "0:0"
     ports:
       - "8181:8181"
     command:
@@ -46,7 +47,7 @@ services:
     environment:
       - INFLUXDB3_AUTH_TOKEN=tokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentoken
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -H 'Authorization: Bearer tokentokentokentokentokentokentokentokentokentokentokentokentokentokentoken' http://localhost:8181/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f -H 'Authorization: Bearer tokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentoken' http://localhost:8181/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

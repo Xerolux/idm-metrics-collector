@@ -52,7 +52,7 @@
                         </Card>
 
                         <Card class="bg-gray-800 text-white">
-                            <template #title>InfluxDB</template>
+                            <template #title>InfluxDB v3</template>
                             <template #content>
                                 <div class="flex flex-col gap-4">
                                     <div class="flex flex-col gap-2">

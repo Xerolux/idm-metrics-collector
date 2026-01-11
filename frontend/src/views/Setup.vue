@@ -45,10 +45,10 @@
                         </div>
 
                          <div class="flex flex-col gap-2">
-                             <label class="font-bold text-green-400">InfluxDB v2</label>
+                             <label class="font-bold text-green-400">InfluxDB v3</label>
                              <div class="flex flex-col gap-2">
                                 <label>URL</label>
-                                <InputText v-model="form.influx_url" placeholder="http://localhost:8086" />
+                                <InputText v-model="form.influx_url" placeholder="http://localhost:8181" />
                             </div>
                             <div class="flex flex-col gap-2">
                                 <label>Organization</label>
@@ -108,9 +108,9 @@ const form = ref({
     idm_port: 502,
     circuits: ['A'],
     zones: [],
-    influx_url: 'http://localhost:8086',
-    influx_org: 'home',
-    influx_bucket: 'idm',
+    influx_url: 'http://localhost:8181',
+    influx_org: 'docs',
+    influx_bucket: 'idm_heatpump',
     influx_token: '',
     password: ''
 });

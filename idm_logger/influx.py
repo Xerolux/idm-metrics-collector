@@ -5,11 +5,12 @@ from .config import config
 
 # Import at top level as it is a core dependency now
 try:
-    from influxdb_client_3 import InfluxDBClient3, Point
+    from influxdb_client_3 import InfluxDBClient3, Point, WriteOptions
 except ImportError:
     # Fallback/logging if not installed, though it should be
     InfluxDBClient3 = None
     Point = None
+    WriteOptions = None
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ class InfluxWriter:
         self._connected = False
 
         if InfluxDBClient3 is None:
-            raise ImportError("influxdb-client-3 not installed")
+            raise ImportError("influxdb3-python not installed")
 
         # User's v3 Core configuration uses port 8181
         url = self.conf.get("url", "http://localhost:8181")
@@ -66,13 +67,11 @@ class InfluxWriter:
         if not token and not url: # Minimal check
              pass
 
-        # InfluxDB 3 client expects host without protocol prefix
-        host = url.replace("http://", "").replace("https://", "")
-
-        # In InfluxDB 3, 'database' is the bucket
+        # InfluxDB 3 client expects full URL with protocol
+        # The influxdb3-python library uses 'host' parameter for the full URL
         self.bucket = bucket
         self.client = InfluxDBClient3(
-            host=host,
+            host=url,
             token=token,
             org=org,
             database=bucket
@@ -149,13 +148,9 @@ class InfluxWriter:
         # Measurement name matches what we used in v2: "idm_heatpump"
         p = Point("idm_heatpump")
 
-        # In InfluxDB 3, we don't strictly need to set time if we want server time,
-        # but let's be consistent.
-        # Note: InfluxDB 3 client might auto-timestamp if omitted.
-        # But if we want consistent UTC:
-        # p.time(time.time_ns()) # client-3 uses ns by default?
-        # Let's let the client handle time or set it if needed.
-        # Using server time is safer to avoid skew.
+        # Add timestamp in nanoseconds for InfluxDB 3
+        import time as time_module
+        p = p.time(int(time_module.time() * 1e9))
 
         has_fields = False
         for key, value in measurements.items():
@@ -167,12 +162,13 @@ class InfluxWriter:
                 value = int(value)
             # Only write numeric values as fields
             if isinstance(value, (int, float)):
-                p.field(key, value)
+                p = p.field(key, value)
                 has_fields = True
 
         if has_fields:
-            # write(record, write_precision)
-            self.client.write(record=p)
+            # write() method accepts Point objects or line protocol strings
+            # database parameter is already set during client initialization
+            self.client.write(record=p, database=self.bucket)
             return True
 
         return False
