@@ -5,6 +5,8 @@ datasources:
     type: influxdata-flightsql-datasource
     access: proxy
     basicAuth: false
+    isDefault: true
+    editable: true
     jsonData:
       host: "influxdb:8181"
       secure: false
