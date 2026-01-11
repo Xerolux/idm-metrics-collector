@@ -421,9 +421,9 @@
                                     <div class="flex items-center justify-between p-3 bg-gray-700 rounded border border-gray-600">
                                         <div class="flex flex-col">
                                             <span class="font-bold">InfluxDB 3 UI</span>
-                                            <span class="text-sm text-gray-400">Port 8888</span>
+                                            <span class="text-sm text-gray-400">Port 9999</span>
                                         </div>
-                                        <a :href="'http://' + hostname + ':8888'" target="_blank" rel="noopener noreferrer">
+                                        <a :href="'http://' + hostname + ':9999'" target="_blank" rel="noopener noreferrer">
                                             <Button label="Open Data Explorer" icon="pi pi-external-link" severity="info" />
                                         </a>
                                     </div>

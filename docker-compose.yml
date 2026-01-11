@@ -58,11 +58,12 @@ services:
     container_name: idm-explorer
     ports:
       - "9999:80"
-    command: ["--mode=admin"]
+    command: ["--mode=user"]
     environment:
       - INFLUXDB_URL=http://idm-influxdb:8181
       - INFLUXDB_VERSION=3
       - INFLUXDB_TOKEN=tokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentokentoken
+      - INFLUXDB_DATABASE=idm_heatpump
     depends_on:
       influxdb:
         condition: service_started
