@@ -56,7 +56,7 @@ services:
     image: influxdata/influxdb3-ui:1.0.0
     container_name: idm-explorer
     ports:
-      - "8888:80"
+      - "9999:80"
     command: ["--mode=admin"]
     environment:
       - INFLUXDB_URL=http://idm-influxdb:8181
