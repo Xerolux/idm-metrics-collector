@@ -1,4 +1,4 @@
-# IDM Metrics Collector
+# IDM Metrics Collector v0.5.0
 
 [![GitHub Release][releases-shield]][releases]
 [![Downloads][downloads-shield]][releases]
