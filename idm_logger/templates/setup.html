@@ -2,14 +2,14 @@
 <html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>IDM Logger Setup</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-dark text-light">
-    <div class="container mt-5">
+    <div class="container mt-3 mt-md-5">
         <div class="row justify-content-center">
-            <div class="col-md-8 col-lg-6">
+            <div class="col-12 col-md-10 col-lg-8 col-xl-6">
                 <div class="card shadow-lg">
                     <div class="card-header bg-primary text-white">
                         <h3 class="mb-0">Setup Wizard</h3>
@@ -37,22 +37,21 @@
                                        value="{{ config.idm.port if config.idm.port else 502 }}" required>
                             </div>
 
-                            <h5 class="mt-4 text-primary">InfluxDB (v2)</h5>
+                            <h5 class="mt-4 text-primary">InfluxDB v3</h5>
+                            <div class="alert alert-info" role="alert">
+                                <strong>InfluxDB v3 Core:</strong> Uses SQL queries instead of Flux, simplified configuration with database instead of org/bucket.
+                            </div>
                             <div class="mb-3">
                                 <label for="influx_url" class="form-label">URL</label>
                                 <input type="text" class="form-control" id="influx_url" name="influx_url"
-                                       value="{{ config.influx.url if config.influx.url else 'http://idm-influxdb:8086' }}" required>
-                                <div class="form-text">Docker default: <code>http://idm-influxdb:8086</code></div>
+                                       value="{{ config.influx.url if config.influx.url else 'http://idm-influxdb:8181' }}" required>
+                                <div class="form-text">Docker default: <code>http://idm-influxdb:8181</code> (Port 8181 for v3)</div>
                             </div>
                             <div class="mb-3">
-                                <label for="influx_org" class="form-label">Organization</label>
-                                <input type="text" class="form-control" id="influx_org" name="influx_org"
-                                       value="{{ config.influx.org if config.influx.org else 'my-org' }}" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="influx_bucket" class="form-label">Bucket</label>
-                                <input type="text" class="form-control" id="influx_bucket" name="influx_bucket"
-                                       value="{{ config.influx.bucket if config.influx.bucket else 'idm' }}" required>
+                                <label for="influx_database" class="form-label">Database</label>
+                                <input type="text" class="form-control" id="influx_database" name="influx_database"
+                                       value="{{ config.influx.database if config.influx.database else 'idm' }}" required>
+                                <div class="form-text">Database name (auto-created on first write)</div>
                             </div>
                             <div class="mb-3">
                                 <label for="influx_token" class="form-label">Token</label>
@@ -74,9 +73,11 @@
                         </form>
                     </div>
                     <div class="card-footer text-muted">
-                        <small>
-                            <strong>Grafana:</strong> <a href="http://localhost:3000" target="_blank">http://localhost:3000</a> (admin/admin)<br>
-                            <strong>InfluxDB:</strong> <a href="http://localhost:8086" target="_blank">http://localhost:8086</a> (admin/adminpassword123)
+                        <small class="d-block mb-1">
+                            <strong>Grafana:</strong> <a href="http://localhost:3001" target="_blank" class="text-decoration-none">http://localhost:3001</a> (admin/admin)
+                        </small>
+                        <small class="d-block">
+                            <strong>InfluxDB v3:</strong> <a href="http://localhost:8181" target="_blank" class="text-decoration-none">http://localhost:8181</a> (Database: idm, Query: SQL)
                         </small>
                     </div>
                 </div>

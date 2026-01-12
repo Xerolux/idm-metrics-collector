@@ -6,3 +6,4 @@ cryptography>=41.0.0
 werkzeug>=2.0.0
 waitress>=2.1.0
 paho-mqtt>=1.6.1
+requests>=2.28.0

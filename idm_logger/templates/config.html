@@ -2,10 +2,18 @@
 <html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Configuration - IDM Logger</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        @media (max-width: 768px) {
+            .nav-tabs .nav-link {
+                font-size: 0.9rem;
+                padding: 0.5rem 0.75rem;
+            }
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
@@ -27,7 +35,7 @@
         {% endwith %}
 
         <div class="row justify-content-center">
-            <div class="col-lg-10">
+            <div class="col-12 col-lg-11 col-xl-10">
                 <div class="card shadow">
                     <div class="card-header bg-dark-subtle">
                         <h4 class="mb-0"><i class="bi bi-gear-fill"></i> System Configuration</h4>
@@ -60,6 +68,11 @@
                                         <i class="bi bi-sliders"></i> System
                                     </button>
                                 </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="update-tab" data-bs-toggle="tab" data-bs-target="#update-pane" type="button" role="tab">
+                                        <i class="bi bi-arrow-repeat"></i> Update
+                                    </button>
+                                </li>
                             </ul>
 
                             <div class="tab-content" id="configTabContent">
@@ -85,15 +98,23 @@
 
                                 <!-- Database Tab -->
                                 <div class="tab-pane fade" id="database-pane" role="tabpanel">
-                                    <h5 class="mb-3"><i class="bi bi-server"></i> InfluxDB Connection</h5>
+                                    <h5 class="mb-3"><i class="bi bi-server"></i> InfluxDB v3 Connection</h5>
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle"></i> <strong>InfluxDB v3 Core:</strong> Uses SQL queries instead of Flux. Database is auto-created on first write.
+                                    </div>
                                     <div class="mb-3">
-                                        <label for="influx_url" class="form-label">InfluxDB URL (v2)</label>
-                                        <input type="text" class="form-control" id="influx_url" name="influx_url" value="{{ config.influx.url }}" placeholder="http://idm-influxdb:8086">
-                                        <div class="form-text">Docker default: <code>http://idm-influxdb:8086</code></div>
+                                        <label for="influx_url" class="form-label">InfluxDB URL</label>
+                                        <input type="text" class="form-control" id="influx_url" name="influx_url" value="{{ config.influx.url }}" placeholder="http://idm-influxdb:8181">
+                                        <div class="form-text">Docker default: <code>http://idm-influxdb:8181</code> (Port 8181 for v3)</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="influx_database" class="form-label">Database Name</label>
+                                        <input type="text" class="form-control" id="influx_database" name="influx_database" value="{{ config.influx.database }}" placeholder="idm">
+                                        <div class="form-text">Database name (auto-created on first write)</div>
                                     </div>
 
-                                    <div class="alert alert-info">
-                                        <i class="bi bi-info-circle"></i> <strong>Note:</strong> Organization, Bucket, Token and other sensitive settings must be changed in the database directly for security reasons.
+                                    <div class="alert alert-warning">
+                                        <i class="bi bi-exclamation-triangle"></i> <strong>Security:</strong> Token and other sensitive settings must be changed in environment variables or docker-compose.yml for security reasons.
                                     </div>
                                 </div>
 
@@ -231,7 +252,7 @@
 
                                     <hr class="my-4">
 
-                                    <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                                         <div>
                                             <h5 class="mb-1"><i class="bi bi-arrow-clockwise"></i> Service Management</h5>
                                             <p class="text-muted small mb-0">Restart the service to apply configuration changes</p>
@@ -241,6 +262,53 @@
                                                 <i class="bi bi-arrow-clockwise"></i> Restart Service
                                             </button>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <!-- Update Tab -->
+                                <div class="tab-pane fade" id="update-pane" role="tabpanel">
+                                    <h5 class="mb-3"><i class="bi bi-cloud-download"></i> Software Update</h5>
+
+                                    <div id="updateStatus" class="alert alert-info">
+                                        <i class="bi bi-info-circle"></i> Click "Check for Updates" to see if a new version is available.
+                                    </div>
+
+                                    <div class="card mb-4">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Current Version</h6>
+                                            <p class="card-text">
+                                                <strong id="currentVersion">Loading...</strong>
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                                        <button type="button" class="btn btn-primary" onclick="checkForUpdates()">
+                                            <i class="bi bi-search"></i> Check for Updates
+                                        </button>
+                                        <button type="button" id="updateButton" class="btn btn-success d-none" onclick="performUpdate()">
+                                            <i class="bi bi-download"></i> Update Now
+                                        </button>
+                                    </div>
+
+                                    <hr class="my-4">
+
+                                    <div class="alert alert-warning">
+                                        <i class="bi bi-exclamation-triangle"></i> <strong>Important:</strong>
+                                        <ul class="mb-0 mt-2">
+                                            <li>Updates will restart all services</li>
+                                            <li>The update process takes 2-5 minutes</li>
+                                            <li>You may need to refresh the page after update</li>
+                                            <li>Backup your data before updating</li>
+                                        </ul>
+                                    </div>
+
+                                    <div id="updateProgress" class="d-none">
+                                        <h6>Update Progress</h6>
+                                        <div class="progress mb-2">
+                                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <p id="progressText" class="text-muted small">Initializing...</p>
                                     </div>
                                 </div>
                             </div>
@@ -287,7 +355,7 @@
         // Restart service function
         function restartService() {
             if (confirm('Are you sure you want to restart the service? This will disconnect all active sessions.')) {
-                fetch('/restart', {
+                fetch('/api/restart', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -299,6 +367,120 @@
                     }
                 });
             }
+        }
+
+        // Load current version on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/api/version')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('currentVersion').textContent = data.version || 'Unknown';
+                })
+                .catch(err => {
+                    document.getElementById('currentVersion').textContent = 'Error loading version';
+                });
+        });
+
+        // Check for updates
+        function checkForUpdates() {
+            const statusDiv = document.getElementById('updateStatus');
+            const updateBtn = document.getElementById('updateButton');
+
+            statusDiv.className = 'alert alert-info';
+            statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Checking for updates...';
+
+            fetch('/api/check-update')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.update_available) {
+                        statusDiv.className = 'alert alert-success';
+                        statusDiv.innerHTML = `
+                            <i class="bi bi-check-circle"></i> <strong>Update Available!</strong><br>
+                            Current: ${data.current_version}<br>
+                            Latest: ${data.latest_version}<br>
+                            <small class="mt-2 d-block">Release Date: ${data.release_date}</small>
+                            ${data.release_notes ? '<small class="mt-1 d-block">Notes: ' + data.release_notes + '</small>' : ''}
+                        `;
+                        updateBtn.classList.remove('d-none');
+                    } else {
+                        statusDiv.className = 'alert alert-success';
+                        statusDiv.innerHTML = `
+                            <i class="bi bi-check-circle"></i> <strong>You're up to date!</strong><br>
+                            Current version: ${data.current_version}
+                        `;
+                        updateBtn.classList.add('d-none');
+                    }
+                })
+                .catch(err => {
+                    statusDiv.className = 'alert alert-danger';
+                    statusDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Failed to check for updates. Please try again later.';
+                    console.error('Update check error:', err);
+                });
+        }
+
+        // Perform update
+        function performUpdate() {
+            if (!confirm('Are you sure you want to update? All services will be restarted.')) {
+                return;
+            }
+
+            const progressDiv = document.getElementById('updateProgress');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const updateBtn = document.getElementById('updateButton');
+
+            // Show progress
+            progressDiv.classList.remove('d-none');
+            updateBtn.disabled = true;
+
+            // Simulate progress stages
+            const stages = [
+                { progress: 20, text: 'Downloading update...' },
+                { progress: 40, text: 'Stopping services...' },
+                { progress: 60, text: 'Applying update...' },
+                { progress: 80, text: 'Restarting services...' },
+                { progress: 100, text: 'Update complete!' }
+            ];
+
+            let currentStage = 0;
+
+            fetch('/api/perform-update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Simulate progress animation
+                    const interval = setInterval(() => {
+                        if (currentStage < stages.length) {
+                            const stage = stages[currentStage];
+                            progressBar.style.width = stage.progress + '%';
+                            progressText.textContent = stage.text;
+                            currentStage++;
+
+                            if (currentStage === stages.length) {
+                                clearInterval(interval);
+                                setTimeout(() => {
+                                    alert('Update completed successfully! The page will reload now.');
+                                    window.location.reload();
+                                }, 2000);
+                            }
+                        }
+                    }, 1500);
+                } else {
+                    progressDiv.classList.add('d-none');
+                    updateBtn.disabled = false;
+                    alert('Update failed: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                progressDiv.classList.add('d-none');
+                updateBtn.disabled = false;
+                alert('Update failed. Please check logs for details.');
+                console.error('Update error:', err);
+            });
         }
     </script>
 </body>
