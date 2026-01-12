@@ -1,6 +1,6 @@
 # IDM Metrics Collector
 
-[![GHCR](https://ghcr-badge.egpl.dev/xerolux/idm-metrics-collector?tag=latest)](https://github.com/Xerolux/idm-metrics-collector/pkgs/container/idm-metrics-collector)
+[![GitHub Container](https://img.shields.io/badge/GitHub%20Container%20Registry-ghcr.io%2Fxerolux%2Fidm--metrics--collector-blue?logo=github)](https://github.com/Xerolux/idm-metrics-collector/pkgs/container/idm-metrics-collector)
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE)
 
