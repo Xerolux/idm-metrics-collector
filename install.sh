@@ -263,8 +263,20 @@ install_docker_compose_stack() {
 
     # Copy example config if not exists
     if [[ ! -f config.yaml ]]; then
-        cp config.yaml.example config.yaml
+        cp config.yaml.example config.yaml 2>/dev/null || true
         print_warning "Created default config at ${INSTALL_DIR}/config.yaml"
+    fi
+
+    # Generate secure token for new installations
+    print_header "Generating Secure Token"
+    print_info "Generating new InfluxDB authentication token..."
+
+    if [[ -f scripts/generate-token.sh ]]; then
+        bash scripts/generate-token.sh
+        print_success "Token generated and applied to all configuration files"
+    else
+        print_warning "Token generator not found, using default token"
+        print_warning "SECURITY WARNING: Please change the default token after installation!"
     fi
 
     # Stop existing stack
@@ -290,9 +302,17 @@ install_docker_compose_stack() {
     print_success "Docker Compose installation complete"
     print_info ""
     print_info "Services:"
-    print_info "  - Web UI:     http://$(hostname -I | awk '{print $1}'):5000 (Login: admin/admin)"
-    print_info "  - Grafana:    http://$(hostname -I | awk '{print $1}'):3000 (Login: admin/admin)"
-    print_info "  - InfluxDB:   http://$(hostname -I | awk '{print $1}'):8086 (User: admin, Pass: adminpassword123)"
+    print_info "  - Web UI:     http://$(hostname -I | awk '{print $1}'):5008 (Login: admin/admin)"
+    print_info "  - Grafana:    http://$(hostname -I | awk '{print $1}'):3001 (Login: admin/admin)"
+    print_info "  - InfluxDB:   http://$(hostname -I | awk '{print $1}'):8181 (Database: idm, Query: SQL)"
+    print_info ""
+    print_info "InfluxDB v3 Token:"
+    # Extract token from docker-compose.yml
+    TOKEN=$(grep "INFLUX_TOKEN=" docker-compose.yml | head -1 | cut -d'=' -f2)
+    print_warning "  ${TOKEN}"
+    print_info ""
+    print_warning "IMPORTANT: Save your InfluxDB token securely!"
+    print_warning "You'll need it to configure additional clients or restore access."
     print_info ""
     print_info "Useful commands:"
     print_info "  - Status:     cd ${INSTALL_DIR} && docker compose ps"

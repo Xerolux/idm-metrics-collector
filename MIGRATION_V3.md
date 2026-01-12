@@ -132,11 +132,48 @@ The token is configured via environment variables and persists across container 
 
 1. `docker-compose.yml` - `INFLUXDB_TOKEN` environment variable
 2. Application configuration - synced automatically
+3. Grafana datasource configuration - `grafana/provisioning/datasources/influxdb.yaml`
 
 **Important**: Keep the token consistent across all services:
 - InfluxDB container
 - IDM Logger container
 - Grafana datasource configuration
+
+### Automatic Token Generation
+
+For new installations, the install script automatically generates a secure random token:
+
+```bash
+./scripts/generate-token.sh
+```
+
+This script will:
+1. Generate a cryptographically secure random token (64 hex characters)
+2. Update all configuration files automatically
+3. Create backups of original files
+4. Display the new token for your records
+
+**Manual Token Generation:**
+
+If you need to generate a new token manually:
+
+```bash
+cd /opt/idm-metrics-collector
+./scripts/generate-token.sh
+```
+
+Then restart all services:
+
+```bash
+docker compose down
+docker compose up -d
+```
+
+**Important Security Notes:**
+- Each installation should use a unique token
+- Never commit tokens to version control
+- Store the token securely (password manager recommended)
+- The token provides full read/write access to InfluxDB
 
 ## Troubleshooting
 
@@ -190,8 +227,48 @@ For issues or questions:
 - GitHub Issues: https://github.com/Xerolux/idm-metrics-collector/issues
 - Community: https://community.simon42.com
 
+## Dashboard Migration
+
+All Grafana dashboards have been converted from Flux to SQL queries. Use the conversion script to update custom dashboards:
+
+```bash
+python3 scripts/convert-dashboards-to-sql.py
+```
+
+The script will:
+- Convert all Flux queries to SQL
+- Create backups with `.flux-backup` extension
+- Update dashboards in place
+
+**Common SQL Query Patterns:**
+
+```sql
+-- Get latest values
+SELECT time, temperature_outdoor
+FROM idm_heatpump
+WHERE time > now() - INTERVAL '1 hour'
+ORDER BY time DESC
+LIMIT 1
+
+-- Time series data
+SELECT time, temperature_flow, temperature_return
+FROM idm_heatpump
+WHERE time >= $__timeFrom() AND time <= $__timeTo()
+ORDER BY time ASC
+
+-- Aggregated data
+SELECT
+  time_bucket('5 minutes', time) AS time,
+  AVG(power_current) AS avg_power
+FROM idm_heatpump
+WHERE time > now() - INTERVAL '24 hours'
+GROUP BY time_bucket('5 minutes', time)
+ORDER BY time ASC
+```
+
 ## References
 
 - [InfluxDB v3 Documentation](https://docs.influxdata.com/influxdb3/core/)
 - [Python Client for InfluxDB v3](https://github.com/InfluxCommunity/influxdb3-python)
 - [Grafana InfluxDB v3 Data Source](https://grafana.com/docs/grafana/latest/datasources/influxdb/)
+- [InfluxDB v3 SQL Reference](https://docs.influxdata.com/influxdb3/core/reference/sql/)

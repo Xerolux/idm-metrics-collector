@@ -4,3 +4,19 @@ __pycache__/
 venv/
 .env
 nul
+
+# Backup files
+*.backup
+*.backup-*
+*.flux-backup
+*.bak
+
+# Secrets and tokens
+.secret.key
+config.yaml
+
+# Local development
+data/
+*.db
+*.sqlite
+*.log
