@@ -1,7 +1,6 @@
 # IDM Metrics Collector
 
-[![GitHub Release][releases-shield]][releases]
-[![Downloads][downloads-shield]][releases]
+[![GHCR](https://ghcr-badge.egpl.dev/xerolux/idm-metrics-collector?tag=latest)](https://github.com/Xerolux/idm-metrics-collector/pkgs/container/idm-metrics-collector)
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE)
 
