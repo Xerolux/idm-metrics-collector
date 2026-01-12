@@ -18,7 +18,12 @@ class ModbusClient:
     def __init__(self, host, port):
         self.host = host
         self.port = port
-        self.client = ModbusTcpClient(host, port=port)
+        self.client = ModbusTcpClient(
+            host,
+            port=port,
+            timeout=10,
+            retries=3
+        )
 
         # Initialize with common sensors
         self.sensors = {s.name: s for s in COMMON_SENSORS}
@@ -69,11 +74,11 @@ class ModbusClient:
 
         current_block = [all_sensors[0]]
 
-        # Max registers to read in one request (safe limit)
-        MAX_BLOCK_SIZE = 100
+        # Max registers to read in one request (conservative for IDM heat pumps)
+        MAX_BLOCK_SIZE = 50
 
         # Max gap size to bridge (reading useless data is cheaper than new request)
-        MAX_GAP = 10
+        MAX_GAP = 5
 
         # Addresses that MUST NOT be read (read_supported=False)
         forbidden_addresses = set()
