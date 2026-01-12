@@ -4,11 +4,11 @@ datasources:
   - name: InfluxDB
     type: influxdb
     access: proxy
-    url: http://idm-influxdb:8086
+    url: http://idm-influxdb:8181
     jsonData:
-      version: Flux
-      organization: my-org
-      defaultBucket: idm
+      version: SQL
+      dbName: idm
+      httpMode: POST
       tlsSkipVerify: true
     secureJsonData:
       token: my-super-secret-token-change-me

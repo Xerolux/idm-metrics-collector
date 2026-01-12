@@ -13,10 +13,7 @@ RETRY_DELAY_BASE = 2  # seconds, exponential backoff
 class InfluxWriter:
     def __init__(self):
         self.conf = config.get("influx")
-        self.version = self.conf.get("version", 2)
         self.client = None
-        self.write_api = None
-        self.bucket = None
         self._connected = False
         self._last_error = None
         self._setup_with_retry()
@@ -27,7 +24,7 @@ class InfluxWriter:
             try:
                 self._setup()
                 if self._connected:
-                    logger.info(f"InfluxDB v{self.version} connected successfully")
+                    logger.info("InfluxDB v3 connected successfully")
                     return
             except Exception as e:
                 self._last_error = str(e)
@@ -42,81 +39,44 @@ class InfluxWriter:
         logger.error(f"Failed to connect to InfluxDB after {MAX_RETRIES} attempts")
 
     def _setup(self):
-        """Initialize InfluxDB client."""
+        """Initialize InfluxDB v3 client."""
         self._connected = False
 
-        if self.version == 2:
-            from influxdb_client import InfluxDBClient
-            from influxdb_client.client.write_api import SYNCHRONOUS
+        from influxdb_client_3 import InfluxDBClient3
 
-            url = self.conf.get("url", "http://localhost:8086")
-            token = self.conf.get("token", "")
-            org = self.conf.get("org", "")
+        host = self.conf.get("url", "http://localhost:8181")
+        token = self.conf.get("token", "")
+        database = self.conf.get("database", "idm")
 
-            if not token:
-                logger.warning("InfluxDB token not configured")
-                return
+        if not token:
+            logger.warning("InfluxDB token not configured")
+            return
 
-            self.client = InfluxDBClient(
-                url=url,
-                token=token,
-                org=org,
-                timeout=10000  # 10 second timeout
-            )
-            self.write_api = self.client.write_api(write_options=SYNCHRONOUS)
-            self.bucket = self.conf.get("bucket", "idm")
-
-            # Verify connection with health check
-            if self._health_check():
-                self._connected = True
-
-        elif self.version == 1:
-            from influxdb import InfluxDBClient as InfluxDBClientV1
-            from urllib.parse import urlparse
-
-            # Parse URL if host not directly provided
-            if "host" in self.conf:
-                host = self.conf["host"]
-                port = self.conf.get("port", 8086)
-            elif "url" in self.conf:
-                u = urlparse(self.conf["url"])
-                host = u.hostname
-                port = u.port if u.port else 8086
-            else:
-                host = "localhost"
-                port = 8086
-
-            self.client = InfluxDBClientV1(
-                host=host,
-                port=port,
-                username=self.conf.get("username", ""),
-                password=self.conf.get("password", ""),
-                database=self.conf.get("database", "idm"),
-                timeout=10
-            )
-
-            # Verify connection
-            try:
-                self.client.ping()
-                self._connected = True
-            except Exception as e:
-                raise ConnectionError(f"InfluxDB v1 ping failed: {e}")
-
-    def _health_check(self) -> bool:
-        """Check InfluxDB v2 health status."""
-        if not self.client:
-            return False
+        # Remove http:// or https:// prefix if present for the client
+        host_clean = host.replace("http://", "").replace("https://", "")
 
         try:
-            health = self.client.health()
-            if health.status == "pass":
-                return True
-            else:
-                logger.warning(f"InfluxDB health check: {health.status} - {health.message}")
-                return False
+            self.client = InfluxDBClient3(
+                host=host_clean,
+                token=token,
+                database=database,
+                org=""  # InfluxDB v3 doesn't use org
+            )
+
+            # Test connection by attempting a simple query
+            try:
+                # Try to query the database to verify connection
+                self.client.query("SELECT * FROM idm_heatpump LIMIT 1")
+                self._connected = True
+            except Exception as e:
+                # If query fails due to no data, that's ok - connection works
+                if "no such table" in str(e).lower() or "not found" in str(e).lower():
+                    self._connected = True
+                else:
+                    raise
+
         except Exception as e:
-            logger.warning(f"InfluxDB health check failed: {e}")
-            return False
+            raise ConnectionError(f"InfluxDB v3 connection failed: {e}")
 
     def is_connected(self) -> bool:
         """Return current connection status."""
@@ -126,9 +86,9 @@ class InfluxWriter:
         """Get detailed status information."""
         return {
             "connected": self._connected,
-            "version": self.version,
+            "version": 3,
             "url": self.conf.get("url", ""),
-            "bucket": self.conf.get("bucket", "") if self.version == 2 else self.conf.get("database", ""),
+            "database": self.conf.get("database", ""),
             "last_error": self._last_error
         }
 
@@ -142,17 +102,14 @@ class InfluxWriter:
         """Close existing connection."""
         if self.client:
             try:
-                if self.version == 2 and self.write_api:
-                    self.write_api.close()
                 self.client.close()
             except Exception:
                 pass
         self.client = None
-        self.write_api = None
         self._connected = False
 
     def write(self, measurements: dict) -> bool:
-        """Write measurements to InfluxDB with error handling and retry."""
+        """Write measurements to InfluxDB v3 with error handling and retry."""
         if not measurements:
             return True
 
@@ -184,67 +141,43 @@ class InfluxWriter:
 
     def _write_internal(self, measurements: dict) -> bool:
         """Internal write method without retry logic."""
-        if self.version == 2:
-            from influxdb_client import Point
+        from influxdb_client_3 import Point
 
-            timestamp = datetime.datetime.utcnow()
-            p = Point("idm_heatpump").time(timestamp)
+        timestamp = datetime.datetime.utcnow()
+        p = Point("idm_heatpump").time(timestamp)
 
-            has_fields = False
-            for key, value in measurements.items():
-                # Skip string representation fields
-                if key.endswith("_str"):
-                    continue
-                # Convert booleans to int
-                if isinstance(value, bool):
-                    value = int(value)
-                # Only write numeric values
-                if isinstance(value, (int, float)):
-                    p.field(key, value)
-                    has_fields = True
+        has_fields = False
+        for key, value in measurements.items():
+            # Skip string representation fields
+            if key.endswith("_str"):
+                continue
+            # Convert booleans to int
+            if isinstance(value, bool):
+                value = int(value)
+            # Only write numeric values
+            if isinstance(value, (int, float)):
+                p.field(key, value)
+                has_fields = True
 
-            if has_fields:
-                self.write_api.write(bucket=self.bucket, record=p)
-                return True
-            return False
-
-        elif self.version == 1:
-            timestamp = datetime.datetime.utcnow().isoformat() + "Z"
-
-            fields = {}
-            for key, value in measurements.items():
-                if key.endswith("_str"):
-                    continue
-                if isinstance(value, bool):
-                    value = int(value)
-                if isinstance(value, (int, float)):
-                    fields[key] = value
-
-            if fields:
-                json_body = [{
-                    "measurement": "idm_heatpump",
-                    "time": timestamp,
-                    "fields": fields
-                }]
-                self.client.write_points(json_body)
-                return True
-            return False
-
+        if has_fields:
+            self.client.write(record=p)
+            return True
         return False
 
-    def query(self, flux_query: str) -> list:
-        """Execute a Flux query (InfluxDB v2 only)."""
-        if self.version != 2 or not self.client:
-            logger.warning("Query only supported for InfluxDB v2")
+    def query(self, sql_query: str) -> list:
+        """Execute a SQL query (InfluxDB v3)."""
+        if not self.client:
+            logger.warning("InfluxDB client not connected")
             return []
 
         try:
-            query_api = self.client.query_api()
-            tables = query_api.query(flux_query)
+            # Query returns a pyarrow Table
+            table = self.client.query(query=sql_query)
+            # Convert to list of dicts
             results = []
-            for table in tables:
-                for record in table.records:
-                    results.append(record.values)
+            if table:
+                df = table.to_pandas()
+                results = df.to_dict('records')
             return results
         except Exception as e:
             logger.error(f"InfluxDB query failed: {e}")
@@ -253,27 +186,14 @@ class InfluxWriter:
     def delete_all_data(self) -> bool:
         """Delete all data from the database."""
         try:
-            if self.version == 2:
-                if not self.client:
-                    return False
+            if not self.client:
+                return False
 
-                delete_api = self.client.delete_api()
-                start = "1970-01-01T00:00:00Z"
-                stop = datetime.datetime.utcnow().isoformat() + "Z"
-                # Delete by predicate (measurement) to be safe
-                delete_api.delete(start, stop, '_measurement="idm_heatpump"', bucket=self.bucket, org=self.conf.get("org"))
-                logger.info("Deleted all data (v2)")
-                return True
-
-            elif self.version == 1:
-                if not self.client:
-                    return False
-
-                db = self.conf.get("database", "idm")
-                self.client.drop_database(db)
-                self.client.create_database(db)
-                logger.info("Deleted all data (v1)")
-                return True
+            # InfluxDB v3 uses SQL for deletes
+            sql = "DELETE FROM idm_heatpump"
+            self.client.query(sql)
+            logger.info("Deleted all data (v3)")
+            return True
 
         except Exception as e:
             logger.error(f"Failed to delete data: {e}")

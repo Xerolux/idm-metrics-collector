@@ -137,8 +137,7 @@ def setup():
 
         # Save Influx
         config.data['influx']['url'] = data.get('influx_url')
-        config.data['influx']['org'] = data.get('influx_org')
-        config.data['influx']['bucket'] = data.get('influx_bucket')
+        config.data['influx']['database'] = data.get('influx_database')
         config.data['influx']['token'] = data.get('influx_token')
 
         # Save Admin Password
@@ -307,10 +306,8 @@ def config_page():
             # InfluxDB URL
             if 'influx_url' in data:
                  config.data['influx']['url'] = data['influx_url']
-            if 'influx_org' in data:
-                 config.data['influx']['org'] = data['influx_org']
-            if 'influx_bucket' in data:
-                 config.data['influx']['bucket'] = data['influx_bucket']
+            if 'influx_database' in data:
+                 config.data['influx']['database'] = data['influx_database']
 
             # MQTT Settings
             if 'mqtt_enabled' in data:
