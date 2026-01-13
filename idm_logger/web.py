@@ -13,6 +13,8 @@ import sys
 import signal
 import ipaddress
 import time
+import subprocess
+import requests
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -137,8 +139,7 @@ def setup():
 
         # Save Influx
         config.data['influx']['url'] = data.get('influx_url')
-        config.data['influx']['org'] = data.get('influx_org')
-        config.data['influx']['bucket'] = data.get('influx_bucket')
+        config.data['influx']['database'] = data.get('influx_database')
         config.data['influx']['token'] = data.get('influx_token')
 
         # Save Admin Password
@@ -307,10 +308,8 @@ def config_page():
             # InfluxDB URL
             if 'influx_url' in data:
                  config.data['influx']['url'] = data['influx_url']
-            if 'influx_org' in data:
-                 config.data['influx']['org'] = data['influx_org']
-            if 'influx_bucket' in data:
-                 config.data['influx']['bucket'] = data['influx_bucket']
+            if 'influx_database' in data:
+                 config.data['influx']['database'] = data['influx_database']
 
             # MQTT Settings
             if 'mqtt_enabled' in data:
@@ -436,6 +435,145 @@ def restart_service():
     threading.Thread(target=delayed_restart, daemon=True).start()
 
     return jsonify({"success": True, "message": "Restarting service..."})
+
+@app.route('/api/version', methods=['GET'])
+def get_version():
+    """Get current application version from git or package."""
+    try:
+        # Try to get version from git
+        result = subprocess.run(
+            ['git', 'describe', '--tags', '--always'],
+            capture_output=True,
+            text=True,
+            cwd='/app',
+            timeout=5
+        )
+        if result.returncode == 0:
+            version = result.stdout.strip()
+        else:
+            # Fallback to reading from a version file
+            version_file = Path('/app/VERSION')
+            if version_file.exists():
+                version = version_file.read_text().strip()
+            else:
+                version = 'v0.5.0'  # Default version
+
+        return jsonify({"version": version})
+    except Exception as e:
+        logger.error(f"Error getting version: {e}")
+        return jsonify({"version": "unknown"})
+
+@app.route('/api/check-update', methods=['GET'])
+@login_required
+def check_update():
+    """Check for updates from GitHub."""
+    try:
+        # Get current version
+        current_version = get_version().json.get('version', 'unknown')
+
+        # Check GitHub for latest release
+        github_api = "https://api.github.com/repos/Xerolux/idm-metrics-collector/releases/latest"
+        response = requests.get(github_api, timeout=10)
+
+        if response.status_code == 200:
+            latest_release = response.json()
+            latest_version = latest_release.get('tag_name', '')
+            release_date = latest_release.get('published_at', '')
+            release_notes = latest_release.get('body', '')[:200]  # First 200 chars
+
+            # Simple version comparison (assumes semantic versioning)
+            update_available = latest_version != current_version and latest_version > current_version
+
+            return jsonify({
+                "update_available": update_available,
+                "current_version": current_version,
+                "latest_version": latest_version,
+                "release_date": release_date,
+                "release_notes": release_notes
+            })
+        else:
+            return jsonify({"error": "Failed to check for updates"}), 500
+
+    except Exception as e:
+        logger.error(f"Error checking for updates: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/perform-update', methods=['POST'])
+@login_required
+def perform_update():
+    """Perform system update via git pull and docker compose restart."""
+    try:
+        logger.info("Update requested by user")
+
+        # Run update in background thread
+        def do_update():
+            try:
+                time.sleep(2)  # Give time for response to be sent
+
+                # Change to app directory
+                os.chdir('/opt/idm-metrics-collector')
+
+                # Git pull
+                logger.info("Pulling latest changes from git...")
+                result = subprocess.run(
+                    ['git', 'pull', 'origin', 'main'],
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+
+                if result.returncode != 0:
+                    logger.error(f"Git pull failed: {result.stderr}")
+                    return
+
+                # Docker compose down and up
+                logger.info("Restarting Docker Compose stack...")
+
+                # Try docker compose (v2)
+                compose_cmd = ['docker', 'compose']
+                check_result = subprocess.run(
+                    compose_cmd + ['version'],
+                    capture_output=True,
+                    timeout=5
+                )
+
+                if check_result.returncode != 0:
+                    # Fallback to docker-compose (v1)
+                    compose_cmd = ['docker-compose']
+
+                # Pull images
+                subprocess.run(
+                    compose_cmd + ['pull'],
+                    capture_output=True,
+                    timeout=300
+                )
+
+                # Restart
+                subprocess.run(
+                    compose_cmd + ['down'],
+                    capture_output=True,
+                    timeout=60
+                )
+
+                subprocess.run(
+                    compose_cmd + ['up', '-d'],
+                    capture_output=True,
+                    timeout=120
+                )
+
+                logger.info("Update completed successfully")
+
+            except Exception as e:
+                logger.error(f"Update failed: {e}")
+
+        # Start update in background
+        threading.Thread(target=do_update, daemon=True).start()
+
+        return jsonify({"success": True, "message": "Update started"})
+
+    except Exception as e:
+        logger.error(f"Error starting update: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 def validate_write(sensor_name, value):
     """Validates the value against sensor constraints."""

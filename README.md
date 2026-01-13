@@ -10,15 +10,15 @@
 [![Buy Me A Coffee][buymeacoffee-badge]][buymeacoffee]
 [![Tesla](https://img.shields.io/badge/Tesla-Referral-red?style=for-the-badge&logo=tesla)](https://ts.la/sebastian564489)
 
-A comprehensive monitoring and control system for IDM Heat Pumps (Navigator 2.0) with InfluxDB metrics storage and Grafana visualization.
+A comprehensive monitoring and control system for IDM Heat Pumps (Navigator 2.0) with InfluxDB v3 metrics storage and Grafana visualization.
 
 ## Features
 
 *   **Docker-First**: Optimized for Docker and Docker Compose deployments
-*   **Zero-Config Setup**: Complete stack with InfluxDB and Grafana pre-configured
+*   **Zero-Config Setup**: Complete stack with InfluxDB v3 and Grafana pre-configured
 *   **Automated Installer**: One command installation handles everything
 *   **Data Source**: Reads from IDM Heat Pump via Modbus TCP
-*   **Data Sink**: Supports InfluxDB v2
+*   **Data Sink**: InfluxDB v3 Core with SQL query support
 *   **Web Interface**: Modern dashboard for live data, configuration, manual control, and scheduling
 *   **Automation**: Built-in scheduler to write values (e.g., temperatures) at specific times
 *   **Production Ready**: Health checks, automatic restarts, persistent data
@@ -82,8 +82,8 @@ sudo ./install.sh
 
 This installs:
 - **IDM Metrics Collector** (Web UI + API)
-- **InfluxDB 2** (Time-series database)
-- **Grafana** (Visualization platform)
+- **InfluxDB v3 Core** (Time-series database with SQL support)
+- **Grafana** (Visualization platform with InfluxDB v3 integration)
 
 All services are pre-configured and ready to use!
 
@@ -111,14 +111,13 @@ cd /opt/idm-metrics-collector && docker compose restart
 - Default Login: `admin` / `admin`
 - Pre-configured with InfluxDB datasource and IDM dashboard
 
-**InfluxDB** (Docker Compose only)
-- URL: `http://your-server-ip:8086`
-- Default Credentials:
-  - User: `admin`
-  - Password: `adminpassword123`
-  - Organization: `my-org`
-  - Bucket: `idm`
+**InfluxDB v3** (Docker Compose only)
+- URL: `http://your-server-ip:8181`
+- Default Configuration:
+  - Database: `idm`
   - Token: `my-super-secret-token-change-me`
+  - Query Language: SQL (replaces Flux from v2)
+  - Note: Database is auto-created on first write
 
 ### Docker Image (GHCR)
 
@@ -148,14 +147,9 @@ idm:
   circuits: ["A"]        # Enabled heating circuits
 
 influx:
-  version: 2             # 1 or 2
-  url: "http://localhost:8086"
-  org: "my-org"          # v2 only
-  bucket: "idm"          # v2 only
-  token: "my-token"      # v2 only
-  username: "user"       # v1 only
-  password: "password"   # v1 only
-  database: "idm"        # v1 only
+  url: "http://localhost:8181"
+  database: "idm"
+  token: "my-token"
 
 web:
   enabled: true

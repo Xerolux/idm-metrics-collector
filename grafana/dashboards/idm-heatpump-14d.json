@@ -85,7 +85,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_outside\")\n  |> last()",
+          "query": "SELECT time, temp_outside FROM idm_heatpump WHERE time > now() - INTERVAL '1 hour' ORDER BY time DESC LIMIT 1",
           "refId": "A"
         }
       ],
@@ -154,7 +154,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_heat_pump_flow\")\n  |> last()",
+          "query": "SELECT time, temp_heat_pump_flow FROM idm_heatpump WHERE time > now() - INTERVAL '1 hour' ORDER BY time DESC LIMIT 1",
           "refId": "A"
         }
       ],
@@ -223,7 +223,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_heat_pump_return\")\n  |> last()",
+          "query": "SELECT time, temp_heat_pump_return FROM idm_heatpump WHERE time > now() - INTERVAL '1 hour' ORDER BY time DESC LIMIT 1",
           "refId": "A"
         }
       ],
@@ -292,7 +292,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_water_heater_top\")\n  |> last()",
+          "query": "SELECT time, temp_water_heater_top FROM idm_heatpump WHERE time > now() - INTERVAL '1 hour' ORDER BY time DESC LIMIT 1",
           "refId": "A"
         }
       ],
@@ -357,7 +357,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"power_current_draw\")\n  |> last()",
+          "query": "SELECT time, power_current_draw FROM idm_heatpump WHERE time > now() - INTERVAL '1 hour' ORDER BY time DESC LIMIT 1",
           "refId": "A"
         }
       ],
@@ -464,7 +464,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: -1h)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"status_heat_pump\")\n  |> last()",
+          "query": "SELECT time, status_heat_pump FROM idm_heatpump WHERE time > now() - INTERVAL '1 hour' ORDER BY time DESC LIMIT 1",
           "refId": "A"
         }
       ],
@@ -612,7 +612,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_outside\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_outside FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "A"
         },
         {
@@ -620,7 +620,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_heat_pump_flow\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_heat_pump_flow FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "B"
         },
         {
@@ -628,7 +628,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_heat_pump_return\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_heat_pump_return FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "C"
         }
       ],
@@ -796,7 +796,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_water_heater_top\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_water_heater_top FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "A"
         },
         {
@@ -804,7 +804,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_water_heater_bottom\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_water_heater_bottom FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "B"
         },
         {
@@ -812,7 +812,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_water_target\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_water_target FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "C"
         }
       ],
@@ -937,7 +937,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"power_current_draw\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, power_current_draw FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "A"
         },
         {
@@ -945,7 +945,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"power_current\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, power_current FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "B"
         }
       ],
@@ -1049,7 +1049,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"energy_heat_total\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)",
+          "query": "SELECT time, energy_heat_total FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "A"
         },
         {
@@ -1057,7 +1057,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"energy_heat_heating\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)",
+          "query": "SELECT time, energy_heat_heating FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "B"
         },
         {
@@ -1065,7 +1065,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"energy_heat_total_water\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)",
+          "query": "SELECT time, energy_heat_total_water FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "C"
         }
       ],
@@ -1246,7 +1246,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_flow_current_circuit_a\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_flow_current_circuit_a FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "A"
         },
         {
@@ -1254,7 +1254,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_flow_target_circuit_a\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_flow_target_circuit_a FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "B"
         },
         {
@@ -1262,7 +1262,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_room_circuit_a\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_room_circuit_a FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "C"
         }
       ],
@@ -1374,7 +1374,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_heat_storage\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_heat_storage FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "A"
         },
         {
@@ -1382,7 +1382,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_cold_storage\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_cold_storage FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "B"
         },
         {
@@ -1390,7 +1390,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_heat_source_input\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_heat_source_input FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "C"
         },
         {
@@ -1398,7 +1398,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"temp_heat_source_output\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "query": "SELECT time, temp_heat_source_output FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "D"
         }
       ],
@@ -1513,7 +1513,7 @@
             "type": "influxdb",
             "uid": "${DS_INFLUXDB}"
           },
-          "query": "power_current = from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"power_current\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n\npower_draw = from(bucket: \"idm\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"idm_heatpump\")\n  |> filter(fn: (r) => r._field == \"power_current_draw\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n\njoin(\n  tables: {power: power_current, draw: power_draw},\n  on: [\"_time\"]\n)\n|> map(fn: (r) => ({\n  _time: r._time,\n  _value: if r._value_draw > 0.0 then r._value_power / r._value_draw else 0.0\n}))",
+          "query": "SELECT time, power_current FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
           "refId": "A"
         }
       ],

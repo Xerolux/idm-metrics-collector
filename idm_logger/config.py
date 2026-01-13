@@ -14,9 +14,8 @@ KEY_FILE = os.path.join(DATA_DIR, ".secret.key")
 # Default values synchronized with docker-compose.yml
 DOCKER_DEFAULTS = {
     "influx": {
-        "url": "http://idm-influxdb:8086",
-        "org": "my-org",
-        "bucket": "idm",
+        "url": "http://idm-influxdb:8181",
+        "database": "idm",
         "token": "my-super-secret-token-change-me"
     }
 }
@@ -60,10 +59,8 @@ class Config:
         # InfluxDB settings from environment
         if os.environ.get("INFLUX_URL"):
             self.data["influx"]["url"] = os.environ["INFLUX_URL"]
-        if os.environ.get("INFLUX_ORG"):
-            self.data["influx"]["org"] = os.environ["INFLUX_ORG"]
-        if os.environ.get("INFLUX_BUCKET"):
-            self.data["influx"]["bucket"] = os.environ["INFLUX_BUCKET"]
+        if os.environ.get("INFLUX_DATABASE"):
+            self.data["influx"]["database"] = os.environ["INFLUX_DATABASE"]
         if os.environ.get("INFLUX_TOKEN"):
             self.data["influx"]["token"] = os.environ["INFLUX_TOKEN"]
 
@@ -132,14 +129,9 @@ class Config:
                 "zones": []
             },
             "influx": {
-                "version": 2,
                 "url": DOCKER_DEFAULTS["influx"]["url"],
-                "org": DOCKER_DEFAULTS["influx"]["org"],
-                "bucket": DOCKER_DEFAULTS["influx"]["bucket"],
-                "token": DOCKER_DEFAULTS["influx"]["token"],
-                "username": "",
-                "password": "",
-                "database": "idm"
+                "database": DOCKER_DEFAULTS["influx"]["database"],
+                "token": DOCKER_DEFAULTS["influx"]["token"]
             },
             "web": {
                 "enabled": True,
@@ -181,7 +173,6 @@ class Config:
                 # Decrypt sensitive fields
                 if "influx" in data:
                     data["influx"]["token"] = self._decrypt(data["influx"].get("encrypted_token", ""))
-                    data["influx"]["password"] = self._decrypt(data["influx"].get("encrypted_password", ""))
                 if "mqtt" in data:
                     data["mqtt"]["password"] = self._decrypt(data["mqtt"].get("encrypted_password", ""))
 
@@ -199,12 +190,9 @@ class Config:
 
         if "influx" in to_save:
             to_save["influx"]["encrypted_token"] = self._encrypt(to_save["influx"].get("token", ""))
-            to_save["influx"]["encrypted_password"] = self._encrypt(to_save["influx"].get("password", ""))
             # Remove plain text from storage dict
             if "token" in to_save["influx"]:
                 del to_save["influx"]["token"]
-            if "password" in to_save["influx"]:
-                del to_save["influx"]["password"]
 
         if "mqtt" in to_save:
             to_save["mqtt"]["encrypted_password"] = self._encrypt(to_save["mqtt"].get("password", ""))

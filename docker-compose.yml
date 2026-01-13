@@ -16,9 +16,8 @@ services:
       - IDM_HOST=192.168.178.103
       - IDM_PORT=502
       # InfluxDB connection (matches influxdb service defaults)
-      - INFLUX_URL=http://idm-influxdb:8086
-      - INFLUX_ORG=my-org
-      - INFLUX_BUCKET=idm
+      - INFLUX_URL=http://idm-influxdb:8181
+      - INFLUX_DATABASE=idm
       - INFLUX_TOKEN=my-super-secret-token-change-me
       # MQTT settings (optional - configure via web UI or uncomment below)
       # - MQTT_ENABLED=false
@@ -36,29 +35,28 @@ services:
       start_period: 10s
 
   influxdb:
-    image: influxdb:2.7
+    image: influxdb:3-core
     container_name: idm-influxdb
     restart: unless-stopped
     ports:
-      - "8086:8086"
+      - "8181:8181"
     volumes:
-      - influxdb-data:/var/lib/influxdb2
-      - influxdb-config:/etc/influxdb2
+      - influxdb-data:/var/lib/influxdb3
+    command: >
+      serve
+      --node-id idm-influxdb-node-1
+      --object-store file
+      --data-dir /var/lib/influxdb3
     environment:
-      # Auto-setup on first run
-      - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword123
-      - DOCKER_INFLUXDB_INIT_ORG=my-org
-      - DOCKER_INFLUXDB_INIT_BUCKET=idm
-      - DOCKER_INFLUXDB_INIT_RETENTION=365d
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=my-super-secret-token-change-me
+      # Token for authentication - keep this consistent across deployments
+      - INFLUXDB_TOKEN=my-super-secret-token-change-me
+      - INFLUXDB_DATABASE=idm
     healthcheck:
-      test: ["CMD", "influx", "ping"]
-      interval: 5s
-      timeout: 10s
-      retries: 10
-      start_period: 40s
+      test: ["CMD-SHELL", "curl -f http://localhost:8181/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   grafana:
     image: grafana/grafana:latest
@@ -99,8 +97,6 @@ services:
 volumes:
   influxdb-data:
     name: idm-influxdb-data
-  influxdb-config:
-    name: idm-influxdb-config
   grafana-data:
     name: idm-grafana-data
   idm-data:
