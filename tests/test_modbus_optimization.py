@@ -1,5 +1,11 @@
 import unittest
+import sys
+import os
 from unittest.mock import MagicMock, patch
+
+# Add the project directory to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from idm_logger.modbus import ModbusClient
 from idm_logger.sensor_addresses import COMMON_SENSORS, _FloatSensorAddress
 

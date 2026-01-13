@@ -10,7 +10,7 @@ import urllib.request
 import json
 
 # Add the project directory to path
-sys.path.insert(0, '/home/user/idm-metrics-collector')
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 def test_webserver():
     """Test the webserver by making HTTP requests"""
