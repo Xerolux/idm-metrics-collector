@@ -23,8 +23,9 @@ class Scheduler:
                 if isinstance(job.get('days'), str):
                     try:
                         job['days'] = json.loads(job['days'])
-                    except:
+                    except (json.JSONDecodeError, ValueError, TypeError):
                         job['days'] = []
+                        logger.warning(f"Failed to parse days for job {job.get('id')}, defaulting to empty list")
 
     def add_job(self, job):
         with self.lock:

@@ -77,7 +77,8 @@ class BackupManager:
                 # Get all settings from database
                 all_settings = {}
                 # Query all settings (implementation depends on your DB structure)
-                cursor = db.conn.cursor()
+                conn = db.get_connection()
+                cursor = conn.cursor()
                 cursor.execute("SELECT key, value FROM settings")
                 for row in cursor.fetchall():
                     key, value = row
@@ -89,6 +90,7 @@ class BackupManager:
                             all_settings[key] = value
 
                 backup_data["db_settings"] = all_settings
+                conn.close()
             except Exception as e:
                 logger.warning(f"Could not backup database settings: {e}")
 
@@ -217,8 +219,8 @@ class BackupManager:
                                 backup_json = zipf.read("backup.json").decode('utf-8')
                                 backup_data = json.loads(backup_json)
                                 metadata = backup_data.get("metadata", {})
-                    except Exception:
-                        pass
+                    except (zipfile.BadZipFile, json.JSONDecodeError, KeyError, UnicodeDecodeError) as e:
+                        logger.debug(f"Could not read metadata from {backup_file.name}: {e}")
 
                     backups.append({
                         "filename": backup_file.name,

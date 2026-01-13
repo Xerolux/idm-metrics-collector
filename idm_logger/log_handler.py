@@ -32,7 +32,8 @@ class MemoryLogHandler(logging.Handler):
             print(f"ERROR in MemoryLogHandler.emit: {e}", file=sys.stderr, flush=True)
             try:
                 self.handleError(record)
-            except:
+            except Exception:
+                # Last resort failsafe: silently ignore to prevent logger crashes
                 pass
 
     def get_logs(self, limit=None):
