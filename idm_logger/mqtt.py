@@ -291,6 +291,10 @@ class MQTTPublisher:
                      if hasattr(sensor, "max_value") and sensor.max_value is not None:
                           payload["max"] = sensor.max_value
 
+                     # If sensor is write-only or not readable, set optimistic mode
+                     if not sensor.read_supported:
+                          payload["optimistic"] = True
+
                 # Binary -> Switch
                 elif sensor.supported_features & SensorFeatures.SET_BINARY:
                      component = "switch"

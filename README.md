@@ -173,6 +173,7 @@ Access the web interface at `http://<your-server-ip>:5008` when using Docker Com
 *   **Schedule**: (If enabled) Automate setting values based on time and day.
     ![Schedule](docs/images/schedule.png)
 *   **Configuration**: Update connection settings.
+*   **Solar Integration**: Write PV surplus to the heat pump via MQTT. See [SOLAR_INTEGRATION.md](docs/SOLAR_INTEGRATION.md).
 
 ## Usage & Disclaimer
 
