@@ -1,11 +1,6 @@
-name: Build and publish IDM Metrics Collector Docker image
+name: Build and publish IDM Metrics Collector Docker image (ARM)
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -68,4 +63,4 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64
+          platforms: linux/arm64,linux/arm/v7
