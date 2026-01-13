@@ -29,6 +29,13 @@ class Config:
         # Apply environment variable overrides
         self._apply_env_overrides()
 
+        # Automatic Token Synchronization:
+        # If INFLUX_TOKEN is present in environment, we treat it as the "Source of Truth"
+        # and ensure it is persisted to the database to avoid 401 errors if the environment
+        # variable is later removed or if other components read from DB.
+        if os.environ.get("INFLUX_TOKEN"):
+            self.save()
+
     def _load_or_create_key(self):
         if os.path.exists(KEY_FILE):
             with open(KEY_FILE, "rb") as f:
