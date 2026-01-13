@@ -457,7 +457,8 @@ def validate_write(sensor_name, value):
                  # Try key lookup
                  if value not in sensor.enum.__members__:
                       return False, f"Option {value} not found"
-        except Exception:
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
+             logger.debug(f"Enum validation failed for {sensor_name}: {e}")
              return False, "Invalid enum value"
 
     # Range validation

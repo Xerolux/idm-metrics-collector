@@ -145,8 +145,9 @@ class InfluxWriter:
                 if self.version == 2 and self.write_api:
                     self.write_api.close()
                 self.client.close()
-            except Exception:
-                pass
+            except Exception as e:
+                # Ignore errors during cleanup, but log for debugging
+                logger.debug(f"Error closing InfluxDB connection (non-critical): {e}")
         self.client = None
         self.write_api = None
         self._connected = False

@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from werkzeug.security import generate_password_hash, check_password_hash
 from .db import db
 
@@ -52,7 +52,8 @@ class Config:
             return ""
         try:
             return self.cipher.decrypt(token.encode()).decode()
-        except Exception:
+        except (InvalidToken, ValueError, AttributeError) as e:
+            logger.warning(f"Failed to decrypt token: {e}")
             return ""
 
     def _apply_env_overrides(self):
