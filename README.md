@@ -183,7 +183,7 @@ Zugriff auf die Weboberfläche unter `http://<deine-server-ip>:5008` bei Verwend
         ![Config General](docs/images/config_general.png)
     *   **MQTT**: Richte MQTT Publishing und Home Assistant Discovery ein.
         ![Config MQTT](docs/images/config_mqtt.png)
-    *   **Tools**: Generiere Technikercodes und verwalte die Datenbank.
+    *   **Tools**: Generiere Technikercodes, Heizungsbauer und Fachmannebene und verwalte die Datenbank.
         ![Config Tools](docs/images/config_tools.png)
 
 *   **Protokolle**: Siehe Live-Systemprotokolle ein.
