@@ -166,13 +166,29 @@ logging:
 
 Access the web interface at `http://<your-server-ip>:5008` when using Docker Compose, or `http://<your-server-ip>:5000` for the single-container setup.
 
-*   **Live Dashboard**: Shows categorized sensor values with auto-refresh.
+*   **Login**: The interface is protected by a password (default: `admin`).
+    ![Login](docs/images/login.png)
+
+*   **Live Dashboard**: Shows categorized sensor values with auto-refresh and customizable widgets.
     ![Dashboard](docs/images/dashboard.png)
+
 *   **Control**: (If enabled) Write values to writable sensors.
     ![Control](docs/images/control.png)
+
 *   **Schedule**: (If enabled) Automate setting values based on time and day.
     ![Schedule](docs/images/schedule.png)
-*   **Configuration**: Update connection settings.
+
+*   **Configuration**:
+    *   **General**: Configure IDM connection, InfluxDB, and logging.
+        ![Config General](docs/images/config_general.png)
+    *   **MQTT**: Setup MQTT publishing and Home Assistant discovery.
+        ![Config MQTT](docs/images/config_mqtt.png)
+    *   **Tools**: Generate technician codes and manage database.
+        ![Config Tools](docs/images/config_tools.png)
+
+*   **Logs**: View live system logs.
+    ![Logs](docs/images/logs.png)
+
 *   **Solar Integration**: Write PV surplus to the heat pump via MQTT. See [SOLAR_INTEGRATION.md](docs/SOLAR_INTEGRATION.md).
 
 ## Usage & Disclaimer
