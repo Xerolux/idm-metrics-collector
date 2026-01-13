@@ -48,13 +48,7 @@ jobs:
           cd frontend
           pnpm install --frozen-lockfile
           pnpm run build
-          ls -la dist/
-
-      - name: Copy frontend build to static directory
-        run: |
-          rm -rf idm_logger/static/*
-          cp -r frontend/dist/* idm_logger/static/
-          ls -la idm_logger/static/
+          ls -la ../idm_logger/static/
 
       - name: Extract Docker metadata
         id: meta
