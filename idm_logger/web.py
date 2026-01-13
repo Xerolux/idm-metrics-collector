@@ -5,7 +5,7 @@ from .technician_auth import calculate_codes
 from .config import config
 from .sensor_addresses import SensorFeatures
 from .log_handler import memory_handler
-from .backup import backup_manager
+from .backup import backup_manager, BACKUP_DIR
 from .mqtt import mqtt_publisher
 import threading
 import logging
@@ -826,7 +826,7 @@ def download_backup(filename):
     if ".." in filename or "/" in filename or "\\" in filename:
         return jsonify({"error": "Ungültiger Dateiname"}), 400
 
-    backup_path = Path(backup_manager.BACKUP_DIR) / filename
+    backup_path = Path(BACKUP_DIR) / filename
 
     if not backup_path.exists():
         return jsonify({"error": "Backup nicht gefunden"}), 404
@@ -855,8 +855,11 @@ def restore_backup():
         if not filename:
             return jsonify({"error": "Keine Backup-Datei angegeben"}), 400
 
+        if ".." in filename or "/" in filename or "\\" in filename:
+            return jsonify({"error": "Ungültiger Dateiname"}), 400
+
         # Restore from existing backup
-        backup_path = Path(backup_manager.BACKUP_DIR) / filename
+        backup_path = Path(BACKUP_DIR) / filename
     else:
         # Handle uploaded file
         file = request.files['file']
@@ -864,7 +867,12 @@ def restore_backup():
             return jsonify({"error": "Keine Datei ausgewählt"}), 400
 
         # Save uploaded file temporarily
-        temp_path = Path(backup_manager.BACKUP_DIR) / f"temp_{file.filename}"
+        # Ensure filename is safe
+        safe_filename = file.filename
+        if ".." in safe_filename or "/" in safe_filename or "\\" in safe_filename:
+             return jsonify({"error": "Ungültiger Dateiname"}), 400
+
+        temp_path = Path(BACKUP_DIR) / f"temp_{safe_filename}"
         file.save(temp_path)
         backup_path = temp_path
 
