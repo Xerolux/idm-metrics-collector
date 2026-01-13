@@ -140,7 +140,8 @@ def setup():
         # Save Influx
         config.data['influx']['url'] = data.get('influx_url')
         config.data['influx']['database'] = data.get('influx_database')
-        config.data['influx']['token'] = data.get('influx_token')
+        if data.get('influx_token'):
+            config.data['influx']['token'] = data.get('influx_token')
 
         # Save Admin Password
         password = data.get('password')
@@ -254,13 +255,33 @@ def config_page():
     if request.method == 'GET':
         # Return safe config
         safe_config = config.data.copy()
+        token_synced = True
+        token_source = "database"
+
         if 'influx' in safe_config:
             safe_config['influx'] = safe_config['influx'].copy()
+
+            # Check for token synchronization
+            env_token = os.environ.get("INFLUX_TOKEN") or os.environ.get("INFLUXDB_TOKEN")
+            current_token = config.data.get("influx", {}).get("token")
+
+            if env_token:
+                token_source = "environment"
+                if env_token != current_token:
+                    token_synced = False
+
             if 'token' in safe_config['influx']:
                  safe_config['influx']['token'] = '******' # Don't send token
             if 'password' in safe_config['influx']:
                  safe_config['influx']['password'] = '******'
-        return jsonify(safe_config)
+
+        # Add metadata about token synchronization
+        response = safe_config
+        response['_meta'] = {
+            "token_synced": token_synced,
+            "token_source": token_source
+        }
+        return jsonify(response)
 
     if request.method == 'POST':
         data = request.get_json()
@@ -310,6 +331,8 @@ def config_page():
                  config.data['influx']['url'] = data['influx_url']
             if 'influx_database' in data:
                  config.data['influx']['database'] = data['influx_database']
+            if 'influx_token' in data and data['influx_token']:
+                 config.data['influx']['token'] = data['influx_token']
 
             # MQTT Settings
             if 'mqtt_enabled' in data:

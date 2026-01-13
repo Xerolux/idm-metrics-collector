@@ -1,6 +1,7 @@
 import logging
 import datetime
 import time
+import os
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,27 @@ class InfluxWriter:
                     return
             except Exception as e:
                 self._last_error = str(e)
+
+                # Auto-Recovery for 401 Unauthorized
+                if "401" in str(e) or "unauthorized" in str(e).lower():
+                    logger.warning("InfluxDB authentication failed (401). Checking for environment token...")
+                    # Check both variable names
+                    env_token = os.environ.get("INFLUX_TOKEN") or os.environ.get("INFLUXDB_TOKEN")
+
+                    if env_token:
+                        current_token = self.conf.get("token")
+                        if env_token != current_token:
+                            logger.info("Found different token in environment, updating configuration...")
+                            # Update config object in memory
+                            self.conf["token"] = env_token
+                            # Update persistent storage via config object
+                            config.data["influx"]["token"] = env_token
+                            config.save()
+                        else:
+                            logger.warning("Environment token matches current token. Token might be invalid.")
+                    else:
+                        logger.warning("No token found in environment variables.")
+
                 delay = RETRY_DELAY_BASE ** (attempt + 1)
                 logger.warning(
                     f"InfluxDB connection attempt {attempt + 1}/{MAX_RETRIES} failed: {e}. "
