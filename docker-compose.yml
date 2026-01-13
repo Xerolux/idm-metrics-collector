@@ -55,7 +55,7 @@ services:
       --admin-token-file /etc/influxdb/admin_token.txt
     environment:
       # Token for authentication - keep this consistent across deployments
-      - INFLUXDB_TOKEN=my-super-secret-token-change-me
+      - INFLUXDB_TOKEN=apiv3_my-super-secret-token-change-me
       - INFLUXDB_DATABASE=idm
 
   grafana:

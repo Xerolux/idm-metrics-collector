@@ -11,6 +11,6 @@ datasources:
       httpMode: POST
       tlsSkipVerify: true
     secureJsonData:
-      token: my-super-secret-token-change-me
+      token: apiv3_my-super-secret-token-change-me
     isDefault: true
     editable: true
