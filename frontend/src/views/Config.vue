@@ -442,6 +442,20 @@
                         </template>
                     </Card>
                 </TabPanel>
+
+                <TabPanel header="Tools">
+                    <Card class="bg-gray-800 text-white">
+                        <template #title>
+                            <div class="flex items-center gap-2">
+                                <i class="pi pi-key text-yellow-400"></i>
+                                <span>Technician Code Generator</span>
+                            </div>
+                        </template>
+                        <template #content>
+                            <TechnicianCodeGenerator />
+                        </template>
+                    </Card>
+                </TabPanel>
             </TabView>
         </div>
 
@@ -509,6 +523,7 @@ import ConfirmDialog from 'primevue/confirmdialog';
 import Dialog from 'primevue/dialog';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
+import TechnicianCodeGenerator from '../components/TechnicianCodeGenerator.vue';
 
 const config = ref({
     idm: { host: '', port: 502, circuits: ['A'], zones: [] },
