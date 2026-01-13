@@ -41,7 +41,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import Button from 'primevue/button';
 import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
@@ -49,11 +49,12 @@ import axios from 'axios';
 const toast = useToast();
 const codes = ref({ level_1: '', level_2: '' });
 const loading = ref(false);
+let intervalId = null;
 
 const fetchCodes = async () => {
     loading.value = true;
     try {
-        const res = await axios.get('/api/tools/technician-code');
+        const res = await axios.get('/api/tools/technician-code?t=' + Date.now());
         codes.value = res.data;
     } catch (e) {
         toast.add({ severity: 'error', summary: 'Fehler', detail: 'Technikercodes konnten nicht abgerufen werden', life: 3000 });
@@ -64,6 +65,11 @@ const fetchCodes = async () => {
 
 onMounted(() => {
     fetchCodes();
+    intervalId = setInterval(fetchCodes, 60000);
+});
+
+onUnmounted(() => {
+    if (intervalId) clearInterval(intervalId);
 });
 
 const copy = (text) => {
