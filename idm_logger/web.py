@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, abort, send_from_directory, send_file
 from waitress import serve
+from datetime import datetime
+from .technician_auth import calculate_codes
 from .config import config
 from .sensor_addresses import SensorFeatures
 from .log_handler import memory_handler
@@ -248,6 +250,16 @@ def logs_page():
     logs = memory_handler.get_logs()
     logs.reverse()
     return jsonify(logs)
+
+@app.route('/api/tools/technician-code', methods=['GET'])
+@login_required
+def get_technician_code():
+    try:
+        codes = calculate_codes()
+        return jsonify(codes)
+    except Exception as e:
+        logger.error(f"Error generating codes: {e}")
+        return jsonify({"error": "Failed to generate codes"}), 500
 
 @app.route('/api/config', methods=['GET', 'POST'])
 @login_required
