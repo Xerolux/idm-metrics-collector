@@ -8,6 +8,7 @@ import Control from '../views/Control.vue'
 import Schedule from '../views/Schedule.vue'
 import Config from '../views/Config.vue'
 import Logs from '../views/Logs.vue'
+import About from '../views/About.vue'
 import Layout from '../components/Layout.vue'
 
 const routes = [
@@ -50,6 +51,11 @@ const routes = [
         path: '/logs',
         name: 'Logs',
         component: Logs
+      },
+      {
+        path: '/about',
+        name: 'About',
+        component: About
       }
     ]
   }

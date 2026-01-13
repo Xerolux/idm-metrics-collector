@@ -38,6 +38,11 @@ const items = ref([
         label: 'Settings',
         icon: 'pi pi-cog',
         command: () => router.push('/config')
+    },
+    {
+        label: 'About',
+        icon: 'pi pi-info-circle',
+        command: () => router.push('/about')
     }
 ]);
 
@@ -67,7 +72,7 @@ const logout = async () => {
                 </div>
             </template>
         </Menubar>
-        <main class="p-4 flex-grow">
+        <main class="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
              <router-view></router-view>
         </main>
         <AppFooter />
