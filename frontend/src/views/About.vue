@@ -10,11 +10,11 @@ import Button from 'primevue/button';
                 <template #title>
                     <div class="flex items-center gap-2">
                         <i class="pi pi-info-circle text-2xl text-blue-500"></i>
-                        <span>About IDM Metrics Collector</span>
+                        <span>Über IDM Metrics Collector</span>
                     </div>
                 </template>
                 <template #subtitle>
-                    Open Source Logger for IDM Heat Pumps
+                    Open Source Logger für IDM Wärmepumpen
                 </template>
                 <template #content>
                     <div class="space-y-6">
@@ -22,15 +22,15 @@ import Button from 'primevue/button';
                         <!-- Project Info -->
                         <div>
                             <p class="text-gray-700 dark:text-gray-300 mb-4">
-                                A comprehensive tool to log, visualize, and control IDM Heat Pumps via Modbus TCP.
-                                Built with modern web technologies for optimal performance on all devices.
+                                Ein umfassendes Tool zum Protokollieren, Visualisieren und Steuern von IDM-Wärmepumpen über Modbus TCP.
+                                Gebaut mit modernen Webtechnologien für optimale Leistung auf allen Geräten.
                             </p>
                             <div class="flex flex-wrap gap-2">
                                 <a href="https://github.com/Xerolux/idm-metrics-collector" target="_blank" rel="noopener">
                                     <Button label="GitHub Repository" icon="pi pi-github" severity="secondary" />
                                 </a>
                                 <a href="https://github.com/Xerolux/idm-metrics-collector/blob/main/LICENSE" target="_blank" rel="noopener">
-                                    <Button label="MIT License" icon="pi pi-file" severity="secondary" outlined />
+                                    <Button label="MIT Lizenz" icon="pi pi-file" severity="secondary" outlined />
                                 </a>
                             </div>
                         </div>
@@ -49,7 +49,7 @@ import Button from 'primevue/button';
 
                         <!-- Disclaimer -->
                         <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
-                            <h4 class="font-bold mb-1">Disclaimer / Haftungsausschluss</h4>
+                            <h4 class="font-bold mb-1">Haftungsausschluss / Disclaimer</h4>
                             <p class="italic">
                                 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
                                 INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -65,7 +65,7 @@ import Button from 'primevue/button';
                 </template>
                 <template #footer>
                     <div class="text-center text-xs text-gray-400">
-                        Made with <i class="pi pi-heart-fill text-red-500 mx-1" style="font-size: 0.7rem"></i> by xerolux
+                        Erstellt mit <i class="pi pi-heart-fill text-red-500 mx-1" style="font-size: 0.7rem"></i> von xerolux
                     </div>
                 </template>
             </Card>

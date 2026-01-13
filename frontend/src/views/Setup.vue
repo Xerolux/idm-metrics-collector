@@ -1,14 +1,14 @@
 <template>
     <div class="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4">
         <Card class="w-full max-w-2xl bg-gray-800 border-gray-700 text-white mb-auto mt-auto">
-            <template #title>Initial Setup</template>
+            <template #title>Ersteinrichtung</template>
             <template #content>
                 <div class="flex flex-col gap-6">
-                    <Message severity="info" :closable="false">Welcome to IDM Logger. Please configure your initial settings.</Message>
+                    <Message severity="info" :closable="false">Willkommen beim IDM Logger. Bitte konfiguriere die Grundeinstellungen.</Message>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="flex flex-col gap-2">
-                             <label class="font-bold text-blue-400">IDM Heat Pump</label>
+                             <label class="font-bold text-blue-400">IDM Wärmepumpe</label>
                              <div class="flex flex-col gap-2">
                                 <label>Host IP</label>
                                 <InputText v-model="form.idm_host" placeholder="192.168.x.x" />
@@ -19,21 +19,21 @@
                             </div>
 
                             <div class="flex flex-col gap-2">
-                                <label class="font-bold">Enabled Features</label>
+                                <label class="font-bold">Aktivierte Features</label>
                                 <div class="flex flex-col gap-2 p-2 border border-gray-700 rounded bg-gray-900/50">
                                     <div class="flex items-center gap-2">
                                         <Checkbox v-model="form.circuits" inputId="circuitA" value="A" disabled />
-                                        <label for="circuitA" class="opacity-50">Circuit A (Always On)</label>
+                                        <label for="circuitA" class="opacity-50">Heizkreis A (Immer aktiv)</label>
                                     </div>
                                     <div class="flex flex-wrap gap-4">
                                         <div v-for="c in ['B', 'C', 'D', 'E', 'F', 'G']" :key="c" class="flex items-center gap-2">
                                             <Checkbox v-model="form.circuits" :inputId="'circuit'+c" :value="c" />
-                                            <label :for="'circuit'+c">Circuit {{ c }}</label>
+                                            <label :for="'circuit'+c">Heizkreis {{ c }}</label>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="flex flex-col gap-2 p-2 border border-gray-700 rounded bg-gray-900/50">
-                                    <label class="text-sm text-gray-400">Zone Modules</label>
+                                    <label class="text-sm text-gray-400">Zonenmodule</label>
                                     <div class="flex flex-wrap gap-4">
                                         <div v-for="z in 10" :key="z" class="flex items-center gap-2">
                                             <Checkbox v-model="form.zones" :inputId="'zone'+(z-1)" :value="(z-1)" />
@@ -51,7 +51,7 @@
                                 <InputText v-model="form.influx_url" placeholder="http://localhost:8086" />
                             </div>
                             <div class="flex flex-col gap-2">
-                                <label>Organization</label>
+                                <label>Organisation</label>
                                 <InputText v-model="form.influx_org" />
                             </div>
                              <div class="flex flex-col gap-2">
@@ -66,16 +66,16 @@
                     </div>
 
                     <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
-                        <label class="font-bold text-red-400">Admin Security</label>
+                        <label class="font-bold text-red-400">Admin Sicherheit</label>
                         <div class="flex flex-col gap-2">
-                            <label>Admin Password</label>
-                            <InputText v-model="form.password" type="password" placeholder="Create a strong password" />
-                             <small class="text-gray-400">At least 6 characters.</small>
+                            <label>Admin Passwort</label>
+                            <InputText v-model="form.password" type="password" placeholder="Wähle ein sicheres Passwort" />
+                             <small class="text-gray-400">Mindestens 6 Zeichen.</small>
                         </div>
                     </div>
 
                     <div class="flex justify-end pt-4">
-                        <Button label="Complete Setup" icon="pi pi-check" @click="submitSetup" :loading="loading" />
+                        <Button label="Einrichtung abschließen" icon="pi pi-check" @click="submitSetup" :loading="loading" />
                     </div>
                 </div>
             </template>
@@ -117,7 +117,7 @@ const form = ref({
 
 const submitSetup = async () => {
     if (form.value.password.length < 6) {
-        toast.add({ severity: 'warn', summary: 'Invalid', detail: 'Password must be at least 6 characters', life: 3000 });
+        toast.add({ severity: 'warn', summary: 'Ungültig', detail: 'Passwort muss mindestens 6 Zeichen lang sein', life: 3000 });
         return;
     }
 
@@ -125,13 +125,13 @@ const submitSetup = async () => {
     try {
         const res = await axios.post('/api/setup', form.value);
         if (res.data.success) {
-            toast.add({ severity: 'success', summary: 'Success', detail: 'Setup complete', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Einrichtung abgeschlossen', life: 3000 });
             setTimeout(() => {
                 router.push('/login');
             }, 1000);
         }
     } catch (e) {
-        toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || e.message, life: 5000 });
+        toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || e.message, life: 5000 });
     } finally {
         loading.value = false;
     }

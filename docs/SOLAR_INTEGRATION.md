@@ -1,68 +1,68 @@
 # Solar / PV Integration
 
-You can integrate your Photovoltaic (PV) system with the iDM Heat Pump to optimize energy usage (PV Surplus charging).
+Du kannst dein Photovoltaik (PV) System mit der iDM Wärmepumpe integrieren, um den Energieverbrauch zu optimieren (PV-Überschussladen).
 
-## Prerequisites
+## Voraussetzungen
 
-*   A working PV system (inverter) that provides data via Modbus TCP, MQTT, or another API.
-*   `idm-logger` running and connected to your iDM Heat Pump.
-*   MQTT Broker (optional but recommended for easy integration).
+*   Ein funktionierendes PV-System (Wechselrichter), das Daten über Modbus TCP, MQTT oder eine andere API bereitstellt.
+*   `idm-logger` läuft und ist mit deiner iDM Wärmepumpe verbunden.
+*   MQTT Broker (optional, aber für eine einfache Integration empfohlen).
 
-## Registers
+## Register
 
-The iDM Heat Pump (Navigator 2.0) exposes specific registers for PV integration:
+Die iDM Wärmepumpe (Navigator 2.0) stellt spezifische Register für die PV-Integration bereit:
 
-| Register (Dec) | Name | Sensor Name | Unit | Type | Access | Description |
+| Register (Dez) | Name | Sensor Name | Einheit | Typ | Zugriff | Beschreibung |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **74** | Aktueller PV-Überschuss | `power_solar_surplus` | kW | Float32 | RW | Write the current PV surplus (feed-in) here. |
-| 78 | Aktuelle PV Produktion | `power_solar_production` | kW | Float32 | RW | Write current PV production. |
-| 82 | Hausverbrauch | `power_use_house` | kW | Float32 | RW | Write current house consumption. |
+| **74** | Aktueller PV-Überschuss | `power_solar_surplus` | kW | Float32 | RW | Schreibe hier den aktuellen PV-Überschuss (Einspeisung). |
+| 78 | Aktuelle PV Produktion | `power_solar_production` | kW | Float32 | RW | Schreibe die aktuelle PV-Produktion. |
+| 82 | Hausverbrauch | `power_use_house` | kW | Float32 | RW | Schreibe den aktuellen Hausverbrauch. |
 
-**Important:** The most critical register for optimizing heat pump operation is **74 (PV Surplus)**.
+**Wichtig:** Das wichtigste Register zur Optimierung des Wärmepumpenbetriebs ist **74 (PV-Überschuss)**.
 
-## How to use
+## Verwendung
 
-### Via MQTT (Recommended)
+### Via MQTT (Empfohlen)
 
-1.  **Enable MQTT** in your `config.yaml` or via the Web UI.
-2.  **Publish** the current PV surplus value (in kW) to the following topic:
+1.  **Aktiviere MQTT** in deiner `config.yaml` oder über die Weboberfläche.
+2.  **Veröffentliche (Publish)** den aktuellen PV-Überschusswert (in kW) auf folgendes Topic:
 
     ```
     idm/heatpump/power_solar_surplus/set
     ```
 
-    *   **Payload**: The value as a number (e.g., `2.5` for 2500 Watts).
-    *   **Unit**: Kilowatts (kW). If your inverter provides Watts, divide by 1000.
-    *   **Frequency**: You can update this every few seconds or minutes (e.g., every 10-60 seconds).
+    *   **Payload**: Der Wert als Zahl (z.B. `2.5` für 2500 Watt).
+    *   **Einheit**: Kilowatt (kW). Wenn dein Wechselrichter Watt liefert, teile durch 1000.
+    *   **Frequenz**: Du kannst diesen Wert alle paar Sekunden oder Minuten aktualisieren (z.B. alle 10-60 Sekunden).
 
-    **Example:**
+    **Beispiel:**
     ```bash
-    mosquitto_pub -h your_broker -t "idm/heatpump/power_solar_surplus/set" -m "3.2"
+    mosquitto_pub -h dein_broker -t "idm/heatpump/power_solar_surplus/set" -m "3.2"
     ```
 
-### Via Python Script (External)
+### Via Python Skript (Extern)
 
-If you prefer a direct Modbus connection or a custom script, you can write to register 74 directly.
+Wenn du eine direkte Modbus-Verbindung oder ein eigenes Skript bevorzugst, kannst du direkt auf Register 74 schreiben.
 
-*   **Address**: 74
-*   **Type**: Float32 (2 registers)
-*   **Byte Order**: Big Endian
-*   **Word Order**: Little Endian
+*   **Adresse**: 74
+*   **Typ**: Float32 (2 Register)
+*   **Byte-Reihenfolge**: Big Endian
+*   **Wort-Reihenfolge**: Little Endian
 
-*Note: The `idm-logger` handles the connection to the heat pump. If you use an external script to write via Modbus, ensure it doesn't conflict with the logger's connection limit (Modbus TCP usually allows multiple connections, but limited).*
+*Hinweis: Der `idm-logger` verwaltet die Verbindung zur Wärmepumpe. Wenn du ein externes Skript verwendest, um via Modbus zu schreiben, stelle sicher, dass es nicht mit dem Verbindungslimit des Loggers in Konflikt gerät (Modbus TCP erlaubt normalerweise mehrere Verbindungen, aber begrenzt).*
 
-### Logic
+### Logik
 
-*   **Surplus > 0**: The heat pump may increase its target temperature to store energy (if configured in Navigator settings).
-*   **Surplus = 0**: Normal operation.
+*   **Überschuss > 0**: Die Wärmepumpe kann ihre Zieltemperatur erhöhen, um Energie zu speichern (wenn in den Navigator-Einstellungen konfiguriert).
+*   **Überschuss = 0**: Normalbetrieb.
 
-## Configuration in iDM Navigator
+## Konfiguration im iDM Navigator
 
-Ensure your iDM Heat Pump is configured to use the PV signal:
-*   Go to **Photovoltaic** settings in the Navigator panel.
-*   Enable **PV signal** source (often called "GLT" or "Modbus TCP").
+Stelle sicher, dass deine iDM Wärmepumpe so konfiguriert ist, dass sie das PV-Signal verwendet:
+*   Gehe zu den **Photovoltaik** Einstellungen im Navigator-Panel.
+*   Aktiviere die **PV-Signal** Quelle (oft "GLT" oder "Modbus TCP" genannt).
 
-## Troubleshooting
+## Fehlerbehebung
 
-*   **Value not showing**: Check `idm-logger` logs. The sensor `power_solar_surplus` is write-only for reading purposes in some configurations (to avoid errors), so it might not appear in the standard read loop or InfluxDB unless you write to it.
-*   **Scaling**: Ensure you are sending **kW** (Kilowatts), not Watts. Sending `2500` instead of `2.5` will be interpreted as 2.5 MegaWatts!
+*   **Wert wird nicht angezeigt**: Prüfe die `idm-logger` Protokolle. Der Sensor `power_solar_surplus` ist in manchen Konfigurationen als "write-only" markiert (um Fehler beim Lesen zu vermeiden), daher erscheint er möglicherweise nicht in der Standard-Leseschleife oder InfluxDB, es sei denn, du schreibst darauf.
+*   **Skalierung**: Stelle sicher, dass du **kW** (Kilowatt) sendest, nicht Watt. Das Senden von `2500` anstatt `2.5` wird als 2,5 MegaWatt interpretiert!

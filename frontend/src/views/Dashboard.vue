@@ -3,8 +3,8 @@
          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 sm:gap-0">
             <h1 class="text-2xl font-bold">Dashboard</h1>
             <div class="flex gap-2">
-                 <Button label="Open Grafana" icon="pi pi-chart-line" @click="openGrafana" severity="secondary" />
-                 <Button label="Add Widget" icon="pi pi-plus" @click="openAddWidget" />
+                 <Button label="Grafana öffnen" icon="pi pi-chart-line" @click="openGrafana" severity="secondary" />
+                 <Button label="Widget hinzufügen" icon="pi pi-plus" @click="openAddWidget" />
             </div>
         </div>
 
@@ -23,11 +23,11 @@
             </div>
         </Teleport>
 
-        <Dialog v-model:visible="showAddWidget" header="Add Widget" :modal="true">
+        <Dialog v-model:visible="showAddWidget" header="Widget hinzufügen" :modal="true">
             <div class="flex flex-col gap-4 min-w-[300px]">
-                <label>Select Sensor</label>
-                <Dropdown v-model="selectedSensor" :options="sensorOptions" optionLabel="name" placeholder="Select a Sensor" filter />
-                <Button label="Add" @click="confirmAddWidget" :disabled="!selectedSensor" />
+                <label>Sensor wählen</label>
+                <Dropdown v-model="selectedSensor" :options="sensorOptions" optionLabel="name" placeholder="Wähle einen Sensor" filter />
+                <Button label="Hinzufügen" @click="confirmAddWidget" :disabled="!selectedSensor" />
             </div>
         </Dialog>
     </div>

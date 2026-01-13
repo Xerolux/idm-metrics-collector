@@ -1,38 +1,38 @@
 #!/bin/bash
 ################################################################################
-# IDM Metrics Collector - Installation Script
-# Supports: Docker and Docker Compose installations
+# IDM Metrics Collector - Installationsskript
+# Unterstützt: Docker und Docker Compose Installationen
 ################################################################################
 
-# Note: Not using 'set -e' to handle broken apt repositories gracefully
+# Hinweis: Kein 'set -e', um defekte apt-Repositories elegant zu behandeln
 
-# Colors for output
+# Farben für die Ausgabe
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m' # Keine Farbe
 
-# Variables
+# Variablen
 APP_NAME="idm-metrics-collector"
 INSTALL_DIR="/opt/${APP_NAME}"
 GITHUB_REPO="Xerolux/idm-metrics-collector"
 
-# Print functions
+# Ausgabefunktionen
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
 print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[ERFOLG]${NC} $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[WARNUNG]${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[FEHLER]${NC} $1"
 }
 
 print_header() {
@@ -43,34 +43,34 @@ print_header() {
     echo ""
 }
 
-# Check if running as root
+# Prüfe auf Root-Rechte
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        print_error "This script must be run as root (use sudo)"
+        print_error "Dieses Skript muss als Root ausgeführt werden (benutze sudo)"
         exit 1
     fi
 }
 
-# Detect OS
+# Betriebssystem erkennen
 detect_os() {
     if [[ -f /etc/os-release ]]; then
         . /etc/os-release
         OS=$ID
         VER=$VERSION_ID
-        print_info "Detected OS: $OS $VER"
+        print_info "Erkanntes OS: $OS $VER"
     else
-        print_error "Cannot detect OS. /etc/os-release not found."
+        print_error "Kann OS nicht erkennen. /etc/os-release nicht gefunden."
         exit 1
     fi
 }
 
-# Install basic dependencies
+# Grundlegende Abhängigkeiten installieren
 install_basic_dependencies() {
-    print_header "Installing Basic Dependencies"
+    print_header "Installiere grundlegende Abhängigkeiten"
 
     case $OS in
         ubuntu|debian)
-            # Check if required commands are available, skip if they exist
+            # Prüfen, ob erforderliche Befehle verfügbar sind, überspringen falls vorhanden
             local missing_packages=()
 
             for cmd in curl wget git; do
@@ -80,15 +80,15 @@ install_basic_dependencies() {
             done
 
             if [ ${#missing_packages[@]} -eq 0 ]; then
-                print_info "All required packages already installed"
+                print_info "Alle erforderlichen Pakete bereits installiert"
             else
-                print_info "Installing missing packages: ${missing_packages[*]}"
-                # Try to update, but don't fail if repos are broken
+                print_info "Installiere fehlende Pakete: ${missing_packages[*]}"
+                # Versuch zu aktualisieren, aber nicht abbrechen bei defekten Repos
                 apt-get update 2>&1 | head -n 1 || true
 
-                # Install missing packages one by one
+                # Fehlende Pakete einzeln installieren
                 for pkg in "${missing_packages[@]}"; do
-                    apt-get install -y $pkg 2>&1 | tail -n 5 || print_warning "Could not install $pkg (might already be present)"
+                    apt-get install -y $pkg 2>&1 | tail -n 5 || print_warning "Konnte $pkg nicht installieren (vielleicht schon vorhanden)"
                 done
             fi
             ;;
@@ -96,31 +96,31 @@ install_basic_dependencies() {
             yum install -y curl wget git ca-certificates 2>/dev/null || true
             ;;
         *)
-            print_error "Unsupported OS for automatic installation"
+            print_error "Nicht unterstütztes OS für automatische Installation"
             exit 1
             ;;
     esac
 
-    print_success "Basic dependencies ready"
+    print_success "Grundlegende Abhängigkeiten bereit"
 }
 
-# Install Docker
+# Docker installieren
 install_docker() {
-    print_header "Installing Docker"
+    print_header "Installiere Docker"
 
     if command -v docker &> /dev/null; then
-        print_info "Docker is already installed ($(docker --version))"
+        print_info "Docker ist bereits installiert ($(docker --version))"
         return 0
     fi
 
     case $OS in
         ubuntu|debian)
-            # Install Docker using official script
+            # Docker mit offiziellem Skript installieren
             curl -fsSL https://get.docker.com -o get-docker.sh
             sh get-docker.sh
             rm get-docker.sh
 
-            # Start and enable Docker
+            # Docker starten und aktivieren
             systemctl start docker
             systemctl enable docker
             ;;
@@ -130,31 +130,31 @@ install_docker() {
             systemctl enable docker
             ;;
         *)
-            print_error "Unsupported OS for Docker installation"
+            print_error "Nicht unterstütztes OS für Docker-Installation"
             exit 1
             ;;
     esac
 
-    print_success "Docker installed successfully ($(docker --version))"
+    print_success "Docker erfolgreich installiert ($(docker --version))"
 }
 
-# Install Docker Compose
+# Docker Compose installieren
 install_docker_compose() {
-    print_header "Installing Docker Compose"
+    print_header "Installiere Docker Compose"
 
-    # Check if docker compose plugin is available
+    # Prüfen ob docker compose plugin verfügbar ist
     if docker compose version &> /dev/null; then
-        print_info "Docker Compose plugin is already installed ($(docker compose version))"
+        print_info "Docker Compose Plugin ist bereits installiert ($(docker compose version))"
         return 0
     fi
 
-    # Check if standalone docker-compose is available
+    # Prüfen ob standalone docker-compose verfügbar ist
     if command -v docker-compose &> /dev/null; then
-        print_info "Docker Compose standalone is already installed ($(docker-compose --version))"
+        print_info "Docker Compose Standalone ist bereits installiert ($(docker-compose --version))"
         return 0
     fi
 
-    # Install Docker Compose plugin (preferred method)
+    # Docker Compose Plugin installieren (bevorzugte Methode)
     case $OS in
         ubuntu|debian)
             apt-get install -y docker-compose-plugin
@@ -163,8 +163,8 @@ install_docker_compose() {
             yum install -y docker-compose-plugin
             ;;
         *)
-            # Fallback: Install standalone docker-compose
-            print_info "Installing standalone Docker Compose..."
+            # Fallback: Standalone docker-compose installieren
+            print_info "Installiere Standalone Docker Compose..."
             DOCKER_COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
             curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
             chmod +x /usr/local/bin/docker-compose
@@ -172,59 +172,59 @@ install_docker_compose() {
             ;;
     esac
 
-    # Verify installation
+    # Installation verifizieren
     if docker compose version &> /dev/null; then
-        print_success "Docker Compose plugin installed successfully ($(docker compose version))"
+        print_success "Docker Compose Plugin erfolgreich installiert ($(docker compose version))"
     elif command -v docker-compose &> /dev/null; then
-        print_success "Docker Compose standalone installed successfully ($(docker-compose --version))"
+        print_success "Docker Compose Standalone erfolgreich installiert ($(docker-compose --version))"
     else
-        print_error "Failed to install Docker Compose"
+        print_error "Fehler bei der Installation von Docker Compose"
         exit 1
     fi
 }
 
-# Install with Docker (single container)
+# Installation mit Docker (Einzel-Container)
 install_docker_only() {
-    print_header "Installing ${APP_NAME} (Docker)"
+    print_header "Installiere ${APP_NAME} (Docker)"
 
-    # Install Docker
+    # Docker installieren
     install_docker
 
-    # Create working directory
+    # Arbeitsverzeichnis erstellen
     mkdir -p ${INSTALL_DIR}
     cd ${INSTALL_DIR}
 
-    # Clone repository
+    # Repository klonen
     if [[ -d "${INSTALL_DIR}/.git" ]]; then
-        print_info "Updating existing installation..."
+        print_info "Aktualisiere bestehende Installation..."
         git pull
     else
-        print_info "Cloning repository..."
+        print_info "Klone Repository..."
         git clone https://github.com/${GITHUB_REPO}.git .
     fi
 
-    # Copy example config if not exists
+    # Beispiel-Konfiguration kopieren falls nicht vorhanden
     if [[ ! -f config.yaml ]]; then
         cp config.yaml.example config.yaml
-        print_warning "Created default config at ${INSTALL_DIR}/config.yaml"
+        print_warning "Standard-Konfiguration erstellt unter ${INSTALL_DIR}/config.yaml"
     fi
 
-    # Stop and remove old container if exists
+    # Alten Container stoppen und entfernen falls vorhanden
     if docker ps -a | grep -q ${APP_NAME}; then
-        print_info "Removing old container..."
+        print_info "Entferne alten Container..."
         docker stop ${APP_NAME} 2>/dev/null || true
         docker rm ${APP_NAME} 2>/dev/null || true
     fi
 
-    # Pull image from GHCR
-    print_info "Pulling Docker image from GitHub Container Registry..."
+    # Image von GHCR pullen
+    print_info "Lade Docker Image von GitHub Container Registry..."
     docker pull ghcr.io/xerolux/${APP_NAME}:latest
 
-    # Create data directory
+    # Datenverzeichnis erstellen
     mkdir -p ${INSTALL_DIR}/data
 
-    # Create and start container
-    print_info "Starting container..."
+    # Container erstellen und starten
+    print_info "Starte Container..."
     docker run -d \
         --name ${APP_NAME} \
         --restart unless-stopped \
@@ -233,107 +233,107 @@ install_docker_only() {
         -v ${INSTALL_DIR}/data:/app/data \
         ghcr.io/xerolux/${APP_NAME}:latest
 
-    print_success "Docker installation complete"
+    print_success "Docker Installation abgeschlossen"
     print_info ""
-    print_info "Container status: docker ps | grep ${APP_NAME}"
+    print_info "Container Status: docker ps | grep ${APP_NAME}"
     print_info "Logs: docker logs -f ${APP_NAME}"
-    print_info "Configuration: ${INSTALL_DIR}/config.yaml"
+    print_info "Konfiguration: ${INSTALL_DIR}/config.yaml"
 }
 
-# Install with Docker Compose (full stack)
+# Installation mit Docker Compose (Full Stack)
 install_docker_compose_stack() {
-    print_header "Installing ${APP_NAME} (Docker Compose)"
+    print_header "Installiere ${APP_NAME} (Docker Compose)"
 
-    # Install Docker and Docker Compose
+    # Docker und Docker Compose installieren
     install_docker
     install_docker_compose
 
-    # Create working directory
+    # Arbeitsverzeichnis erstellen
     mkdir -p ${INSTALL_DIR}
     cd ${INSTALL_DIR}
 
-    # Clone repository
+    # Repository klonen
     if [[ -d "${INSTALL_DIR}/.git" ]]; then
-        print_info "Updating existing installation..."
+        print_info "Aktualisiere bestehende Installation..."
         git pull
     else
-        print_info "Cloning repository..."
+        print_info "Klone Repository..."
         git clone https://github.com/${GITHUB_REPO}.git .
     fi
 
-    # Copy example config if not exists
+    # Beispiel-Konfiguration kopieren falls nicht vorhanden
     if [[ ! -f config.yaml ]]; then
         cp config.yaml.example config.yaml 2>/dev/null || true
-        print_warning "Created default config at ${INSTALL_DIR}/config.yaml"
+        print_warning "Standard-Konfiguration erstellt unter ${INSTALL_DIR}/config.yaml"
     fi
 
-    # Generate secure token for new installations
-    print_header "Generating Secure Token"
-    print_info "Generating new InfluxDB authentication token..."
+    # Sicheren Token für neue Installationen generieren
+    print_header "Generiere Sicheren Token"
+    print_info "Generiere neuen InfluxDB Authentifizierungs-Token..."
 
     if [[ -f scripts/generate-token.sh ]]; then
         bash scripts/generate-token.sh
-        print_success "Token generated and applied to all configuration files"
+        print_success "Token generiert und auf alle Konfigurationsdateien angewendet"
     else
-        print_warning "Token generator not found, using default token"
-        print_warning "SECURITY WARNING: Please change the default token after installation!"
+        print_warning "Token-Generator nicht gefunden, verwende Standard-Token"
+        print_warning "SICHERHEITSWARNUNG: Bitte ändere das Standard-Token nach der Installation!"
     fi
 
-    # Stop existing stack
-    print_info "Stopping existing services..."
+    # Bestehenden Stack stoppen
+    print_info "Stoppe existierende Dienste..."
     docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
 
-    # Pull images from registries
-    print_info "Pulling Docker images from registries..."
+    # Images von Registries pullen
+    print_info "Lade Docker Images von Registries..."
     if docker compose version &> /dev/null; then
         docker compose pull
     else
         docker-compose pull
     fi
 
-    # Start stack
-    print_info "Starting Docker Compose stack..."
+    # Stack starten
+    print_info "Starte Docker Compose Stack..."
     if docker compose version &> /dev/null; then
         docker compose up -d
     else
         docker-compose up -d
     fi
 
-    print_success "Docker Compose installation complete"
+    print_success "Docker Compose Installation abgeschlossen"
     print_info ""
-    print_info "Services:"
+    print_info "Dienste:"
     print_info "  - Web UI:     http://$(hostname -I | awk '{print $1}'):5008 (Login: admin/admin)"
     print_info "  - Grafana:    http://$(hostname -I | awk '{print $1}'):3001 (Login: admin/admin)"
-    print_info "  - InfluxDB:   http://$(hostname -I | awk '{print $1}'):8181 (Database: idm, Query: SQL)"
+    print_info "  - InfluxDB:   http://$(hostname -I | awk '{print $1}'):8181 (Datenbank: idm, Query: SQL)"
     print_info ""
     print_info "InfluxDB v3 Token:"
-    # Extract token from docker-compose.yml
+    # Token aus docker-compose.yml extrahieren
     TOKEN=$(grep "INFLUX_TOKEN=" docker-compose.yml | head -1 | cut -d'=' -f2)
     print_warning "  ${TOKEN}"
     print_info ""
-    print_warning "IMPORTANT: Save your InfluxDB token securely!"
-    print_warning "You'll need it to configure additional clients or restore access."
+    print_warning "WICHTIG: Speichere deinen InfluxDB Token sicher!"
+    print_warning "Du wirst ihn benötigen, um weitere Clients zu konfigurieren oder den Zugriff wiederherzustellen."
     print_info ""
-    print_info "Useful commands:"
+    print_info "Nützliche Befehle:"
     print_info "  - Status:     cd ${INSTALL_DIR} && docker compose ps"
     print_info "  - Logs:       cd ${INSTALL_DIR} && docker compose logs -f"
     print_info "  - Stop:       cd ${INSTALL_DIR} && docker compose down"
     print_info "  - Restart:    cd ${INSTALL_DIR} && docker compose restart"
     print_info ""
-    print_info "Configuration: ${INSTALL_DIR}/config.yaml"
+    print_info "Konfiguration: ${INSTALL_DIR}/config.yaml"
 }
 
-# Show installation menu
+# Installationsmenü anzeigen
 show_menu() {
     print_header "IDM Metrics Collector - Installation"
 
-    echo "Please select installation method:"
+    echo "Bitte wähle eine Installationsmethode:"
     echo ""
-    echo "  1) Docker           - Single container (App only)"
-    echo "  2) Docker Compose   - Full stack (App + InfluxDB + Grafana) [RECOMMENDED]"
-    echo "  3) Exit"
+    echo "  1) Docker           - Einzelner Container (Nur App)"
+    echo "  2) Docker Compose   - Full Stack (App + InfluxDB + Grafana) [EMPFOHLEN]"
+    echo "  3) Beenden"
     echo ""
-    read -p "Enter your choice [1-3]: " choice
+    read -p "Gib deine Wahl ein [1-3]: " choice
 
     case $choice in
         1)
@@ -343,34 +343,34 @@ show_menu() {
             INSTALL_TYPE="docker_compose"
             ;;
         3)
-            print_info "Installation cancelled"
+            print_info "Installation abgebrochen"
             exit 0
             ;;
         *)
-            print_error "Invalid choice"
+            print_error "Ungültige Wahl"
             exit 1
             ;;
     esac
 }
 
-# Main installation
+# Hauptfunktion
 main() {
     clear
     print_header "IDM Metrics Collector Installer"
 
-    # Check root
+    # Root prüfen
     check_root
 
-    # Detect OS
+    # OS erkennen
     detect_os
 
-    # Install basic dependencies
+    # Grundlegende Abhängigkeiten installieren
     install_basic_dependencies
 
-    # Show menu
+    # Menü anzeigen
     show_menu
 
-    # Install based on choice
+    # Basierend auf Wahl installieren
     case $INSTALL_TYPE in
         docker)
             install_docker_only
@@ -380,30 +380,30 @@ main() {
             ;;
     esac
 
-    print_header "Installation Complete!"
+    print_header "Installation Abgeschlossen!"
 
     case $INSTALL_TYPE in
         docker)
-            echo -e "${GREEN}Next steps:${NC}"
-            echo "  1. Edit configuration: nano ${INSTALL_DIR}/config.yaml"
-            echo "  2. Restart container: docker restart ${APP_NAME}"
-            echo "  3. View logs: docker logs -f ${APP_NAME}"
+            echo -e "${GREEN}Nächste Schritte:${NC}"
+            echo "  1. Konfiguration bearbeiten: nano ${INSTALL_DIR}/config.yaml"
+            echo "  2. Container neustarten: docker restart ${APP_NAME}"
+            echo "  3. Logs ansehen: docker logs -f ${APP_NAME}"
             echo ""
             echo "Web UI: http://$(hostname -I | awk '{print $1}'):5000"
             ;;
         docker_compose)
-            echo -e "${GREEN}Access your services:${NC}"
+            echo -e "${GREEN}Zugriff auf deine Dienste:${NC}"
             echo "  - Web UI:   http://$(hostname -I | awk '{print $1}'):5008"
             echo "  - Grafana:  http://$(hostname -I | awk '{print $1}'):3001"
             echo "  - InfluxDB: http://$(hostname -I | awk '{print $1}'):8181"
             echo ""
-            echo -e "${YELLOW}IMPORTANT: Edit ${INSTALL_DIR}/config.yaml and set your heat pump IP address!${NC}"
-            echo "Then restart: cd ${INSTALL_DIR} && docker compose restart"
+            echo -e "${YELLOW}WICHTIG: Bearbeite ${INSTALL_DIR}/config.yaml und setze deine Wärmepumpen-IP!${NC}"
+            echo "Dann neustarten: cd ${INSTALL_DIR} && docker compose restart"
             ;;
     esac
 
     echo ""
 }
 
-# Run main
+# Main ausführen
 main

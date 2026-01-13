@@ -46,10 +46,10 @@ def login_required(view):
     def wrapped_view(**kwargs):
         if not session.get('logged_in'):
             if request.path.startswith('/api/'):
-                 return jsonify({"error": "Unauthorized"}), 401
+                 return jsonify({"error": "Nicht autorisiert"}), 401
             # For non-API routes (if any left), we could redirect, but we are SPA now
             # so usually we just return 401 and let frontend handle it.
-            return jsonify({"error": "Unauthorized"}), 401
+            return jsonify({"error": "Nicht autorisiert"}), 401
         return view(**kwargs)
     return wrapped_view
 
@@ -125,7 +125,7 @@ def inject_config():
 @app.route('/api/setup', methods=['POST'])
 def setup():
     if config.is_setup():
-        return jsonify({"error": "Already setup"}), 400
+        return jsonify({"error": "Bereits eingerichtet"}), 400
 
     data = request.get_json()
     try:
@@ -148,7 +148,7 @@ def setup():
         # Save Admin Password
         password = data.get('password')
         if not password or len(password) < 6:
-            return jsonify({"error": "Password must be at least 6 characters"}), 400
+            return jsonify({"error": "Passwort muss mindestens 6 Zeichen lang sein"}), 400
 
         config.set_admin_password(password)
 
@@ -158,7 +158,7 @@ def setup():
 
         config.save()
 
-        return jsonify({"success": True, "message": "Setup complete. Please restart service."})
+        return jsonify({"success": True, "message": "Einrichtung abgeschlossen. Bitte Dienst neu starten."})
 
     except Exception as e:
         logger.error(f"Setup error: {e}")
@@ -179,7 +179,7 @@ def login():
         login_attempts[ip] = [t for t in login_attempts[ip] if now - t < 300]
         if len(login_attempts[ip]) >= 5:
             logger.warning(f"Login rate limit exceeded for IP {ip}")
-            return jsonify({"success": False, "message": "Too many failed attempts. Try again later."}), 429
+            return jsonify({"success": False, "message": "Zu viele Fehlversuche. Versuch es später noch einmal."}), 429
 
     data = request.get_json()
     password = data.get('password')
@@ -199,7 +199,7 @@ def login():
         login_attempts[ip].append(now)
 
         logger.warning(f"Failed login attempt from {ip}")
-        return jsonify({"success": False, "message": "Invalid password"}), 401
+        return jsonify({"success": False, "message": "Ungültiges Passwort"}), 401
 
 @app.route('/api/auth/check')
 def check_auth():
@@ -259,7 +259,7 @@ def get_technician_code():
         return jsonify(codes)
     except Exception as e:
         logger.error(f"Error generating codes: {e}")
-        return jsonify({"error": "Failed to generate codes"}), 500
+        return jsonify({"error": "Fehler beim Generieren der Codes"}), 500
 
 @app.route('/api/config', methods=['GET', 'POST'])
 @login_required
@@ -309,9 +309,9 @@ def config_page():
                     if 1 <= port <= 65535:
                         config.data['idm']['port'] = port
                     else:
-                        return jsonify({"error": "Port must be between 1 and 65535"}), 400
+                        return jsonify({"error": "Port muss zwischen 1 und 65535 sein"}), 400
                 except ValueError:
-                    return jsonify({"error": "Invalid port number"}), 400
+                    return jsonify({"error": "Ungültige Portnummer"}), 400
 
             # Circuits and Zones
             if 'circuits' in data:
@@ -330,9 +330,9 @@ def config_page():
                     if 1 <= interval <= 3600:  # 1 second to 1 hour
                         config.data['logging']['interval'] = interval
                     else:
-                        return jsonify({"error": "Interval must be between 1 and 3600 seconds"}), 400
+                        return jsonify({"error": "Intervall muss zwischen 1 und 3600 Sekunden sein"}), 400
                 except ValueError:
-                    return jsonify({"error": "Invalid interval value"}), 400
+                    return jsonify({"error": "Ungültiger Intervallwert"}), 400
 
             # Realtime Mode
             if 'realtime_mode' in data:
@@ -359,9 +359,9 @@ def config_page():
                     if 1 <= port <= 65535:
                         config.data['mqtt']['port'] = port
                     else:
-                        return jsonify({"error": "MQTT port must be between 1 and 65535"}), 400
+                        return jsonify({"error": "MQTT Port muss zwischen 1 und 65535 sein"}), 400
                 except ValueError:
-                    return jsonify({"error": "Invalid MQTT port number"}), 400
+                    return jsonify({"error": "Ungültige MQTT Portnummer"}), 400
 
             if 'mqtt_username' in data:
                 config.data['mqtt']['username'] = data['mqtt_username']
@@ -388,9 +388,9 @@ def config_page():
                     if 1 <= interval <= 3600:
                         config.data['mqtt']['publish_interval'] = interval
                     else:
-                        return jsonify({"error": "MQTT publish interval must be between 1 and 3600 seconds"}), 400
+                        return jsonify({"error": "MQTT Publish-Intervall muss zwischen 1 und 3600 Sekunden sein"}), 400
                 except ValueError:
-                    return jsonify({"error": "Invalid MQTT publish interval"}), 400
+                    return jsonify({"error": "Ungültiges MQTT Publish-Intervall"}), 400
 
             if 'mqtt_qos' in data:
                 try:
@@ -398,9 +398,9 @@ def config_page():
                     if qos in [0, 1, 2]:
                         config.data['mqtt']['qos'] = qos
                     else:
-                        return jsonify({"error": "MQTT QoS must be 0, 1, or 2"}), 400
+                        return jsonify({"error": "MQTT QoS muss 0, 1, oder 2 sein"}), 400
                 except ValueError:
-                    return jsonify({"error": "Invalid MQTT QoS value"}), 400
+                    return jsonify({"error": "Ungültiger MQTT QoS Wert"}), 400
 
             # Network Security Settings
             if 'network_security_enabled' in data:
@@ -419,7 +419,7 @@ def config_page():
                         ipaddress.ip_network(entry, strict=False)
                         validated_whitelist.append(entry)
                     except ValueError:
-                        return jsonify({"error": f"Invalid whitelist entry: {entry}"}), 400
+                        return jsonify({"error": f"Ungültiger Whitelist-Eintrag: {entry}"}), 400
 
                 config.data['network_security']['whitelist'] = validated_whitelist
 
@@ -430,13 +430,13 @@ def config_page():
                     blacklist = [x.strip() for x in blacklist.split('\n') if x.strip()]
 
                 # Validate each entry
-                validated_blacklist = []
+                validated_whitelist = []
                 for entry in blacklist:
                     try:
                         ipaddress.ip_network(entry, strict=False)
                         validated_blacklist.append(entry)
                     except ValueError:
-                        return jsonify({"error": f"Invalid blacklist entry: {entry}"}), 400
+                        return jsonify({"error": f"Ungültiger Blacklist-Eintrag: {entry}"}), 400
 
                 config.data['network_security']['blacklist'] = validated_blacklist
 
@@ -444,12 +444,12 @@ def config_page():
             new_pass = data.get('new_password')
             if new_pass:
                 if len(new_pass) < 6:
-                    return jsonify({"error": "New password too short"}), 400
+                    return jsonify({"error": "Neues Passwort zu kurz"}), 400
                 config.set_admin_password(new_pass)
 
             # Save config
             config.save()
-            return jsonify({"success": True, "message": "Configuration saved. Restart required."})
+            return jsonify({"success": True, "message": "Konfiguration gespeichert. Neustart erforderlich."})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
@@ -469,7 +469,7 @@ def restart_service():
 
     threading.Thread(target=delayed_restart, daemon=True).start()
 
-    return jsonify({"success": True, "message": "Restarting service..."})
+    return jsonify({"success": True, "message": "Starte Dienst neu..."})
 
 @app.route('/api/version', methods=['GET'])
 def get_version():
@@ -527,7 +527,7 @@ def check_update():
                 "release_notes": release_notes
             })
         else:
-            return jsonify({"error": "Failed to check for updates"}), 500
+            return jsonify({"error": "Fehler beim Prüfen auf Updates"}), 500
 
     except Exception as e:
         logger.error(f"Error checking for updates: {e}")
@@ -604,7 +604,7 @@ def perform_update():
         # Start update in background
         threading.Thread(target=do_update, daemon=True).start()
 
-        return jsonify({"success": True, "message": "Update started"})
+        return jsonify({"success": True, "message": "Update gestartet"})
 
     except Exception as e:
         logger.error(f"Error starting update: {e}")
@@ -613,11 +613,11 @@ def perform_update():
 def validate_write(sensor_name, value):
     """Validates the value against sensor constraints."""
     if not modbus_client_instance:
-        return False, "Modbus client not available"
+        return False, "Modbus-Client nicht verfügbar"
 
     sensor = modbus_client_instance.sensors.get(sensor_name) or modbus_client_instance.binary_sensors.get(sensor_name)
     if not sensor:
-        return False, "Sensor not found"
+        return False, "Sensor nicht gefunden"
 
     # Enum validation
     if hasattr(sensor, "enum") and sensor.enum:
@@ -625,25 +625,25 @@ def validate_write(sensor_name, value):
             if str(value).isdigit():
                 val_int = int(value)
                 if val_int not in [m.value for m in sensor.enum]:
-                     return False, f"Value {value} is not a valid option"
+                     return False, f"Wert {value} ist keine gültige Option"
             else:
                  # Try key lookup
                  if value not in sensor.enum.__members__:
-                      return False, f"Option {value} not found"
+                      return False, f"Option {value} nicht gefunden"
         except (ValueError, KeyError, AttributeError, TypeError) as e:
              logger.debug(f"Enum validation failed for {sensor_name}: {e}")
-             return False, "Invalid enum value"
+             return False, "Ungültiger Enum-Wert"
 
     # Range validation
     elif hasattr(sensor, "min_value") and hasattr(sensor, "max_value"):
         try:
             val_float = float(value)
             if sensor.min_value is not None and val_float < sensor.min_value:
-                return False, f"Value {value} below minimum ({sensor.min_value})"
+                return False, f"Wert {value} unter Minimum ({sensor.min_value})"
             if sensor.max_value is not None and val_float > sensor.max_value:
-                return False, f"Value {value} above maximum ({sensor.max_value})"
+                return False, f"Wert {value} über Maximum ({sensor.max_value})"
         except ValueError:
-            return False, "Invalid number"
+            return False, "Ungültige Zahl"
 
     return True, None
 
@@ -651,7 +651,7 @@ def validate_write(sensor_name, value):
 @login_required
 def control_page():
     if not config.get("web.write_enabled"):
-        return jsonify({"error": "Write capabilities disabled"}), 403
+        return jsonify({"error": "Schreibzugriff deaktiviert"}), 403
 
     if request.method == 'POST':
         data = request.get_json()
@@ -665,9 +665,9 @@ def control_page():
         try:
             if modbus_client_instance:
                 modbus_client_instance.write_sensor(sensor_name, value)
-                return jsonify({"success": True, "message": f"Successfully wrote {value} to {sensor_name}"})
+                return jsonify({"success": True, "message": f"{value} erfolgreich auf {sensor_name} geschrieben"})
             else:
-                 return jsonify({"error": "Modbus client not available"}), 503
+                 return jsonify({"error": "Modbus-Client nicht verfügbar"}), 503
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
@@ -700,10 +700,10 @@ def control_page():
 @login_required
 def schedule_page():
     if not config.get("web.write_enabled"):
-         return jsonify({"error": "Write capabilities disabled"}), 403
+         return jsonify({"error": "Schreibzugriff deaktiviert"}), 403
 
     if not scheduler_instance:
-        return jsonify({"error": "Scheduler not available"}), 503
+        return jsonify({"error": "Scheduler nicht verfügbar"}), 503
 
     if request.method == 'POST':
         data = request.get_json()
@@ -726,21 +726,21 @@ def schedule_page():
                 }
                 if scheduler_instance:
                     scheduler_instance.add_job(job)
-                    return jsonify({"success": True, "message": "Schedule added"})
+                    return jsonify({"success": True, "message": "Zeitplan hinzugefügt"})
 
         elif action == 'delete':
             job_id = data.get('job_id')
             if scheduler_instance:
                 scheduler_instance.delete_job(job_id)
-                return jsonify({"success": True, "message": "Schedule deleted"})
+                return jsonify({"success": True, "message": "Zeitplan gelöscht"})
 
         elif action == 'toggle':
              job_id = data.get('job_id')
              current_state = data.get('current_state')
              if scheduler_instance:
                   scheduler_instance.update_job(job_id, {'enabled': not current_state})
-                  state_text = "paused" if current_state else "resumed"
-                  return jsonify({"success": True, "message": f"Schedule {state_text}"})
+                  state_text = "pausiert" if current_state else "fortgesetzt"
+                  return jsonify({"success": True, "message": f"Zeitplan {state_text}"})
 
         elif action == 'run_now':
              job_id = data.get('job_id')
@@ -749,13 +749,13 @@ def schedule_page():
                  if job and modbus_client_instance:
                      try:
                          modbus_client_instance.write_sensor(job['sensor'], job['value'])
-                         return jsonify({"success": True, "message": f"Executed: {job['sensor']} = {job['value']}"})
+                         return jsonify({"success": True, "message": f"Ausgeführt: {job['sensor']} = {job['value']}"})
                      except Exception as e:
                          return jsonify({"error": str(e)}), 500
                  else:
-                     return jsonify({"error": "Job not found or system unavailable"}), 404
+                     return jsonify({"error": "Job nicht gefunden oder System nicht verfügbar"}), 404
 
-        return jsonify({"error": "Invalid action"}), 400
+        return jsonify({"error": "Ungültige Aktion"}), 400
 
     jobs = scheduler_instance.jobs if scheduler_instance else []
 
@@ -824,12 +824,12 @@ def download_backup(filename):
     """Download a backup file."""
     # Security check
     if ".." in filename or "/" in filename or "\\" in filename:
-        return jsonify({"error": "Invalid filename"}), 400
+        return jsonify({"error": "Ungültiger Dateiname"}), 400
 
     backup_path = Path(backup_manager.BACKUP_DIR) / filename
 
     if not backup_path.exists():
-        return jsonify({"error": "Backup not found"}), 404
+        return jsonify({"error": "Backup nicht gefunden"}), 404
 
     try:
         return send_file(
@@ -853,7 +853,7 @@ def restore_backup():
         filename = data.get('filename')
 
         if not filename:
-            return jsonify({"error": "No backup file specified"}), 400
+            return jsonify({"error": "Keine Backup-Datei angegeben"}), 400
 
         # Restore from existing backup
         backup_path = Path(backup_manager.BACKUP_DIR) / filename
@@ -861,7 +861,7 @@ def restore_backup():
         # Handle uploaded file
         file = request.files['file']
         if file.filename == '':
-            return jsonify({"error": "No file selected"}), 400
+            return jsonify({"error": "Keine Datei ausgewählt"}), 400
 
         # Save uploaded file temporarily
         temp_path = Path(backup_manager.BACKUP_DIR) / f"temp_{file.filename}"
@@ -915,12 +915,12 @@ def export_influx_config():
 def delete_database():
     """Delete all data from the database."""
     if not influx_writer_instance:
-        return jsonify({"error": "InfluxDB not available"}), 503
+        return jsonify({"error": "InfluxDB nicht verfügbar"}), 503
 
     if influx_writer_instance.delete_all_data():
-        return jsonify({"success": True, "message": "Database deleted successfully"}), 200
+        return jsonify({"success": True, "message": "Datenbank erfolgreich gelöscht"}), 200
     else:
-        return jsonify({"error": "Failed to delete database"}), 500
+        return jsonify({"error": "Fehler beim Löschen der Datenbank"}), 500
 
 
 def set_influx_writer(writer):

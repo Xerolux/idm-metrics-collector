@@ -22,7 +22,7 @@ const handleLogin = async () => {
     if (success) {
         router.push('/');
     } else {
-        error.value = 'Invalid password';
+        error.value = 'Ungültiges Passwort';
     }
 };
 </script>
@@ -34,7 +34,7 @@ const handleLogin = async () => {
             <template #content>
                 <div class="flex flex-col gap-4">
                     <div class="flex flex-col gap-2">
-                        <label for="password">Password</label>
+                        <label for="password">Passwort</label>
                         <InputText id="password" v-model="password" type="password" @keyup.enter="handleLogin" />
                     </div>
                     <Message v-if="error" severity="error">{{ error }}</Message>

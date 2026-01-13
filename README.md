@@ -10,28 +10,28 @@
 [![Buy Me A Coffee][buymeacoffee-badge]][buymeacoffee]
 [![Tesla](https://img.shields.io/badge/Tesla-Referral-red?style=for-the-badge&logo=tesla)](https://ts.la/sebastian564489)
 
-A comprehensive monitoring and control system for IDM Heat Pumps (Navigator 2.0) with InfluxDB v3 metrics storage and Grafana visualization.
+Ein umfassendes Überwachungs- und Steuerungssystem für IDM Wärmepumpen (Navigator 2.0) mit InfluxDB v3 Metrik-Speicherung und Grafana-Visualisierung.
 
-## Features
+## Funktionen
 
-*   **Docker-First**: Optimized for Docker and Docker Compose deployments
-*   **Zero-Config Setup**: Complete stack with InfluxDB v3 and Grafana pre-configured
-*   **Automated Installer**: One command installation handles everything
-*   **Data Source**: Reads from IDM Heat Pump via Modbus TCP
-*   **Data Sink**: InfluxDB v3 Core with SQL query support
-*   **Web Interface**: Modern dashboard for live data, configuration, manual control, and scheduling
-*   **Automation**: Built-in scheduler to write values (e.g., temperatures) at specific times
-*   **Production Ready**: Health checks, automatic restarts, persistent data
+*   **Docker-First**: Optimiert für Docker und Docker Compose Deployments
+*   **Zero-Config Setup**: Vollständiger Stack mit InfluxDB v3 und Grafana vorkonfiguriert
+*   **Automatischer Installer**: Ein-Befehl-Installation erledigt alles
+*   **Datenquelle**: Liest von der IDM Wärmepumpe via Modbus TCP
+*   **Datensenke**: InfluxDB v3 Core mit SQL-Abfrage-Unterstützung
+*   **Weboberfläche**: Modernes Dashboard für Live-Daten, Konfiguration, manuelle Steuerung und Zeitplanung
+*   **Automatisierung**: Eingebauter Zeitplaner, um Werte (z.B. Temperaturen) zu bestimmten Zeiten zu schreiben
+*   **Produktionsbereit**: Health Checks, automatische Neustarts, persistente Daten
 
-## Quick Start
+## Schnellstart
 
-### One-Command Installation
+### Ein-Befehl-Installation
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Xerolux/idm-metrics-collector/main/install.sh | sudo bash
 ```
 
-Or clone and run:
+Oder klonen und ausführen:
 
 ```bash
 git clone https://github.com/Xerolux/idm-metrics-collector.git
@@ -40,88 +40,88 @@ sudo chmod +x install.sh
 sudo ./install.sh
 ```
 
-The installer will:
-1. Detect your OS and install Docker/Docker Compose
-2. Install required dependencies (git, curl, etc.)
-3. Ask you to choose installation method:
-   - **Docker**: Single container deployment (App only)
-   - **Docker Compose**: Complete stack (App + InfluxDB + Grafana) **[RECOMMENDED]**
-4. Clone repository, build images, and start all services
+Der Installer wird:
+1. Dein Betriebssystem erkennen und Docker/Docker Compose installieren
+2. Erforderliche Abhängigkeiten installieren (git, curl, usw.)
+3. Dich bitten, die Installationsmethode zu wählen:
+   - **Docker**: Einzelner Container (nur die App)
+   - **Docker Compose**: Kompletter Stack (App + InfluxDB + Grafana) **[EMPFOHLEN]**
+4. Repository klonen, Images bauen und alle Dienste starten
 
-### Installation Methods
+### Installationsmethoden
 
-#### Option 1: Docker (Single Container)
+#### Option 1: Docker (Einzelner Container)
 
-Best for: Connecting to existing InfluxDB instance
+Am besten für: Verbindung zu einer bestehenden InfluxDB-Instanz
 
 ```bash
 sudo ./install.sh
-# Choose option 1: Docker
+# Wähle Option 1: Docker
 ```
 
-After installation:
+Nach der Installation:
 ```bash
-# Edit configuration
+# Konfiguration bearbeiten
 sudo nano /opt/idm-metrics-collector/config.yaml
 
-# Restart container
+# Container neustarten
 docker restart idm-metrics-collector
 
-# View logs
+# Logs anzeigen
 docker logs -f idm-metrics-collector
 ```
 
-#### Option 2: Docker Compose (Full Stack) **[RECOMMENDED]**
+#### Option 2: Docker Compose (Full Stack) **[EMPFOHLEN]**
 
-Best for: Complete turnkey solution with monitoring
+Am besten für: Komplette schlüsselfertige Lösung mit Monitoring
 
 ```bash
 sudo ./install.sh
-# Choose option 2: Docker Compose
+# Wähle Option 2: Docker Compose
 ```
 
-This installs:
+Dies installiert:
 - **IDM Metrics Collector** (Web UI + API)
-- **InfluxDB v3 Core** (Time-series database with SQL support)
-- **Grafana** (Visualization platform with InfluxDB v3 integration)
+- **InfluxDB v3 Core** (Zeitreihendatenbank mit SQL-Support)
+- **Grafana** (Visualisierungsplattform mit InfluxDB v3 Integration)
 
-All services are pre-configured and ready to use!
+Alle Dienste sind vorkonfiguriert und einsatzbereit!
 
-After installation:
+Nach der Installation:
 ```bash
-# Edit configuration (set your heat pump IP)
+# Konfiguration bearbeiten (setze deine Wärmepumpen-IP)
 sudo nano /opt/idm-metrics-collector/config.yaml
 
-# Restart stack
+# Stack neustarten
 cd /opt/idm-metrics-collector && docker compose restart
 ```
 
-## Accessing Services
+## Zugriff auf die Dienste
 
-### After Installation
+### Nach der Installation
 
 **Web UI** (IDM Metrics Collector)
-- URL (Docker Compose default): `http://your-server-ip:5008`
-- URL (single container default): `http://your-server-ip:5000`
-- Default Login: `admin` / `admin` (change after first login)
-- Features: Live dashboard, control panel, scheduling, configuration
+- URL (Docker Compose Standard): `http://dein-server-ip:5008`
+- URL (Einzelner Container Standard): `http://dein-server-ip:5000`
+- Standard-Login: `admin` / `admin` (bitte nach dem ersten Login ändern)
+- Funktionen: Live-Dashboard, Bedienfeld, Zeitplaner, Konfiguration
 
-**Grafana** (Docker Compose only)
-- URL: `http://your-server-ip:3001`
-- Default Login: `admin` / `admin`
-- Pre-configured with InfluxDB datasource and IDM dashboard
+**Grafana** (nur Docker Compose)
+- URL: `http://dein-server-ip:3001`
+- Standard-Login: `admin` / `admin`
+- Vorkonfiguriert mit InfluxDB Datenquelle und IDM Dashboard
 
-**InfluxDB v3** (Docker Compose only)
-- URL: `http://your-server-ip:8181`
-- Default Configuration:
-  - Database: `idm`
+**InfluxDB v3** (nur Docker Compose)
+- URL: `http://dein-server-ip:8181`
+- Standard-Konfiguration:
+  - Datenbank: `idm`
   - Token: `my-super-secret-token-change-me`
-  - Query Language: SQL (replaces Flux from v2)
-  - Note: Database is auto-created on first write
+  - Abfragesprache: SQL (ersetzt Flux aus v2)
+  - Hinweis: Datenbank wird beim ersten Schreibvorgang automatisch erstellt
 
 ### Docker Image (GHCR)
 
-Pre-built images are available from GitHub Container Registry:
+Vorgebaute Images sind über die GitHub Container Registry verfügbar:
 
 ```bash
 docker pull ghcr.io/xerolux/idm-metrics-collector:latest
@@ -130,21 +130,21 @@ docker run --rm -p 5000:5000 \
   ghcr.io/xerolux/idm-metrics-collector:latest
 ```
 
-Images are automatically built on:
-- Pushes to `main` branch (tagged as `latest`)
-- Git tags starting with `v` (e.g., `v1.0.0`)
+Images werden automatisch gebaut bei:
+- Pushes auf den `main` Branch (getaggt als `latest`)
+- Git Tags, die mit `v` beginnen (z.B. `v1.0.0`)
 
-## Configuration
+## Konfiguration
 
-Configuration file location: `/opt/idm-metrics-collector/config.yaml`
+Pfad zur Konfigurationsdatei: `/opt/idm-metrics-collector/config.yaml`
 
-Example:
+Beispiel:
 
 ```yaml
 idm:
-  host: "192.168.1.100"  # IP of your IDM Heat Pump
+  host: "192.168.1.100"  # IP deiner IDM Wärmepumpe
   port: 502              # Modbus Port
-  circuits: ["A"]        # Enabled heating circuits
+  circuits: ["A"]        # Aktivierte Heizkreise
 
 influx:
   url: "http://localhost:8181"
@@ -154,54 +154,54 @@ influx:
 web:
   enabled: true
   port: 5000
-  admin_password: "admin" # Password for login
-  write_enabled: false    # Enable writing to heat pump (Control/Schedule)
+  admin_password: "admin" # Passwort für Login
+  write_enabled: false    # Schreiben auf die Wärmepumpe erlauben (Steuerung/Zeitplan)
 
 logging:
-  interval: 60           # Seconds between reads
+  interval: 60           # Sekunden zwischen den Lesezyklen
   level: "INFO"
 ```
 
-## Web Interface
+## Weboberfläche
 
-Access the web interface at `http://<your-server-ip>:5008` when using Docker Compose, or `http://<your-server-ip>:5000` for the single-container setup.
+Zugriff auf die Weboberfläche unter `http://<deine-server-ip>:5008` bei Verwendung von Docker Compose, oder `http://<deine-server-ip>:5000` für das Einzel-Container-Setup.
 
-*   **Login**: The interface is protected by a password (default: `admin`).
+*   **Login**: Die Oberfläche ist durch ein Passwort geschützt (Standard: `admin`).
     ![Login](docs/images/login.png)
 
-*   **Live Dashboard**: Shows categorized sensor values with auto-refresh and customizable widgets.
+*   **Live Dashboard**: Zeigt kategorisierte Sensorwerte mit automatischer Aktualisierung und anpassbaren Widgets.
     ![Dashboard](docs/images/dashboard.png)
 
-*   **Control**: (If enabled) Write values to writable sensors.
+*   **Steuerung**: (Wenn aktiviert) Schreibe Werte auf beschreibbare Sensoren.
     ![Control](docs/images/control.png)
 
-*   **Schedule**: (If enabled) Automate setting values based on time and day.
+*   **Zeitplan**: (Wenn aktiviert) Automatisiere das Setzen von Werten basierend auf Zeit und Tag.
     ![Schedule](docs/images/schedule.png)
 
-*   **Configuration**:
-    *   **General**: Configure IDM connection, InfluxDB, and logging.
+*   **Konfiguration**:
+    *   **Allgemein**: Konfiguriere IDM Verbindung, InfluxDB und Logging.
         ![Config General](docs/images/config_general.png)
-    *   **MQTT**: Setup MQTT publishing and Home Assistant discovery.
+    *   **MQTT**: Richte MQTT Publishing und Home Assistant Discovery ein.
         ![Config MQTT](docs/images/config_mqtt.png)
-    *   **Tools**: Generate technician codes and manage database.
+    *   **Tools**: Generiere Technikercodes und verwalte die Datenbank.
         ![Config Tools](docs/images/config_tools.png)
 
-*   **Logs**: View live system logs.
+*   **Protokolle**: Siehe Live-Systemprotokolle ein.
     ![Logs](docs/images/logs.png)
 
-*   **Solar Integration**: Write PV surplus to the heat pump via MQTT. See [SOLAR_INTEGRATION.md](docs/SOLAR_INTEGRATION.md).
+*   **Solar-Integration**: Schreibe PV-Überschuss via MQTT auf die Wärmepumpe. Siehe [SOLAR_INTEGRATION.md](docs/SOLAR_INTEGRATION.md).
 
-## Usage & Disclaimer
+## Nutzung & Haftungsausschluss
 
-Use this project as-is and at your own risk. Ensure you understand the implications of reading from or writing to your heat pump before enabling control features.
+Verwende dieses Projekt so wie es ist und auf eigenes Risiko. Stelle sicher, dass du die Auswirkungen des Lesens von oder Schreibens auf deine Wärmepumpe verstehst, bevor du Steuerungsfunktionen aktivierst.
 
-## License
+## Lizenz
 
-MIT License. See [LICENSE](LICENSE).
+MIT Lizenz. Siehe [LICENSE](LICENSE).
 
 ---
 
-This project is not affiliated with or endorsed by IDM Energiesysteme GmbH and is provided independently.
+Dieses Projekt steht in keiner Verbindung zu IDM Energiesysteme GmbH und wird unabhängig bereitgestellt.
 
 <!-- Badge Links -->
 [releases-shield]: https://img.shields.io/github/release/xerolux/idm-metrics-collector.svg?style=for-the-badge
