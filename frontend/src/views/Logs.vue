@@ -1,6 +1,6 @@
 <template>
     <div class="p-4 flex flex-col gap-4">
-        <h1 class="text-2xl font-bold mb-4">System Logs</h1>
+        <h1 class="text-2xl font-bold mb-4">Systemprotokolle</h1>
 
         <div v-if="loading" class="flex justify-center">
              <i class="pi pi-spin pi-spinner text-4xl"></i>
@@ -39,7 +39,7 @@ const fetchLogs = async () => {
         const res = await axios.get('/api/logs');
         logs.value = res.data;
     } catch (e) {
-        console.error("Failed to fetch logs", e);
+        console.error("Protokolle konnten nicht abgerufen werden", e);
     } finally {
         loading.value = false;
     }

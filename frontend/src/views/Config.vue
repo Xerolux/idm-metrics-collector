@@ -1,6 +1,6 @@
 <template>
     <div class="p-4 flex flex-col gap-4">
-        <h1 class="text-2xl font-bold mb-4">Configuration</h1>
+        <h1 class="text-2xl font-bold mb-4">Konfiguration</h1>
 
         <div v-if="loading" class="flex justify-center">
             <i class="pi pi-spin pi-spinner text-4xl"></i>
@@ -8,10 +8,10 @@
 
         <div v-else>
             <TabView>
-                <TabPanel header="General">
+                <TabPanel header="Allgemein">
                     <div class="flex flex-col gap-6">
                         <Card class="bg-gray-800 text-white">
-                            <template #title>IDM Heat Pump</template>
+                            <template #title>IDM Wärmepumpe</template>
                             <template #content>
                                 <div class="flex flex-col gap-4">
                                     <div class="flex flex-col gap-2">
@@ -24,21 +24,21 @@
                                     </div>
 
                                     <div class="flex flex-col gap-2">
-                                        <label class="font-bold">Enabled Features</label>
+                                        <label class="font-bold">Aktivierte Features</label>
                                         <div class="flex flex-col gap-2 p-2 border border-gray-700 rounded bg-gray-900/50">
                                             <div class="flex items-center gap-2">
                                                 <Checkbox v-model="config.idm.circuits" inputId="circuitA" value="A" disabled />
-                                                <label for="circuitA" class="opacity-50">Circuit A (Always On)</label>
+                                                <label for="circuitA" class="opacity-50">Heizkreis A (Immer aktiv)</label>
                                             </div>
                                             <div class="flex flex-wrap gap-4">
                                                 <div v-for="c in ['B', 'C', 'D', 'E', 'F', 'G']" :key="c" class="flex items-center gap-2">
                                                     <Checkbox v-model="config.idm.circuits" :inputId="'circuit'+c" :value="c" />
-                                                    <label :for="'circuit'+c">Circuit {{ c }}</label>
+                                                    <label :for="'circuit'+c">Heizkreis {{ c }}</label>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="flex flex-col gap-2 p-2 border border-gray-700 rounded bg-gray-900/50">
-                                            <label class="text-sm text-gray-400">Zone Modules</label>
+                                            <label class="text-sm text-gray-400">Zonenmodule</label>
                                             <div class="flex flex-wrap gap-4">
                                                 <div v-for="z in 10" :key="z" class="flex items-center gap-2">
                                                     <Checkbox v-model="config.idm.zones" :inputId="'zone'+(z-1)" :value="(z-1)" />
@@ -60,7 +60,7 @@
                                         <InputText v-model="config.influx.url" />
                                     </div>
                                     <div class="flex flex-col gap-2">
-                                        <label>Organization</label>
+                                        <label>Organisation</label>
                                         <InputText v-model="config.influx.org" />
                                     </div>
                                     <div class="flex flex-col gap-2">
@@ -73,19 +73,19 @@
                     </div>
                 </TabPanel>
 
-                <TabPanel header="Collection">
+                <TabPanel header="Datenerfassung">
                     <Card class="bg-gray-800 text-white">
-                        <template #title>Data Collection</template>
+                        <template #title>Datenerfassung</template>
                         <template #content>
                             <div class="flex flex-col gap-4">
                                 <div class="flex items-center gap-2">
                                     <Checkbox v-model="config.logging.realtime_mode" binary inputId="realtime_mode" />
-                                    <label for="realtime_mode">Realtime Mode (1 second interval)</label>
+                                    <label for="realtime_mode">Echtzeit-Modus (1 Sekunden Intervall)</label>
                                 </div>
                                 <div class="flex flex-col gap-2" v-if="!config.logging.realtime_mode">
-                                    <label>Polling Interval (seconds)</label>
+                                    <label>Abfrage-Intervall (Sekunden)</label>
                                     <InputNumber v-model="config.logging.interval" :min="1" :max="3600" :useGrouping="false" />
-                                    <small class="text-gray-400">How often to read data from heat pump (1-3600 seconds)</small>
+                                    <small class="text-gray-400">Wie oft Daten von der Wärmepumpe gelesen werden (1-3600 Sekunden)</small>
                                 </div>
                             </div>
                         </template>
@@ -104,36 +104,36 @@
                             <div class="flex flex-col gap-4">
                                 <div class="flex items-center gap-2">
                                     <Checkbox v-model="config.mqtt.enabled" binary inputId="mqtt_enabled" />
-                                    <label for="mqtt_enabled" class="font-bold">Enable MQTT Publishing</label>
+                                    <label for="mqtt_enabled" class="font-bold">MQTT Publishing aktivieren</label>
                                 </div>
 
                                 <div v-if="config.mqtt.enabled" class="flex flex-col gap-4 p-3 border border-blue-600 rounded bg-blue-900/10">
                                     <div class="flex flex-col gap-2">
-                                        <label>Broker Address</label>
+                                        <label>Broker Adresse</label>
                                         <InputText v-model="config.mqtt.broker" placeholder="mqtt.example.com" />
                                     </div>
 
                                     <div class="flex flex-col gap-2">
                                         <label>Port</label>
                                         <InputNumber v-model="config.mqtt.port" :useGrouping="false" :min="1" :max="65535" />
-                                        <small class="text-gray-400">Default: 1883 (non-TLS) or 8883 (TLS)</small>
+                                        <small class="text-gray-400">Standard: 1883 (ohne TLS) oder 8883 (TLS)</small>
                                     </div>
 
                                     <div class="flex flex-col gap-2">
-                                        <label>Username (Optional)</label>
+                                        <label>Benutzername (Optional)</label>
                                         <InputText v-model="config.mqtt.username" placeholder="Optional" />
                                     </div>
 
                                     <div class="flex flex-col gap-2">
-                                        <label>Password (Optional)</label>
-                                        <InputText v-model="mqttPassword" type="password" placeholder="Leave empty to keep current" />
-                                        <small class="text-gray-400">Only updated if provided</small>
+                                        <label>Passwort (Optional)</label>
+                                        <InputText v-model="mqttPassword" type="password" placeholder="Leer lassen um aktuelles zu behalten" />
+                                        <small class="text-gray-400">Wird nur aktualisiert wenn angegeben</small>
                                     </div>
 
                                     <div class="flex flex-col gap-2">
-                                        <label>Topic Prefix</label>
+                                        <label>Topic Präfix</label>
                                         <InputText v-model="config.mqtt.topic_prefix" placeholder="idm/heatpump" />
-                                        <small class="text-gray-400">Topics will be: {prefix}/{sensor_name}</small>
+                                        <small class="text-gray-400">Topics sind: {prefix}/{sensor_name}</small>
                                     </div>
 
                                     <div class="p-3 border border-green-600 rounded bg-green-900/10 flex flex-col gap-3">
@@ -143,12 +143,12 @@
                                         </div>
                                         <div class="flex items-center gap-2">
                                             <Checkbox v-model="config.mqtt.ha_discovery_enabled" binary inputId="ha_discovery_enabled" />
-                                            <label for="ha_discovery_enabled">Enable Home Assistant Discovery</label>
+                                            <label for="ha_discovery_enabled">Home Assistant Discovery aktivieren</label>
                                         </div>
                                         <div class="flex flex-col gap-2" v-if="config.mqtt.ha_discovery_enabled">
-                                            <label>Discovery Prefix</label>
+                                            <label>Discovery Präfix</label>
                                             <InputText v-model="config.mqtt.ha_discovery_prefix" placeholder="homeassistant" />
-                                            <small class="text-gray-400">Default: homeassistant</small>
+                                            <small class="text-gray-400">Standard: homeassistant</small>
                                         </div>
                                     </div>
 
@@ -163,13 +163,13 @@
 
                                     <div class="flex items-center gap-2">
                                         <Checkbox v-model="config.mqtt.use_tls" binary inputId="mqtt_use_tls" />
-                                        <label for="mqtt_use_tls">Use TLS/SSL encryption</label>
+                                        <label for="mqtt_use_tls">TLS/SSL Verschlüsselung nutzen</label>
                                     </div>
 
                                     <div class="flex flex-col gap-2">
-                                        <label>Publish Interval (seconds)</label>
+                                        <label>Publish Intervall (Sekunden)</label>
                                         <InputNumber v-model="config.mqtt.publish_interval" :min="1" :max="3600" :useGrouping="false" />
-                                        <small class="text-gray-400">How often to publish sensor data (1-3600 seconds)</small>
+                                        <small class="text-gray-400">Wie oft Sensordaten veröffentlicht werden (1-3600 Sekunden)</small>
                                     </div>
                                 </div>
                             </div>
@@ -177,14 +177,14 @@
                     </Card>
                 </TabPanel>
 
-                <TabPanel header="Security">
+                <TabPanel header="Sicherheit">
                     <div class="flex flex-col gap-6">
                         <Card class="bg-gray-800 text-white">
-                            <template #title>Admin Security</template>
+                            <template #title>Admin Sicherheit</template>
                             <template #content>
                                 <div class="flex flex-col gap-4">
                                     <div class="flex flex-col gap-2">
-                                        <label>New Password</label>
+                                        <label>Neues Passwort</label>
                                         <InputText v-model="newPassword" type="password" />
                                     </div>
                                 </div>
@@ -195,25 +195,25 @@
                             <template #title>
                                 <div class="flex items-center gap-2">
                                     <i class="pi pi-shield text-yellow-400"></i>
-                                    <span>Network Access Control</span>
+                                    <span>Netzwerkzugriffskontrolle</span>
                                 </div>
                             </template>
                             <template #content>
                                 <div class="flex flex-col gap-4">
                                     <div class="flex items-center gap-2">
                                         <Checkbox v-model="config.network_security.enabled" binary inputId="network_security_enabled" />
-                                        <label for="network_security_enabled" class="font-bold">Enable IP-based Access Control</label>
+                                        <label for="network_security_enabled" class="font-bold">IP-basierte Zugriffskontrolle aktivieren</label>
                                     </div>
 
                                     <div v-if="config.network_security.enabled" class="flex flex-col gap-4 p-3 border border-yellow-600 rounded bg-yellow-900/10">
                                         <div class="flex items-start gap-2 text-yellow-400">
                                             <i class="pi pi-exclamation-triangle mt-1"></i>
-                                            <small>Warning: Make sure your IP is whitelisted before enabling, or you will be locked out!</small>
+                                            <small>Warnung: Stelle sicher, dass deine IP auf der Whitelist steht, bevor du dies aktivierst, sonst sperrst du dich aus!</small>
                                         </div>
 
                                         <div class="flex flex-col gap-2">
                                             <label class="font-semibold">
-                                                <i class="pi pi-check-circle text-green-400"></i> Whitelist (Allow these IPs)
+                                                <i class="pi pi-check-circle text-green-400"></i> Whitelist (Diese IPs erlauben)
                                             </label>
                                             <Textarea
                                                 v-model="whitelistText"
@@ -222,14 +222,14 @@
                                                 class="font-mono text-sm"
                                             />
                                             <small class="text-gray-400">
-                                                One IP address or network (CIDR) per line. If whitelist is empty, all IPs are allowed (unless blacklisted).
-                                                <br>Example: 192.168.1.0/24 allows 192.168.1.1 - 192.168.1.254
+                                                Eine IP-Adresse oder Netzwerk (CIDR) pro Zeile. Wenn Whitelist leer ist, sind alle IPs erlaubt (außer Blacklist).
+                                                <br>Beispiel: 192.168.1.0/24 erlaubt 192.168.1.1 - 192.168.1.254
                                             </small>
                                         </div>
 
                                         <div class="flex flex-col gap-2">
                                             <label class="font-semibold">
-                                                <i class="pi pi-ban text-red-400"></i> Blacklist (Block these IPs)
+                                                <i class="pi pi-ban text-red-400"></i> Blacklist (Diese IPs blockieren)
                                             </label>
                                             <Textarea
                                                 v-model="blacklistText"
@@ -238,7 +238,7 @@
                                                 class="font-mono text-sm"
                                             />
                                             <small class="text-gray-400">
-                                                One IP address or network (CIDR) per line. Blacklist is checked first (blocks before whitelist).
+                                                Eine IP-Adresse oder Netzwerk (CIDR) pro Zeile. Blacklist wird zuerst geprüft (blockiert vor Whitelist).
                                             </small>
                                         </div>
 
@@ -246,8 +246,8 @@
                                             <div class="flex items-start gap-2">
                                                 <i class="pi pi-info-circle text-blue-400 mt-1"></i>
                                                 <div class="text-sm text-blue-200">
-                                                    <strong>Your current IP:</strong> {{ currentClientIP || 'Loading...' }}
-                                                    <br><small class="text-blue-300">Make sure to add this to the whitelist!</small>
+                                                    <strong>Deine aktuelle IP:</strong> {{ currentClientIP || 'Lade...' }}
+                                                    <br><small class="text-blue-300">Stelle sicher, diese zur Whitelist hinzuzufügen!</small>
                                                 </div>
                                             </div>
                                         </div>
@@ -261,12 +261,12 @@
                 <TabPanel header="System">
                     <div class="flex flex-col gap-6">
                         <Card class="bg-gray-800 text-white">
-                            <template #title>Web Interface</template>
+                            <template #title>Weboberfläche</template>
                             <template #content>
                                 <div class="flex flex-col gap-4">
                                     <div class="flex items-center gap-2">
                                         <Checkbox v-model="config.web.write_enabled" binary inputId="write_enabled" />
-                                        <label for="write_enabled">Enable Write Access (Manual Control & Schedule)</label>
+                                        <label for="write_enabled">Schreibzugriff aktivieren (Manuelle Steuerung & Zeitplan)</label>
                                     </div>
                                 </div>
                             </template>
@@ -276,7 +276,7 @@
                             <template #title>
                                 <div class="flex items-center gap-2">
                                     <i class="pi pi-database text-blue-400"></i>
-                                    <span>Backup & Restore</span>
+                                    <span>Backup & Wiederherstellung</span>
                                 </div>
                             </template>
                             <template #content>
@@ -285,14 +285,14 @@
                                     <div class="flex flex-col gap-3 p-4 border border-blue-600 rounded bg-blue-900/10">
                                         <h3 class="text-lg font-semibold flex items-center gap-2">
                                             <i class="pi pi-download"></i>
-                                            Create Backup
+                                            Backup erstellen
                                         </h3>
                                         <div class="flex items-center gap-2">
                                             <Checkbox v-model="backupIncludeInflux" binary inputId="backup_include_influx" />
-                                            <label for="backup_include_influx">Include InfluxDB credentials (sensitive)</label>
+                                            <label for="backup_include_influx">InfluxDB Zugangsdaten einschließen (sensibel)</label>
                                         </div>
                                         <Button
-                                            label="Create Backup Now"
+                                            label="Backup jetzt erstellen"
                                             icon="pi pi-download"
                                             @click="createBackup"
                                             :loading="creatingBackup"
@@ -305,10 +305,10 @@
                                         <div class="flex justify-between items-center">
                                             <h3 class="text-lg font-semibold flex items-center gap-2">
                                                 <i class="pi pi-list"></i>
-                                                Available Backups
+                                                Verfügbare Backups
                                             </h3>
                                             <Button
-                                                label="Refresh"
+                                                label="Aktualisieren"
                                                 icon="pi pi-refresh"
                                                 @click="loadBackups"
                                                 size="small"
@@ -321,7 +321,7 @@
                                         </div>
 
                                         <div v-else-if="backups.length === 0" class="text-center text-gray-400 p-4">
-                                            No backups available
+                                            Keine Backups verfügbar
                                         </div>
 
                                         <div v-else class="flex flex-col gap-2">
@@ -367,11 +367,11 @@
                                     <div class="flex flex-col gap-3 p-4 border border-yellow-600 rounded bg-yellow-900/10">
                                         <h3 class="text-lg font-semibold flex items-center gap-2">
                                             <i class="pi pi-upload"></i>
-                                            Restore from File
+                                            Aus Datei wiederherstellen
                                         </h3>
                                         <div class="flex items-start gap-2 text-yellow-400">
                                             <i class="pi pi-exclamation-triangle mt-1"></i>
-                                            <small>Warning: Restoring will overwrite current configuration!</small>
+                                            <small>Warnung: Wiederherstellung überschreibt die aktuelle Konfiguration!</small>
                                         </div>
                                         <input
                                             type="file"
@@ -386,7 +386,7 @@
                                                 hover:file:bg-blue-700"
                                         />
                                         <Button
-                                            label="Restore from Selected File"
+                                            label="Aus gewählter Datei wiederherstellen"
                                             icon="pi pi-upload"
                                             @click="restoreFromFile"
                                             :disabled="!selectedFile"
@@ -399,17 +399,17 @@
                         </Card>
 
                         <div class="flex justify-end">
-                             <Button label="Restart Service" icon="pi pi-refresh" severity="danger" @click="confirmRestart" />
+                             <Button label="Dienst neu starten" icon="pi pi-refresh" severity="danger" @click="confirmRestart" />
                         </div>
                     </div>
                 </TabPanel>
 
-                <TabPanel header="Database">
+                <TabPanel header="Datenbank">
                     <Card class="bg-gray-800 text-white">
                         <template #title>
                             <div class="flex items-center gap-2">
                                 <i class="pi pi-database text-red-400"></i>
-                                <span>Database Maintenance</span>
+                                <span>Datenbank Wartung</span>
                             </div>
                         </template>
                         <template #content>
@@ -418,20 +418,20 @@
                                     <div class="flex items-start gap-2 text-red-400">
                                         <i class="pi pi-exclamation-triangle mt-1"></i>
                                         <div>
-                                            <span class="font-bold">Danger Zone</span>
+                                            <span class="font-bold">Gefahrenzone</span>
                                             <p class="text-sm opacity-80">
-                                                These actions are destructive and cannot be undone. Please be careful.
+                                                Diese Aktionen sind destruktiv und können nicht rückgängig gemacht werden. Bitte sei vorsichtig.
                                             </p>
                                         </div>
                                     </div>
 
                                     <div class="flex items-center justify-between mt-2">
                                         <div class="flex flex-col">
-                                            <span class="font-semibold">Delete All Data</span>
-                                            <span class="text-sm text-gray-400">Permanently remove all logged data from InfluxDB.</span>
+                                            <span class="font-semibold">Alle Daten löschen</span>
+                                            <span class="text-sm text-gray-400">Entferne dauerhaft alle geloggten Daten aus InfluxDB.</span>
                                         </div>
                                         <Button
-                                            label="Delete Database"
+                                            label="Datenbank löschen"
                                             icon="pi pi-trash"
                                             severity="danger"
                                             @click="showDeleteDialog = true"
@@ -448,7 +448,7 @@
                         <template #title>
                             <div class="flex items-center gap-2">
                                 <i class="pi pi-key text-yellow-400"></i>
-                                <span>Technician Code Generator</span>
+                                <span>Technikercode Generator</span>
                             </div>
                         </template>
                         <template #content>
@@ -459,18 +459,18 @@
             </TabView>
         </div>
 
-        <Dialog v-model:visible="showDeleteDialog" modal header="Delete Database" :style="{ width: '450px' }">
+        <Dialog v-model:visible="showDeleteDialog" modal header="Datenbank löschen" :style="{ width: '450px' }">
             <div class="flex flex-col gap-4">
                 <div class="flex items-start gap-3">
                     <i class="pi pi-exclamation-triangle text-red-500 text-2xl"></i>
                     <div class="flex flex-col gap-2">
-                        <span class="font-bold text-lg">Are you absolutely sure?</span>
+                        <span class="font-bold text-lg">Bist du dir absolut sicher?</span>
                         <p class="text-gray-300">
-                            This action will permanently delete <span class="font-bold text-red-400">ALL</span> data from the database.
-                            This cannot be undone.
+                            Diese Aktion löscht <span class="font-bold text-red-400">ALLE</span> Daten dauerhaft aus der Datenbank.
+                            Das kann nicht rückgängig gemacht werden.
                         </p>
                         <p class="text-sm text-gray-400">
-                            Please type <span class="font-mono bg-gray-700 px-1 rounded">DELETE</span> to confirm.
+                            Bitte tippe <span class="font-mono bg-gray-700 px-1 rounded">DELETE</span> zur Bestätigung.
                         </p>
                     </div>
                 </div>
@@ -478,7 +478,7 @@
                 <div class="flex flex-col gap-2">
                     <InputText
                         v-model="deleteConfirmationText"
-                        placeholder="Type DELETE to confirm"
+                        placeholder="Tippe DELETE zur Bestätigung"
                         class="w-full"
                         :class="{'p-invalid': deleteConfirmationText && deleteConfirmationText !== 'DELETE'}"
                     />
@@ -486,9 +486,9 @@
             </div>
 
             <template #footer>
-                <Button label="Cancel" icon="pi pi-times" text @click="showDeleteDialog = false" />
+                <Button label="Abbrechen" icon="pi pi-times" text @click="showDeleteDialog = false" />
                 <Button
-                    label="Delete Everything"
+                    label="Alles löschen"
                     icon="pi pi-trash"
                     severity="danger"
                     @click="confirmDeleteDatabase"
@@ -499,7 +499,7 @@
         </Dialog>
 
         <div class="flex gap-4 mt-4 justify-end border-t border-gray-700 pt-4">
-            <Button label="Save Configuration" icon="pi pi-save" @click="saveConfig" :loading="saving" size="large" />
+            <Button label="Konfiguration speichern" icon="pi pi-save" @click="saveConfig" :loading="saving" size="large" />
         </div>
 
         <Toast />
@@ -571,7 +571,7 @@ onMounted(async () => {
         // Get current client IP
         try {
             const ipRes = await axios.get('/api/health');
-            currentClientIP.value = ipRes.data.client_ip || 'Unknown';
+            currentClientIP.value = ipRes.data.client_ip || 'Unbekannt';
         } catch (e) {
             console.error('Failed to get client IP', e);
         }
@@ -579,7 +579,7 @@ onMounted(async () => {
         // Load backups
         loadBackups();
     } catch (e) {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load config', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Fehler', detail: 'Konfiguration konnte nicht geladen werden', life: 3000 });
     } finally {
         loading.value = false;
     }
@@ -616,11 +616,11 @@ const saveConfig = async () => {
             new_password: newPassword.value || undefined
         };
         const res = await axios.post('/api/config', payload);
-        toast.add({ severity: 'success', summary: 'Success', detail: res.data.message || 'Settings saved successfully', life: 3000 });
+        toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message || 'Einstellungen erfolgreich gespeichert', life: 3000 });
         newPassword.value = '';
         mqttPassword.value = '';
     } catch (e) {
-        toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || e.message, life: 5000 });
+        toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || e.message, life: 5000 });
     } finally {
         saving.value = false;
     }
@@ -628,15 +628,15 @@ const saveConfig = async () => {
 
 const confirmRestart = () => {
     confirm.require({
-        message: 'Are you sure you want to restart the service?',
-        header: 'Confirmation',
+        message: 'Bist du sicher, dass du den Dienst neu starten möchtest?',
+        header: 'Bestätigung',
         icon: 'pi pi-exclamation-triangle',
         accept: async () => {
             try {
                 const res = await axios.post('/api/restart');
-                toast.add({ severity: 'info', summary: 'Restarting', detail: res.data.message, life: 3000 });
+                toast.add({ severity: 'info', summary: 'Neustart', detail: res.data.message, life: 3000 });
             } catch (e) {
-                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to restart', life: 3000 });
+                toast.add({ severity: 'error', summary: 'Fehler', detail: 'Neustart fehlgeschlagen', life: 3000 });
             }
         }
     });
@@ -649,7 +649,7 @@ const loadBackups = async () => {
         const res = await axios.get('/api/backup/list');
         backups.value = res.data.backups || [];
     } catch (e) {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load backups', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Fehler', detail: 'Backups konnten nicht geladen werden', life: 3000 });
     } finally {
         loadingBackups.value = false;
     }
@@ -662,13 +662,13 @@ const createBackup = async () => {
             include_influx_config: backupIncludeInflux.value
         });
         if (res.data.success) {
-            toast.add({ severity: 'success', summary: 'Success', detail: `Backup created: ${res.data.filename}`, life: 3000 });
+            toast.add({ severity: 'success', summary: 'Erfolg', detail: `Backup erstellt: ${res.data.filename}`, life: 3000 });
             loadBackups();
         } else {
-            toast.add({ severity: 'error', summary: 'Error', detail: res.data.error, life: 3000 });
+            toast.add({ severity: 'error', summary: 'Fehler', detail: res.data.error, life: 3000 });
         }
     } catch (e) {
-        toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || 'Failed to create backup', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || 'Backup Erstellung fehlgeschlagen', life: 3000 });
     } finally {
         creatingBackup.value = false;
     }
@@ -686,16 +686,16 @@ const downloadBackup = async (filename) => {
         document.body.appendChild(link);
         link.click();
         link.remove();
-        toast.add({ severity: 'success', summary: 'Success', detail: 'Backup downloaded', life: 2000 });
+        toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Backup heruntergeladen', life: 2000 });
     } catch (e) {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to download backup', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Fehler', detail: 'Backup Download fehlgeschlagen', life: 3000 });
     }
 };
 
 const confirmRestore = (filename) => {
     confirm.require({
-        message: `Restore configuration from "${filename}"? This will overwrite your current settings!`,
-        header: 'Restore Backup',
+        message: `Konfiguration von "${filename}" wiederherstellen? Dies überschreibt deine aktuellen Einstellungen!`,
+        header: 'Backup Wiederherstellen',
         icon: 'pi pi-exclamation-triangle',
         acceptClass: 'p-button-warning',
         accept: async () => {
@@ -703,13 +703,13 @@ const confirmRestore = (filename) => {
             try {
                 const res = await axios.post('/api/backup/restore', { filename });
                 if (res.data.success) {
-                    toast.add({ severity: 'success', summary: 'Success', detail: res.data.message, life: 5000 });
+                    toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message, life: 5000 });
                     setTimeout(() => location.reload(), 2000);
                 } else {
-                    toast.add({ severity: 'error', summary: 'Error', detail: res.data.error, life: 5000 });
+                    toast.add({ severity: 'error', summary: 'Fehler', detail: res.data.error, life: 5000 });
                 }
             } catch (e) {
-                toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || 'Restore failed', life: 5000 });
+                toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || 'Wiederherstellung fehlgeschlagen', life: 5000 });
             } finally {
                 restoringBackup.value = false;
             }
@@ -719,17 +719,17 @@ const confirmRestore = (filename) => {
 
 const confirmDeleteBackup = (filename) => {
     confirm.require({
-        message: `Delete backup "${filename}"?`,
-        header: 'Delete Backup',
+        message: `Backup "${filename}" löschen?`,
+        header: 'Backup Löschen',
         icon: 'pi pi-trash',
         acceptClass: 'p-button-danger',
         accept: async () => {
             try {
                 await axios.delete(`/api/backup/delete/${filename}`);
-                toast.add({ severity: 'success', summary: 'Success', detail: 'Backup deleted', life: 2000 });
+                toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Backup gelöscht', life: 2000 });
                 loadBackups();
             } catch (e) {
-                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete backup', life: 3000 });
+                toast.add({ severity: 'error', summary: 'Fehler', detail: 'Backup löschen fehlgeschlagen', life: 3000 });
             }
         }
     });
@@ -744,8 +744,8 @@ const restoreFromFile = async () => {
     if (!selectedFile.value) return;
 
     confirm.require({
-        message: 'Restore configuration from uploaded file? This will overwrite your current settings!',
-        header: 'Restore from File',
+        message: 'Konfiguration aus hochgeladener Datei wiederherstellen? Dies überschreibt deine aktuellen Einstellungen!',
+        header: 'Aus Datei Wiederherstellen',
         icon: 'pi pi-exclamation-triangle',
         acceptClass: 'p-button-warning',
         accept: async () => {
@@ -760,15 +760,15 @@ const restoreFromFile = async () => {
                 });
 
                 if (res.data.success) {
-                    toast.add({ severity: 'success', summary: 'Success', detail: res.data.message, life: 5000 });
+                    toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message, life: 5000 });
                     selectedFile.value = null;
                     if (fileInput.value) fileInput.value.value = '';
                     setTimeout(() => location.reload(), 2000);
                 } else {
-                    toast.add({ severity: 'error', summary: 'Error', detail: res.data.error, life: 5000 });
+                    toast.add({ severity: 'error', summary: 'Fehler', detail: res.data.error, life: 5000 });
                 }
             } catch (e) {
-                toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || 'Restore failed', life: 5000 });
+                toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || 'Wiederherstellung fehlgeschlagen', life: 5000 });
             } finally {
                 restoringBackup.value = false;
             }
@@ -793,14 +793,14 @@ const confirmDeleteDatabase = async () => {
     try {
         const res = await axios.post('/api/database/delete');
         if (res.data.success) {
-            toast.add({ severity: 'success', summary: 'Success', detail: res.data.message, life: 5000 });
+            toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message, life: 5000 });
             showDeleteDialog.value = false;
             deleteConfirmationText.value = '';
         } else {
-            toast.add({ severity: 'error', summary: 'Error', detail: res.data.error, life: 5000 });
+            toast.add({ severity: 'error', summary: 'Fehler', detail: res.data.error, life: 5000 });
         }
     } catch (e) {
-        toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || 'Failed to delete database', life: 5000 });
+        toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || 'Datenbank löschen fehlgeschlagen', life: 5000 });
     } finally {
         deletingDatabase.value = false;
     }

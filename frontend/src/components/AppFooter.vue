@@ -3,7 +3,7 @@
         <div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
             <span>Version: 2026-01-09</span>
             <span class="hidden sm:inline">|</span>
-            <span>Made with <i class="pi pi-heart text-red-500"></i> by xerolux</span>
+            <span>Erstellt mit <i class="pi pi-heart text-red-500"></i> von xerolux</span>
         </div>
     </footer>
 </template>

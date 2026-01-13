@@ -20,27 +20,27 @@ const items = ref([
         command: () => router.push('/')
     },
     {
-        label: 'Control',
+        label: 'Steuerung',
         icon: 'pi pi-sliders-h',
         command: () => router.push('/control')
     },
     {
-        label: 'Schedule',
+        label: 'Zeitplan',
         icon: 'pi pi-calendar',
         command: () => router.push('/schedule')
     },
     {
-        label: 'Logs',
+        label: 'Protokolle',
         icon: 'pi pi-list',
         command: () => router.push('/logs')
     },
     {
-        label: 'Settings',
+        label: 'Einstellungen',
         icon: 'pi pi-cog',
         command: () => router.push('/config')
     },
     {
-        label: 'About',
+        label: 'Über',
         icon: 'pi pi-info-circle',
         command: () => router.push('/about')
     }
@@ -67,7 +67,7 @@ const logout = async () => {
             <template #end>
                 <div class="flex items-center gap-2">
                     <Button icon="pi pi-power-off" severity="danger" text @click="logout">
-                        <span class="hidden sm:inline ml-2">Logout</span>
+                        <span class="hidden sm:inline ml-2">Abmelden</span>
                     </Button>
                 </div>
             </template>

@@ -1,6 +1,6 @@
 <template>
     <div class="p-4 flex flex-col gap-4">
-        <h1 class="text-2xl font-bold mb-4">Manual Control</h1>
+        <h1 class="text-2xl font-bold mb-4">Manuelle Steuerung</h1>
 
         <div v-if="loading" class="flex justify-center">
             <i class="pi pi-spin pi-spinner text-4xl"></i>
@@ -32,16 +32,16 @@
                         </div>
 
                         <div v-if="sensor.enum" class="flex flex-col gap-2">
-                            <Dropdown v-model="formValues[sensor.name]" :options="sensor.enum" optionLabel="name" optionValue="value" placeholder="Select Value" class="w-full" />
+                            <Dropdown v-model="formValues[sensor.name]" :options="sensor.enum" optionLabel="name" optionValue="value" placeholder="Wert wählen" class="w-full" />
                         </div>
                         <div v-else class="flex flex-col gap-2">
-                             <InputText v-model="formValues[sensor.name]" type="text" placeholder="Value" />
+                             <InputText v-model="formValues[sensor.name]" type="text" placeholder="Wert" />
                              <small v-if="sensor.min !== null || sensor.max !== null" class="text-gray-500">
-                                Range: {{ sensor.min ?? '-∞' }} to {{ sensor.max ?? '+∞' }}
+                                Bereich: {{ sensor.min ?? '-∞' }} bis {{ sensor.max ?? '+∞' }}
                              </small>
                         </div>
 
-                        <Button label="Write" icon="pi pi-send" @click="writeSensor(sensor)" :loading="writing[sensor.name]" />
+                        <Button label="Schreiben" icon="pi pi-send" @click="writeSensor(sensor)" :loading="writing[sensor.name]" />
                     </div>
                 </template>
             </Card>
@@ -98,10 +98,10 @@ const executeWrite = async (sensor, value) => {
             value: value
         });
         if (res.data.success) {
-            toast.add({ severity: 'success', summary: 'Success', detail: res.data.message, life: 3000 });
+            toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message, life: 3000 });
         }
     } catch (e) {
-        toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || e.message, life: 5000 });
+        toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || e.message, life: 5000 });
     } finally {
         writing.value[sensor.name] = false;
     }
@@ -115,16 +115,16 @@ const writeSensor = (sensor) => {
     if (sensor.eeprom_sensitive) {
         confirm.require({
             group: 'eeprom',
-            message: `Register: ${sensor.name}\nNew Value: ${value}\n\nThis register has limited write cycles. Frequent writing may damage the hardware.`,
-            header: 'EEPROM Warning',
+            message: `Register: ${sensor.name}\nNeuer Wert: ${value}\n\nDieses Register hat begrenzte Schreibzyklen. Häufiges Schreiben kann die Hardware beschädigen.`,
+            header: 'EEPROM Warnung',
             icon: 'pi pi-exclamation-triangle',
             rejectProps: {
-                label: 'Cancel',
+                label: 'Abbrechen',
                 severity: 'secondary',
                 outlined: true
             },
             acceptProps: {
-                label: 'Proceed',
+                label: 'Fortfahren',
                 severity: 'danger'
             },
             accept: () => {
