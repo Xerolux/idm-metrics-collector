@@ -5,14 +5,24 @@ datasources:
     type: influxdb
     access: proxy
     url: http://idm-influxdb:8181
+    user: ""
+    database: ""
+    basicAuth: false
+    basicAuthUser: ""
+    withCredentials: false
     jsonData:
-      version: SQL
       dbName: idm
-      httpMode: POST
       defaultBucket: idm
+      httpMode: POST
+      insecureGrpc: true
       organization: idm
+      pdcInjected: false
       tlsSkipVerify: true
+      version: SQL
+    secureJsonFields:
+      token: true
     secureJsonData:
       token: apiv3_my-super-secret-token-change-me
     isDefault: true
+    readOnly: false
     editable: true
