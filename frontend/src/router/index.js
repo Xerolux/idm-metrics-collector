@@ -33,6 +33,11 @@ const routes = [
         component: () => import('../views/Schedule.vue')
       },
       {
+        path: '/alerts',
+        name: 'Alerts',
+        component: () => import('../views/Alerts.vue')
+      },
+      {
         path: '/config',
         name: 'Config',
         component: () => import('../views/Config.vue')

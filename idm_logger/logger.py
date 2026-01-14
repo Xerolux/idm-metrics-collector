@@ -11,6 +11,7 @@ from .scheduler import Scheduler
 from .log_handler import memory_handler
 from .mqtt import mqtt_publisher
 from .update_manager import check_for_update, perform_update, can_run_updates, is_update_allowed
+from .alerts import alert_manager
 
 # Get logger instance (configure in main())
 logger = logging.getLogger("idm_logger")
@@ -168,6 +169,9 @@ def main():
                 if data:
                     # Update Web UI
                     update_current_data(data)
+
+                    # Check Alerts
+                    alert_manager.check_alerts(data)
 
                     # Write to Influx
                     if influx:

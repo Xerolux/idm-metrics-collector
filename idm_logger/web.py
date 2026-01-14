@@ -9,6 +9,7 @@ from .backup import backup_manager, BACKUP_DIR
 from .mqtt import mqtt_publisher
 from .signal_notifications import send_signal_message
 from .update_manager import check_for_update, perform_update as run_update, get_current_version, can_run_updates
+from .alerts import alert_manager
 from shutil import which
 import threading
 import logging
@@ -757,6 +758,52 @@ def schedule_page():
     writable_sensors.sort(key=lambda s: s['name'])
 
     return jsonify({"jobs": jobs, "sensors": writable_sensors})
+
+@app.route('/api/alerts', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@login_required
+def alerts_api():
+    if request.method == 'GET':
+        return jsonify(alert_manager.alerts)
+
+    if request.method == 'POST':
+        data = request.get_json()
+
+        # Validation
+        if not data.get('name'):
+            return jsonify({"error": "Name fehlt"}), 400
+        if not data.get('type') in ['threshold', 'status']:
+            return jsonify({"error": "Ungültiger Typ"}), 400
+        if data['type'] == 'threshold' and not data.get('sensor'):
+            return jsonify({"error": "Sensor fehlt"}), 400
+
+        try:
+            alert = alert_manager.add_alert(data)
+            return jsonify({"success": True, "alert": alert})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    if request.method == 'PUT':
+        data = request.get_json()
+        alert_id = data.get('id')
+        if not alert_id:
+             return jsonify({"error": "ID fehlt"}), 400
+
+        try:
+            alert_manager.update_alert(alert_id, data)
+            return jsonify({"success": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    if request.method == 'DELETE':
+        alert_id = request.args.get('id')
+        if not alert_id:
+             return jsonify({"error": "ID fehlt"}), 400
+
+        try:
+            alert_manager.delete_alert(alert_id)
+            return jsonify({"success": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
 # Catch-all route for Vue SPA client-side routing
 # This must be the last route to avoid catching API routes
