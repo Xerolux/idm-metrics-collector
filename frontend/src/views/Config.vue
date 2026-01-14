@@ -177,7 +177,6 @@
                     </Card>
                 </TabPanel>
 
-<<<<<<< HEAD
                 <TabPanel header="Benachrichtigungen & AI">
                     <div class="flex flex-col gap-6">
                         <Card class="bg-gray-800 text-white" v-if="config.signal">
@@ -243,73 +242,6 @@
                             </template>
                         </Card>
                     </div>
-=======
-                <TabPanel header="Benachrichtigungen & AI">
-                    <div class="flex flex-col gap-6">
-                        <Card class="bg-gray-800 text-white" v-if="config.signal">
-                            <template #title>
-                                <div class="flex items-center gap-2">
-                                    <i class="pi pi-comments text-green-400"></i>
-                                    <span>Signal Benachrichtigungen</span>
-                                </div>
-                            </template>
-                            <template #content>
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex items-center gap-2">
-                                        <Checkbox v-model="config.signal.enabled" binary inputId="signal_enabled" />
-                                        <label for="signal_enabled" class="font-bold">Aktivieren</label>
-                                    </div>
-
-                                    <div v-if="config.signal.enabled" class="flex flex-col gap-4 p-3 border border-green-600 rounded bg-green-900/10">
-                                        <div class="flex flex-col gap-2">
-                                            <label>Signal CLI Pfad</label>
-                                            <InputText v-model="config.signal.cli_path" placeholder="signal-cli" />
-                                        </div>
-                                        <div class="flex flex-col gap-2">
-                                            <label>Sender-Nummer</label>
-                                            <InputText v-model="config.signal.sender" placeholder="+49..." />
-                                        </div>
-                                        <div class="flex flex-col gap-2">
-                                            <label>Empfänger (eine Nummer pro Zeile)</label>
-                                            <Textarea v-model="signalRecipientsText" rows="4" class="font-mono text-sm" />
-                                        </div>
-                                        <Button label="Signal Test senden" icon="pi pi-send" severity="success" @click="sendSignalTest" />
-                                    </div>
-                                </div>
-                            </template>
-                        </Card>
-
-                        <Card class="bg-gray-800 text-white" v-if="config.ai">
-                            <template #title>
-                                <div class="flex items-center gap-2">
-                                    <i class="pi pi-bolt text-purple-400"></i>
-                                    <span>AI Anomalie-Erkennung</span>
-                                </div>
-                            </template>
-                            <template #content>
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex items-center gap-2">
-                                        <Checkbox v-model="config.ai.enabled" binary inputId="ai_enabled" />
-                                        <label for="ai_enabled" class="font-bold">AI Alarm aktivieren</label>
-                                    </div>
-                                    <small class="text-gray-400">Das System lernt automatisch Muster, auch wenn der Alarm deaktiviert ist.</small>
-
-                                    <div v-if="config.ai.enabled" class="flex flex-col gap-4 p-3 border border-purple-600 rounded bg-purple-900/10">
-                                        <div class="flex flex-col gap-2">
-                                            <label>Sensitivität (Sigma)</label>
-                                            <InputNumber v-model="config.ai.sensitivity" :min="1.0" :max="10.0" :step="0.1" :minFractionDigits="1" mode="decimal" />
-                                            <small class="text-gray-400">
-                                                Niedriger (z.B. 2.0) = Empfindlicher, mehr Fehlalarme.
-                                                Höher (z.B. 4.0) = Nur starke Abweichungen.
-                                                Standard: 3.0
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                        </Card>
-                    </div>
->>>>>>> 9915ce1 (Implement AI Anomaly Detection)
                 </TabPanel>
 
                 <TabPanel header="Sicherheit">
@@ -765,10 +697,6 @@ const config = ref({
     network_security: { enabled: false, whitelist: [], blacklist: [] },
     signal: { enabled: false, cli_path: 'signal-cli', sender: '', recipients: [] },
     ai: { enabled: false, sensitivity: 3.0 },
-<<<<<<< HEAD
-=======
-    ai: { enabled: false, sensitivity: 3.0 },
->>>>>>> 9915ce1 (Implement AI Anomaly Detection)
     updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all' }
 });
 const newPassword = ref('');
@@ -904,11 +832,6 @@ const saveConfig = async () => {
             signal_recipients: signalRecipientsText.value,
             ai_enabled: config.value.ai?.enabled || false,
             ai_sensitivity: config.value.ai?.sensitivity || 3.0,
-<<<<<<< HEAD
-=======
-            ai_enabled: config.value.ai?.enabled || false,
-            ai_sensitivity: config.value.ai?.sensitivity || 3.0,
->>>>>>> 9915ce1 (Implement AI Anomaly Detection)
             updates_enabled: config.value.updates?.enabled || false,
             updates_interval_hours: config.value.updates?.interval_hours || 12,
             updates_mode: config.value.updates?.mode || 'apply',
