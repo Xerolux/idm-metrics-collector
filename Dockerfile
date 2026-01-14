@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     build-essential \
     ca-certificates \
     curl \
-    openjdk-17-jre-headless \
+    default-jre-headless \
     tar \
     && pip install --no-cache-dir -r requirements.txt \
     && curl -fsSL -o /tmp/signal-cli.tar.gz \
