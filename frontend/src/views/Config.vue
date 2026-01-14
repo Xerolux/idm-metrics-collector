@@ -414,6 +414,23 @@
                         </template>
                         <template #content>
                             <div class="flex flex-col gap-4">
+                                <div class="flex flex-col gap-2 p-4 border border-blue-600 rounded bg-blue-900/10">
+                                    <div class="flex items-center justify-between gap-4">
+                                        <div>
+                                            <div class="font-semibold">InfluxDB Explorer</div>
+                                            <div class="text-sm text-gray-300">
+                                                Öffne die InfluxDB v3 Explorer-UI für Datenabfragen und Administration.
+                                            </div>
+                                            <div class="text-xs text-gray-400 mt-1">{{ explorerUrl }}</div>
+                                        </div>
+                                        <Button
+                                            label="Explorer öffnen"
+                                            icon="pi pi-external-link"
+                                            severity="info"
+                                            @click="openExplorer"
+                                        />
+                                    </div>
+                                </div>
                                 <div class="flex flex-col gap-4 p-4 border border-red-600 rounded bg-red-900/10">
                                     <div class="flex items-start gap-2 text-red-400">
                                         <i class="pi pi-exclamation-triangle mt-1"></i>
@@ -551,6 +568,7 @@ const restoringBackup = ref(false);
 const backupIncludeInflux = ref(true);
 const selectedFile = ref(null);
 const fileInput = ref(null);
+const explorerUrl = ref('http://localhost:8888');
 
 // Database Maintenance
 const showDeleteDialog = ref(false);
@@ -559,6 +577,9 @@ const deletingDatabase = ref(false);
 
 onMounted(async () => {
     try {
+        if (typeof window !== 'undefined') {
+            explorerUrl.value = `${window.location.protocol}//${window.location.hostname}:8888`;
+        }
         const res = await axios.get('/api/config');
         config.value = res.data;
 
@@ -584,6 +605,11 @@ onMounted(async () => {
         loading.value = false;
     }
 });
+
+const openExplorer = () => {
+    if (typeof window === 'undefined') return;
+    window.open(explorerUrl.value, '_blank', 'noopener');
+};
 
 const saveConfig = async () => {
     saving.value = true;
