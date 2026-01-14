@@ -1,1 +1,0 @@
-{"token": "apiv3_my-super-secret-token-change-me", "name": "admin-token"}

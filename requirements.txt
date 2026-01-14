@@ -1,5 +1,4 @@
 pymodbus>=3.11.0
-influxdb3-python
 flask>=2.0.0
 pyyaml>=6.0
 cryptography>=41.0.0

@@ -37,7 +37,7 @@ current_data = {}
 data_lock = threading.Lock()
 modbus_client_instance = None
 scheduler_instance = None
-influx_writer_instance = None
+metrics_writer_instance = None
 
 def update_current_data(data):
     with data_lock:
@@ -117,12 +117,6 @@ def add_security_headers(response):
 def inject_config():
     # Only inject safe config data
     safe_config = config.data.copy()
-    if 'influx' in safe_config:
-        safe_config['influx'] = safe_config['influx'].copy()
-        if 'token' in safe_config['influx']:
-            del safe_config['influx']['token']
-        if 'password' in safe_config['influx']:
-            del safe_config['influx']['password']
     return dict(config=safe_config)
 
 @app.route('/api/setup', methods=['POST'])
@@ -142,11 +136,10 @@ def setup():
         if 'zones' in data:
             config.data['idm']['zones'] = data['zones']
 
-        # Save Influx
-        config.data['influx']['url'] = data.get('influx_url')
-        config.data['influx']['database'] = data.get('influx_database')
-        if data.get('influx_token'):
-            config.data['influx']['token'] = data.get('influx_token')
+        # Save Metrics
+        if 'metrics' not in config.data:
+            config.data['metrics'] = {}
+        config.data['metrics']['url'] = data.get('metrics_url')
 
         # Save Admin Password
         password = data.get('password')
@@ -231,17 +224,17 @@ def health_check():
 
 @app.route('/api/status')
 def status_check():
-    """Detailed status endpoint with InfluxDB connection info."""
-    influx_status = None
-    if influx_writer_instance:
-        influx_status = influx_writer_instance.get_status()
+    """Detailed status endpoint with Metrics connection info."""
+    metrics_status = None
+    if metrics_writer_instance:
+        metrics_status = metrics_writer_instance.get_status()
 
     mqtt_status = mqtt_publisher.get_status() if mqtt_publisher else None
 
     return jsonify({
         "status": "running",
         "setup_completed": config.is_setup(),
-        "influx": influx_status,
+        "metrics": metrics_status,
         "mqtt": mqtt_status,
         "modbus_connected": modbus_client_instance is not None,
         "scheduler_running": scheduler_instance is not None and config.get("web.write_enabled")
@@ -270,31 +263,12 @@ def config_page():
     if request.method == 'GET':
         # Return safe config
         safe_config = config.data.copy()
-        token_synced = True
-        token_source = "database"
 
-        if 'influx' in safe_config:
-            safe_config['influx'] = safe_config['influx'].copy()
-
-            # Check for token synchronization
-            env_token = os.environ.get("INFLUX_TOKEN") or os.environ.get("INFLUXDB_TOKEN")
-            current_token = config.data.get("influx", {}).get("token")
-
-            if env_token:
-                token_source = "environment"
-                if env_token != current_token:
-                    token_synced = False
-
-            if 'token' in safe_config['influx']:
-                 safe_config['influx']['token'] = '******' # Don't send token
-            if 'password' in safe_config['influx']:
-                 safe_config['influx']['password'] = '******'
-
-        # Add metadata about token synchronization
+        # Add metadata about token synchronization (Not used for VM currently)
         response = safe_config
         response['_meta'] = {
-            "token_synced": token_synced,
-            "token_source": token_source
+            "token_synced": True,
+            "token_source": "environment" if os.environ.get("METRICS_URL") else "database"
         }
         return jsonify(response)
 
@@ -341,13 +315,9 @@ def config_page():
             if 'realtime_mode' in data:
                 config.data['logging']['realtime_mode'] = bool(data['realtime_mode'])
 
-            # InfluxDB URL
-            if 'influx_url' in data:
-                 config.data['influx']['url'] = data['influx_url']
-            if 'influx_database' in data:
-                 config.data['influx']['database'] = data['influx_database']
-            if 'influx_token' in data and data['influx_token']:
-                 config.data['influx']['token'] = data['influx_token']
+            # Metrics URL
+            if 'metrics_url' in data:
+                 config.data['metrics']['url'] = data['metrics_url']
 
             # MQTT Settings
             if 'mqtt_enabled' in data:
@@ -834,10 +804,7 @@ def catch_all(path):
 @login_required
 def create_backup():
     """Create a new backup."""
-    data = request.get_json() or {}
-    include_influx = data.get('include_influx_config', True)
-
-    result = backup_manager.create_backup(include_influx_config=include_influx)
+    result = backup_manager.create_backup()
 
     if result.get('success'):
         # Clean up old backups (keep last 10)
@@ -943,35 +910,19 @@ def delete_backup(filename):
         return jsonify(result), 500
 
 
-@app.route('/api/backup/export/influx', methods=['GET'])
-@login_required
-def export_influx_config():
-    """Export InfluxDB configuration as JSON."""
-    result = backup_manager.export_influxdb_config()
-
-    if result.get('success'):
-        return jsonify(result['data']), 200
-    else:
-        return jsonify(result), 500
-
-
 @app.route('/api/database/delete', methods=['POST'])
 @login_required
 def delete_database():
     """Delete all data from the database."""
-    if not influx_writer_instance:
-        return jsonify({"error": "InfluxDB nicht verfügbar"}), 503
-
-    if influx_writer_instance.delete_all_data():
-        return jsonify({"success": True, "message": "Datenbank erfolgreich gelöscht"}), 200
-    else:
-        return jsonify({"error": "Fehler beim Löschen der Datenbank"}), 500
+    # Not implemented for VictoriaMetrics via this API yet
+    # Could send a delete request to VM
+    return jsonify({"error": "Nicht implementiert für VictoriaMetrics"}), 501
 
 
-def set_influx_writer(writer):
-    """Set the InfluxDB writer instance for status reporting."""
-    global influx_writer_instance
-    influx_writer_instance = writer
+def set_metrics_writer(writer):
+    """Set the Metrics writer instance for status reporting."""
+    global metrics_writer_instance
+    metrics_writer_instance = writer
 
 
 def run_web(modbus_client, scheduler):

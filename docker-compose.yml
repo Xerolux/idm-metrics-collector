@@ -9,20 +9,13 @@ services:
     volumes:
       - idm-data:/app/data
     depends_on:
-      - influxdb
+      - victoriametrics
     environment:
       # IDM Heat Pump connection
       - IDM_HOST=192.168.178.103
       - IDM_PORT=502
-      # InfluxDB connection (matches influxdb service defaults)
-      - INFLUX_URL=http://idm-influxdb:8181
-      - INFLUX_DATABASE=idm
-      # Token Management:
-      # This environment variable overrides the token stored in idm_logger.db
-      # and persists it to the database on startup.
-      # To change the token, update it here and in the influxdb service below.
-      # Use scripts/sync-token.sh to update all locations automatically.
-      - INFLUX_TOKEN=apiv3_my-super-secret-token-change-me
+      # Metrics connection
+      - METRICS_URL=http://victoriametrics:8428/write
       # MQTT settings (optional - configure via web UI or uncomment below)
       # - MQTT_ENABLED=false
       # - MQTT_BROKER=mqtt.example.com
@@ -38,48 +31,17 @@ services:
       retries: 3
       start_period: 10s
 
-  influxdb:
-    image: influxdb:3-core
-    container_name: idm-influxdb
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:latest
+    container_name: idm-victoriametrics
     restart: unless-stopped
     ports:
-      - "8181:8181"
+      - "8428:8428"
     volumes:
-      - influxdb-data:/var/lib/influxdb3
-      - ./influxdb-token:/etc/influxdb
-    command: >
-      serve
-      --node-id idm-influxdb-node-1
-      --object-store file
-      --data-dir /var/lib/influxdb3
-      --admin-token-file /etc/influxdb/admin_token.txt
-    environment:
-      # Token for authentication - keep this consistent across deployments
-      - INFLUXDB_TOKEN=apiv3_my-super-secret-token-change-me
-      # Standard v3 variable
-      - INFLUXDB3_AUTH_TOKEN=apiv3_my-super-secret-token-change-me
-      - INFLUXDB_DATABASE=idm
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f -H \"Authorization: Bearer apiv3_my-super-secret-token-change-me\" http://localhost:8181/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-
-  explorer:
-    image: influxdata/influxdb3-ui:latest
-    container_name: idm-influxdb-explorer
-    hostname: influxdb3-explorer
-    restart: unless-stopped
-    ports:
-      - "8888:80"
-    command: ["--mode=admin"]
-    environment:
-      - INFLUXDB_URL=http://idm-influxdb:8181
-      - INFLUXDB_VERSION=3
-      - INFLUXDB_TOKEN=apiv3_my-super-secret-token-change-me
-    depends_on:
-      - influxdb
+      - vm-data:/storage
+    command:
+      - "-storageDataPath=/storage"
+      - "-retentionPeriod=1y"
 
   grafana:
     image: grafana/grafana:latest
@@ -94,7 +56,7 @@ services:
       - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
-      - influxdb
+      - victoriametrics
     environment:
       # Security
       - GF_SECURITY_ADMIN_USER=admin
@@ -117,8 +79,8 @@ services:
       start_period: 30s
 
 volumes:
-  influxdb-data:
-    name: idm-influxdb-data
+  vm-data:
+    name: idm-vm-data
   grafana-data:
     name: idm-grafana-data
   idm-data:

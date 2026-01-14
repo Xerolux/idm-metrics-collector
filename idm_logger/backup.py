@@ -22,12 +22,9 @@ class BackupManager:
     """Manages backup and restore operations."""
 
     @staticmethod
-    def create_backup(include_influx_config: bool = True) -> Dict[str, Any]:
+    def create_backup() -> Dict[str, Any]:
         """
         Create a complete backup of the system configuration.
-
-        Args:
-            include_influx_config: Whether to include InfluxDB credentials (sensitive data)
 
         Returns:
             Dict containing backup metadata and file path
@@ -43,7 +40,6 @@ class BackupManager:
                     "version": "1.0",
                     "created_at": datetime.now().isoformat(),
                     "hostname": os.environ.get("HOSTNAME", "unknown"),
-                    "include_influx_config": include_influx_config
                 },
                 "config": {},
                 "scheduler": {},
@@ -52,16 +48,6 @@ class BackupManager:
 
             # 1. Backup configuration (from config.data)
             config_copy = config.data.copy()
-
-            # Optionally remove sensitive InfluxDB data
-            if not include_influx_config and "influx" in config_copy:
-                influx_copy = config_copy["influx"].copy()
-                if "token" in influx_copy:
-                    influx_copy["token"] = "***REMOVED***"
-                if "password" in influx_copy:
-                    influx_copy["password"] = "***REMOVED***"
-                config_copy["influx"] = influx_copy
-
             backup_data["config"] = config_copy
 
             # 2. Backup scheduler rules (from database)
@@ -76,7 +62,6 @@ class BackupManager:
             try:
                 # Get all settings from database
                 all_settings = {}
-                # Query all settings (implementation depends on your DB structure)
                 conn = db.get_connection()
                 cursor = conn.cursor()
                 cursor.execute("SELECT key, value FROM settings")
@@ -298,26 +283,6 @@ class BackupManager:
             }
         except Exception as e:
             logger.error(f"Backup cleanup failed: {e}")
-            return {"success": False, "error": str(e)}
-
-    @staticmethod
-    def export_influxdb_config() -> Dict[str, Any]:
-        """Export InfluxDB configuration for manual backup."""
-        try:
-            influx_config = config.data.get("influx", {}).copy()
-
-            # Create export data
-            export_data = {
-                "influxdb_config": influx_config,
-                "exported_at": datetime.now().isoformat()
-            }
-
-            return {
-                "success": True,
-                "data": export_data
-            }
-        except Exception as e:
-            logger.error(f"InfluxDB config export failed: {e}")
             return {"success": False, "error": str(e)}
 
 

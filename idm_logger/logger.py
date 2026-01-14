@@ -5,8 +5,8 @@ import signal
 import sys
 from .config import config
 from .modbus import ModbusClient
-from .influx import InfluxWriter
-from .web import run_web, update_current_data, set_influx_writer
+from .metrics import MetricsWriter
+from .web import run_web, update_current_data, set_metrics_writer
 from .scheduler import Scheduler
 from .log_handler import memory_handler
 from .mqtt import mqtt_publisher
@@ -55,7 +55,7 @@ def main():
     # Initialize these as None first
     modbus = None
     scheduler = None
-    influx = None
+    metrics = None
     mqtt = None
 
     # Start Web UI FIRST in background, so it's available even if Modbus/InfluxDB fails
@@ -109,13 +109,13 @@ def main():
     except Exception as e:
         logger.error(f"Failed to initialize Modbus client: {e}", exc_info=True)
 
-    # Influx Writer
+    # Metrics Writer
     try:
-        influx = InfluxWriter()
-        set_influx_writer(influx)
-        logger.info("InfluxDB writer initialized")
+        metrics = MetricsWriter()
+        set_metrics_writer(metrics)
+        logger.info("Metrics writer initialized")
     except Exception as e:
-        logger.error(f"Failed to initialize InfluxDB writer: {e}", exc_info=True)
+        logger.error(f"Failed to initialize Metrics writer: {e}", exc_info=True)
 
     # MQTT Publisher
     try:
@@ -198,10 +198,10 @@ def main():
                     # Check Alerts
                     alert_manager.check_alerts(data)
 
-                    # Write to Influx
-                    if influx:
-                        logger.debug(f"Writing {len(data)} points to InfluxDB")
-                        influx.write(data)
+                    # Write to Metrics
+                    if metrics:
+                        logger.debug(f"Writing {len(data)} points to Metrics")
+                        metrics.write(data)
 
                     # Publish to MQTT
                     if mqtt and mqtt.connected:

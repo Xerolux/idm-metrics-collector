@@ -10,18 +10,9 @@ idm:
   # Heating circuits to monitor (A, B, C, D, E, F, G)
   circuits: ["A"]
 
-influx:
-  # InfluxDB version (1 or 2)
-  version: 2
-  # InfluxDB v2 settings (Docker defaults)
-  url: "http://idm-influxdb:8086"
-  org: "my-org"
-  bucket: "idm"
-  token: "my-super-secret-token-change-me"
-  # InfluxDB v1 settings (if version: 1)
-  username: ""
-  password: ""
-  database: "idm"
+metrics:
+  # VictoriaMetrics write URL
+  url: "http://victoriametrics:8428/write"
 
 web:
   # Enable web interface

@@ -24,8 +24,8 @@
     },
     {
       "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -82,13 +82,12 @@
       "targets": [
         {
           "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
           },
-          "query": "SELECT time, temp_outside FROM idm_heatpump WHERE time > now() - INTERVAL '1 hour' ORDER BY time DESC LIMIT 1",
+          "expr": "idm_heatpump_temp_outside",
           "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
+          "legendFormat": "Aussentemperatur"
         }
       ],
       "title": "Aussentemperatur",
@@ -96,8 +95,8 @@
     },
     {
       "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -153,13 +152,12 @@
       "targets": [
         {
           "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
           },
-          "query": "SELECT time, temp_heat_pump_flow FROM idm_heatpump WHERE time > now() - INTERVAL '1 hour' ORDER BY time DESC LIMIT 1",
+          "expr": "idm_heatpump_temp_heat_pump_flow",
           "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
+          "legendFormat": "Vorlauf"
         }
       ],
       "title": "Vorlauf WP",
@@ -167,8 +165,8 @@
     },
     {
       "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -224,13 +222,12 @@
       "targets": [
         {
           "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
           },
-          "query": "SELECT time, temp_heat_pump_return FROM idm_heatpump WHERE time > now() - INTERVAL '1 hour' ORDER BY time DESC LIMIT 1",
+          "expr": "idm_heatpump_temp_heat_pump_return",
           "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
+          "legendFormat": "Rücklauf"
         }
       ],
       "title": "Ruecklauf WP",
@@ -238,8 +235,8 @@
     },
     {
       "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -295,13 +292,12 @@
       "targets": [
         {
           "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
           },
-          "query": "SELECT time, temp_water_heater_top FROM idm_heatpump WHERE time > now() - INTERVAL '1 hour' ORDER BY time DESC LIMIT 1",
+          "expr": "idm_heatpump_temp_water_heater_top",
           "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
+          "legendFormat": "WW Oben"
         }
       ],
       "title": "Warmwasser oben",
@@ -309,8 +305,8 @@
     },
     {
       "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -362,13 +358,12 @@
       "targets": [
         {
           "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
           },
-          "query": "SELECT time, power_current_draw FROM idm_heatpump WHERE time > now() - INTERVAL '1 hour' ORDER BY time DESC LIMIT 1",
+          "expr": "idm_heatpump_power_current_draw",
           "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
+          "legendFormat": "Leistung"
         }
       ],
       "title": "Leistungsaufnahme",
@@ -376,8 +371,8 @@
     },
     {
       "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -471,13 +466,12 @@
       "targets": [
         {
           "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
           },
-          "query": "SELECT time, status_heat_pump FROM idm_heatpump WHERE time > now() - INTERVAL '1 hour' ORDER BY time DESC LIMIT 1",
+          "expr": "idm_heatpump_status_heat_pump",
           "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
+          "legendFormat": "Status"
         }
       ],
       "title": "Status WP",
@@ -498,8 +492,8 @@
     },
     {
       "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
+        "type": "prometheus",
+        "uid": "VictoriaMetrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -547,54 +541,7 @@
             ]
           },
           "unit": "celsius"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Aussen"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Vorlauf"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Ruecklauf"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "orange",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
+        }
       },
       "gridPos": {
         "h": 8,
@@ -621,953 +568,33 @@
       "targets": [
         {
           "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
           },
-          "query": "SELECT time, temp_outside FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
+          "expr": "idm_heatpump_temp_outside",
           "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
+          "legendFormat": "Aussen"
         },
         {
           "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
           },
-          "query": "SELECT time, temp_heat_pump_flow FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
+          "expr": "idm_heatpump_temp_heat_pump_flow",
           "refId": "B",
-          "format": "time_series",
-          "queryType": "sql"
+          "legendFormat": "Vorlauf"
         },
         {
           "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
+            "type": "prometheus",
+            "uid": "VictoriaMetrics"
           },
-          "query": "SELECT time, temp_heat_pump_return FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
+          "expr": "idm_heatpump_temp_heat_pump_return",
           "refId": "C",
-          "format": "time_series",
-          "queryType": "sql"
+          "legendFormat": "Rücklauf"
         }
       ],
       "title": "Waermepumpe Temperaturen",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_outside.*",
-            "renamePattern": "Aussen"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_heat_pump_flow.*",
-            "renamePattern": "Vorlauf"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_heat_pump_return.*",
-            "renamePattern": "Ruecklauf"
-          }
-        }
-      ],
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "celsius"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "WW oben"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "WW unten"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "orange",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Sollwert"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.lineStyle",
-                "value": {
-                  "dash": [
-                    10,
-                    10
-                  ],
-                  "fill": "dash"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 6
-      },
-      "id": 11,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, temp_water_heater_top FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, temp_water_heater_bottom FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "B",
-          "format": "time_series",
-          "queryType": "sql"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, temp_water_target FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "C",
-          "format": "time_series",
-          "queryType": "sql"
-        }
-      ],
-      "title": "Warmwasser Temperaturen",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_water_heater_top.*",
-            "renamePattern": "WW oben"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_water_heater_bottom.*",
-            "renamePattern": "WW unten"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_water_target.*",
-            "renamePattern": "Sollwert"
-          }
-        }
-      ],
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 14
-      },
-      "id": 102,
-      "panels": [],
-      "title": "Leistung & Energie",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "opacity",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "kwatt"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 15
-      },
-      "id": 20,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, power_current_draw FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, power_current FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "B",
-          "format": "time_series",
-          "queryType": "sql"
-        }
-      ],
-      "title": "Leistung",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*power_current_draw.*",
-            "renamePattern": "Leistungsaufnahme"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*power_current$.*",
-            "renamePattern": "Waermeleistung"
-          }
-        }
-      ],
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "kwatth"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 15
-      },
-      "id": 21,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, energy_heat_total FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, energy_heat_heating FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "B",
-          "format": "time_series",
-          "queryType": "sql"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, energy_heat_total_water FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "C",
-          "format": "time_series",
-          "queryType": "sql"
-        }
-      ],
-      "title": "Energie (kumuliert)",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*energy_heat_total$.*",
-            "renamePattern": "Gesamt"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*energy_heat_heating.*",
-            "renamePattern": "Heizung"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*energy_heat_total_water.*",
-            "renamePattern": "Warmwasser"
-          }
-        }
-      ],
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 23
-      },
-      "id": 103,
-      "panels": [],
-      "title": "Heizkreis",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "celsius"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Vorlauf Ist"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Vorlauf Soll"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              },
-              {
-                "id": "custom.lineStyle",
-                "value": {
-                  "dash": [
-                    10,
-                    10
-                  ],
-                  "fill": "dash"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Raum"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "yellow",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 24
-      },
-      "id": 30,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, temp_flow_current_circuit_a FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, temp_flow_target_circuit_a FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "B",
-          "format": "time_series",
-          "queryType": "sql"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, temp_room_circuit_a FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "C",
-          "format": "time_series",
-          "queryType": "sql"
-        }
-      ],
-      "title": "Heizkreis A - Temperaturen",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_flow_current_circuit_a.*",
-            "renamePattern": "Vorlauf Ist"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_flow_target_circuit_a.*",
-            "renamePattern": "Vorlauf Soll"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_room_circuit_a.*",
-            "renamePattern": "Raum"
-          }
-        }
-      ],
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "celsius"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 24
-      },
-      "id": 31,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, temp_heat_storage FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, temp_cold_storage FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "B",
-          "format": "time_series",
-          "queryType": "sql"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, temp_heat_source_input FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "C",
-          "format": "time_series",
-          "queryType": "sql"
-        },
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, temp_heat_source_output FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "D",
-          "format": "time_series",
-          "queryType": "sql"
-        }
-      ],
-      "title": "Speicher & Quelltemperaturen",
-      "transformations": [
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_heat_storage.*",
-            "renamePattern": "Pufferspeicher"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_cold_storage.*",
-            "renamePattern": "Kaeltespeicher"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_heat_source_input.*",
-            "renamePattern": "Quelle Eingang"
-          }
-        },
-        {
-          "id": "renameByRegex",
-          "options": {
-            "regex": ".*temp_heat_source_output.*",
-            "renamePattern": "Quelle Ausgang"
-          }
-        }
-      ],
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 32
-      },
-      "id": 104,
-      "panels": [],
-      "title": "Effizienz",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 2,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 2
-              },
-              {
-                "color": "green",
-                "value": 3
-              },
-              {
-                "color": "dark-green",
-                "value": 4
-              }
-            ]
-          },
-          "unit": "none"
-        }
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 33
-      },
-      "id": 40,
-      "options": {
-        "legend": {
-          "calcs": [
-            "min",
-            "max",
-            "mean"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB}"
-          },
-          "query": "SELECT time, power_current FROM idm_heatpump WHERE time >= $__timeFrom() AND time <= $__timeTo() ORDER BY time ASC",
-          "refId": "A",
-          "format": "time_series",
-          "queryType": "sql"
-        }
-      ],
-      "title": "COP Verlauf",
       "type": "timeseries"
     }
   ],
@@ -1580,25 +607,7 @@
     "waermepumpe"
   ],
   "templating": {
-    "list": [
-      {
-        "current": {
-          "selected": false,
-          "text": "InfluxDB",
-          "value": "InfluxDB"
-        },
-        "hide": 0,
-        "includeAll": false,
-        "multi": false,
-        "name": "DS_INFLUXDB",
-        "options": [],
-        "query": "influxdb",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "type": "datasource"
-      }
-    ]
+    "list": []
   },
   "time": {
     "from": "now-24h",
@@ -1606,8 +615,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "IDM Waermepumpe",
-  "uid": "idm-heatpump-main",
+  "title": "IDM Waermepumpe (VictoriaMetrics)",
+  "uid": "idm-heatpump-vm",
   "version": 1,
   "weekStart": "monday"
 }

@@ -13,10 +13,8 @@ KEY_FILE = os.path.join(DATA_DIR, ".secret.key")
 
 # Default values synchronized with docker-compose.yml
 DOCKER_DEFAULTS = {
-    "influx": {
-        "url": "http://idm-influxdb:8181",
-        "database": "idm",
-        "token": "my-super-secret-token-change-me"
+    "metrics": {
+        "url": "http://victoriametrics:8428/write",
     }
 }
 
@@ -28,13 +26,6 @@ class Config:
         self.data = self._load_data()
         # Apply environment variable overrides
         self._apply_env_overrides()
-
-        # Automatic Token Synchronization:
-        # If INFLUX_TOKEN is present in environment, we treat it as the "Source of Truth"
-        # and ensure it is persisted to the database to avoid 401 errors if the environment
-        # variable is later removed or if other components read from DB.
-        if os.environ.get("INFLUX_TOKEN"):
-            self.save()
 
     def _load_or_create_key(self):
         if os.path.exists(KEY_FILE):
@@ -64,13 +55,9 @@ class Config:
 
     def _apply_env_overrides(self):
         """Apply environment variable overrides for Docker deployment."""
-        # InfluxDB settings from environment
-        if os.environ.get("INFLUX_URL"):
-            self.data["influx"]["url"] = os.environ["INFLUX_URL"]
-        if os.environ.get("INFLUX_DATABASE"):
-            self.data["influx"]["database"] = os.environ["INFLUX_DATABASE"]
-        if os.environ.get("INFLUX_TOKEN"):
-            self.data["influx"]["token"] = os.environ["INFLUX_TOKEN"]
+        # Metrics settings from environment
+        if os.environ.get("METRICS_URL"):
+            self.data["metrics"]["url"] = os.environ["METRICS_URL"]
 
         # IDM settings from environment
         if os.environ.get("IDM_HOST"):
@@ -165,10 +152,8 @@ class Config:
                 "circuits": ["A"],
                 "zones": []
             },
-            "influx": {
-                "url": DOCKER_DEFAULTS["influx"]["url"],
-                "database": DOCKER_DEFAULTS["influx"]["database"],
-                "token": DOCKER_DEFAULTS["influx"]["token"]
+            "metrics": {
+                "url": DOCKER_DEFAULTS["metrics"]["url"],
             },
             "web": {
                 "enabled": True,
@@ -219,18 +204,11 @@ class Config:
         }
 
         # Auto-complete setup in Docker environment
-        # If InfluxDB token is provided via ENV, auto-enable setup
-        if os.environ.get("INFLUX_TOKEN") or os.environ.get("INFLUXDB3_AUTH_TOKEN") or os.environ.get("INFLUXDB_TOKEN"):
+        # If METRICS_URL is provided, we assume environment setup
+        if os.environ.get("METRICS_URL"):
             defaults["setup_completed"] = True
             defaults["web"]["write_enabled"] = True
-            defaults["influx"]["url"] = os.environ.get("INFLUX_URL", os.environ.get("INFLUXDB_URL", "http://idm-influxdb:8181"))
-            defaults["influx"]["database"] = os.environ.get("INFLUX_DATABASE", os.environ.get("INFLUXDB_DATABASE", "idm"))
-            defaults["influx"]["token"] = (
-                os.environ.get("INFLUXDB3_AUTH_TOKEN") or
-                os.environ.get("INFLUX_TOKEN") or
-                os.environ.get("INFLUXDB_TOKEN") or
-                ""
-            )
+            defaults["metrics"]["url"] = os.environ.get("METRICS_URL")
 
         # Load from DB, structure into dict like old yaml
         raw = db.get_setting("config")
@@ -238,8 +216,6 @@ class Config:
             try:
                 data = json.loads(raw)
                 # Decrypt sensitive fields
-                if "influx" in data:
-                    data["influx"]["token"] = self._decrypt(data["influx"].get("encrypted_token", ""))
                 if "mqtt" in data:
                     data["mqtt"]["password"] = self._decrypt(data["mqtt"].get("encrypted_password", ""))
 
@@ -254,12 +230,6 @@ class Config:
     def save(self):
         # Encrypt sensitive fields before saving
         to_save = json.loads(json.dumps(self.data))
-
-        if "influx" in to_save:
-            to_save["influx"]["encrypted_token"] = self._encrypt(to_save["influx"].get("token", ""))
-            # Remove plain text from storage dict
-            if "token" in to_save["influx"]:
-                del to_save["influx"]["token"]
 
         if "mqtt" in to_save:
             to_save["mqtt"]["encrypted_password"] = self._encrypt(to_save["mqtt"].get("password", ""))
@@ -312,6 +282,5 @@ class Config:
         """Returns the stable secret key for Flask sessions."""
         # Use the persistent Fernet key as the Flask secret key
         return self.key
-
 
 config = Config()
