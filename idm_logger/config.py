@@ -196,6 +196,10 @@ class Config:
                 "sender": "",
                 "recipients": []
             },
+            "ai": {
+                "enabled": False,
+                "sensitivity": 3.0
+            },
             "updates": {
                 "enabled": False,
                 "interval_hours": 12,

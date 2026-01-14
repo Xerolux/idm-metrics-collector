@@ -37,6 +37,11 @@ const items = ref([
         command: () => router.push('/schedule')
     },
     {
+        label: 'Alarme',
+        icon: 'pi pi-bell',
+        command: () => router.push('/alerts')
+    },
+    {
         label: 'Protokolle',
         icon: 'pi pi-list',
         command: () => router.push('/logs')
