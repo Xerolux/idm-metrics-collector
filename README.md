@@ -84,6 +84,7 @@ sudo ./install.sh
 Dies installiert:
 - **IDM Metrics Collector** (Web UI + API)
 - **InfluxDB v3 Core** (Zeitreihendatenbank mit SQL-Support)
+- **InfluxDB Explorer** (Web-UI für InfluxDB v3)
 - **Grafana** (Visualisierungsplattform mit InfluxDB v3 Integration)
 
 Alle Dienste sind vorkonfiguriert und einsatzbereit!
@@ -119,6 +120,10 @@ cd /opt/idm-metrics-collector && docker compose restart
   - Token: `my-super-secret-token-change-me`
   - Abfragesprache: SQL (ersetzt Flux aus v2)
   - Hinweis: Datenbank wird beim ersten Schreibvorgang automatisch erstellt
+
+**InfluxDB Explorer** (nur Docker Compose)
+- URL: `http://dein-server-ip:8888`
+- Öffnet die InfluxDB v3 Explorer-UI für SQL-Abfragen und Administration
 
 ### Docker Image (GHCR)
 

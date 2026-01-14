@@ -58,6 +58,20 @@ services:
       - INFLUXDB_TOKEN=apiv3_my-super-secret-token-change-me
       - INFLUXDB_DATABASE=idm
 
+  explorer:
+    image: influxdata/influxdb3-ui:latest
+    container_name: idm-influxdb-explorer
+    hostname: influxdb3-explorer
+    restart: unless-stopped
+    ports:
+      - "8888:80"
+    environment:
+      - INFLUXDB_URL=http://idm-influxdb:8181
+      - INFLUXDB_VERSION=3
+      - INFLUXDB_TOKEN=apiv3_my-super-secret-token-change-me
+    depends_on:
+      - influxdb
+
   grafana:
     image: grafana/grafana:latest
     container_name: idm-grafana

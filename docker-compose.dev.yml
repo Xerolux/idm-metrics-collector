@@ -52,6 +52,21 @@ services:
       retries: 5
       start_period: 30s
 
+  explorer:
+    image: influxdata/influxdb3-ui:latest
+    container_name: idm-influxdb-explorer
+    hostname: influxdb3-explorer
+    restart: unless-stopped
+    ports:
+      - "8888:80"
+    environment:
+      - INFLUXDB_URL=http://idm-influxdb:8181
+      - INFLUXDB_VERSION=3
+      - INFLUXDB_TOKEN=my-super-secret-token-change-me
+    depends_on:
+      influxdb:
+        condition: service_healthy
+
   grafana:
     image: grafana/grafana:latest
     container_name: idm-grafana
