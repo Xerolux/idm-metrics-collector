@@ -128,6 +128,15 @@ class Config:
         if os.environ.get("SIGNAL_CLI_PATH"):
             self.data["signal"]["cli_path"] = os.environ["SIGNAL_CLI_PATH"]
 
+        # AI settings from environment
+        if os.environ.get("AI_ENABLED"):
+            self.data["ai"]["enabled"] = os.environ["AI_ENABLED"].lower() in ("true", "1", "yes")
+        if os.environ.get("AI_SENSITIVITY"):
+             try:
+                 self.data["ai"]["sensitivity"] = float(os.environ["AI_SENSITIVITY"])
+             except ValueError:
+                 pass
+
         # Update settings from environment
         if os.environ.get("UPDATES_ENABLED"):
             self.data["updates"]["enabled"] = os.environ["UPDATES_ENABLED"].lower() in ("true", "1", "yes")
@@ -195,6 +204,10 @@ class Config:
                 "cli_path": "signal-cli",
                 "sender": "",
                 "recipients": []
+            },
+            "ai": {
+                "enabled": False,
+                "sensitivity": 3.0
             },
             "updates": {
                 "enabled": False,

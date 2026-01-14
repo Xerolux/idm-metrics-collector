@@ -109,6 +109,11 @@ class BackupManager:
                 if key_file.exists():
                     zipf.write(key_file, "secrets/.secret.key")
 
+                # Add AI anomaly state file
+                ai_file = Path(DATA_DIR) / "anomaly_state.json"
+                if ai_file.exists():
+                    zipf.write(ai_file, "ai/anomaly_state.json")
+
             file_size = backup_path.stat().st_size
             logger.info(f"Backup created successfully: {backup_name} ({file_size} bytes)")
 
@@ -183,6 +188,14 @@ class BackupManager:
                     os.chmod(key_file, 0o600)
                     restored_items.append("secret_key")
                     logger.warning("Secret key restored - this may cause encryption issues!")
+
+                # 6. Restore AI state
+                if "ai/anomaly_state.json" in zipf.namelist():
+                    ai_file = Path(DATA_DIR) / "anomaly_state.json"
+                    with open(ai_file, 'wb') as f:
+                        f.write(zipf.read("ai/anomaly_state.json"))
+                    restored_items.append("ai_model")
+                    logger.info("AI Model state restored")
 
             # Reload configuration
             config.reload()

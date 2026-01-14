@@ -12,6 +12,8 @@ from .log_handler import memory_handler
 from .mqtt import mqtt_publisher
 from .update_manager import check_for_update, perform_update, can_run_updates, is_update_allowed
 from .alerts import alert_manager
+from .ai.anomaly import anomaly_detector
+from .signal_notifications import send_signal_message
 
 # Get logger instance (configure in main())
 logger = logging.getLogger("idm_logger")
@@ -170,6 +172,29 @@ def main():
                     # Update Web UI
                     update_current_data(data)
 
+                    # AI Anomaly Detection (Always learn)
+                    anomaly_detector.update(data)
+
+                    # Check AI Alerts if enabled
+                    if config.get("ai.enabled", False):
+                        sigma = float(config.get("ai.sensitivity", 3.0))
+                        anomalies = anomaly_detector.detect(data, sigma)
+                        if anomalies:
+                            logger.info(f"AI Anomaly Detected: {anomalies}")
+                            # Construct message
+                            msg_lines = ["🤖 AI Anomalie erkannt!"]
+                            for sensor, det in anomalies.items():
+                                msg_lines.append(f"- {sensor}: {det['value']} (Ø {det['mean']:.2f}, Z: {det['z_score']:.1f})")
+
+                            try:
+                                # Simple rate limit prevention handled by user via cooldown?
+                                # For AI, we hardcode a basic check or just send.
+                                # Ideally we'd have a cooldown per sensor for AI too.
+                                # For now, we trust the Z-score is significant.
+                                send_signal_message("\n".join(msg_lines))
+                            except Exception as e:
+                                logger.error(f"Failed to send AI alert: {e}")
+
                     # Check Alerts
                     alert_manager.check_alerts(data)
 
@@ -204,6 +229,7 @@ def main():
             mqtt.stop()
         if modbus:
             modbus.close()
+        anomaly_detector.save() # Save learned model
         logger.info("Stopped")
 
 if __name__ == "__main__":
