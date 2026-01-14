@@ -32,6 +32,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Rate limiting storage
 login_attempts = {}
+MAX_TRACKED_IPS = 1000
 
 # Shared state
 current_data = {}
@@ -177,6 +178,24 @@ def login():
         if len(login_attempts[ip]) >= 5:
             logger.warning(f"Login rate limit exceeded for IP {ip}")
             return jsonify({"success": False, "message": "Zu viele Fehlversuche. Versuch es später noch einmal."}), 429
+
+    # Global cleanup to prevent memory leak
+    if len(login_attempts) > MAX_TRACKED_IPS:
+        # 1. Clean up all expired entries
+        expired_ips = [ip_addr for ip_addr, times in login_attempts.items()
+                       if not any(now - t < 300 for t in times)]
+        for ip_addr in expired_ips:
+            del login_attempts[ip_addr]
+
+        # 2. If still too many, remove oldest (LRU-like)
+        if len(login_attempts) > MAX_TRACKED_IPS:
+            # Remove oldest 10% of entries to free up space
+            # Python 3.7+ dicts preserve insertion order, so keys() are roughly chronological
+            keys_to_remove = list(login_attempts.keys())[:int(MAX_TRACKED_IPS * 0.1)]
+            for k in keys_to_remove:
+                if k in login_attempts and k != ip:
+                    del login_attempts[k]
+            logger.warning(f"Pruned {len(keys_to_remove)} old login rate limit entries")
 
     data = request.get_json()
     password = data.get('password')
