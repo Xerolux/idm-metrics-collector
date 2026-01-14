@@ -52,6 +52,19 @@ const items = ref([
         command: () => router.push('/config')
     },
     {
+        label: 'Techniker',
+        icon: 'pi pi-key',
+        command: () => router.push('/tools')
+    },
+    {
+        label: 'Grafana',
+        icon: 'pi pi-chart-line',
+        command: () => {
+            const hostname = window.location.hostname;
+            window.open(`http://${hostname}:3001`, '_blank', 'noopener');
+        }
+    },
+    {
         label: 'Über',
         icon: 'pi pi-info-circle',
         command: () => router.push('/about')
@@ -62,11 +75,6 @@ const logout = async () => {
     await auth.logout();
     router.push('/login');
 }
-
-const openGrafana = () => {
-    const hostname = window.location.hostname;
-    window.open(`http://${hostname}:3001`, '_blank', 'noopener');
-};
 
 let timer;
 const resetTimer = () => {
@@ -113,9 +121,6 @@ onUnmounted(() => {
                         class="p-2 sm:p-3"
                         @click="ui.toggleEditMode"
                     />
-                    <Button icon="pi pi-chart-line" severity="secondary" text class="p-2 sm:p-3" @click="openGrafana">
-                        <span class="hidden sm:inline ml-2">Grafana</span>
-                    </Button>
                     <Button icon="pi pi-power-off" severity="danger" text @click="logout" class="p-2 sm:p-3">
                         <span class="hidden sm:inline ml-2">Abmelden</span>
                     </Button>

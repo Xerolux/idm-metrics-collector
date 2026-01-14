@@ -52,20 +52,13 @@
                         </Card>
 
                         <Card class="bg-gray-800 text-white">
-                            <template #title>InfluxDB</template>
+                            <template #title>VictoriaMetrics</template>
                             <template #content>
                                 <div class="flex flex-col gap-4">
                                     <div class="flex flex-col gap-2">
                                         <label>URL</label>
-                                        <InputText v-model="config.influx.url" />
-                                    </div>
-                                    <div class="flex flex-col gap-2">
-                                        <label>Organisation</label>
-                                        <InputText v-model="config.influx.org" />
-                                    </div>
-                                    <div class="flex flex-col gap-2">
-                                        <label>Bucket</label>
-                                        <InputText v-model="config.influx.bucket" />
+                                        <InputText v-model="config.metrics.url" />
+                                        <small class="text-gray-300">Standard: http://victoriametrics:8428/write</small>
                                     </div>
                                 </div>
                             </template>
@@ -435,7 +428,7 @@
                                         </h3>
                                         <div class="flex items-center gap-2">
                                             <Checkbox v-model="backupIncludeInflux" binary inputId="backup_include_influx" />
-                                            <label for="backup_include_influx">InfluxDB Zugangsdaten einschließen (sensibel)</label>
+                                            <label for="backup_include_influx">Metrics Zugangsdaten einschließen (sensibel)</label>
                                         </div>
                                         <Button
                                             label="Backup jetzt erstellen"
@@ -563,9 +556,9 @@
                                 <div class="flex flex-col gap-2 p-4 border border-blue-600 rounded bg-blue-900/10">
                                     <div class="flex items-center justify-between gap-4">
                                         <div>
-                                            <div class="font-semibold">InfluxDB Explorer</div>
+                                            <div class="font-semibold">VictoriaMetrics UI</div>
                                             <div class="text-sm text-gray-300">
-                                                Öffne die InfluxDB v3 Explorer-UI für Datenabfragen und Administration.
+                                                Öffne die VictoriaMetrics UI (vmui) für Datenabfragen und Administration.
                                             </div>
                                             <div class="text-xs text-gray-400 mt-1">{{ explorerUrl }}</div>
                                         </div>
@@ -591,7 +584,7 @@
                                     <div class="flex items-center justify-between mt-2">
                                         <div class="flex flex-col">
                                             <span class="font-semibold">Alle Daten löschen</span>
-                                            <span class="text-sm text-gray-400">Entferne dauerhaft alle geloggten Daten aus InfluxDB.</span>
+                                            <span class="text-sm text-gray-400">Entferne dauerhaft alle geloggten Daten aus VictoriaMetrics.</span>
                                         </div>
                                         <Button
                                             label="Datenbank löschen"
@@ -690,7 +683,7 @@ import TechnicianCodeGenerator from '../components/TechnicianCodeGenerator.vue';
 
 const config = ref({
     idm: { host: '', port: 502, circuits: ['A'], zones: [] },
-    influx: { url: '', org: '', bucket: '' },
+    metrics: { url: '' },
     web: { write_enabled: false },
     logging: { interval: 60, realtime_mode: false },
     mqtt: { enabled: false, broker: '', port: 1883, username: '', topic_prefix: 'idm/heatpump', qos: 0, use_tls: false, publish_interval: 60, ha_discovery_enabled: false, ha_discovery_prefix: 'homeassistant' },
@@ -731,7 +724,7 @@ const deletingDatabase = ref(false);
 onMounted(async () => {
     try {
         if (typeof window !== 'undefined') {
-            explorerUrl.value = `${window.location.protocol}//${window.location.hostname}:8888`;
+            explorerUrl.value = `${window.location.protocol}//${window.location.hostname}:8428/vmui/`;
         }
         const res = await axios.get('/api/config');
         config.value = res.data;
@@ -806,9 +799,7 @@ const saveConfig = async () => {
             idm_port: config.value.idm.port,
             circuits: config.value.idm.circuits,
             zones: config.value.idm.zones,
-            influx_url: config.value.influx.url,
-            influx_org: config.value.influx.org,
-            influx_bucket: config.value.influx.bucket,
+            metrics_url: config.value.metrics.url,
             write_enabled: config.value.web.write_enabled,
             logging_interval: config.value.logging.interval,
             realtime_mode: config.value.logging.realtime_mode,

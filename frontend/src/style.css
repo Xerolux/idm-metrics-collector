@@ -17,7 +17,7 @@
 }
 
 .p-dialog .p-dialog-header-icon {
-    @apply text-gray-400 hover:text-white transition-colors;
+    @apply text-gray-300 hover:text-white transition-colors;
 }
 
 /* Confirm Dialog */
@@ -28,7 +28,7 @@
 }
 
 .p-confirm-dialog .p-dialog-header-icon {
-    @apply text-gray-400 hover:text-white transition-colors;
+    @apply text-gray-300 hover:text-white transition-colors;
 }
 
 .p-confirm-dialog .p-button-text {
@@ -45,11 +45,11 @@
 }
 
 .p-card .p-card-subtitle {
-    @apply text-gray-400;
+    @apply text-gray-300;
 }
 
 .p-card .p-card-content {
-    @apply text-gray-100;
+    @apply text-gray-50;
 }
 
 /* Buttons */
@@ -84,7 +84,7 @@
 }
 
 .p-dropdown .p-dropdown-trigger {
-    @apply text-gray-400;
+    @apply text-gray-300;
 }
 
 .p-dropdown-panel {
@@ -164,7 +164,7 @@
 }
 
 .p-datatable .p-datatable-tbody > tr > td {
-    @apply text-gray-100;
+    @apply text-gray-50;
 }
 
 .p-datatable .p-datatable-tbody > tr:hover {

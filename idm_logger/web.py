@@ -13,6 +13,7 @@ from .alerts import alert_manager
 from shutil import which
 import threading
 import logging
+import requests
 import functools
 import os
 import sys
@@ -914,9 +915,22 @@ def delete_backup(filename):
 @login_required
 def delete_database():
     """Delete all data from the database."""
-    # Not implemented for VictoriaMetrics via this API yet
-    # Could send a delete request to VM
-    return jsonify({"error": "Nicht implementiert für VictoriaMetrics"}), 501
+    try:
+        metrics_url = config.data.get('metrics', {}).get('url', 'http://victoriametrics:8428/write')
+        # Assuming URL is like http://host:8428/write, we need http://host:8428/api/v1/admin/tsdb/delete_series
+        base_url = metrics_url.replace('/write', '')
+        delete_url = f"{base_url}/api/v1/admin/tsdb/delete_series"
+
+        # Delete everything
+        response = requests.post(delete_url, params={'match[]': '{__name__!=""}'})
+
+        if response.status_code == 204 or response.status_code == 200:
+            return jsonify({"success": True, "message": "Datenbank erfolgreich bereinigt"})
+        else:
+            return jsonify({"error": f"Fehler beim Löschen: {response.text}"}), 500
+    except Exception as e:
+        logger.error(f"Failed to delete database: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 def set_metrics_writer(writer):
