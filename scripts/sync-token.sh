@@ -34,7 +34,18 @@ else
     echo "Warning: $GRAFANA_PROVISIONING not found"
 fi
 
-# 3. Update .env if it exists
+# 3. Update InfluxDB Admin Token File
+INFLUX_TOKEN_FILE="$PROJECT_ROOT/influxdb-token/admin_token.txt"
+if [ -f "$INFLUX_TOKEN_FILE" ]; then
+    echo "Updating $INFLUX_TOKEN_FILE..."
+    echo -n "$NEW_TOKEN" > "$INFLUX_TOKEN_FILE"
+else
+    echo "Warning: $INFLUX_TOKEN_FILE not found. Creating it."
+    mkdir -p "$(dirname "$INFLUX_TOKEN_FILE")"
+    echo -n "$NEW_TOKEN" > "$INFLUX_TOKEN_FILE"
+fi
+
+# 4. Update .env if it exists
 ENV_FILE="$PROJECT_ROOT/.env"
 if [ -f "$ENV_FILE" ]; then
     echo "Updating $ENV_FILE..."
