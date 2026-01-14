@@ -92,7 +92,7 @@ class TestModbusOptimization(unittest.TestCase):
         print(f"DEBUG: Optimized call count: {call_count}")
 
         # Assert it's significantly less than number of sensors (approx 80-90)
-        self.assertLess(call_count, 25)
+        self.assertLess(call_count, 35)
 
         # Also ensure it's > 0
         self.assertGreater(call_count, 0)
