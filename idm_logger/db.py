@@ -65,6 +65,22 @@ class Database:
                         last_run REAL
                     )
                 ''')
+
+                # Alerts table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS alerts (
+                        id TEXT PRIMARY KEY,
+                        name TEXT,
+                        type TEXT,
+                        sensor TEXT,
+                        condition TEXT,
+                        threshold TEXT,
+                        message TEXT,
+                        enabled INTEGER,
+                        interval_seconds INTEGER,
+                        last_triggered REAL
+                    )
+                ''')
             logger.info(f"Database initialized at {self.db_path}")
         except sqlite3.Error as e:
             logger.error(f"Database initialization failed: {e}", exc_info=True)
@@ -160,6 +176,69 @@ class Database:
             logger.debug(f"Job {job_id} updated successfully")
         except sqlite3.Error as e:
             logger.error(f"Failed to update job {job_id}: {e}", exc_info=True)
+            raise
+
+    # Helpers for alerts
+    def get_alerts(self):
+        """Get all alerts from database."""
+        try:
+            with self._get_locked_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM alerts")
+                return [dict(row) for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            logger.error(f"Failed to retrieve alerts: {e}", exc_info=True)
+            return []
+
+    def add_alert(self, alert):
+        """Add a new alert to database."""
+        try:
+            with self._get_locked_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """INSERT INTO alerts
+                       (id, name, type, sensor, condition, threshold, message, enabled, interval_seconds, last_triggered)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (alert['id'], alert['name'], alert['type'], alert.get('sensor'), alert.get('condition'),
+                     str(alert.get('threshold')), alert['message'], int(alert['enabled']),
+                     alert.get('interval_seconds', 0), alert.get('last_triggered', 0))
+                )
+            logger.info(f"Alert {alert['id']} added successfully")
+        except sqlite3.Error as e:
+            logger.error(f"Failed to add alert {alert.get('id', 'unknown')}: {e}", exc_info=True)
+            raise
+
+    def delete_alert(self, alert_id):
+        """Delete an alert from database."""
+        try:
+            with self._get_locked_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM alerts WHERE id=?", (alert_id,))
+            logger.info(f"Alert {alert_id} deleted successfully")
+        except sqlite3.Error as e:
+            logger.error(f"Failed to delete alert {alert_id}: {e}", exc_info=True)
+            raise
+
+    def update_alert(self, alert_id, fields):
+        """Update an alert in database."""
+        try:
+            with self._get_locked_connection() as conn:
+                cursor = conn.cursor()
+                query_parts = []
+                values = []
+                for k, v in fields.items():
+                    query_parts.append(f"{k}=?")
+                    if k == 'enabled':
+                        values.append(int(v))
+                    else:
+                        values.append(v)
+
+                values.append(alert_id)
+                query = f"UPDATE alerts SET {', '.join(query_parts)} WHERE id=?"
+                cursor.execute(query, tuple(values))
+            logger.debug(f"Alert {alert_id} updated successfully")
+        except sqlite3.Error as e:
+            logger.error(f"Failed to update alert {alert_id}: {e}", exc_info=True)
             raise
 
 db = Database()
