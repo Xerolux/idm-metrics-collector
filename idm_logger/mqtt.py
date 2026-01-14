@@ -313,9 +313,8 @@ class MQTTPublisher:
     def publish_data(self, data):
         """
         Publish sensor data to MQTT.
-
         Args:
-            data: Dictionary of sensor data
+            data: Dictionary of sensor data from modbus.read_sensors()
         """
         if not config.get("mqtt.enabled", False):
             return
@@ -328,93 +327,44 @@ class MQTTPublisher:
         qos = config.get("mqtt.qos", 1)
 
         try:
-            # Publish each sensor value to individual topics
+            # Publish each sensor value to its own topic
             for sensor_name, value in data.items():
-                # data comes from modbus.read_sensors() which returns a flattened dict:
-                # { "sensor_name": value, "sensor_name_str": "EnumName", ... }
-                # But wait, logger.py passes 'data' which is that dict.
-                # However, mqtt.py previously expected { sensor: {value: ..., unit: ... } } ?
-                # Let's check existing publish_data implementation in read_file output.
-
-                # The OLD publish_data implementation:
-                # for sensor_name, sensor_data in data.items():
-                #    if isinstance(sensor_data, dict) and 'value' in sensor_data:
-                # ...
-
-                # BUT logger.py says:
-                # data = modbus.read_sensors()
-                # modbus.read_sensors() returns a simple dict {name: value}.
-                # WAIT. modbus.py read_sensors returns `data` dict.
-                # Looking at modbus.py:
-                # data[sensor.name] = value
-                # data[f"{sensor.name}_str"] = str(value)
-                # So it returns { "temp_outside": 12.5, ... }
-
-                # The existing mqtt.py `publish_data` expects `sensor_data` to be a dict with `value` key.
-                # This seems like a MISMATCH in the existing code or I misread something.
-                # In `logger.py`:
-                # if mqtt and mqtt.connected:
-                #     mqtt.publish_data(data)
-
-                # If `data` is flat, `isinstance(sensor_data, dict)` will be false for float/int values.
-                # So existing code might be broken or I am missing something.
-                # Let's fix this method to handle the flat dict from modbus.py.
-
-                # Skip _str keys
+                # Skip the string-representation variants of enums
                 if sensor_name.endswith("_str"):
                     continue
 
-                val = value
-                # Find unit from sensor def if possible
+                # Find the sensor definition to get the unit
                 unit = ""
-                if self.sensors and sensor_name in self.sensors:
-                     unit = getattr(self.sensors[sensor_name], "unit", "")
+                sensor_def = self.sensors.get(sensor_name) or self.binary_sensors.get(sensor_name)
+                if sensor_def:
+                    unit = getattr(sensor_def, "unit", "")
 
-                # Special handling for Enum string values for HA
-                # If there is a corresponding _str key, use it?
-                # For HA 'select', we might want the string.
-                # But HA 'sensor' usually wants raw value.
-                # Let's stick to raw value in 'value' field.
-
-                val_str = data.get(f"{sensor_name}_str")
-
-                topic = f"{topic_prefix}/{sensor_name}"
-
-                # Prepare payload
+                # Prepare payload for individual sensor topic
                 payload = {
-                    'value': val,
+                    'value': value,
                     'unit': unit,
                     'timestamp': int(time.time())
                 }
 
-                if val_str:
-                     payload['value_str'] = val_str
+                # For enums, add the string representation if it exists
+                if f"{sensor_name}_str" in data:
+                    payload['value_str'] = data[f"{sensor_name}_str"]
 
-                # Publish message
-                result = self.client.publish(
-                    topic,
-                    json.dumps(payload),
-                    qos=qos,
-                    retain=False
-                )
-
+                # Publish to individual topic
+                topic = f"{topic_prefix}/{sensor_name}"
+                result = self.client.publish(topic, json.dumps(payload), qos=qos, retain=False)
                 if result.rc != mqtt.MQTT_ERR_SUCCESS:
-                    logger.warning(f"Failed to publish {sensor_name}: {result.rc}")
+                    logger.warning(f"Failed to publish {sensor_name}: {mqtt.error_string(result.rc)}")
 
-            # Also publish complete state to single topic
+            # Publish the complete data set to a single 'state' topic
             state_topic = f"{topic_prefix}/state"
-            self.client.publish(
-                state_topic,
-                json.dumps(data), # This handles the full dict
-                qos=qos,
-                retain=True  # Retain state for new subscribers
-            )
+            self.client.publish(state_topic, json.dumps(data), qos=qos, retain=True)
 
             self.last_publish_time = time.time()
-            logger.debug(f"Published {len(data)} sensors to MQTT")
+            logger.debug(f"Published {len(data)} values to MQTT")
 
         except Exception as e:
-            logger.error(f"Error publishing to MQTT: {e}")
+            logger.error(f"Error publishing to MQTT: {e}", exc_info=True)
 
     def publish_sensor(self, sensor_name, value, unit=""):
         """
