@@ -9,6 +9,7 @@ class MetricsWriter:
     def __init__(self):
         self.url = os.environ.get("METRICS_URL", config.get("metrics.url", "http://victoriametrics:8428/write"))
         self._connected = True # HTTP is stateless
+        self.session = requests.Session()
         logger.info(f"MetricsWriter initialized with URL: {self.url}")
 
     def is_connected(self) -> bool:
@@ -44,7 +45,8 @@ class MetricsWriter:
 
         try:
             # VictoriaMetrics /write endpoint
-            response = requests.post(self.url, data=line, timeout=5)
+            # Use session for connection pooling
+            response = self.session.post(self.url, data=line, timeout=5)
             if response.status_code in (200, 204):
                 return True
             else:
