@@ -60,7 +60,7 @@ services:
       - INFLUXDB3_AUTH_TOKEN=apiv3_my-super-secret-token-change-me
       - INFLUXDB_DATABASE=idm
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -H \"Authorization: Bearer $INFLUXDB3_AUTH_TOKEN\" http://localhost:8181/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f -H \"Authorization: Bearer apiv3_my-super-secret-token-change-me\" http://localhost:8181/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
