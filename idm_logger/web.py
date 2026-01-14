@@ -421,6 +421,19 @@ def config_page():
                     recipients = [x.strip() for x in recipients.split('\n') if x.strip()]
                 config.data['signal']['recipients'] = recipients
 
+            # AI Settings
+            if 'ai_enabled' in data:
+                config.data['ai']['enabled'] = bool(data['ai_enabled'])
+            if 'ai_sensitivity' in data:
+                try:
+                    sens = float(data['ai_sensitivity'])
+                    if 1.0 <= sens <= 10.0:
+                         config.data['ai']['sensitivity'] = sens
+                    else:
+                         return jsonify({"error": "AI Sensitivität muss zwischen 1.0 und 10.0 sein"}), 400
+                except ValueError:
+                    return jsonify({"error": "Ungültiger Wert für AI Sensitivität"}), 400
+
             # Auto Update Settings
             if 'updates_enabled' in data:
                 config.data['updates']['enabled'] = bool(data['updates_enabled'])
