@@ -33,8 +33,12 @@ class InfluxWriter:
                 # Auto-Recovery for 401 Unauthorized
                 if "401" in str(e) or "unauthorized" in str(e).lower():
                     logger.warning("InfluxDB authentication failed (401). Checking for environment token...")
-                    # Check both variable names
-                    env_token = os.environ.get("INFLUX_TOKEN") or os.environ.get("INFLUXDB_TOKEN")
+                    # Check all supported variable names, prioritizing the standard v3 token
+                    env_token = (
+                        os.environ.get("INFLUXDB3_AUTH_TOKEN") or
+                        os.environ.get("INFLUX_TOKEN") or
+                        os.environ.get("INFLUXDB_TOKEN")
+                    )
 
                     if env_token:
                         current_token = self.conf.get("token")

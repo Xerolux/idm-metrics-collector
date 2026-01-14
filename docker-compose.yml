@@ -56,7 +56,15 @@ services:
     environment:
       # Token for authentication - keep this consistent across deployments
       - INFLUXDB_TOKEN=apiv3_my-super-secret-token-change-me
+      # Standard v3 variable
+      - INFLUXDB3_AUTH_TOKEN=apiv3_my-super-secret-token-change-me
       - INFLUXDB_DATABASE=idm
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -H \"Authorization: Bearer $INFLUXDB3_AUTH_TOKEN\" http://localhost:8181/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   explorer:
     image: influxdata/influxdb3-ui:latest
@@ -65,6 +73,7 @@ services:
     restart: unless-stopped
     ports:
       - "8888:80"
+    command: ["--mode=admin"]
     environment:
       - INFLUXDB_URL=http://idm-influxdb:8181
       - INFLUXDB_VERSION=3

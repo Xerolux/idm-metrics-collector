@@ -21,6 +21,8 @@ if [ -f "$DOCKER_COMPOSE" ]; then
     sed -i "s/INFLUX_TOKEN=.*/INFLUX_TOKEN=$NEW_TOKEN/" "$DOCKER_COMPOSE"
     # Update INFLUXDB_TOKEN for influxdb
     sed -i "s/INFLUXDB_TOKEN=.*/INFLUXDB_TOKEN=$NEW_TOKEN/" "$DOCKER_COMPOSE"
+    # Update INFLUXDB3_AUTH_TOKEN for influxdb (v3 standard)
+    sed -i "s/INFLUXDB3_AUTH_TOKEN=.*/INFLUXDB3_AUTH_TOKEN=$NEW_TOKEN/" "$DOCKER_COMPOSE"
 else
     echo "Warning: $DOCKER_COMPOSE not found"
 fi
