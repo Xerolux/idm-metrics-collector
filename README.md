@@ -10,104 +10,94 @@
 [![Buy Me A Coffee][buymeacoffee-badge]][buymeacoffee]
 [![Tesla](https://img.shields.io/badge/Tesla-Referral-red?style=for-the-badge&logo=tesla)](https://ts.la/sebastian564489)
 
-Ein umfassendes Überwachungs- und Steuerungssystem für IDM Wärmepumpen (Navigator 2.0) mit VictoriaMetrics Speicherung und Grafana-Visualisierung.
+**Das ultimative Dashboard für deine IDM Wärmepumpe.**
 
-![Demo](docs/images/demo.gif)
+Ein modernes, docker-basiertes System zur Überwachung, Steuerung und Automatisierung von IDM Wärmepumpen (Navigator 2.0). Inklusive Langzeitspeicherung (VictoriaMetrics) und professioneller Visualisierung (Grafana).
 
-## Funktionen
-
-*   **Docker-First**: Optimiert für Docker und Docker Compose Deployments
-*   **Zero-Config Setup**: Vollständiger Stack mit VictoriaMetrics und Grafana vorkonfiguriert
-*   **Datenquelle**: Liest von der IDM Wärmepumpe via Modbus TCP
-*   **Datensenke**: VictoriaMetrics (Prometheus-kompatibel, effizient)
-*   **Weboberfläche**: Modernes Dashboard für Live-Daten, Konfiguration, manuelle Steuerung und Zeitplanung
-*   **Automatisierung**: Eingebauter Zeitplaner, um Werte (z.B. Temperaturen) zu bestimmten Zeiten zu schreiben
-*   **Produktionsbereit**: Health Checks, automatische Neustarts, persistente Daten
-*   **Service Code Generator** : Erstellt die aktuellen Codes für Ebene 1 und Ebene 2
-
-## Schnellstart
-
-### Installation mit Docker Compose **[EMPFOHLEN]**
-
-Dies installiert:
-- **IDM Metrics Collector** (Web UI + API)
-- **VictoriaMetrics** (High-Performance Time Series Database)
-- **Grafana** (Visualisierungsplattform)
-
-```bash
-git clone https://github.com/Xerolux/idm-metrics-collector.git
-cd idm-metrics-collector
-docker compose up -d
-```
-
-Alle Dienste sind vorkonfiguriert und einsatzbereit!
-
-## Zugriff auf die Dienste
-
-### Nach der Installation
-
-**Web UI** (IDM Metrics Collector)
-- URL: `http://dein-server-ip:5008`
-- Standard-Login: `admin` / `admin` (bitte nach dem ersten Login ändern)
-- Funktionen: Live-Dashboard, Bedienfeld, Zeitplaner, Konfiguration
-
-**Grafana**
-- URL: `http://dein-server-ip:3001`
-- Standard-Login: `admin` / `admin`
-- Vorkonfiguriert mit VictoriaMetrics Datenquelle und IDM Dashboard
-
-**VictoriaMetrics**
-- URL: `http://dein-server-ip:8428`
-- Metrics Ingest Endpoint: `/write` (Line Protocol kompatibel)
-- Prometheus Endpoint: `/prometheus`
-
-## Konfiguration
-
-Pfad zur Konfigurationsdatei: `/opt/idm-metrics-collector/config.yaml` oder via Web UI.
-
-Beispiel:
-
-```yaml
-idm:
-  host: "192.168.1.100"  # IP deiner IDM Wärmepumpe
-  port: 502              # Modbus Port
-  circuits: ["A"]        # Aktivierte Heizkreise
-
-metrics:
-  url: "http://victoriametrics:8428/write"
-
-web:
-  enabled: true
-  port: 5000
-  admin_password: "admin" # Passwort für Login
-  write_enabled: false    # Schreiben auf die Wärmepumpe erlauben (Steuerung/Zeitplan)
-
-logging:
-  interval: 60           # Sekunden zwischen den Lesezyklen
-  level: "INFO"
-```
-
-## Weboberfläche
-
-Zugriff auf die Weboberfläche unter `http://<deine-server-ip>:5008`.
-
-*   **Login**: Die Oberfläche ist durch ein Passwort geschützt (Standard: `admin`).
-*   **Live Dashboard**: Zeigt kategorisierte Sensorwerte mit automatischer Aktualisierung.
-*   **Steuerung**: (Wenn aktiviert) Schreibe Werte auf beschreibbare Sensoren.
-*   **Zeitplan**: (Wenn aktiviert) Automatisiere das Setzen von Werten basierend auf Zeit und Tag.
-*   **Service Codes**: Code-Generator für Techniker- und Fachmannebene.
-
-## Nutzung & Haftungsausschluss
-
-Verwende dieses Projekt so wie es ist und auf eigenes Risiko. Stelle sicher, dass du die Auswirkungen des Lesens von oder Schreibens auf deine Wärmepumpe verstehst, bevor du Steuerungsfunktionen aktivierst.
-
-## Lizenz
-
-MIT Lizenz. Siehe [LICENSE](LICENSE).
+> **Hardware Kompatibilität**
+>
+> ✅ **Verifiziert:** Getestet an einer **IDM ALM 6-15** Wärmepumpe.
+>
+> Das System nutzt das standardisierte Modbus TCP Interface des Navigator 2.0 Reglers und sollte mit den meisten modernen IDM Anlagen kompatibel sein.
 
 ---
 
-Dieses Projekt steht in keiner Verbindung zu IDM Energiesysteme GmbH und wird unabhängig bereitgestellt.
+![Demo](docs/images/demo.gif)
+
+## ✨ Funktionen
+
+| Feature | Beschreibung |
+| :--- | :--- |
+| 🚀 **Docker-First** | Fertiges `docker-compose` Setup. Startklar in Sekunden. |
+| 📊 **Visualisierung** | Vorkonfiguriertes **Grafana** Dashboard + **VictoriaMetrics** DB. |
+| 📱 **Responsive UI** | Modernes Web-Interface für Desktop, Tablet und Mobile. |
+| ⚡ **Zero-Config** | Automatische Erkennung und Einrichtung der Datenbank. |
+| 🤖 **Automatisierung** | Integrierter Zeitplaner für Heizkreise & Warmwasser. |
+| 🔔 **Alerting** | Benachrichtigungen bei Störungen oder Grenzwertüberschreitungen. |
+| 🔑 **Service Codes** | Eingebauter Generator für Fachmann- & Technikercodes. |
+
+## 📸 Einblicke
+
+| Dashboard | Steuerung |
+| :---: | :---: |
+| ![Dashboard](docs/screenshots/02_dashboard.png) | ![Control](docs/screenshots/03_control.png) |
+| **Alles im Blick** | **Volle Kontrolle** |
+
+| Zeitplaner | Konfiguration |
+| :---: | :---: |
+| ![Schedule](docs/screenshots/04_schedule.png) | ![Config](docs/screenshots/06_config.png) |
+| **Smarte Zeitpläne** | **Einfache Einrichtung** |
+
+## 🚀 Schnellstart
+
+Die Installation ist dank Docker denkbar einfach. Du benötigst lediglich ein System mit installiertem Docker & Docker Compose.
+
+### 1. Repository klonen
+```bash
+git clone https://github.com/Xerolux/idm-metrics-collector.git
+cd idm-metrics-collector
+```
+
+### 2. Starten
+```bash
+docker compose up -d
+```
+*Das war's! Die Container werden gebaut und gestartet.*
+
+### 3. Zugriff
+
+| Dienst | URL | Login (Default) | Beschreibung |
+| :--- | :--- | :--- | :--- |
+| **Web UI** | `http://<ip>:5008` | `admin` / `admin` | Hauptinterface, Config, Steuerung |
+| **Grafana** | `http://<ip>:3001` | `admin` / `admin` | Historische Daten & Analysen |
+| **Datenbank** | `http://<ip>:8428` | - | VictoriaMetrics API Endpunkte |
+
+---
+
+## ⚙️ Konfiguration
+
+Die Konfiguration erfolgt primär über die Web-Oberfläche (`Einstellungen`). Alternativ kann die Datei `config.yaml` direkt bearbeitet werden.
+
+**Wichtigste Einstellungen:**
+*   **IDM Host:** IP-Adresse deiner Wärmepumpe.
+*   **Heizkreise:** Welche Heizkreise (A, B, C...) sind aktiv?
+*   **Schreibzugriff:** Muss explizit aktiviert werden, um Werte zu ändern.
+
+## ⚠️ Haftungsausschluss
+
+Dieses Projekt ist eine private Entwicklung und steht in keiner Verbindung zu IDM Energiesysteme GmbH.
+Die Nutzung erfolgt auf eigene Gefahr. Insbesondere Schreibvorgänge (Steuerung) sollten mit Bedacht konfiguriert werden.
+
+## 🤝 Support & Community
+
+Probleme? Fragen? Ideen?
+
+*   🐛 [Issue erstellen](https://github.com/xerolux/idm-metrics-collector/issues)
+*   💬 [Discord Community][discord]
+*   ☕ [Unterstütze das Projekt][buymeacoffee]
+
+---
+License: MIT
 
 <!-- Badge Links -->
 [releases-shield]: https://img.shields.io/github/release/xerolux/idm-metrics-collector.svg?style=for-the-badge
