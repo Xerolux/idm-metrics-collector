@@ -11,7 +11,7 @@ def _normalize_recipients(value) -> List[str]:
     if not value:
         return []
     if isinstance(value, str):
-        return [entry.strip() for entry in value.split(',') if entry.strip()]
+        return [entry.strip() for entry in value.split(",") if entry.strip()]
     if isinstance(value, Iterable):
         return [str(entry).strip() for entry in value if str(entry).strip()]
     return []

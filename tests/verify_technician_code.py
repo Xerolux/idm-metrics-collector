@@ -3,6 +3,7 @@ import re
 import json
 from playwright.sync_api import sync_playwright
 
+
 def calculate_expected_codes():
     now = datetime.datetime.now()
 
@@ -23,6 +24,7 @@ def calculate_expected_codes():
 
     return level1, level2
 
+
 def run(playwright):
     browser = playwright.chromium.launch(headless=True)
     page = browser.new_page()
@@ -34,11 +36,14 @@ def run(playwright):
 
     # Mock Auth and Config
     # Using regex to catch any variation of the URL
-    page.route(re.compile(r".*/api/auth/.*"), lambda route: route.fulfill(
-        status=200,
-        content_type="application/json",
-        body='{"authenticated": true, "user": "admin"}'
-    ))
+    page.route(
+        re.compile(r".*/api/auth/.*"),
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body='{"authenticated": true, "user": "admin"}',
+        ),
+    )
 
     # Complete Config Mock to avoid Vue errors
     config_mock = {
@@ -47,26 +52,31 @@ def run(playwright):
         "metrics": {"url": "http://victoriametrics:8428/write"},
         "web": {"write_enabled": True},
         "mqtt": {"enabled": False},
-        "network_security": {"enabled": False, "whitelist": [], "blacklist": []}
+        "network_security": {"enabled": False, "whitelist": [], "blacklist": []},
     }
 
-    page.route(re.compile(r".*/api/config"), lambda route: route.fulfill(
-        status=200,
-        content_type="application/json",
-        body=json.dumps(config_mock)
-    ))
+    page.route(
+        re.compile(r".*/api/config"),
+        lambda route: route.fulfill(
+            status=200, content_type="application/json", body=json.dumps(config_mock)
+        ),
+    )
 
-    page.route(re.compile(r".*/api/health"), lambda route: route.fulfill(
-        status=200,
-        content_type="application/json",
-        body='{"client_ip": "127.0.0.1"}'
-    ))
+    page.route(
+        re.compile(r".*/api/health"),
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body='{"client_ip": "127.0.0.1"}',
+        ),
+    )
 
-    page.route(re.compile(r".*/api/backup/list"), lambda route: route.fulfill(
-        status=200,
-        content_type="application/json",
-        body='{"backups": []}'
-    ))
+    page.route(
+        re.compile(r".*/api/backup/list"),
+        lambda route: route.fulfill(
+            status=200, content_type="application/json", body='{"backups": []}'
+        ),
+    )
 
     try:
         # Navigate to the config page
@@ -109,8 +119,12 @@ def run(playwright):
         print(f"Found Codes: L1={l1_text}, L2={l2_text}")
 
         # Assertions
-        assert l1_text == expected_l1, f"Level 1 mismatch: expected {expected_l1}, got {l1_text}"
-        assert l2_text == expected_l2, f"Level 2 mismatch: expected {expected_l2}, got {l2_text}"
+        assert l1_text == expected_l1, (
+            f"Level 1 mismatch: expected {expected_l1}, got {l1_text}"
+        )
+        assert l2_text == expected_l2, (
+            f"Level 2 mismatch: expected {expected_l2}, got {l2_text}"
+        )
 
         print("Verification Successful!")
         page.screenshot(path="verification_success.png")
@@ -121,6 +135,7 @@ def run(playwright):
         raise e
     finally:
         browser.close()
+
 
 with sync_playwright() as playwright:
     run(playwright)

@@ -27,13 +27,16 @@ TEST_ADDRESSES = [
     (1104, 1, "state_charge_pump"),
 ]
 
+
 def main():
     host = sys.argv[1] if len(sys.argv) > 1 else "192.168.178.103"
     port = int(sys.argv[2]) if len(sys.argv) > 2 else 502
 
     print(f"Testing individual reads on {host}:{port}\n")
-    print(f"{'Address':<10} {'Size':<6} {'Sensor Name':<30} {'Result':<15} {'Raw Values'}")
-    print("="*90)
+    print(
+        f"{'Address':<10} {'Size':<6} {'Sensor Name':<30} {'Result':<15} {'Raw Values'}"
+    )
+    print("=" * 90)
 
     client = ModbusTcpClient(host, port=port)
     if not client.connect():
@@ -51,6 +54,7 @@ def main():
             print(f"{address:<10} {size:<6} {name:<30} {'EXCEPTION':<15} {e}")
 
     client.close()
+
 
 if __name__ == "__main__":
     main()

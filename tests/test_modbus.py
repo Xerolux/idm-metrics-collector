@@ -18,6 +18,7 @@ TEST_ADDRESSES = [
     (1999, 1, "Acknowledge Faults (uint16)"),
 ]
 
+
 def test_connection():
     """Test Modbus TCP connection."""
     print(f"Testing Modbus connection to {HOST}:{PORT}...")
@@ -51,7 +52,9 @@ def test_connection():
 
     for address, count, description in TEST_ADDRESSES:
         try:
-            result = client.read_holding_registers(address, count=count, device_id=DEVICE_ID)
+            result = client.read_holding_registers(
+                address, count=count, device_id=DEVICE_ID
+            )
 
             if result.isError():
                 print(f"   ✗ Address {address:4d} ({description})")
@@ -89,6 +92,7 @@ def test_connection():
         print("  - Modbus gateway/protocol mismatch")
         return False
 
+
 if __name__ == "__main__":
     try:
         success = test_connection()
@@ -99,5 +103,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n\nUnexpected error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

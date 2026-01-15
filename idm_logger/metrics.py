@@ -5,10 +5,14 @@ from .config import config
 
 logger = logging.getLogger(__name__)
 
+
 class MetricsWriter:
     def __init__(self):
-        self.url = os.environ.get("METRICS_URL", config.get("metrics.url", "http://victoriametrics:8428/write"))
-        self._connected = True # HTTP is stateless
+        self.url = os.environ.get(
+            "METRICS_URL",
+            config.get("metrics.url", "http://victoriametrics:8428/write"),
+        )
+        self._connected = True  # HTTP is stateless
         self.session = requests.Session()
         logger.info(f"MetricsWriter initialized with URL: {self.url}")
 
@@ -50,7 +54,9 @@ class MetricsWriter:
             if response.status_code in (200, 204):
                 return True
             else:
-                logger.error(f"Failed to write metrics: {response.status_code} {response.text}")
+                logger.error(
+                    f"Failed to write metrics: {response.status_code} {response.text}"
+                )
                 return False
         except Exception as e:
             logger.error(f"Exception writing metrics: {e}")
@@ -60,5 +66,5 @@ class MetricsWriter:
         return {
             "connected": self._connected,
             "type": "VictoriaMetrics",
-            "url": self.url
+            "url": self.url,
         }

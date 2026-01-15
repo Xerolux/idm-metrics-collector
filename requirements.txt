@@ -6,3 +6,7 @@ werkzeug>=3.1.5
 waitress>=3.0.2
 paho-mqtt>=2.1.0
 requests>=2.32.5
+pytest>=8.0.0
+ruff>=0.1.0
+flasgger>=0.9.7
+flask-limiter>=3.5.0

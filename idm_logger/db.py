@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 DATA_DIR = os.environ.get("DATA_DIR", ".")
 DB_PATH = os.path.join(DATA_DIR, "idm_logger.db")
 
+
 class Database:
     def __init__(self, db_path=DB_PATH):
         self.db_path = db_path
@@ -46,15 +47,15 @@ class Database:
 
                 # Settings table (key, value)
                 # Value stored as TEXT. Complex objects stored as JSON string.
-                cursor.execute('''
+                cursor.execute("""
                     CREATE TABLE IF NOT EXISTS settings (
                         key TEXT PRIMARY KEY,
                         value TEXT
                     )
-                ''')
+                """)
 
                 # Jobs table for scheduler
-                cursor.execute('''
+                cursor.execute("""
                     CREATE TABLE IF NOT EXISTS jobs (
                         id TEXT PRIMARY KEY,
                         sensor TEXT,
@@ -64,10 +65,10 @@ class Database:
                         enabled INTEGER,
                         last_run REAL
                     )
-                ''')
+                """)
 
                 # Alerts table
-                cursor.execute('''
+                cursor.execute("""
                     CREATE TABLE IF NOT EXISTS alerts (
                         id TEXT PRIMARY KEY,
                         name TEXT,
@@ -80,7 +81,7 @@ class Database:
                         interval_seconds INTEGER,
                         last_triggered REAL
                     )
-                ''')
+                """)
             logger.info(f"Database initialized at {self.db_path}")
         except sqlite3.Error as e:
             logger.error(f"Database initialization failed: {e}", exc_info=True)
@@ -93,7 +94,7 @@ class Database:
                 cursor = conn.cursor()
                 cursor.execute("SELECT value FROM settings WHERE key=?", (key,))
                 row = cursor.fetchone()
-                return row['value'] if row else default
+                return row["value"] if row else default
         except sqlite3.Error as e:
             logger.error(f"Failed to get setting '{key}': {e}")
             return default
@@ -103,7 +104,10 @@ class Database:
         try:
             with self._get_locked_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+                cursor.execute(
+                    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                    (key, value),
+                )
             logger.debug(f"Setting '{key}' updated")
         except sqlite3.Error as e:
             logger.error(f"Failed to set setting '{key}': {e}", exc_info=True)
@@ -135,11 +139,21 @@ class Database:
                 cursor = conn.cursor()
                 cursor.execute(
                     "INSERT INTO jobs (id, sensor, value, time, days, enabled, last_run) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (job['id'], job['sensor'], str(job['value']), job['time'], json.dumps(job['days']), int(job['enabled']), job.get('last_run', 0))
+                    (
+                        job["id"],
+                        job["sensor"],
+                        str(job["value"]),
+                        job["time"],
+                        json.dumps(job["days"]),
+                        int(job["enabled"]),
+                        job.get("last_run", 0),
+                    ),
                 )
             logger.info(f"Job {job['id']} added successfully")
         except sqlite3.Error as e:
-            logger.error(f"Failed to add job {job.get('id', 'unknown')}: {e}", exc_info=True)
+            logger.error(
+                f"Failed to add job {job.get('id', 'unknown')}: {e}", exc_info=True
+            )
             raise
 
     def delete_job(self, job_id):
@@ -163,9 +177,9 @@ class Database:
                 values = []
                 for k, v in fields.items():
                     query_parts.append(f"{k}=?")
-                    if k == 'days':
+                    if k == "days":
                         values.append(json.dumps(v))
-                    elif k == 'enabled':
+                    elif k == "enabled":
                         values.append(int(v))
                     else:
                         values.append(v)
@@ -199,13 +213,24 @@ class Database:
                     """INSERT INTO alerts
                        (id, name, type, sensor, condition, threshold, message, enabled, interval_seconds, last_triggered)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (alert['id'], alert['name'], alert['type'], alert.get('sensor'), alert.get('condition'),
-                     str(alert.get('threshold')), alert['message'], int(alert['enabled']),
-                     alert.get('interval_seconds', 0), alert.get('last_triggered', 0))
+                    (
+                        alert["id"],
+                        alert["name"],
+                        alert["type"],
+                        alert.get("sensor"),
+                        alert.get("condition"),
+                        str(alert.get("threshold")),
+                        alert["message"],
+                        int(alert["enabled"]),
+                        alert.get("interval_seconds", 0),
+                        alert.get("last_triggered", 0),
+                    ),
                 )
             logger.info(f"Alert {alert['id']} added successfully")
         except sqlite3.Error as e:
-            logger.error(f"Failed to add alert {alert.get('id', 'unknown')}: {e}", exc_info=True)
+            logger.error(
+                f"Failed to add alert {alert.get('id', 'unknown')}: {e}", exc_info=True
+            )
             raise
 
     def delete_alert(self, alert_id):
@@ -228,7 +253,7 @@ class Database:
                 values = []
                 for k, v in fields.items():
                     query_parts.append(f"{k}=?")
-                    if k == 'enabled':
+                    if k == "enabled":
                         values.append(int(v))
                     else:
                         values.append(v)
@@ -248,8 +273,10 @@ class Database:
         try:
             with self._get_locked_connection() as conn:
                 cursor = conn.cursor()
-                placeholders = ','.join('?' for _ in alert_ids)
-                query = f"UPDATE alerts SET last_triggered=? WHERE id IN ({placeholders})"
+                placeholders = ",".join("?" for _ in alert_ids)
+                query = (
+                    f"UPDATE alerts SET last_triggered=? WHERE id IN ({placeholders})"
+                )
                 params = [timestamp] + alert_ids
                 cursor.execute(query, tuple(params))
             logger.debug(f"Updated last_triggered for {len(alert_ids)} alerts.")

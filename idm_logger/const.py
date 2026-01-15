@@ -3,6 +3,7 @@
 from enum import EnumMeta, IntEnum, IntFlag
 from typing import Any
 
+
 class SensorFeatures(IntFlag):
     """Possible features for sensors."""
 

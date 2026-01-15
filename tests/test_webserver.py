@@ -2,6 +2,7 @@
 """
 Test script to verify webserver functionality
 """
+
 import sys
 import os
 import time
@@ -10,7 +11,8 @@ import urllib.request
 import json
 
 # Add the project directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 
 def test_webserver():
     """Test the webserver by making HTTP requests"""
@@ -23,9 +25,9 @@ def test_webserver():
     from waitress import serve
 
     # Configure for testing
-    app.config['TESTING'] = True
+    app.config["TESTING"] = True
     port = 5555  # Use different port for testing
-    host = '127.0.0.1'
+    host = "127.0.0.1"
 
     # Start server in background thread
     def run_server():
@@ -55,7 +57,7 @@ def test_webserver():
         response = urllib.request.urlopen(f"{base_url}/api/health", timeout=5)
         data = json.loads(response.read().decode())
         # Accept both 'ok' and 'healthy' as valid statuses
-        if response.status == 200 and data.get('status') in ['ok', 'healthy']:
+        if response.status == 200 and data.get("status") in ["ok", "healthy"]:
             print(f"✓ PASSED - Status: {response.status}, Response: {data}")
             tests_passed += 1
         else:
@@ -71,12 +73,16 @@ def test_webserver():
     try:
         response = urllib.request.urlopen(f"{base_url}/", timeout=5)
         html = response.read().decode()
-        if response.status == 200 and '<!doctype html>' in html.lower() and 'id="app"' in html:
+        if (
+            response.status == 200
+            and "<!doctype html>" in html.lower()
+            and 'id="app"' in html
+        ):
             print(f"✓ PASSED - Status: {response.status}")
-            print(f"  HTML contains: <!doctype html> and <div id=\"app\">")
+            print('  HTML contains: <!doctype html> and <div id="app">')
             tests_passed += 1
         else:
-            print(f"✗ FAILED - Invalid HTML response")
+            print("✗ FAILED - Invalid HTML response")
             print(f"  First 200 chars: {html[:200]}")
             tests_failed += 1
     except Exception as e:
@@ -89,12 +95,16 @@ def test_webserver():
     try:
         response = urllib.request.urlopen(f"{base_url}/dashboard", timeout=5)
         html = response.read().decode()
-        if response.status == 200 and '<!doctype html>' in html.lower() and 'id="app"' in html:
+        if (
+            response.status == 200
+            and "<!doctype html>" in html.lower()
+            and 'id="app"' in html
+        ):
             print(f"✓ PASSED - Status: {response.status}")
-            print(f"  Catch-all route correctly serves index.html")
+            print("  Catch-all route correctly serves index.html")
             tests_passed += 1
         else:
-            print(f"✗ FAILED - Catch-all route not working")
+            print("✗ FAILED - Catch-all route not working")
             tests_failed += 1
     except Exception as e:
         print(f"✗ FAILED - Error: {e}")
@@ -106,7 +116,7 @@ def test_webserver():
     try:
         response = urllib.request.urlopen(f"{base_url}/api/auth/check", timeout=5)
         data = json.loads(response.read().decode())
-        if response.status == 200 and 'authenticated' in data:
+        if response.status == 200 and "authenticated" in data:
             print(f"✓ PASSED - Status: {response.status}, Response: {data}")
             tests_passed += 1
         else:
@@ -123,7 +133,7 @@ def test_webserver():
         response = urllib.request.urlopen(f"{base_url}/static/vite.svg", timeout=5)
         if response.status == 200:
             print(f"✓ PASSED - Status: {response.status}")
-            print(f"  Static files are served correctly")
+            print("  Static files are served correctly")
             tests_passed += 1
         else:
             print(f"✗ FAILED - Status: {response.status}")
@@ -149,7 +159,8 @@ def test_webserver():
         print("=" * 60)
         return 1
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     try:
         sys.exit(test_webserver())
     except KeyboardInterrupt:
@@ -158,5 +169,6 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"\n\n✗ FATAL ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

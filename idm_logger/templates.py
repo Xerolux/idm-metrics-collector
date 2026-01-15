@@ -13,8 +13,8 @@ ALERT_TEMPLATES = [
             "condition": "=",
             "threshold": "1",
             "message": "ACHTUNG: Störung an der Wärmepumpe erkannt! ({time})",
-            "interval_seconds": 3600
-        }
+            "interval_seconds": 3600,
+        },
     },
     {
         "name": "Warmwasser kalt",
@@ -26,8 +26,8 @@ ALERT_TEMPLATES = [
             "condition": "<",
             "threshold": "40",
             "message": "Warmwasser ist kalt: {value}°C um {time}",
-            "interval_seconds": 7200
-        }
+            "interval_seconds": 7200,
+        },
     },
     {
         "name": "Hohe Vorlauftemperatur",
@@ -39,8 +39,8 @@ ALERT_TEMPLATES = [
             "condition": ">",
             "threshold": "60",
             "message": "Warnung: Vorlauf sehr hoch ({value}°C)!",
-            "interval_seconds": 3600
-        }
+            "interval_seconds": 3600,
+        },
     },
     {
         "name": "Täglicher Statusbericht",
@@ -49,8 +49,8 @@ ALERT_TEMPLATES = [
             "name": "Tagesbericht",
             "type": "status",
             "message": "Statusbericht {time}: System läuft.",
-            "interval_seconds": 86400
-        }
+            "interval_seconds": 86400,
+        },
     },
     {
         "name": "Smart Grid: EVU Sperre",
@@ -62,10 +62,11 @@ ALERT_TEMPLATES = [
             "condition": "=",
             "threshold": "0",
             "message": "Info: EVU Sperre ist aktiv um {time}",
-            "interval_seconds": 3600
-        }
-    }
+            "interval_seconds": 3600,
+        },
+    },
 ]
+
 
 def get_alert_templates():
     return ALERT_TEMPLATES

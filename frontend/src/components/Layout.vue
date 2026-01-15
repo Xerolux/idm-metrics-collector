@@ -1,58 +1,73 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { useRouter } from 'vue-router'
 import { useAuthStore } from "../stores/auth";
 import { useUiStore } from "../stores/ui";
+import { useI18n } from 'vue-i18n';
 import Menubar from 'primevue/menubar';
 import Button from 'primevue/button';
+import Select from 'primevue/select';
 import AppFooter from './AppFooter.vue';
 import NetworkStatus from './NetworkStatus.vue';
 
 const router = useRouter();
 const auth = useAuthStore();
 const ui = useUiStore();
+const { t, locale } = useI18n();
 
-const editModeLabel = computed(() => (ui.editMode ? 'Bearbeiten: An' : 'Bearbeiten: Aus'));
+const editModeLabel = computed(() => (ui.editMode ? t('edit') + ': On' : t('edit') + ': Off'));
 const editModeIcon = computed(() => (ui.editMode ? 'pi pi-lock-open' : 'pi pi-lock'));
 const editModeSeverity = computed(() => (ui.editMode ? 'success' : 'secondary'));
 
-const navigate = (path) => {
-    router.push(path);
+const languages = ref([
+    { label: 'Deutsch', value: 'de' },
+    { label: 'English', value: 'en' }
+]);
+const currentLang = ref('de');
+
+watch(currentLang, (newLang) => {
+    locale.value = newLang;
+});
+
+const isDark = ref(document.documentElement.classList.contains('my-app-dark'));
+const toggleTheme = () => {
+    document.documentElement.classList.toggle('my-app-dark');
+    isDark.value = !isDark.value;
 };
 
-const items = ref([
+const items = computed(() => [
     {
-        label: 'Dashboard',
+        label: t('dashboard'),
         icon: 'pi pi-home',
         command: () => router.push('/')
     },
     {
-        label: 'Steuerung',
+        label: t('control'),
         icon: 'pi pi-sliders-h',
         command: () => router.push('/control')
     },
     {
-        label: 'Zeitplan',
+        label: t('schedule'),
         icon: 'pi pi-calendar',
         command: () => router.push('/schedule')
     },
     {
-        label: 'Alarme',
+        label: t('alerts'),
         icon: 'pi pi-bell',
         command: () => router.push('/alerts')
     },
     {
-        label: 'Protokolle',
+        label: t('logs'),
         icon: 'pi pi-list',
         command: () => router.push('/logs')
     },
     {
-        label: 'Einstellungen',
+        label: t('config'),
         icon: 'pi pi-cog',
         command: () => router.push('/config')
     },
     {
-        label: 'Techniker',
+        label: t('tools'),
         icon: 'pi pi-key',
         command: () => router.push('/tools')
     },
@@ -65,7 +80,7 @@ const items = ref([
         }
     },
     {
-        label: 'Über',
+        label: t('about'),
         icon: 'pi pi-info-circle',
         command: () => router.push('/about')
     }
@@ -99,22 +114,26 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="flex flex-col min-h-screen">
+    <div class="flex flex-col min-h-screen transition-colors duration-200" :class="isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'">
         <NetworkStatus />
-        <Menubar :model="items" class="rounded-none border-0 border-b border-gray-700 bg-gray-800">
+        <Menubar :model="items" class="rounded-none border-0 border-b !border-gray-700 !bg-gray-800">
              <template #start>
-               <span class="text-lg sm:text-xl font-bold px-2 sm:px-4">IDM Logger</span>
+               <span class="text-lg sm:text-xl font-bold px-2 sm:px-4 text-white">IDM Logger</span>
             </template>
             <template #item="{ item, props }">
-                <a v-ripple class="flex items-center gap-2 px-2 sm:px-3 py-2 hover:bg-gray-700 rounded cursor-pointer transition-colors" v-bind="props.action">
+                <a v-ripple class="flex items-center gap-2 px-2 sm:px-3 py-2 hover:bg-gray-700 rounded cursor-pointer transition-colors text-gray-200" v-bind="props.action">
                     <i :class="item.icon" class="text-sm sm:text-base"></i>
-                    <span class="hidden sm:inline text-sm sm:text-base">{{ item.label }}</span>
+                    <span class="hidden xl:inline text-sm sm:text-base">{{ item.label }}</span>
                 </a>
             </template>
             <template #end>
                 <div class="flex items-center gap-2">
+                     <Select v-model="currentLang" :options="languages" optionLabel="label" optionValue="value" class="w-24 !text-sm" size="small" />
+
+                    <Button :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'" text rounded severity="secondary" @click="toggleTheme" />
+
                     <Button
-                        :label="editModeLabel"
+                        :label="ui.editMode ? '' : ''"
                         :icon="editModeIcon"
                         :severity="editModeSeverity"
                         text
@@ -122,7 +141,7 @@ onUnmounted(() => {
                         @click="ui.toggleEditMode"
                     />
                     <Button icon="pi pi-power-off" severity="danger" text @click="logout" class="p-2 sm:p-3">
-                        <span class="hidden sm:inline ml-2">Abmelden</span>
+                        <span class="hidden sm:inline ml-2">{{ t('logout') }}</span>
                     </Button>
                 </div>
             </template>

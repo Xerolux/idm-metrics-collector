@@ -7,6 +7,7 @@ from .db import db
 
 logger = logging.getLogger(__name__)
 
+
 class Scheduler:
     def __init__(self, modbus_client):
         self.modbus_client = modbus_client
@@ -20,18 +21,20 @@ class Scheduler:
             self.jobs = db.get_jobs()
             # Convert JSON string days to list
             for job in self.jobs:
-                if isinstance(job.get('days'), str):
+                if isinstance(job.get("days"), str):
                     try:
-                        job['days'] = json.loads(job['days'])
+                        job["days"] = json.loads(job["days"])
                     except (json.JSONDecodeError, ValueError, TypeError):
-                        job['days'] = []
-                        logger.warning(f"Failed to parse days for job {job.get('id')}, defaulting to empty list")
+                        job["days"] = []
+                        logger.warning(
+                            f"Failed to parse days for job {job.get('id')}, defaulting to empty list"
+                        )
 
     def add_job(self, job):
         with self.lock:
-            job['id'] = str(int(time.time() * 1000))
-            if 'enabled' not in job:
-                job['enabled'] = True
+            job["id"] = str(int(time.time() * 1000))
+            if "enabled" not in job:
+                job["enabled"] = True
 
             # DB insert
             db.add_job(job)
@@ -42,13 +45,13 @@ class Scheduler:
     def delete_job(self, job_id):
         with self.lock:
             db.delete_job(job_id)
-            self.jobs = [j for j in self.jobs if j.get('id') != job_id]
+            self.jobs = [j for j in self.jobs if j.get("id") != job_id]
 
     def update_job(self, job_id, new_data):
-         with self.lock:
+        with self.lock:
             db.update_job(job_id, new_data)
             for job in self.jobs:
-                if job.get('id') == job_id:
+                if job.get("id") == job_id:
                     job.update(new_data)
                     break
 
@@ -70,25 +73,29 @@ class Scheduler:
 
                 with self.lock:
                     for job in self.jobs:
-                        if not job.get('enabled'):
+                        if not job.get("enabled"):
                             continue
 
-                        days = job.get('days', [])
+                        days = job.get("days", [])
                         if days and current_day not in days:
                             continue
 
-                        if job.get('time') == current_time:
-                            last_run = job.get('last_run')
+                        if job.get("time") == current_time:
+                            last_run = job.get("last_run")
                             if last_run and (time.time() - last_run) < 65:
                                 continue
 
-                            logger.info(f"Executing scheduled job: {job.get('sensor')} = {job.get('value')}")
+                            logger.info(
+                                f"Executing scheduled job: {job.get('sensor')} = {job.get('value')}"
+                            )
                             try:
-                                self.modbus_client.write_sensor(job.get('sensor'), job.get('value'))
+                                self.modbus_client.write_sensor(
+                                    job.get("sensor"), job.get("value")
+                                )
                                 # Update last run in DB and Memory
                                 now_ts = time.time()
-                                job['last_run'] = now_ts
-                                db.update_job(job['id'], {'last_run': now_ts})
+                                job["last_run"] = now_ts
+                                db.update_job(job["id"], {"last_run": now_ts})
                             except Exception as e:
                                 logger.error(f"Scheduled job failed: {e}")
 

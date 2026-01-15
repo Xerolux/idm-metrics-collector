@@ -69,15 +69,27 @@ class Config:
         if os.environ.get("WEB_PORT"):
             self.data["web"]["port"] = int(os.environ["WEB_PORT"])
         if os.environ.get("WEB_WRITE_ENABLED"):
-            self.data["web"]["write_enabled"] = os.environ["WEB_WRITE_ENABLED"].lower() in ("true", "1", "yes")
+            self.data["web"]["write_enabled"] = os.environ[
+                "WEB_WRITE_ENABLED"
+            ].lower() in ("true", "1", "yes")
 
         # Network Security settings from environment
         if os.environ.get("NETWORK_SECURITY_ENABLED"):
-            self.data["network_security"]["enabled"] = os.environ["NETWORK_SECURITY_ENABLED"].lower() in ("true", "1", "yes")
+            self.data["network_security"]["enabled"] = os.environ[
+                "NETWORK_SECURITY_ENABLED"
+            ].lower() in ("true", "1", "yes")
         if os.environ.get("NETWORK_SECURITY_WHITELIST"):
-            self.data["network_security"]["whitelist"] = [x.strip() for x in os.environ["NETWORK_SECURITY_WHITELIST"].split(",") if x.strip()]
+            self.data["network_security"]["whitelist"] = [
+                x.strip()
+                for x in os.environ["NETWORK_SECURITY_WHITELIST"].split(",")
+                if x.strip()
+            ]
         if os.environ.get("NETWORK_SECURITY_BLACKLIST"):
-            self.data["network_security"]["blacklist"] = [x.strip() for x in os.environ["NETWORK_SECURITY_BLACKLIST"].split(",") if x.strip()]
+            self.data["network_security"]["blacklist"] = [
+                x.strip()
+                for x in os.environ["NETWORK_SECURITY_BLACKLIST"].split(",")
+                if x.strip()
+            ]
 
         # Logging settings
         if os.environ.get("LOG_LEVEL"):
@@ -87,7 +99,11 @@ class Config:
 
         # MQTT settings from environment
         if os.environ.get("MQTT_ENABLED"):
-            self.data["mqtt"]["enabled"] = os.environ["MQTT_ENABLED"].lower() in ("true", "1", "yes")
+            self.data["mqtt"]["enabled"] = os.environ["MQTT_ENABLED"].lower() in (
+                "true",
+                "1",
+                "yes",
+            )
         if os.environ.get("MQTT_BROKER"):
             self.data["mqtt"]["broker"] = os.environ["MQTT_BROKER"]
         if os.environ.get("MQTT_PORT"):
@@ -97,38 +113,94 @@ class Config:
         if os.environ.get("MQTT_PASSWORD"):
             self.data["mqtt"]["password"] = os.environ["MQTT_PASSWORD"]
         if os.environ.get("MQTT_USE_TLS"):
-            self.data["mqtt"]["use_tls"] = os.environ["MQTT_USE_TLS"].lower() in ("true", "1", "yes")
+            self.data["mqtt"]["use_tls"] = os.environ["MQTT_USE_TLS"].lower() in (
+                "true",
+                "1",
+                "yes",
+            )
         if os.environ.get("MQTT_TOPIC_PREFIX"):
             self.data["mqtt"]["topic_prefix"] = os.environ["MQTT_TOPIC_PREFIX"]
         if os.environ.get("MQTT_HA_DISCOVERY_ENABLED"):
-            self.data["mqtt"]["ha_discovery_enabled"] = os.environ["MQTT_HA_DISCOVERY_ENABLED"].lower() in ("true", "1", "yes")
+            self.data["mqtt"]["ha_discovery_enabled"] = os.environ[
+                "MQTT_HA_DISCOVERY_ENABLED"
+            ].lower() in ("true", "1", "yes")
         if os.environ.get("MQTT_HA_DISCOVERY_PREFIX"):
-            self.data["mqtt"]["ha_discovery_prefix"] = os.environ["MQTT_HA_DISCOVERY_PREFIX"]
+            self.data["mqtt"]["ha_discovery_prefix"] = os.environ[
+                "MQTT_HA_DISCOVERY_PREFIX"
+            ]
 
         # Signal settings from environment
         if os.environ.get("SIGNAL_ENABLED"):
-            self.data["signal"]["enabled"] = os.environ["SIGNAL_ENABLED"].lower() in ("true", "1", "yes")
+            self.data["signal"]["enabled"] = os.environ["SIGNAL_ENABLED"].lower() in (
+                "true",
+                "1",
+                "yes",
+            )
         if os.environ.get("SIGNAL_SENDER"):
             self.data["signal"]["sender"] = os.environ["SIGNAL_SENDER"]
         if os.environ.get("SIGNAL_RECIPIENTS"):
-            self.data["signal"]["recipients"] = [x.strip() for x in os.environ["SIGNAL_RECIPIENTS"].split(",") if x.strip()]
+            self.data["signal"]["recipients"] = [
+                x.strip()
+                for x in os.environ["SIGNAL_RECIPIENTS"].split(",")
+                if x.strip()
+            ]
         if os.environ.get("SIGNAL_CLI_PATH"):
             self.data["signal"]["cli_path"] = os.environ["SIGNAL_CLI_PATH"]
 
+        # Telegram settings
+        if os.environ.get("TELEGRAM_ENABLED"):
+             self.data["telegram"]["enabled"] = os.environ["TELEGRAM_ENABLED"].lower() in ("true", "1", "yes")
+        if os.environ.get("TELEGRAM_BOT_TOKEN"):
+             self.data["telegram"]["bot_token"] = os.environ["TELEGRAM_BOT_TOKEN"]
+        if os.environ.get("TELEGRAM_CHAT_IDS"):
+             self.data["telegram"]["chat_ids"] = [x.strip() for x in os.environ["TELEGRAM_CHAT_IDS"].split(",") if x.strip()]
+
+        # Discord settings
+        if os.environ.get("DISCORD_ENABLED"):
+             self.data["discord"]["enabled"] = os.environ["DISCORD_ENABLED"].lower() in ("true", "1", "yes")
+        if os.environ.get("DISCORD_WEBHOOK_URL"):
+             self.data["discord"]["webhook_url"] = os.environ["DISCORD_WEBHOOK_URL"]
+
+        # Email settings
+        if os.environ.get("EMAIL_ENABLED"):
+             self.data["email"]["enabled"] = os.environ["EMAIL_ENABLED"].lower() in ("true", "1", "yes")
+        if os.environ.get("EMAIL_SMTP_SERVER"):
+             self.data["email"]["smtp_server"] = os.environ["EMAIL_SMTP_SERVER"]
+        if os.environ.get("EMAIL_SMTP_PORT"):
+             self.data["email"]["smtp_port"] = int(os.environ["EMAIL_SMTP_PORT"])
+        if os.environ.get("EMAIL_USERNAME"):
+             self.data["email"]["username"] = os.environ["EMAIL_USERNAME"]
+        if os.environ.get("EMAIL_PASSWORD"):
+             self.data["email"]["password"] = os.environ["EMAIL_PASSWORD"]
+        if os.environ.get("EMAIL_SENDER"):
+             self.data["email"]["sender"] = os.environ["EMAIL_SENDER"]
+        if os.environ.get("EMAIL_RECIPIENTS"):
+             self.data["email"]["recipients"] = [x.strip() for x in os.environ["EMAIL_RECIPIENTS"].split(",") if x.strip()]
+
         # AI settings from environment
         if os.environ.get("AI_ENABLED"):
-            self.data["ai"]["enabled"] = os.environ["AI_ENABLED"].lower() in ("true", "1", "yes")
+            self.data["ai"]["enabled"] = os.environ["AI_ENABLED"].lower() in (
+                "true",
+                "1",
+                "yes",
+            )
         if os.environ.get("AI_SENSITIVITY"):
-             try:
-                 self.data["ai"]["sensitivity"] = float(os.environ["AI_SENSITIVITY"])
-             except ValueError:
-                 pass
+            try:
+                self.data["ai"]["sensitivity"] = float(os.environ["AI_SENSITIVITY"])
+            except ValueError:
+                pass
 
         # Update settings from environment
         if os.environ.get("UPDATES_ENABLED"):
-            self.data["updates"]["enabled"] = os.environ["UPDATES_ENABLED"].lower() in ("true", "1", "yes")
+            self.data["updates"]["enabled"] = os.environ["UPDATES_ENABLED"].lower() in (
+                "true",
+                "1",
+                "yes",
+            )
         if os.environ.get("UPDATES_INTERVAL_HOURS"):
-            self.data["updates"]["interval_hours"] = int(os.environ["UPDATES_INTERVAL_HOURS"])
+            self.data["updates"]["interval_hours"] = int(
+                os.environ["UPDATES_INTERVAL_HOURS"]
+            )
         if os.environ.get("UPDATES_MODE"):
             self.data["updates"]["mode"] = os.environ["UPDATES_MODE"]
         if os.environ.get("UPDATES_TARGET"):
@@ -146,12 +218,7 @@ class Config:
 
     def _load_data(self):
         defaults = {
-            "idm": {
-                "host": "",
-                "port": 502,
-                "circuits": ["A"],
-                "zones": []
-            },
+            "idm": {"host": "", "port": 502, "circuits": ["A"], "zones": []},
             "metrics": {
                 "url": DOCKER_DEFAULTS["metrics"]["url"],
             },
@@ -159,18 +226,10 @@ class Config:
                 "enabled": True,
                 "host": "0.0.0.0",
                 "port": 5000,
-                "write_enabled": False
+                "write_enabled": False,
             },
-            "network_security": {
-                "enabled": False,
-                "whitelist": [],
-                "blacklist": []
-            },
-            "logging": {
-                "interval": 30,
-                "realtime_mode": False,
-                "level": "INFO"
-            },
+            "network_security": {"enabled": False, "whitelist": [], "blacklist": []},
+            "logging": {"interval": 30, "realtime_mode": False, "level": "INFO"},
             "mqtt": {
                 "enabled": False,
                 "broker": "",
@@ -182,25 +241,40 @@ class Config:
                 "publish_interval": 60,
                 "qos": 1,
                 "ha_discovery_enabled": False,
-                "ha_discovery_prefix": "homeassistant"
+                "ha_discovery_prefix": "homeassistant",
             },
             "signal": {
                 "enabled": False,
                 "cli_path": "signal-cli",
                 "sender": "",
-                "recipients": []
+                "recipients": [],
             },
-            "ai": {
+            "telegram": {
                 "enabled": False,
-                "sensitivity": 3.0
+                "bot_token": "",
+                "chat_ids": [],
             },
+            "discord": {
+                "enabled": False,
+                "webhook_url": "",
+            },
+            "email": {
+                "enabled": False,
+                "smtp_server": "",
+                "smtp_port": 587,
+                "username": "",
+                "password": "",
+                "sender": "",
+                "recipients": [],
+            },
+            "ai": {"enabled": False, "sensitivity": 3.0},
             "updates": {
                 "enabled": False,
                 "interval_hours": 12,
                 "mode": "apply",
-                "target": "all"
+                "target": "all",
             },
-            "setup_completed": False
+            "setup_completed": False,
         }
 
         # Auto-complete setup in Docker environment
@@ -217,7 +291,13 @@ class Config:
                 data = json.loads(raw)
                 # Decrypt sensitive fields
                 if "mqtt" in data:
-                    data["mqtt"]["password"] = self._decrypt(data["mqtt"].get("encrypted_password", ""))
+                    data["mqtt"]["password"] = self._decrypt(
+                        data["mqtt"].get("encrypted_password", "")
+                    )
+                if "email" in data:
+                    data["email"]["password"] = self._decrypt(
+                        data["email"].get("encrypted_password", "")
+                    )
 
                 # Merge loaded data into defaults
                 return self._merge_dicts(defaults, data)
@@ -232,15 +312,23 @@ class Config:
         to_save = json.loads(json.dumps(self.data))
 
         if "mqtt" in to_save:
-            to_save["mqtt"]["encrypted_password"] = self._encrypt(to_save["mqtt"].get("password", ""))
-            # Remove plain text from storage dict
+            to_save["mqtt"]["encrypted_password"] = self._encrypt(
+                to_save["mqtt"].get("password", "")
+            )
             if "password" in to_save["mqtt"]:
                 del to_save["mqtt"]["password"]
+
+        if "email" in to_save:
+             to_save["email"]["encrypted_password"] = self._encrypt(
+                 to_save["email"].get("password", "")
+             )
+             if "password" in to_save["email"]:
+                 del to_save["email"]["password"]
 
         db.set_setting("config", json.dumps(to_save))
 
     def get(self, path, default=None):
-        keys = path.split('.')
+        keys = path.split(".")
         val = self.data
         for key in keys:
             if isinstance(val, dict) and key in val:
@@ -251,7 +339,7 @@ class Config:
 
     def set(self, path, value):
         """Set a configuration value by path."""
-        keys = path.split('.')
+        keys = path.split(".")
         data = self.data
         for key in keys[:-1]:
             if key not in data:
@@ -282,5 +370,6 @@ class Config:
         """Returns the stable secret key for Flask sessions."""
         # Use the persistent Fernet key as the Flask secret key
         return self.key
+
 
 config = Config()

@@ -1,20 +1,26 @@
 import json
 import pytest
-from unittest.mock import MagicMock, patch, ANY
-import idm_logger.mqtt
+from unittest.mock import MagicMock, patch
+
 
 # Patch where config is IMPORTED, not where it is defined
 # idm_logger.mqtt imports config as 'config'
 @pytest.fixture
 def mock_config():
     with patch("idm_logger.mqtt.config") as mock:
+
         def config_get(key, default=None):
-            if key == "mqtt.enabled": return True
-            if key == "mqtt.topic_prefix": return "idm/heatpump"
-            if key == "mqtt.broker": return "mock_broker"
+            if key == "mqtt.enabled":
+                return True
+            if key == "mqtt.topic_prefix":
+                return "idm/heatpump"
+            if key == "mqtt.broker":
+                return "mock_broker"
             return default
+
         mock.get.side_effect = config_get
         yield mock
+
 
 @pytest.fixture
 def mock_mqtt_client():
@@ -23,14 +29,17 @@ def mock_mqtt_client():
         mock_client_cls.return_value = mock_client
         yield mock_client
 
+
 @pytest.fixture
 def publisher(mock_mqtt_client, mock_config):
     from idm_logger.mqtt import MQTTPublisher
+
     pub = MQTTPublisher()
     pub._setup_client()
     pub.client = mock_mqtt_client
     pub.connected = True
     return pub
+
 
 def test_publish_data_flat_dict(publisher, mock_mqtt_client):
     """Test publishing data from a flat dictionary (ModbusClient format)."""
@@ -39,15 +48,15 @@ def test_publish_data_flat_dict(publisher, mock_mqtt_client):
     data = {
         "temp_outside": 12.5,
         "op_mode": 1,
-        "op_mode_str": "Heating", # String variant
-        "fault_active": False
+        "op_mode_str": "Heating",  # String variant
+        "fault_active": False,
     }
 
     # Mock sensors to provide units
     publisher.sensors = {
         "temp_outside": MagicMock(unit="°C"),
         "op_mode": MagicMock(unit=""),
-        "fault_active": MagicMock(unit="")
+        "fault_active": MagicMock(unit=""),
     }
 
     publisher.publish_data(data)
@@ -69,19 +78,19 @@ def test_publish_data_flat_dict(publisher, mock_mqtt_client):
     # Check temp_outside
     payload = get_payload("temp_outside")
     assert payload is not None
-    assert payload['value'] == 12.5
-    assert payload['unit'] == "°C"
+    assert payload["value"] == 12.5
+    assert payload["unit"] == "°C"
 
     # Check op_mode (should include value_str)
     payload = get_payload("op_mode")
     assert payload is not None
-    assert payload['value'] == 1
-    assert payload['value_str'] == "Heating"
+    assert payload["value"] == 1
+    assert payload["value_str"] == "Heating"
 
     # Check fault_active
     payload = get_payload("fault_active")
     assert payload is not None
-    assert payload['value'] is False
+    assert payload["value"] is False
 
     # Check that _str topic was NOT published separately
     assert get_payload("op_mode_str") is None

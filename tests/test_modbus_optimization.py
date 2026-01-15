@@ -4,14 +4,14 @@ import os
 from unittest.mock import MagicMock, patch
 
 # Add the project directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from idm_logger.modbus import ModbusClient
-from idm_logger.sensor_addresses import COMMON_SENSORS, _FloatSensorAddress
+from idm_logger.sensor_addresses import _FloatSensorAddress
+
 
 class TestModbusOptimization(unittest.TestCase):
-
-    @patch('idm_logger.modbus.ModbusTcpClient')
+    @patch("idm_logger.modbus.ModbusTcpClient")
     def test_block_creation(self, mock_client):
         # Create instance with mocked client
         client = ModbusClient("localhost", 502)
@@ -33,15 +33,20 @@ class TestModbusOptimization(unittest.TestCase):
         s4 = _FloatSensorAddress(address=150, name="s4", unit="C")
         s5 = _FloatSensorAddress(address=152, name="s5", unit="C")
 
-        s_forbidden = _FloatSensorAddress(address=160, name="s_forbidden", unit="C", read_supported=False)
+        s_forbidden = _FloatSensorAddress(
+            address=160, name="s_forbidden", unit="C", read_supported=False
+        )
 
         s6 = _FloatSensorAddress(address=162, name="s6", unit="C")
 
         client.sensors = {
-            "s1": s1, "s2": s2, "s3": s3,
-            "s4": s4, "s5": s5,
+            "s1": s1,
+            "s2": s2,
+            "s3": s3,
+            "s4": s4,
+            "s5": s5,
             "s_forbidden": s_forbidden,
-            "s6": s6
+            "s6": s6,
         }
         client.binary_sensors = {}
 
@@ -64,7 +69,7 @@ class TestModbusOptimization(unittest.TestCase):
         self.assertEqual(blocks[1], [s4, s5])
         self.assertEqual(blocks[2], [s6])
 
-    @patch('idm_logger.modbus.ModbusTcpClient')
+    @patch("idm_logger.modbus.ModbusTcpClient")
     def test_read_requests(self, mock_client_cls):
         # Setup mock instance
         mock_instance = mock_client_cls.return_value
@@ -97,5 +102,6 @@ class TestModbusOptimization(unittest.TestCase):
         # Also ensure it's > 0
         self.assertGreater(call_count, 0)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

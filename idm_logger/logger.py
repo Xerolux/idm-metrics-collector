@@ -10,7 +10,12 @@ from .web import run_web, update_current_data, set_metrics_writer
 from .scheduler import Scheduler
 from .log_handler import memory_handler
 from .mqtt import mqtt_publisher
-from .update_manager import check_for_update, perform_update, can_run_updates, is_update_allowed
+from .update_manager import (
+    check_for_update,
+    perform_update,
+    can_run_updates,
+    is_update_allowed,
+)
 from .alerts import alert_manager
 from .ai.anomaly import anomaly_detector
 from .signal_notifications import send_signal_message
@@ -20,16 +25,20 @@ logger = logging.getLogger("idm_logger")
 
 stop_event = threading.Event()
 
+
 def signal_handler(sig, frame):
     logger.info("Stopping...")
     stop_event.set()
+
 
 def main():
     # Configure logging
     logger.setLevel(logging.INFO)
 
     # Create formatters and handlers
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
@@ -62,7 +71,9 @@ def main():
     try:
         web_enabled = config.get("web.enabled")
         if web_enabled:
-            web_thread = threading.Thread(target=run_web, args=(None, None), daemon=True)
+            web_thread = threading.Thread(
+                target=run_web, args=(None, None), daemon=True
+            )
             web_thread.start()
             logger.info("Web UI started")
             # Give the web server a moment to start
@@ -75,7 +86,9 @@ def main():
             if config.get("updates.enabled", False):
                 try:
                     if not can_run_updates():
-                        logger.warning("Auto-Update deaktiviert: Repo-Pfad nicht gefunden.")
+                        logger.warning(
+                            "Auto-Update deaktiviert: Repo-Pfad nicht gefunden."
+                        )
                     else:
                         update_info = check_for_update()
                         if update_info.get("update_available"):
@@ -84,12 +97,18 @@ def main():
                             target = config.get("updates.target", "all")
                             if is_update_allowed(update_type, target):
                                 if mode == "apply":
-                                    logger.info(f"Update verfügbar ({update_type}). Starte automatisches Update...")
+                                    logger.info(
+                                        f"Update verfügbar ({update_type}). Starte automatisches Update..."
+                                    )
                                     perform_update()
                                 else:
-                                    logger.info(f"Update verfügbar ({update_type}). Auto-Update auf 'check' gesetzt.")
+                                    logger.info(
+                                        f"Update verfügbar ({update_type}). Auto-Update auf 'check' gesetzt."
+                                    )
                             else:
-                                logger.info(f"Update verfügbar ({update_type}), aber Ziel '{target}' blockiert.")
+                                logger.info(
+                                    f"Update verfügbar ({update_type}), aber Ziel '{target}' blockiert."
+                                )
                 except Exception as e:
                     logger.error(f"Auto-Update Fehler: {e}")
             interval_hours = config.get("updates.interval_hours", 12)
@@ -101,11 +120,10 @@ def main():
     # Now initialize the backend components
     try:
         # Modbus Client
-        modbus = ModbusClient(
-            host=config.get("idm.host"),
-            port=config.get("idm.port")
+        modbus = ModbusClient(host=config.get("idm.host"), port=config.get("idm.port"))
+        logger.info(
+            f"Modbus client initialized for {config.get('idm.host')}:{config.get('idm.port')}"
         )
-        logger.info(f"Modbus client initialized for {config.get('idm.host')}:{config.get('idm.port')}")
     except Exception as e:
         logger.error(f"Failed to initialize Modbus client: {e}", exc_info=True)
 
@@ -145,8 +163,8 @@ def main():
 
     # Update web.py with the actual instances
     if config.get("web.enabled"):
-        from .web import modbus_client_instance, scheduler_instance
         import idm_logger.web as web_module
+
         web_module.modbus_client_instance = modbus
         web_module.scheduler_instance = scheduler
 
@@ -184,7 +202,9 @@ def main():
                             # Construct message
                             msg_lines = ["🤖 AI Anomalie erkannt!"]
                             for sensor, det in anomalies.items():
-                                msg_lines.append(f"- {sensor}: {det['value']} (Ø {det['mean']:.2f}, Z: {det['z_score']:.1f})")
+                                msg_lines.append(
+                                    f"- {sensor}: {det['value']} (Ø {det['mean']:.2f}, Z: {det['z_score']:.1f})"
+                                )
 
                             try:
                                 # Simple rate limit prevention handled by user via cooldown?
@@ -215,7 +235,9 @@ def main():
             # Sleep
             elapsed = time.time() - start_time
             if elapsed > effective_interval:
-                logger.warning(f"Loop took {elapsed:.2f}s, which is longer than interval {effective_interval}s")
+                logger.warning(
+                    f"Loop took {elapsed:.2f}s, which is longer than interval {effective_interval}s"
+                )
 
             sleep_time = max(0, effective_interval - elapsed)
             stop_event.wait(sleep_time)
@@ -229,8 +251,9 @@ def main():
             mqtt.stop()
         if modbus:
             modbus.close()
-        anomaly_detector.save() # Save learned model
+        anomaly_detector.save()  # Save learned model
         logger.info("Stopped")
+
 
 if __name__ == "__main__":
     main()

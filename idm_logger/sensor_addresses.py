@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, IntEnum, IntFlag
-from typing import Generic, TypeVar, Any
+from typing import Generic, TypeVar
 
 from .const import (
     ActiveCircuitMode,
@@ -34,17 +34,29 @@ _FlagT = TypeVar("_FlagT", bound=IntFlag)
 
 PERCENTAGE = "%"
 CURRENCY_EURO = "EUR"
+
+
 class UnitOfEnergy:
     KILO_WATT_HOUR = "kWh"
+
+
 class UnitOfPower:
     KILO_WATT = "kW"
+
+
 class UnitOfTemperature:
     CELSIUS = "°C"
+
 
 NAME_POWER_USAGE = "power_current_draw"
 
 
-def _decode_registers(registers: list[int], datatype: str, byteorder: str = "big", wordorder: str = "little"):
+def _decode_registers(
+    registers: list[int],
+    datatype: str,
+    byteorder: str = "big",
+    wordorder: str = "little",
+):
     """Decode registers to value using struct (replacement for BinaryPayloadDecoder)."""
     # Convert registers to bytes
     # With Big endian byte order and Little endian word order
@@ -54,80 +66,82 @@ def _decode_registers(registers: list[int], datatype: str, byteorder: str = "big
             registers = list(reversed(registers))
 
     # Pack registers to bytes (each register is 16 bits)
-    byte_data = b''
+    byte_data = b""
     for reg in registers:
         if byteorder.lower() == "big":
-            byte_data += struct.pack('>H', reg)  # Big endian 16-bit
+            byte_data += struct.pack(">H", reg)  # Big endian 16-bit
         else:
-            byte_data += struct.pack('<H', reg)  # Little endian 16-bit
+            byte_data += struct.pack("<H", reg)  # Little endian 16-bit
 
     # Decode based on datatype
-    if datatype == 'float32':
+    if datatype == "float32":
         if byteorder.lower() == "big":
-            return struct.unpack('>f', byte_data)[0]
+            return struct.unpack(">f", byte_data)[0]
         else:
-            return struct.unpack('<f', byte_data)[0]
-    elif datatype == 'int16':
+            return struct.unpack("<f", byte_data)[0]
+    elif datatype == "int16":
         if byteorder.lower() == "big":
-            return struct.unpack('>h', byte_data[:2])[0]
+            return struct.unpack(">h", byte_data[:2])[0]
         else:
-            return struct.unpack('<h', byte_data[:2])[0]
-    elif datatype == 'uint16':
+            return struct.unpack("<h", byte_data[:2])[0]
+    elif datatype == "uint16":
         if byteorder.lower() == "big":
-            return struct.unpack('>H', byte_data[:2])[0]
+            return struct.unpack(">H", byte_data[:2])[0]
         else:
-            return struct.unpack('<H', byte_data[:2])[0]
-    elif datatype == 'int32':
+            return struct.unpack("<H", byte_data[:2])[0]
+    elif datatype == "int32":
         if byteorder.lower() == "big":
-            return struct.unpack('>i', byte_data)[0]
+            return struct.unpack(">i", byte_data)[0]
         else:
-            return struct.unpack('<i', byte_data)[0]
-    elif datatype == 'uint32':
+            return struct.unpack("<i", byte_data)[0]
+    elif datatype == "uint32":
         if byteorder.lower() == "big":
-            return struct.unpack('>I', byte_data)[0]
+            return struct.unpack(">I", byte_data)[0]
         else:
-            return struct.unpack('<I', byte_data)[0]
+            return struct.unpack("<I", byte_data)[0]
     return registers[0]
 
 
-def _encode_value(value: int | float, datatype: str, byteorder: str = "big", wordorder: str = "little") -> list[int]:
+def _encode_value(
+    value: int | float, datatype: str, byteorder: str = "big", wordorder: str = "little"
+) -> list[int]:
     """Encode value to registers using struct (replacement for BinaryPayloadBuilder)."""
     # Pack value to bytes based on datatype
-    if datatype == 'float32':
+    if datatype == "float32":
         if byteorder.lower() == "big":
-            byte_data = struct.pack('>f', float(value))
+            byte_data = struct.pack(">f", float(value))
         else:
-            byte_data = struct.pack('<f', float(value))
-    elif datatype == 'int16':
+            byte_data = struct.pack("<f", float(value))
+    elif datatype == "int16":
         if byteorder.lower() == "big":
-            byte_data = struct.pack('>h', int(value))
+            byte_data = struct.pack(">h", int(value))
         else:
-            byte_data = struct.pack('<h', int(value))
-    elif datatype == 'uint16':
+            byte_data = struct.pack("<h", int(value))
+    elif datatype == "uint16":
         if byteorder.lower() == "big":
-            byte_data = struct.pack('>H', int(value))
+            byte_data = struct.pack(">H", int(value))
         else:
-            byte_data = struct.pack('<H', int(value))
-    elif datatype == 'int32':
+            byte_data = struct.pack("<H", int(value))
+    elif datatype == "int32":
         if byteorder.lower() == "big":
-            byte_data = struct.pack('>i', int(value))
+            byte_data = struct.pack(">i", int(value))
         else:
-            byte_data = struct.pack('<i', int(value))
-    elif datatype == 'uint32':
+            byte_data = struct.pack("<i", int(value))
+    elif datatype == "uint32":
         if byteorder.lower() == "big":
-            byte_data = struct.pack('>I', int(value))
+            byte_data = struct.pack(">I", int(value))
         else:
-            byte_data = struct.pack('<I', int(value))
+            byte_data = struct.pack("<I", int(value))
     else:
-        byte_data = struct.pack('>H', int(value))
+        byte_data = struct.pack(">H", int(value))
 
     # Convert bytes to registers (16-bit chunks)
     registers = []
     for i in range(0, len(byte_data), 2):
         if byteorder.lower() == "big":
-            registers.append(struct.unpack('>H', byte_data[i:i+2])[0])
+            registers.append(struct.unpack(">H", byte_data[i : i + 2])[0])
         else:
-            registers.append(struct.unpack('<H', byte_data[i:i+2])[0])
+            registers.append(struct.unpack("<H", byte_data[i : i + 2])[0])
 
     # Apply word order
     if wordorder.lower() == "little" and len(registers) > 1:
@@ -153,7 +167,7 @@ class BaseSensorAddress(ABC, Generic[_T]):
     def size(self) -> int:
         """Get number of registers this sensor's value occupies."""
         # 32bit types use 2 registers, 16bit use 1
-        if self.datatype in ('float32', 'int32', 'uint32'):
+        if self.datatype in ("float32", "int32", "uint32"):
             return 2
         return 1
 
@@ -163,7 +177,9 @@ class BaseSensorAddress(ABC, Generic[_T]):
         """Get the datatype name."""
 
     def _decode_raw(self, registers: list[int]):
-        return _decode_registers(registers, self.datatype, byteorder="big", wordorder="little")
+        return _decode_registers(
+            registers, self.datatype, byteorder="big", wordorder="little"
+        )
 
     def _encode_raw(self, value: int | float) -> list[int]:
         return _encode_value(value, self.datatype, byteorder="big", wordorder="little")
@@ -195,7 +211,7 @@ class IdmSensorAddress(BaseSensorAddress[_T]):
 class IdmBinarySensorAddress(BaseSensorAddress[bool]):
     @property
     def datatype(self) -> str:
-        return 'uint16'
+        return "uint16"
 
     def decode(self, registers: list[int]) -> tuple[bool, bool]:
         value = self._decode_raw(registers)
@@ -215,7 +231,7 @@ class _FloatSensorAddress(IdmSensorAddress[float]):
 
     @property
     def datatype(self) -> str:
-        return 'float32'
+        return "float32"
 
     def decode(self, registers: list[int]) -> tuple[bool, float]:
         raw_value = self._decode_raw(registers)
@@ -227,7 +243,7 @@ class _FloatSensorAddress(IdmSensorAddress[float]):
         if (self.min_value is not None and value < self.min_value) or (
             self.max_value is not None and value > self.max_value
         ):
-             pass
+            pass
 
         return (True, value)
 
@@ -243,7 +259,7 @@ class _UCharSensorAddress(IdmSensorAddress[int]):
 
     @property
     def datatype(self) -> str:
-        return 'uint16'
+        return "uint16"
 
     def decode(self, registers: list[int]) -> tuple[bool, int]:
         value = self._decode_raw(registers)
@@ -263,7 +279,7 @@ class _WordSensorAddress(IdmSensorAddress[int]):
 
     @property
     def datatype(self) -> str:
-        return 'int16'
+        return "int16"
 
     def decode(self, registers: list[int]) -> tuple[bool, int]:
         value = self._decode_raw(registers)
@@ -281,7 +297,7 @@ class _EnumSensorAddress(IdmSensorAddress[_EnumT], Generic[_EnumT]):
 
     @property
     def datatype(self) -> str:
-        return 'uint16'
+        return "uint16"
 
     def decode(self, registers: list[int]) -> tuple[bool, _EnumT]:
         value = self._decode_raw(registers)
@@ -302,7 +318,7 @@ class _BitFieldSensorAddress(IdmSensorAddress[_FlagT], Generic[_FlagT]):
 
     @property
     def datatype(self) -> str:
-        return 'uint16'
+        return "uint16"
 
     def decode(self, registers: list[int]) -> tuple[bool, _FlagT]:
         value = self._decode_raw(registers)
@@ -443,148 +459,504 @@ def zone_sensors(zone_idx: int) -> list[IdmSensorAddress]:
     zone_num = zone_idx + 1
     sensors: list[IdmSensorAddress] = [
         _EnumSensorAddress(address=offset, name=f"mode_zone_{zone_num}", enum=ZoneMode),
-        _UCharSensorAddress(address=offset+1, name=f"dehumidifier_zone_{zone_num}"),
+        _UCharSensorAddress(address=offset + 1, name=f"dehumidifier_zone_{zone_num}"),
     ]
 
     for room_idx in range(8):
         room_offset = offset + 2 + (room_idx * 7)
         room_num = room_idx + 1
-        sensors.extend([
-            _FloatSensorAddress(address=room_offset, name=f"temp_room_zone_{zone_num}_room_{room_num}", unit=UnitOfTemperature.CELSIUS),
-            _FloatSensorAddress(address=room_offset+2, name=f"temp_target_zone_{zone_num}_room_{room_num}", unit=UnitOfTemperature.CELSIUS, supported_features=SensorFeatures.SET_TEMPERATURE),
-            _UCharSensorAddress(address=room_offset+4, name=f"humidity_zone_{zone_num}_room_{room_num}", unit=PERCENTAGE),
-            _EnumSensorAddress(address=room_offset+5, name=f"mode_zone_{zone_num}_room_{room_num}", enum=RoomMode, supported_features=SensorFeatures.SET_ROOM_MODE),
-            _UCharSensorAddress(address=room_offset+6, name=f"relay_zone_{zone_num}_room_{room_num}"),
-        ])
+        sensors.extend(
+            [
+                _FloatSensorAddress(
+                    address=room_offset,
+                    name=f"temp_room_zone_{zone_num}_room_{room_num}",
+                    unit=UnitOfTemperature.CELSIUS,
+                ),
+                _FloatSensorAddress(
+                    address=room_offset + 2,
+                    name=f"temp_target_zone_{zone_num}_room_{room_num}",
+                    unit=UnitOfTemperature.CELSIUS,
+                    supported_features=SensorFeatures.SET_TEMPERATURE,
+                ),
+                _UCharSensorAddress(
+                    address=room_offset + 4,
+                    name=f"humidity_zone_{zone_num}_room_{room_num}",
+                    unit=PERCENTAGE,
+                ),
+                _EnumSensorAddress(
+                    address=room_offset + 5,
+                    name=f"mode_zone_{zone_num}_room_{room_num}",
+                    enum=RoomMode,
+                    supported_features=SensorFeatures.SET_ROOM_MODE,
+                ),
+                _UCharSensorAddress(
+                    address=room_offset + 6,
+                    name=f"relay_zone_{zone_num}_room_{room_num}",
+                ),
+            ]
+        )
 
     # Room 9 relay
-    sensors.append(_UCharSensorAddress(address=offset+64, name=f"relay_zone_{zone_num}_room_9"))
+    sensors.append(
+        _UCharSensorAddress(address=offset + 64, name=f"relay_zone_{zone_num}_room_9")
+    )
 
     return sensors
+
 
 ZONE_OFFSETS = [2000 + 65 * i for i in range(10)]
 ROOM_OFFSETS = [2 + 7 * i for i in range(8)]
 
 # Renamed SENSOR_LIST to COMMON_SENSORS to make it clear this is the base list
 COMMON_SENSORS = [
-        _FloatSensorAddress(address=74, name="power_solar_surplus", unit=UnitOfPower.KILO_WATT, supported_features=SensorFeatures.SET_POWER, read_supported=False),
-        _FloatSensorAddress(address=76, name="power_resistive_heater", unit=UnitOfPower.KILO_WATT),
-        _FloatSensorAddress(address=78, name="power_solar_production", unit=UnitOfPower.KILO_WATT, min_value=0, supported_features=SensorFeatures.SET_POWER),
-        _FloatSensorAddress(address=82, name="power_use_house", unit=UnitOfPower.KILO_WATT, min_value=0, supported_features=SensorFeatures.SET_POWER),
-        _FloatSensorAddress(address=84, name="power_drain_battery", unit=UnitOfPower.KILO_WATT, supported_features=SensorFeatures.SET_POWER),
-        _WordSensorAddress(address=86, name="charge_state_battery", unit=PERCENTAGE, min_value=0, max_value=100, supported_features=SensorFeatures.SET_BATTERY),
-        _FloatSensorAddress(address=1000, name="temp_outside", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1002, name="temp_outside_avg", unit=UnitOfTemperature.CELSIUS),
-        _UCharSensorAddress(address=1004, name="failure_id"),
-        _EnumSensorAddress(address=1005, name="status_system", enum=SystemStatus, eeprom_sensitive=True, supported_features=SensorFeatures.SET_SYSTEM_STATUS),
-        _EnumSensorAddress(address=1006, name="status_smart_grid", enum=SmartGridStatus),
-        _FloatSensorAddress(address=1008, name="temp_heat_storage", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1010, name="temp_cold_storage", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1012, name="temp_water_heater_bottom", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1014, name="temp_water_heater_top", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1030, name="temp_water_heater_tap", unit=UnitOfTemperature.CELSIUS),
-        _UCharSensorAddress(address=1032, name="temp_water_target", unit=UnitOfTemperature.CELSIUS, min_value=5, max_value=95),
-        _UCharSensorAddress(address=1033, name="temp_water_switch_on", unit=UnitOfTemperature.CELSIUS, min_value=5, max_value=95),
-        _UCharSensorAddress(address=1034, name="temp_water_switch_off", unit=UnitOfTemperature.CELSIUS, min_value=5, max_value=95),
-        _FloatSensorAddress(address=1048, name="price_energy", unit=CURRENCY_EURO, scale=0.001),
-        _FloatSensorAddress(address=1050, name="temp_heat_pump_flow", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1052, name="temp_heat_pump_return", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1054, name="temp_hgl_flow", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1056, name="temp_heat_source_input", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1058, name="temp_heat_source_output", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1060, name="temp_air_input", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1062, name="temp_air_heat_exchanger", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1064, name="temp_air_input_2", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1066, name="temp_charge_sensor"),
-        _BitFieldSensorAddress(address=1090, name="status_heat_pump", flag=HeatPumpStatus),
-        _UCharSensorAddress(address=1091, name="request_heating"),
-        _UCharSensorAddress(address=1092, name="request_cooling"),
-        _UCharSensorAddress(address=1093, name="request_water_status"),
-        _UCharSensorAddress(address=1098, name="evu_lock_status"),
-        _UCharSensorAddress(address=1099, name="failure_heat_pump"),
-        _UCharSensorAddress(address=1100, name="state_compressor_1_uchar"),
-        _UCharSensorAddress(address=1101, name="state_compressor_2_uchar"),
-        _UCharSensorAddress(address=1102, name="state_compressor_3_uchar"),
-        _UCharSensorAddress(address=1103, name="state_compressor_4_uchar"),
-        _WordSensorAddress(address=1104, name="state_charge_pump", unit=None, min_value=-1, max_value=100),
-        _WordSensorAddress(address=1105, name="state_brine_pump", unit=None, min_value=-1, max_value=100),
-        _WordSensorAddress(address=1106, name="state_ground_water_pump", unit=None, min_value=-1, max_value=100),
-        _WordSensorAddress(address=1108, name="load_isc_cold_storage_pump", unit=PERCENTAGE),
-        _WordSensorAddress(address=1109, name="load_isc_recooling_pump", unit=PERCENTAGE),
-        _EnumSensorAddress(address=1110, name="valve_state_circuit_heating_cooling", enum=ValveStateHeatingCooling),
-        _EnumSensorAddress(address=1111, name="valve_state_storage_heating_cooling", enum=ValveStateHeatingCooling),
-        _EnumSensorAddress(address=1112, name="valve_state_main_heating_water", enum=ValveStateHeatingWater),
-        _EnumSensorAddress(address=1113, name="valve_state_source_heating_cooling", enum=ValveStateHeatingCooling),
-        _EnumSensorAddress(address=1114, name="valve_state_solar_heating_water", enum=ValveStateHeatingWater),
-        _EnumSensorAddress(address=1115, name="valve_state_solar_storage_source", enum=ValveStateStorageHeatSource),
-        _EnumSensorAddress(address=1116, name="valve_state_isc_heating_cooling", enum=ValveStateHeatSourceColdStorage),
-        _EnumSensorAddress(address=1117, name="valve_state_isc_bypass", enum=ValveStateStorageBypass),
-        _WordSensorAddress(address=1118, name="pump_circulation"),
-        _WordSensorAddress(address=1120, name="temp_second_source_bivalence_1", unit=UnitOfTemperature.CELSIUS, min_value=-50, max_value=50),
-        _WordSensorAddress(address=1121, name="temp_second_source_bivalence_2", unit=UnitOfTemperature.CELSIUS, min_value=-50, max_value=50),
-        _WordSensorAddress(address=1122, name="temp_third_source_bivalence_1", unit=UnitOfTemperature.CELSIUS, min_value=-50, max_value=50),
-        _WordSensorAddress(address=1123, name="temp_third_source_bivalence_2", unit=UnitOfTemperature.CELSIUS, min_value=-30, max_value=40),
-        _UCharSensorAddress(address=1124, name="status_bivalence"),
-        _UCharSensorAddress(address=1147, name="cascade_available_stages_heating"),
-        _UCharSensorAddress(address=1148, name="cascade_available_stages_cooling"),
-        _UCharSensorAddress(address=1149, name="cascade_available_stages_water"),
-        _UCharSensorAddress(address=1150, name="cascade_running_stages_heating"),
-        _UCharSensorAddress(address=1151, name="cascade_running_stages_cooling"),
-        _UCharSensorAddress(address=1152, name="cascade_running_stages_water"),
-        _FloatSensorAddress(address=1200, name="cascade_request_heating_temp", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1202, name="cascade_request_cooling_temp", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1204, name="cascade_temp_request_water"),
-        _FloatSensorAddress(address=1206, name="cascade_temp_flow_avg_heating"),
-        _FloatSensorAddress(address=1208, name="cascade_temp_flow_avg_cooling"),
-        _FloatSensorAddress(address=1210, name="cascade_avg_flow_temp_c_water"),
-        _UCharSensorAddress(address=1220, name="cascade_min_power_heating", unit=PERCENTAGE, supported_features=SensorFeatures.SET_POWER),
-        _UCharSensorAddress(address=1221, name="cascade_max_power_heating", unit=PERCENTAGE, supported_features=SensorFeatures.SET_POWER),
-        _UCharSensorAddress(address=1222, name="cascade_min_power_cooling", unit=PERCENTAGE, supported_features=SensorFeatures.SET_POWER),
-        _UCharSensorAddress(address=1223, name="cascade_max_power_cooling", unit=PERCENTAGE, supported_features=SensorFeatures.SET_POWER),
-        _UCharSensorAddress(address=1224, name="cascade_min_power_water", unit=PERCENTAGE, supported_features=SensorFeatures.SET_POWER),
-        _UCharSensorAddress(address=1225, name="cascade_max_power_water", unit=PERCENTAGE, supported_features=SensorFeatures.SET_POWER),
-        _WordSensorAddress(address=1226, name="cascade_bivalence_heating_parallel", unit=UnitOfTemperature.CELSIUS),
-        _WordSensorAddress(address=1227, name="cascade_bivalence_heating_alternative", unit=UnitOfTemperature.CELSIUS),
-        _WordSensorAddress(address=1228, name="cascade_bivalence_cooling_parallel", unit=UnitOfTemperature.CELSIUS),
-        _WordSensorAddress(address=1229, name="cascade_bivalence_cooling_alternative", unit=UnitOfTemperature.CELSIUS),
-        _WordSensorAddress(address=1230, name="cascade_bivalence_water_parallel", unit=UnitOfTemperature.CELSIUS),
-        _WordSensorAddress(address=1231, name="cascade_bivalence_water_alternative"),
-        _FloatSensorAddress(address=1392, name="humidity", unit=PERCENTAGE, min_value=0, max_value=100),
-        _FloatSensorAddress(address=1690, name="temp_external_outdoor", unit=UnitOfTemperature.CELSIUS, supported_features=SensorFeatures.SET_TEMPERATURE),
-        _FloatSensorAddress(address=1692, name="temp_external_humidity", unit=PERCENTAGE, supported_features=SensorFeatures.SET_HUMIDITY, min_value=0, max_value=100),
-        _UCharSensorAddress(address=1694, name="temp_external_request_heating", unit=UnitOfTemperature.CELSIUS, supported_features=SensorFeatures.SET_TEMPERATURE, min_value=-5, max_value=80),
-        _UCharSensorAddress(address=1695, name="temp_external_request_cooling", unit=UnitOfTemperature.CELSIUS, supported_features=SensorFeatures.SET_TEMPERATURE, min_value=-5, max_value=80),
-        _FloatSensorAddress(address=1696, name="temp_request_glt_heizen", unit=UnitOfTemperature.CELSIUS, supported_features=SensorFeatures.SET_TEMPERATURE),
-        _FloatSensorAddress(address=1698, name="temp_request_glt_kuehlen_100", unit=UnitOfTemperature.CELSIUS, supported_features=SensorFeatures.SET_TEMPERATURE),
-        _UCharSensorAddress(address=1714, name="request_pump_ground_water_external"),
-        _UCharSensorAddress(address=1715, name="request_pump_ground_water_max_external"),
-        _FloatSensorAddress(address=1716, name="temp_heat_storage_glt", supported_features=SensorFeatures.SET_TEMPERATURE),
-        _FloatSensorAddress(address=1718, name="temp_cold_storage_glt", supported_features=SensorFeatures.SET_TEMPERATURE),
-        _FloatSensorAddress(address=1720, name="temp_water_heater_bottom_target_glt", unit=UnitOfTemperature.CELSIUS, supported_features=SensorFeatures.SET_TEMPERATURE),
-        _FloatSensorAddress(address=1722, name="temp_water_heater_top_target_glt", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1748, name="energy_heat_heating", unit=UnitOfEnergy.KILO_WATT_HOUR, min_value=0),
-        _FloatSensorAddress(address=1750, name="energy_heat_total", unit=UnitOfEnergy.KILO_WATT_HOUR, min_value=0),
-        _FloatSensorAddress(address=1752, name="energy_heat_total_cooling", unit=UnitOfEnergy.KILO_WATT_HOUR, min_value=0),
-        _FloatSensorAddress(address=1754, name="energy_heat_total_water", unit=UnitOfEnergy.KILO_WATT_HOUR, min_value=0),
-        _FloatSensorAddress(address=1756, name="energy_heat_total_defrost", unit=UnitOfEnergy.KILO_WATT_HOUR, min_value=0),
-        _FloatSensorAddress(address=1758, name="energy_heat_total_passive_cooling", unit=UnitOfEnergy.KILO_WATT_HOUR, min_value=0),
-        _FloatSensorAddress(address=1760, name="energy_heat_total_solar", unit=UnitOfEnergy.KILO_WATT_HOUR, min_value=0),
-        _FloatSensorAddress(address=1762, name="energy_heat_total_electric", unit=UnitOfEnergy.KILO_WATT_HOUR, min_value=0),
-        _FloatSensorAddress(address=1790, name="power_current", unit=UnitOfPower.KILO_WATT),
-        _FloatSensorAddress(address=1792, name="power_current_solar", unit=UnitOfPower.KILO_WATT),
-        _FloatSensorAddress(address=1850, name="temp_solar_collector", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1852, name="temp_solar_collector_return", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1854, name="temp_solar_charge", unit=UnitOfTemperature.CELSIUS),
-        _EnumSensorAddress(address=1856, name="mode_solar", enum=SolarMode),
-        _FloatSensorAddress(address=1857, name="temp_solar_reference", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1870, name="temp_isc_charge_cooling", unit=UnitOfTemperature.CELSIUS),
-        _FloatSensorAddress(address=1872, name="temp_isc_recooling", unit=UnitOfTemperature.CELSIUS),
-        _BitFieldSensorAddress(address=1874, name="mode_isc", flag=IscMode),
-        _UCharSensorAddress(address=1999, name="acknowledge_faults", supported_features=SensorFeatures.SET_BINARY, read_supported=False),
-        _FloatSensorAddress(address=4122, name=NAME_POWER_USAGE, unit=UnitOfPower.KILO_WATT, min_value=0),
-        _FloatSensorAddress(address=4126, name="power_thermal", unit=UnitOfPower.KILO_WATT),
-        _FloatSensorAddress(address=4128, name="energy_heat_total_flow_sensor", unit=UnitOfEnergy.KILO_WATT_HOUR),
-    ]
+    _FloatSensorAddress(
+        address=74,
+        name="power_solar_surplus",
+        unit=UnitOfPower.KILO_WATT,
+        supported_features=SensorFeatures.SET_POWER,
+        read_supported=False,
+    ),
+    _FloatSensorAddress(
+        address=76, name="power_resistive_heater", unit=UnitOfPower.KILO_WATT
+    ),
+    _FloatSensorAddress(
+        address=78,
+        name="power_solar_production",
+        unit=UnitOfPower.KILO_WATT,
+        min_value=0,
+        supported_features=SensorFeatures.SET_POWER,
+    ),
+    _FloatSensorAddress(
+        address=82,
+        name="power_use_house",
+        unit=UnitOfPower.KILO_WATT,
+        min_value=0,
+        supported_features=SensorFeatures.SET_POWER,
+    ),
+    _FloatSensorAddress(
+        address=84,
+        name="power_drain_battery",
+        unit=UnitOfPower.KILO_WATT,
+        supported_features=SensorFeatures.SET_POWER,
+    ),
+    _WordSensorAddress(
+        address=86,
+        name="charge_state_battery",
+        unit=PERCENTAGE,
+        min_value=0,
+        max_value=100,
+        supported_features=SensorFeatures.SET_BATTERY,
+    ),
+    _FloatSensorAddress(
+        address=1000, name="temp_outside", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1002, name="temp_outside_avg", unit=UnitOfTemperature.CELSIUS
+    ),
+    _UCharSensorAddress(address=1004, name="failure_id"),
+    _EnumSensorAddress(
+        address=1005,
+        name="status_system",
+        enum=SystemStatus,
+        eeprom_sensitive=True,
+        supported_features=SensorFeatures.SET_SYSTEM_STATUS,
+    ),
+    _EnumSensorAddress(address=1006, name="status_smart_grid", enum=SmartGridStatus),
+    _FloatSensorAddress(
+        address=1008, name="temp_heat_storage", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1010, name="temp_cold_storage", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1012, name="temp_water_heater_bottom", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1014, name="temp_water_heater_top", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1030, name="temp_water_heater_tap", unit=UnitOfTemperature.CELSIUS
+    ),
+    _UCharSensorAddress(
+        address=1032,
+        name="temp_water_target",
+        unit=UnitOfTemperature.CELSIUS,
+        min_value=5,
+        max_value=95,
+    ),
+    _UCharSensorAddress(
+        address=1033,
+        name="temp_water_switch_on",
+        unit=UnitOfTemperature.CELSIUS,
+        min_value=5,
+        max_value=95,
+    ),
+    _UCharSensorAddress(
+        address=1034,
+        name="temp_water_switch_off",
+        unit=UnitOfTemperature.CELSIUS,
+        min_value=5,
+        max_value=95,
+    ),
+    _FloatSensorAddress(
+        address=1048, name="price_energy", unit=CURRENCY_EURO, scale=0.001
+    ),
+    _FloatSensorAddress(
+        address=1050, name="temp_heat_pump_flow", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1052, name="temp_heat_pump_return", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1054, name="temp_hgl_flow", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1056, name="temp_heat_source_input", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1058, name="temp_heat_source_output", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1060, name="temp_air_input", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1062, name="temp_air_heat_exchanger", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1064, name="temp_air_input_2", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(address=1066, name="temp_charge_sensor"),
+    _BitFieldSensorAddress(address=1090, name="status_heat_pump", flag=HeatPumpStatus),
+    _UCharSensorAddress(address=1091, name="request_heating"),
+    _UCharSensorAddress(address=1092, name="request_cooling"),
+    _UCharSensorAddress(address=1093, name="request_water_status"),
+    _UCharSensorAddress(address=1098, name="evu_lock_status"),
+    _UCharSensorAddress(address=1099, name="failure_heat_pump"),
+    _UCharSensorAddress(address=1100, name="state_compressor_1_uchar"),
+    _UCharSensorAddress(address=1101, name="state_compressor_2_uchar"),
+    _UCharSensorAddress(address=1102, name="state_compressor_3_uchar"),
+    _UCharSensorAddress(address=1103, name="state_compressor_4_uchar"),
+    _WordSensorAddress(
+        address=1104, name="state_charge_pump", unit=None, min_value=-1, max_value=100
+    ),
+    _WordSensorAddress(
+        address=1105, name="state_brine_pump", unit=None, min_value=-1, max_value=100
+    ),
+    _WordSensorAddress(
+        address=1106,
+        name="state_ground_water_pump",
+        unit=None,
+        min_value=-1,
+        max_value=100,
+    ),
+    _WordSensorAddress(
+        address=1108, name="load_isc_cold_storage_pump", unit=PERCENTAGE
+    ),
+    _WordSensorAddress(address=1109, name="load_isc_recooling_pump", unit=PERCENTAGE),
+    _EnumSensorAddress(
+        address=1110,
+        name="valve_state_circuit_heating_cooling",
+        enum=ValveStateHeatingCooling,
+    ),
+    _EnumSensorAddress(
+        address=1111,
+        name="valve_state_storage_heating_cooling",
+        enum=ValveStateHeatingCooling,
+    ),
+    _EnumSensorAddress(
+        address=1112, name="valve_state_main_heating_water", enum=ValveStateHeatingWater
+    ),
+    _EnumSensorAddress(
+        address=1113,
+        name="valve_state_source_heating_cooling",
+        enum=ValveStateHeatingCooling,
+    ),
+    _EnumSensorAddress(
+        address=1114,
+        name="valve_state_solar_heating_water",
+        enum=ValveStateHeatingWater,
+    ),
+    _EnumSensorAddress(
+        address=1115,
+        name="valve_state_solar_storage_source",
+        enum=ValveStateStorageHeatSource,
+    ),
+    _EnumSensorAddress(
+        address=1116,
+        name="valve_state_isc_heating_cooling",
+        enum=ValveStateHeatSourceColdStorage,
+    ),
+    _EnumSensorAddress(
+        address=1117, name="valve_state_isc_bypass", enum=ValveStateStorageBypass
+    ),
+    _WordSensorAddress(address=1118, name="pump_circulation"),
+    _WordSensorAddress(
+        address=1120,
+        name="temp_second_source_bivalence_1",
+        unit=UnitOfTemperature.CELSIUS,
+        min_value=-50,
+        max_value=50,
+    ),
+    _WordSensorAddress(
+        address=1121,
+        name="temp_second_source_bivalence_2",
+        unit=UnitOfTemperature.CELSIUS,
+        min_value=-50,
+        max_value=50,
+    ),
+    _WordSensorAddress(
+        address=1122,
+        name="temp_third_source_bivalence_1",
+        unit=UnitOfTemperature.CELSIUS,
+        min_value=-50,
+        max_value=50,
+    ),
+    _WordSensorAddress(
+        address=1123,
+        name="temp_third_source_bivalence_2",
+        unit=UnitOfTemperature.CELSIUS,
+        min_value=-30,
+        max_value=40,
+    ),
+    _UCharSensorAddress(address=1124, name="status_bivalence"),
+    _UCharSensorAddress(address=1147, name="cascade_available_stages_heating"),
+    _UCharSensorAddress(address=1148, name="cascade_available_stages_cooling"),
+    _UCharSensorAddress(address=1149, name="cascade_available_stages_water"),
+    _UCharSensorAddress(address=1150, name="cascade_running_stages_heating"),
+    _UCharSensorAddress(address=1151, name="cascade_running_stages_cooling"),
+    _UCharSensorAddress(address=1152, name="cascade_running_stages_water"),
+    _FloatSensorAddress(
+        address=1200,
+        name="cascade_request_heating_temp",
+        unit=UnitOfTemperature.CELSIUS,
+    ),
+    _FloatSensorAddress(
+        address=1202,
+        name="cascade_request_cooling_temp",
+        unit=UnitOfTemperature.CELSIUS,
+    ),
+    _FloatSensorAddress(address=1204, name="cascade_temp_request_water"),
+    _FloatSensorAddress(address=1206, name="cascade_temp_flow_avg_heating"),
+    _FloatSensorAddress(address=1208, name="cascade_temp_flow_avg_cooling"),
+    _FloatSensorAddress(address=1210, name="cascade_avg_flow_temp_c_water"),
+    _UCharSensorAddress(
+        address=1220,
+        name="cascade_min_power_heating",
+        unit=PERCENTAGE,
+        supported_features=SensorFeatures.SET_POWER,
+    ),
+    _UCharSensorAddress(
+        address=1221,
+        name="cascade_max_power_heating",
+        unit=PERCENTAGE,
+        supported_features=SensorFeatures.SET_POWER,
+    ),
+    _UCharSensorAddress(
+        address=1222,
+        name="cascade_min_power_cooling",
+        unit=PERCENTAGE,
+        supported_features=SensorFeatures.SET_POWER,
+    ),
+    _UCharSensorAddress(
+        address=1223,
+        name="cascade_max_power_cooling",
+        unit=PERCENTAGE,
+        supported_features=SensorFeatures.SET_POWER,
+    ),
+    _UCharSensorAddress(
+        address=1224,
+        name="cascade_min_power_water",
+        unit=PERCENTAGE,
+        supported_features=SensorFeatures.SET_POWER,
+    ),
+    _UCharSensorAddress(
+        address=1225,
+        name="cascade_max_power_water",
+        unit=PERCENTAGE,
+        supported_features=SensorFeatures.SET_POWER,
+    ),
+    _WordSensorAddress(
+        address=1226,
+        name="cascade_bivalence_heating_parallel",
+        unit=UnitOfTemperature.CELSIUS,
+    ),
+    _WordSensorAddress(
+        address=1227,
+        name="cascade_bivalence_heating_alternative",
+        unit=UnitOfTemperature.CELSIUS,
+    ),
+    _WordSensorAddress(
+        address=1228,
+        name="cascade_bivalence_cooling_parallel",
+        unit=UnitOfTemperature.CELSIUS,
+    ),
+    _WordSensorAddress(
+        address=1229,
+        name="cascade_bivalence_cooling_alternative",
+        unit=UnitOfTemperature.CELSIUS,
+    ),
+    _WordSensorAddress(
+        address=1230,
+        name="cascade_bivalence_water_parallel",
+        unit=UnitOfTemperature.CELSIUS,
+    ),
+    _WordSensorAddress(address=1231, name="cascade_bivalence_water_alternative"),
+    _FloatSensorAddress(
+        address=1392, name="humidity", unit=PERCENTAGE, min_value=0, max_value=100
+    ),
+    _FloatSensorAddress(
+        address=1690,
+        name="temp_external_outdoor",
+        unit=UnitOfTemperature.CELSIUS,
+        supported_features=SensorFeatures.SET_TEMPERATURE,
+    ),
+    _FloatSensorAddress(
+        address=1692,
+        name="temp_external_humidity",
+        unit=PERCENTAGE,
+        supported_features=SensorFeatures.SET_HUMIDITY,
+        min_value=0,
+        max_value=100,
+    ),
+    _UCharSensorAddress(
+        address=1694,
+        name="temp_external_request_heating",
+        unit=UnitOfTemperature.CELSIUS,
+        supported_features=SensorFeatures.SET_TEMPERATURE,
+        min_value=-5,
+        max_value=80,
+    ),
+    _UCharSensorAddress(
+        address=1695,
+        name="temp_external_request_cooling",
+        unit=UnitOfTemperature.CELSIUS,
+        supported_features=SensorFeatures.SET_TEMPERATURE,
+        min_value=-5,
+        max_value=80,
+    ),
+    _FloatSensorAddress(
+        address=1696,
+        name="temp_request_glt_heizen",
+        unit=UnitOfTemperature.CELSIUS,
+        supported_features=SensorFeatures.SET_TEMPERATURE,
+    ),
+    _FloatSensorAddress(
+        address=1698,
+        name="temp_request_glt_kuehlen_100",
+        unit=UnitOfTemperature.CELSIUS,
+        supported_features=SensorFeatures.SET_TEMPERATURE,
+    ),
+    _UCharSensorAddress(address=1714, name="request_pump_ground_water_external"),
+    _UCharSensorAddress(address=1715, name="request_pump_ground_water_max_external"),
+    _FloatSensorAddress(
+        address=1716,
+        name="temp_heat_storage_glt",
+        supported_features=SensorFeatures.SET_TEMPERATURE,
+    ),
+    _FloatSensorAddress(
+        address=1718,
+        name="temp_cold_storage_glt",
+        supported_features=SensorFeatures.SET_TEMPERATURE,
+    ),
+    _FloatSensorAddress(
+        address=1720,
+        name="temp_water_heater_bottom_target_glt",
+        unit=UnitOfTemperature.CELSIUS,
+        supported_features=SensorFeatures.SET_TEMPERATURE,
+    ),
+    _FloatSensorAddress(
+        address=1722,
+        name="temp_water_heater_top_target_glt",
+        unit=UnitOfTemperature.CELSIUS,
+    ),
+    _FloatSensorAddress(
+        address=1748,
+        name="energy_heat_heating",
+        unit=UnitOfEnergy.KILO_WATT_HOUR,
+        min_value=0,
+    ),
+    _FloatSensorAddress(
+        address=1750,
+        name="energy_heat_total",
+        unit=UnitOfEnergy.KILO_WATT_HOUR,
+        min_value=0,
+    ),
+    _FloatSensorAddress(
+        address=1752,
+        name="energy_heat_total_cooling",
+        unit=UnitOfEnergy.KILO_WATT_HOUR,
+        min_value=0,
+    ),
+    _FloatSensorAddress(
+        address=1754,
+        name="energy_heat_total_water",
+        unit=UnitOfEnergy.KILO_WATT_HOUR,
+        min_value=0,
+    ),
+    _FloatSensorAddress(
+        address=1756,
+        name="energy_heat_total_defrost",
+        unit=UnitOfEnergy.KILO_WATT_HOUR,
+        min_value=0,
+    ),
+    _FloatSensorAddress(
+        address=1758,
+        name="energy_heat_total_passive_cooling",
+        unit=UnitOfEnergy.KILO_WATT_HOUR,
+        min_value=0,
+    ),
+    _FloatSensorAddress(
+        address=1760,
+        name="energy_heat_total_solar",
+        unit=UnitOfEnergy.KILO_WATT_HOUR,
+        min_value=0,
+    ),
+    _FloatSensorAddress(
+        address=1762,
+        name="energy_heat_total_electric",
+        unit=UnitOfEnergy.KILO_WATT_HOUR,
+        min_value=0,
+    ),
+    _FloatSensorAddress(address=1790, name="power_current", unit=UnitOfPower.KILO_WATT),
+    _FloatSensorAddress(
+        address=1792, name="power_current_solar", unit=UnitOfPower.KILO_WATT
+    ),
+    _FloatSensorAddress(
+        address=1850, name="temp_solar_collector", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1852, name="temp_solar_collector_return", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1854, name="temp_solar_charge", unit=UnitOfTemperature.CELSIUS
+    ),
+    _EnumSensorAddress(address=1856, name="mode_solar", enum=SolarMode),
+    _FloatSensorAddress(
+        address=1857, name="temp_solar_reference", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1870, name="temp_isc_charge_cooling", unit=UnitOfTemperature.CELSIUS
+    ),
+    _FloatSensorAddress(
+        address=1872, name="temp_isc_recooling", unit=UnitOfTemperature.CELSIUS
+    ),
+    _BitFieldSensorAddress(address=1874, name="mode_isc", flag=IscMode),
+    _UCharSensorAddress(
+        address=1999,
+        name="acknowledge_faults",
+        supported_features=SensorFeatures.SET_BINARY,
+        read_supported=False,
+    ),
+    _FloatSensorAddress(
+        address=4122, name=NAME_POWER_USAGE, unit=UnitOfPower.KILO_WATT, min_value=0
+    ),
+    _FloatSensorAddress(address=4126, name="power_thermal", unit=UnitOfPower.KILO_WATT),
+    _FloatSensorAddress(
+        address=4128,
+        name="energy_heat_total_flow_sensor",
+        unit=UnitOfEnergy.KILO_WATT_HOUR,
+    ),
+]
 
 # Automatically add Circuit A by default for SENSOR_ADDRESSES, but allow customization in modbus.py
 # ModbusClient will rebuild its own sensor list, but we keep SENSOR_ADDRESSES populated with defaults

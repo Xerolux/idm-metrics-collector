@@ -3,27 +3,22 @@ from pymodbus.client import ModbusTcpClient
 
 from .config import config
 from .sensor_addresses import (
-    SENSOR_ADDRESSES,
     BINARY_SENSOR_ADDRESSES,
     COMMON_SENSORS,
     heating_circuit_sensors,
     zone_sensors,
     HeatingCircuit,
-    SensorFeatures
+    SensorFeatures,
 )
 
 logger = logging.getLogger(__name__)
+
 
 class ModbusClient:
     def __init__(self, host, port):
         self.host = host
         self.port = port
-        self.client = ModbusTcpClient(
-            host,
-            port=port,
-            timeout=10,
-            retries=3
-        )
+        self.client = ModbusTcpClient(host, port=port, timeout=10, retries=3)
 
         # Initialize with common sensors
         self.sensors = {s.name: s for s in COMMON_SENSORS}
@@ -49,7 +44,6 @@ class ModbusClient:
                     self.sensors[s.name] = s
             except Exception as e:
                 logger.warning(f"Invalid zone configured: {zone_id} ({e})")
-
 
     def connect(self):
         """Connects to the Modbus server."""
@@ -153,10 +147,12 @@ class ModbusClient:
             # Build blocks if not already done (could be cached if sensors don't change)
             # For now we rebuild since sensors can be added dynamically? No, they are set in __init__
             # But let's cache it for performance
-            if not hasattr(self, '_read_blocks'):
+            if not hasattr(self, "_read_blocks"):
                 self._read_blocks = self._build_read_blocks()
                 self._failed_blocks = set()  # Track blocks that consistently fail
-                logger.info(f"Optimized Modbus reading: {len(self._read_blocks)} requests for {len(self.sensors) + len(self.binary_sensors)} sensors")
+                logger.info(
+                    f"Optimized Modbus reading: {len(self._read_blocks)} requests for {len(self.sensors) + len(self.binary_sensors)} sensors"
+                )
 
             for block_idx, block in enumerate(self._read_blocks):
                 if not block:
@@ -174,14 +170,20 @@ class ModbusClient:
                     continue
 
                 try:
-                    rr = self.client.read_holding_registers(start_addr, count=count, device_id=1)
+                    rr = self.client.read_holding_registers(
+                        start_addr, count=count, device_id=1
+                    )
                     if rr.isError():
                         # Check if this is an illegal address error (exception code 2)
-                        if hasattr(rr, 'exception_code') and rr.exception_code == 2:
-                            logger.debug(f"Bulk read failed for block {start_addr}-{end_addr}: Illegal Data Address. Marking block for individual reads.")
+                        if hasattr(rr, "exception_code") and rr.exception_code == 2:
+                            logger.debug(
+                                f"Bulk read failed for block {start_addr}-{end_addr}: Illegal Data Address. Marking block for individual reads."
+                            )
                             self._failed_blocks.add(block_key)
                         else:
-                            logger.warning(f"Bulk read failed for block {start_addr}-{end_addr}: {rr}. Falling back to individual reads.")
+                            logger.warning(
+                                f"Bulk read failed for block {start_addr}-{end_addr}: {rr}. Falling back to individual reads."
+                            )
 
                         # Fallback to individual sensor reads
                         self._read_block_individually(block, data)
@@ -206,14 +208,16 @@ class ModbusClient:
                             logger.debug(f"Error decoding {sensor.name}: {e}")
 
                 except Exception as e:
-                    logger.error(f"Exception reading block starting at {start_addr}: {e}")
+                    logger.error(
+                        f"Exception reading block starting at {start_addr}: {e}"
+                    )
                     # Mark block as failed and use individual reads
                     self._failed_blocks.add(block_key)
                     self._read_block_individually(block, data)
         except Exception as e:
             logger.error(f"Unhandled exception in read_sensors: {e}")
             self.close()
-            raise # Re-raise the exception to the caller
+            raise  # Re-raise the exception to the caller
 
         return data
 
@@ -221,9 +225,13 @@ class ModbusClient:
         """Reads each sensor in a block individually and updates the data dictionary."""
         for sensor in block:
             try:
-                sensor_rr = self.client.read_holding_registers(sensor.address, count=sensor.size, device_id=1)
+                sensor_rr = self.client.read_holding_registers(
+                    sensor.address, count=sensor.size, device_id=1
+                )
                 if sensor_rr.isError():
-                    logger.debug(f"Individual read failed for {sensor.name} @ {sensor.address}: {sensor_rr}")
+                    logger.debug(
+                        f"Individual read failed for {sensor.name} @ {sensor.address}: {sensor_rr}"
+                    )
                     continue
 
                 success, value = sensor.decode(sensor_rr.registers)
@@ -264,25 +272,27 @@ class ModbusClient:
                     else:
                         raise ValueError("Binary sensors accept only true/false or 0/1")
                 else:
-                    raise ValueError("Binary sensors accept only bool, int, or string values")
+                    raise ValueError(
+                        "Binary sensors accept only bool, int, or string values"
+                    )
 
             # If it's a float sensor
             elif hasattr(sensor, "scale"):
-                 value = float(value)
+                value = float(value)
 
             # If it's an enum, we might need the Enum member or value.
             # The encode method of _EnumSensorAddress calls value.value.
             # So we need to pass an Enum member.
             elif hasattr(sensor, "enum"):
-                 # value could be the int value or the name
-                 if str(value).isdigit():
-                      value = sensor.enum(int(value))
-                 else:
-                      value = sensor.enum[str(value).strip().upper()] # access by name
+                # value could be the int value or the name
+                if str(value).isdigit():
+                    value = sensor.enum(int(value))
+                else:
+                    value = sensor.enum[str(value).strip().upper()]  # access by name
 
             # If it's UChar/Word
             else:
-                 value = int(value)
+                value = int(value)
 
             registers = sensor.encode(value)
         except Exception as e:
@@ -300,7 +310,7 @@ class ModbusClient:
                 raise IOError(f"Modbus write error: {rr}")
         except Exception as e:
             logger.error(f"Write failed: {e}")
-            self.close() # Close connection on error
+            self.close()  # Close connection on error
             raise
 
         return True

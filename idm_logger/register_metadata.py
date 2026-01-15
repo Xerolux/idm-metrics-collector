@@ -10,6 +10,7 @@ from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
+
 class RegisterMetadata:
     """Manages register metadata from YAML configuration."""
 
@@ -26,24 +27,26 @@ class RegisterMetadata:
             return
 
         try:
-            with open(yaml_path, 'r', encoding='utf-8') as f:
+            with open(yaml_path, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
-            if 'registers' in data:
-                for reg in data['registers']:
-                    address = reg.get('address_dec')
+            if "registers" in data:
+                for reg in data["registers"]:
+                    address = reg.get("address_dec")
                     if address is not None:
                         self._registers[address] = {
-                            'name': reg.get('name', ''),
-                            'datatype': reg.get('datatype', ''),
-                            'access': reg.get('access', 'RO'),
-                            'eeprom_sensitive': reg.get('eeprom_sensitive', False),
-                            'cyclic_change_required': reg.get('cyclic_change_required', False),
-                            'unit': reg.get('unit'),
-                            'min': reg.get('min'),
-                            'max': reg.get('max'),
-                            'enum_text': reg.get('enum_text'),
-                            'notes': reg.get('notes'),
+                            "name": reg.get("name", ""),
+                            "datatype": reg.get("datatype", ""),
+                            "access": reg.get("access", "RO"),
+                            "eeprom_sensitive": reg.get("eeprom_sensitive", False),
+                            "cyclic_change_required": reg.get(
+                                "cyclic_change_required", False
+                            ),
+                            "unit": reg.get("unit"),
+                            "min": reg.get("min"),
+                            "max": reg.get("max"),
+                            "enum_text": reg.get("enum_text"),
+                            "notes": reg.get("notes"),
                         }
 
             logger.info(f"Loaded metadata for {len(self._registers)} registers")
@@ -59,22 +62,22 @@ class RegisterMetadata:
         """Check if register is EEPROM sensitive (limited write cycles)."""
         reg_info = self._registers.get(address)
         if reg_info:
-            return reg_info.get('eeprom_sensitive', False)
+            return reg_info.get("eeprom_sensitive", False)
         return False
 
     def requires_cyclic_change(self, address: int) -> bool:
         """Check if register requires cyclic changes (e.g., every 10 minutes)."""
         reg_info = self._registers.get(address)
         if reg_info:
-            return reg_info.get('cyclic_change_required', False)
+            return reg_info.get("cyclic_change_required", False)
         return False
 
     def get_access_mode(self, address: int) -> str:
         """Get access mode (RO, RW, W, etc.)."""
         reg_info = self._registers.get(address)
         if reg_info:
-            return reg_info.get('access', 'RO')
-        return 'RO'
+            return reg_info.get("access", "RO")
+        return "RO"
 
 
 # Global instance

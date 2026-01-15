@@ -3,18 +3,19 @@ import logging
 import math
 import os
 import threading
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
-from ..config import config, DATA_DIR
+from ..config import DATA_DIR
 
 logger = logging.getLogger(__name__)
 
 ANOMALY_STATE_FILE = os.path.join(DATA_DIR, "anomaly_state.json")
 
+
 class AnomalyDetector:
     def __init__(self):
         self.lock = threading.Lock()
-        self.state = {} # {sensor_name: {n, mean, m2}}
+        self.state = {}  # {sensor_name: {n, mean, m2}}
         self.load()
 
     def load(self):
@@ -22,9 +23,11 @@ class AnomalyDetector:
         with self.lock:
             if os.path.exists(ANOMALY_STATE_FILE):
                 try:
-                    with open(ANOMALY_STATE_FILE, 'r') as f:
+                    with open(ANOMALY_STATE_FILE, "r") as f:
                         self.state = json.load(f)
-                    logger.info(f"Loaded anomaly detection model for {len(self.state)} sensors")
+                    logger.info(
+                        f"Loaded anomaly detection model for {len(self.state)} sensors"
+                    )
                 except Exception as e:
                     logger.error(f"Failed to load anomaly detection state: {e}")
                     self.state = {}
@@ -33,7 +36,7 @@ class AnomalyDetector:
         """Save learned state to disk."""
         with self.lock:
             try:
-                with open(ANOMALY_STATE_FILE, 'w') as f:
+                with open(ANOMALY_STATE_FILE, "w") as f:
                     json.dump(self.state, f)
             except Exception as e:
                 logger.error(f"Failed to save anomaly detection state: {e}")
@@ -81,7 +84,9 @@ class AnomalyDetector:
                     continue
 
                 stats = self.state[sensor]
-                if stats["n"] < 10: # Need minimum samples to be statistically significant
+                if (
+                    stats["n"] < 10
+                ):  # Need minimum samples to be statistically significant
                     continue
 
                 try:
@@ -102,7 +107,7 @@ class AnomalyDetector:
                         "value": x,
                         "mean": stats["mean"],
                         "std_dev": std_dev,
-                        "z_score": z_score
+                        "z_score": z_score,
                     }
         return anomalies
 
@@ -110,5 +115,6 @@ class AnomalyDetector:
         """Return current statistics for debugging/UI."""
         with self.lock:
             return self.state.copy()
+
 
 anomaly_detector = AnomalyDetector()

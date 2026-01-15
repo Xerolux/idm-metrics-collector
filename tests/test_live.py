@@ -10,8 +10,7 @@ import pytest
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 # Import for pymodbus 3.x
@@ -38,6 +37,7 @@ TEST_REGISTERS = {
     "Heizenergie gesamt": 1750,
 }
 
+
 def decode_float32(registers):
     """Decode 2 registers as float32 (Big Endian byteorder, Little Endian wordorder)"""
     # In IDM, wordorder is Little (swap the two 16-bit words)
@@ -45,24 +45,26 @@ def decode_float32(registers):
     word2 = registers[0]
 
     # Pack as two 16-bit unsigned integers in big endian byte order
-    bytes_data = struct.pack('>HH', word1, word2)
+    bytes_data = struct.pack(">HH", word1, word2)
     # Unpack as float
-    value = struct.unpack('>f', bytes_data)[0]
+    value = struct.unpack(">f", bytes_data)[0]
     return value
+
 
 def decode_uint16(registers):
     """Decode 1 register as uint16"""
     return registers[0]
 
+
 def test_connection():
     """Test connection and read basic values"""
     if os.getenv("IDM_LIVE_TEST") != "1":
         pytest.skip("Live Modbus test requires IDM_LIVE_TEST=1 to run.")
-    print(f"\n{'='*60}")
-    print(f"IDM Wärmepumpe Live-Test (READ ONLY)")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("IDM Wärmepumpe Live-Test (READ ONLY)")
+    print(f"{'=' * 60}")
     print(f"Host: {HOST}:{PORT}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Create client
     client = ModbusTcpClient(HOST, port=PORT)
@@ -81,7 +83,7 @@ def test_connection():
 
     # Read values
     print(f"{'Sensor':<35} {'Wert':<15} {'Register'}")
-    print(f"{'-'*60}")
+    print(f"{'-' * 60}")
 
     for name, address in TEST_REGISTERS.items():
         try:
@@ -120,9 +122,10 @@ def test_connection():
 
     # Close connection
     client.close()
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("[OK] Test abgeschlossen - Verbindung geschlossen")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
+
 
 if __name__ == "__main__":
     test_connection()
