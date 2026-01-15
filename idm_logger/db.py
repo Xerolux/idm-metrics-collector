@@ -17,13 +17,15 @@ class Database:
         self.db_path = db_path
         # Thread lock to ensure safe concurrent access
         self._lock = threading.RLock()
+        self._conn = None
         self.init_db()
 
     def get_connection(self):
-        """Get a new database connection with row factory."""
-        conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=10.0)
-        conn.row_factory = sqlite3.Row
-        return conn
+        """Get the persistent database connection."""
+        if self._conn is None:
+            self._conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=10.0)
+            self._conn.row_factory = sqlite3.Row
+        return self._conn
 
     @contextmanager
     def _get_locked_connection(self):
@@ -36,8 +38,6 @@ class Database:
             except Exception:
                 conn.rollback()
                 raise
-            finally:
-                conn.close()
 
     def init_db(self):
         """Initialize database tables."""
