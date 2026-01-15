@@ -158,20 +158,33 @@
                             </div>
                         </Fieldset>
 
-                         <Fieldset legend="AI Anomalie-Erkennung" :toggleable="true">
+                         <Fieldset legend="KI & Anomalieerkennung" :toggleable="true">
                             <template #legend>
                                 <div class="flex items-center gap-2">
                                     <Checkbox v-model="config.ai.enabled" binary />
-                                    <span class="font-bold">AI Detection</span>
+                                    <span class="font-bold">KI-Analyse aktivieren</span>
                                 </div>
                             </template>
-                             <div v-if="config.ai.enabled" class="flex flex-col gap-4">
+                             <div v-if="config.ai.enabled" class="flex flex-col gap-6">
                                  <div class="flex flex-col gap-2">
-                                     <label>Sensitivität (1.0 - 10.0)</label>
+                                     <label class="font-bold">Modell-Typ</label>
+                                     <SelectButton v-model="config.ai.model" :options="aiModelOptions" optionLabel="label" optionValue="value" aria-labelledby="basic" class="w-full md:w-1/2" />
+                                     <small v-if="config.ai.model === 'isolation_forest'" class="text-yellow-400 flex items-center gap-1">
+                                         <i class="pi pi-exclamation-triangle"></i>
+                                         Achtung: "Isolation Forest" benötigt viel RAM/CPU. Nicht für Raspberry Pi Zero/3 empfohlen!
+                                     </small>
+                                     <small v-else class="text-gray-400">
+                                         Standard: Gleitendes Fenster für flexible Anpassung an Jahreszeiten.
+                                     </small>
+                                 </div>
+
+                                 <div class="flex flex-col gap-2">
+                                     <label>Sensitivität (Sigma)</label>
                                      <div class="flex items-center gap-4">
                                          <Slider v-model="config.ai.sensitivity" :min="1" :max="10" :step="0.1" class="w-full md:w-1/2" />
-                                         <span class="font-mono">{{ config.ai.sensitivity }}</span>
+                                         <span class="font-mono">{{ config.ai.sensitivity }} σ</span>
                                      </div>
+                                     <small class="text-gray-400">Höherer Wert = Weniger Alarme (nur extreme Abweichungen).</small>
                                  </div>
                              </div>
                         </Fieldset>
@@ -347,9 +360,13 @@ const config = ref({
     mqtt: { enabled: false, broker: '', port: 1883, username: '', topic_prefix: 'idm/heatpump', qos: 0, use_tls: false, publish_interval: 60, ha_discovery_enabled: false, ha_discovery_prefix: 'homeassistant' },
     network_security: { enabled: false, whitelist: [], blacklist: [] },
     signal: { enabled: false, cli_path: 'signal-cli', sender: '', recipients: [] },
-    ai: { enabled: false, sensitivity: 3.0 },
+    ai: { enabled: false, sensitivity: 3.0, model: 'rolling' },
     updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all' }
 });
+const aiModelOptions = ref([
+    { label: 'Statistisch (Rolling Window)', value: 'rolling' },
+    { label: 'Isolation Forest (Expert)', value: 'isolation_forest' }
+]);
 const newPassword = ref('');
 const mqttPassword = ref('');
 const whitelistText = ref('');
@@ -480,6 +497,7 @@ const saveConfig = async () => {
             signal_recipients: signalRecipientsText.value,
             ai_enabled: config.value.ai?.enabled || false,
             ai_sensitivity: config.value.ai?.sensitivity || 3.0,
+            ai_model: config.value.ai?.model || 'rolling',
             updates_enabled: config.value.updates?.enabled || false,
             updates_interval_hours: config.value.updates?.interval_hours || 12,
             updates_mode: config.value.updates?.mode || 'apply',

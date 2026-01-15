@@ -1,11 +1,11 @@
 import json
 import logging
-import math
 import os
 import threading
 from typing import Dict, Any
 
 from ..config import DATA_DIR
+from .models import RollingWindowStats, IsolationForestModel
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +15,23 @@ ANOMALY_STATE_FILE = os.path.join(DATA_DIR, "anomaly_state.json")
 class AnomalyDetector:
     def __init__(self):
         self.lock = threading.Lock()
-        self.state = {}  # {sensor_name: {n, mean, m2}}
+        self.current_model_type = "rolling"
+        self.models = {
+            "rolling": RollingWindowStats(window_size=20160), # Approx 14 days at 1 min interval
+            "isolation_forest": IsolationForestModel(buffer_size=5000)
+        }
         self.load()
+
+    def set_model_type(self, model_type: str):
+        """Switch the active model strategy."""
+        with self.lock:
+            if model_type not in self.models:
+                logger.warning(f"Unknown model type '{model_type}', using 'rolling'")
+                model_type = "rolling"
+
+            if model_type != self.current_model_type:
+                logger.info(f"Switching anomaly detection model to: {model_type}")
+                self.current_model_type = model_type
 
     def load(self):
         """Load learned state from disk."""
@@ -24,94 +39,75 @@ class AnomalyDetector:
             if os.path.exists(ANOMALY_STATE_FILE):
                 try:
                     with open(ANOMALY_STATE_FILE, "r") as f:
-                        self.state = json.load(f)
-                    logger.info(
-                        f"Loaded anomaly detection model for {len(self.state)} sensors"
-                    )
+                        data = json.load(f)
+
+                    # Load state for all models found in file
+                    if "models" in data:
+                         for m_name, m_state in data["models"].items():
+                             if m_name in self.models:
+                                 self.models[m_name].load_state(m_state)
+
+                    # Backwards compatibility with old simple file format
+                    # If "models" key missing, it might be the old Welford state.
+                    # We largely discard it or could try to migrate, but easier to restart learning.
+                    if "models" not in data and data:
+                        logger.info("Old anomaly state format detected. Starting fresh.")
+
+                    logger.info("Loaded anomaly detection state.")
                 except Exception as e:
                     logger.error(f"Failed to load anomaly detection state: {e}")
-                    self.state = {}
 
     def save(self):
         """Save learned state to disk."""
         with self.lock:
             try:
+                state = {
+                    "models": {
+                        name: model.save_state()
+                        for name, model in self.models.items()
+                    }
+                }
                 with open(ANOMALY_STATE_FILE, "w") as f:
-                    json.dump(self.state, f)
+                    json.dump(state, f)
             except Exception as e:
                 logger.error(f"Failed to save anomaly detection state: {e}")
 
     def update(self, data: Dict[str, Any]):
         """
-        Update the model with new data (Online Learning).
-        Uses Welford's algorithm for running mean and variance.
+        Update the model with new data.
+        We update ALL models regardless of which one is active,
+        so switching doesn't lose history.
         """
         with self.lock:
+            numeric_data = {}
             for sensor, value in data.items():
-                # Only learn from numeric values
                 try:
-                    x = float(value)
+                    numeric_data[sensor] = float(value)
                 except (ValueError, TypeError):
                     continue
 
-                if sensor not in self.state:
-                    self.state[sensor] = {"n": 0, "mean": 0.0, "m2": 0.0}
-
-                stats = self.state[sensor]
-                stats["n"] += 1
-
-                # Welford's algorithm
-                delta = x - stats["mean"]
-                stats["mean"] += delta / stats["n"]
-                delta2 = x - stats["mean"]
-                stats["m2"] += delta * delta2
-
-            # if updated and stats["n"] % 10 == 0:  # Save periodically (every 10 updates per sensor roughly)
-            #    pass # Don't save every update, maybe handle in main loop or shutdown
+            for model in self.models.values():
+                model.update(numeric_data)
 
     def detect(self, data: Dict[str, Any], sigma: float = 3.0) -> Dict[str, Any]:
         """
-        Detect anomalies in current data based on learned model.
-        Returns a dict of {sensor: {value, mean, std_dev, z_score}} for anomalies.
+        Detect anomalies using the currently active model.
         """
-        anomalies = {}
         with self.lock:
+            numeric_data = {}
             for sensor, value in data.items():
-                if sensor not in self.state:
-                    continue
-
-                stats = self.state[sensor]
-                if (
-                    stats["n"] < 10
-                ):  # Need minimum samples to be statistically significant
-                    continue
-
                 try:
-                    x = float(value)
+                    numeric_data[sensor] = float(value)
                 except (ValueError, TypeError):
                     continue
 
-                variance = stats["m2"] / (stats["n"] - 1) if stats["n"] > 1 else 0
-                std_dev = math.sqrt(variance)
-
-                if std_dev == 0:
-                    continue
-
-                z_score = (x - stats["mean"]) / std_dev
-
-                if abs(z_score) > sigma:
-                    anomalies[sensor] = {
-                        "value": x,
-                        "mean": stats["mean"],
-                        "std_dev": std_dev,
-                        "z_score": z_score,
-                    }
-        return anomalies
+            model = self.models[self.current_model_type]
+            return model.detect(numeric_data, sigma)
 
     def get_stats(self):
         """Return current statistics for debugging/UI."""
-        with self.lock:
-            return self.state.copy()
+        # This is model dependent, for now just return empty or summary
+        return {}
 
 
 anomaly_detector = AnomalyDetector()

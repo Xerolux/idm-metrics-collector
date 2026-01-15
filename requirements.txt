@@ -10,3 +10,5 @@ pytest>=8.0.0
 ruff>=0.1.0
 flasgger>=0.9.7
 flask-limiter>=3.5.0
+scikit-learn>=1.4.0
+numpy>=1.26.0

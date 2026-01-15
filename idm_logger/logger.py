@@ -195,16 +195,25 @@ def main():
 
                     # Check AI Alerts if enabled
                     if config.get("ai.enabled", False):
+                        # Configure model type if changed
+                        model_type = config.get("ai.model", "rolling")
+                        anomaly_detector.set_model_type(model_type)
+
                         sigma = float(config.get("ai.sensitivity", 3.0))
                         anomalies = anomaly_detector.detect(data, sigma)
                         if anomalies:
                             logger.info(f"AI Anomaly Detected: {anomalies}")
-                            # Construct message
+                            # Construct rich message
                             msg_lines = ["🤖 AI Anomalie erkannt!"]
+                            msg_lines.append(f"Modus: {model_type}")
+
                             for sensor, det in anomalies.items():
-                                msg_lines.append(
-                                    f"- {sensor}: {det['value']} (Ø {det['mean']:.2f}, Z: {det['z_score']:.1f})"
-                                )
+                                z = det['z_score']
+                                trend_icon = "↗️" if z > 0 else "↘️"
+                                msg_lines.append(f"\n📍 {sensor}")
+                                msg_lines.append(f"   Aktuell: {det['value']} {trend_icon}")
+                                msg_lines.append(f"   Erwartet: ~{det['mean']:.2f}")
+                                msg_lines.append(f"   Abweichung: {z:.1f}σ")
 
                             try:
                                 # Simple rate limit prevention handled by user via cooldown?
