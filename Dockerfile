@@ -7,6 +7,7 @@ COPY frontend/ ./frontend/
 RUN mkdir -p idm_logger/static
 WORKDIR /app/frontend
 # Install dependencies and build
+ENV CI=true
 RUN npm install -g pnpm && pnpm install && pnpm build
 
 # Stage 2: Runtime

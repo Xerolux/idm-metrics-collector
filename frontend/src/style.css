@@ -1,7 +1,45 @@
-@import './assets/variables.css';
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@plugin 'tailwindcss-animate';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-*: initial;
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-300: #93c5fd;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+  --color-blue-900: #1e3a8a;
+  --color-green-200: #bbf7d0;
+  --color-green-500: #22c55e;
+  --color-green-700: #15803d;
+  --color-green-900: #14532d;
+  --color-yellow-200: #fef08a;
+  --color-yellow-500: #eab308;
+  --color-yellow-700: #a16207;
+  --color-yellow-900: #713f12;
+  --color-red-200: #fecaca;
+  --color-red-500: #ef4444;
+  --color-red-700: #b91c1c;
+  --color-red-900: #7f1d1d;
+  --color-white: #ffffff;
+  --color-black: #000000;
+}
 
 /* Enhanced dark theme overrides for all PrimeVue components */
 
@@ -71,7 +109,7 @@
 }
 
 .p-inputtext:focus {
-    @apply border-blue-500 ring-2 ring-blue-500 ring-opacity-30;
+    @apply border-blue-500 ring-2 ring-blue-500/30;
 }
 
 /* Dropdowns */
@@ -282,5 +320,5 @@
 }
 
 *:focus-visible {
-    @apply ring-2 ring-blue-500 ring-opacity-50;
+    @apply ring-2 ring-blue-500/50;
 }
