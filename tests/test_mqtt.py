@@ -1,158 +1,87 @@
-#!/usr/bin/env python3
-"""
-Test script for MQTT functionality
-Tests connection, authentication, and message publishing
-"""
-import sys
-import time
 import json
-import paho.mqtt.client as mqtt
+import pytest
+from unittest.mock import MagicMock, patch, ANY
+from idm_logger.mqtt import MQTTPublisher, config
 
-# Test configuration
-MQTT_BROKER = "localhost"  # Change this to your MQTT broker
-MQTT_PORT = 1883
-MQTT_USERNAME = ""  # Optional
-MQTT_PASSWORD = ""  # Optional
-MQTT_USE_TLS = False
-MQTT_TOPIC_PREFIX = "idm/heatpump"
+@pytest.fixture
+def mock_mqtt_client():
+    with patch("idm_logger.mqtt.mqtt.Client") as mock_client_cls:
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+        yield mock_client
 
-def on_connect(client, userdata, flags, rc):
-    """Callback for connection events."""
-    if rc == 0:
-        print(f"✓ Connected to MQTT broker: {MQTT_BROKER}:{MQTT_PORT}")
-    else:
-        error_messages = {
-            1: "Connection refused - incorrect protocol version",
-            2: "Connection refused - invalid client identifier",
-            3: "Connection refused - server unavailable",
-            4: "Connection refused - bad username or password",
-            5: "Connection refused - not authorized"
-        }
-        error_msg = error_messages.get(rc, f"Connection refused - code {rc}")
-        print(f"✗ Failed to connect: {error_msg}")
+@pytest.fixture
+def publisher(mock_mqtt_client):
+    # Mock config to enable mqtt
+    with patch("idm_logger.mqtt.config") as mock_config:
+        # Default config behavior
+        def config_get(key, default=None):
+            if key == "mqtt.enabled": return True
+            if key == "mqtt.topic_prefix": return "idm/heatpump"
+            return default
+        mock_config.get.side_effect = config_get
 
-def on_disconnect(client, userdata, rc):
-    """Callback for disconnection events."""
-    if rc != 0:
-        print(f"⚠ Unexpected disconnect (code {rc})")
-    else:
-        print("✓ Disconnected cleanly")
+        pub = MQTTPublisher()
+        pub._setup_client() # Force setup since __init__ comments it out
+        pub.client = mock_mqtt_client # Ensure client is our mock
+        pub.connected = True
+        return pub
 
-def on_publish(client, userdata, mid):
-    """Callback for publish events."""
-    print(f"✓ Message published (mid: {mid})")
+def test_publish_data_flat_dict(publisher, mock_mqtt_client):
+    """Test publishing data from a flat dictionary (ModbusClient format)."""
 
-def test_mqtt():
-    """Test MQTT connection and publishing."""
-    print("=" * 50)
-    print("MQTT Connection Test")
-    print("=" * 50)
-    print(f"Broker: {MQTT_BROKER}:{MQTT_PORT}")
-    print(f"Username: {MQTT_USERNAME if MQTT_USERNAME else '(none)'}")
-    print(f"TLS: {'Enabled' if MQTT_USE_TLS else 'Disabled'}")
-    print(f"Topic Prefix: {MQTT_TOPIC_PREFIX}")
-    print("=" * 50)
+    # Test data representing what ModbusClient.read_sensors() returns
+    data = {
+        "temp_outside": 12.5,
+        "op_mode": 1,
+        "op_mode_str": "Heating", # String variant
+        "fault_active": False
+    }
 
-    try:
-        # Create MQTT client
-        client_id = f"idm_test_{int(time.time())}"
-        client = mqtt.Client(client_id=client_id, protocol=mqtt.MQTTv311)
+    # Mock sensors to provide units
+    publisher.sensors = {
+        "temp_outside": MagicMock(unit="°C"),
+        "op_mode": MagicMock(unit=""),
+        "fault_active": MagicMock(unit="")
+    }
 
-        # Set callbacks
-        client.on_connect = on_connect
-        client.on_disconnect = on_disconnect
-        client.on_publish = on_publish
+    publisher.publish_data(data)
 
-        # Set authentication if provided
-        if MQTT_USERNAME:
-            client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
-            print(f"✓ Authentication configured")
+    # Verification
+    calls = mock_mqtt_client.publish.call_args_list
 
-        # Configure TLS if enabled
-        if MQTT_USE_TLS:
-            import ssl
-            client.tls_set(
-                cert_reqs=ssl.CERT_REQUIRED,
-                tls_version=ssl.PROTOCOL_TLSv1_2
-            )
-            print(f"✓ TLS configured")
+    # We expect 4 calls: 3 individual sensors + 1 state topic
+    assert len(calls) == 4
 
-        # Connect to broker
-        print(f"\nConnecting to {MQTT_BROKER}:{MQTT_PORT}...")
-        client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
-        client.loop_start()
+    # Helper to find call by topic
+    def get_payload(topic_suffix):
+        topic = f"idm/heatpump/{topic_suffix}"
+        for call in calls:
+            if call.args[0] == topic:
+                return json.loads(call.args[1])
+        return None
 
-        # Wait for connection
-        time.sleep(2)
+    # Check temp_outside
+    payload = get_payload("temp_outside")
+    assert payload is not None
+    assert payload['value'] == 12.5
+    assert payload['unit'] == "°C"
 
-        # Test publishing sensor data
-        print("\nTesting sensor data publishing...")
+    # Check op_mode (should include value_str)
+    payload = get_payload("op_mode")
+    assert payload is not None
+    assert payload['value'] == 1
+    assert payload['value_str'] == "Heating"
 
-        test_data = {
-            "temperature_outdoor": {
-                "value": 15.5,
-                "unit": "°C",
-                "timestamp": int(time.time())
-            },
-            "temperature_flow": {
-                "value": 35.2,
-                "unit": "°C",
-                "timestamp": int(time.time())
-            },
-            "cop_heating": {
-                "value": 3.8,
-                "unit": "",
-                "timestamp": int(time.time())
-            }
-        }
+    # Check fault_active
+    payload = get_payload("fault_active")
+    assert payload is not None
+    assert payload['value'] is False
 
-        # Publish individual sensor values
-        for sensor_name, sensor_data in test_data.items():
-            topic = f"{MQTT_TOPIC_PREFIX}/{sensor_name}"
-            payload = json.dumps(sensor_data)
+    # Check that _str topic was NOT published separately
+    assert get_payload("op_mode_str") is None
 
-            result = client.publish(topic, payload, qos=1)
-            if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                print(f"  → Published: {topic}")
-            else:
-                print(f"  ✗ Failed to publish: {topic} (rc={result.rc})")
-
-            time.sleep(0.1)
-
-        # Publish complete state
-        state_topic = f"{MQTT_TOPIC_PREFIX}/state"
-        result = client.publish(state_topic, json.dumps(test_data), qos=1, retain=True)
-        if result.rc == mqtt.MQTT_ERR_SUCCESS:
-            print(f"  → Published state: {state_topic}")
-        else:
-            print(f"  ✗ Failed to publish state (rc={result.rc})")
-
-        # Wait for messages to be sent
-        time.sleep(2)
-
-        # Disconnect
-        print("\nDisconnecting...")
-        client.loop_stop()
-        client.disconnect()
-
-        print("\n" + "=" * 50)
-        print("✓ MQTT test completed successfully!")
-        print("=" * 50)
-
-        return 0
-
-    except Exception as e:
-        print(f"\n✗ Test failed: {e}")
-        print("=" * 50)
-        return 1
-
-if __name__ == "__main__":
-    print("\n📡 IDM Heat Pump Logger - MQTT Test\n")
-
-    # Check if broker is configured
-    if MQTT_BROKER == "localhost":
-        print("⚠ Warning: Using default broker 'localhost'")
-        print("   Edit this script to configure your MQTT broker\n")
-
-    exit_code = test_mqtt()
-    sys.exit(exit_code)
+    # Check state topic
+    payload = get_payload("state")
+    assert payload is not None
+    assert payload == data

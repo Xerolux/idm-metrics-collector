@@ -256,27 +256,6 @@ class MQTTPublisher:
                      payload["command_topic"] = f"{topic_prefix}/{name}/set"
                      payload["options"] = [m.name for m in sensor.enum]
                      payload["value_template"] = "{{ value_json.value_str }}" # Use string representation for select
-                     # We need to make sure we publish the string value in value_str or similar?
-                     # Currently publish_data sends: value (raw), unit, timestamp.
-                     # But my ModbusClient reads also give 'value_str' for enums in the big dict,
-                     # BUT publish_data iterates over items and takes 'value'.
-
-                     # Wait, publish_data structure:
-                     # { sensor_name: { value: ..., unit: ... } }
-                     # It publishes JSON payload.
-                     # For Enum, the value is the integer.
-                     # HA Select expects the option string.
-                     # I might need to adjust publish_data to include the string value for Enums or use a template that maps int to string?
-                     # Template mapping in HA is hard without hardcoding options.
-                     # Better: Make sure logger publishes the string representation for Enums if available?
-
-                     # Let's assume for now I will use the integer value for state (which is wrong for HA Select),
-                     # OR I can use 'number' component for Enums if I just want to set the integer ID.
-                     # BUT 'select' is better UI.
-                     # For 'select', state_topic must return the option string.
-
-                     # Hack: I will stick to 'sensor' for reading and add a separate 'select' entity for writing if needed?
-                     # No, HA expects state topic to match one of the options.
                      pass
 
                 # Numerical -> Number
