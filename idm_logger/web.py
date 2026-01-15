@@ -360,6 +360,7 @@ def logs_page():
 def get_technician_code():
     try:
         codes = calculate_codes()
+        codes["server_time"] = time.strftime("%H:%M:%S")
         return jsonify(codes)
     except Exception as e:
         logger.error(f"Error generating codes: {e}")

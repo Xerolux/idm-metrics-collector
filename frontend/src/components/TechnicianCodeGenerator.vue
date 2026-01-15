@@ -32,9 +32,15 @@
 
        <div class="flex flex-col justify-center items-start gap-4">
             <Button label="Codes aktualisieren" icon="pi pi-refresh" @click="fetchCodes" :loading="loading" />
-            <p class="text-xs text-gray-400">
-                Codes werden basierend auf der aktuellen Serverzeit generiert.
-            </p>
+            <div class="flex flex-col gap-1 text-xs text-gray-400">
+                <p>
+                    <span class="font-bold">Serverzeit:</span> {{ codes.server_time || '--:--:--' }}
+                </p>
+                <p>
+                    Level 1 Code ändert sich täglich.<br>
+                    Level 2 Code ändert sich stündlich.
+                </p>
+            </div>
        </div>
     </div>
   </div>
@@ -47,7 +53,7 @@ import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
 
 const toast = useToast();
-const codes = ref({ level_1: '', level_2: '' });
+const codes = ref({ level_1: '', level_2: '', server_time: '' });
 const loading = ref(false);
 let intervalId = null;
 
@@ -56,6 +62,7 @@ const fetchCodes = async () => {
     try {
         const res = await axios.get('/api/tools/technician-code?t=' + Date.now());
         codes.value = res.data;
+        toast.add({ severity: 'success', summary: 'Aktualisiert', detail: 'Codes erfolgreich aktualisiert', life: 2000 });
     } catch (e) {
         toast.add({ severity: 'error', summary: 'Fehler', detail: 'Technikercodes konnten nicht abgerufen werden', life: 3000 });
     } finally {
@@ -72,9 +79,26 @@ onUnmounted(() => {
     if (intervalId) clearInterval(intervalId);
 });
 
-const copy = (text) => {
+const copy = async (text) => {
     if (!text) return;
-    navigator.clipboard.writeText(text);
-    toast.add({ severity: 'success', summary: 'Kopiert', detail: 'Code in die Zwischenablage kopiert', life: 2000 });
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+        }
+        toast.add({ severity: 'success', summary: 'Kopiert', detail: 'Code in die Zwischenablage kopiert', life: 2000 });
+    } catch (err) {
+        toast.add({ severity: 'error', summary: 'Fehler', detail: 'Konnte nicht kopiert werden', life: 2000 });
+    }
 };
 </script>
