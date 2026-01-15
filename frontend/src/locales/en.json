@@ -6,6 +6,7 @@
   "config": "Configuration",
   "setup": "Setup",
   "tools": "Tools",
+  "codegen": "Codegen",
   "alerts": "Alerts",
   "about": "About",
   "logout": "Logout",
