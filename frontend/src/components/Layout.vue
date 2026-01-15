@@ -75,6 +75,11 @@ const items = computed(() => [
         }
     },
     {
+        label: t('codegen'),
+        icon: 'pi pi-lock',
+        command: () => router.push('/tools')
+    },
+    {
         label: t('about'),
         icon: 'pi pi-info-circle',
         command: () => router.push('/about')
