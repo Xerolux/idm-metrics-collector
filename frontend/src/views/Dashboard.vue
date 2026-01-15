@@ -7,7 +7,7 @@
              </div>
          </div>
 
-        <div class="grid-stack bg-gray-800 rounded-lg min-h-[500px]">
+        <div class="grid-stack bg-gray-800/50 rounded-xl min-h-[500px] border border-gray-700/50">
             <!-- Loading skeleton for dashboard -->
             <div v-if="!grid" class="absolute inset-0 p-6">
                 <SkeletonGroup variant="card" :count="6" />
@@ -23,7 +23,7 @@
                     :trend="getTrend(widget.sensor)"
                     :status="getStatus(widget.sensor)"
                 />
-                 <div v-if="editMode" class="absolute top-2 right-2 cursor-pointer text-gray-500 hover:text-red-500 z-10 transition-colors p-1 rounded hover:bg-red-500/10" @click="removeWidget(widget.id)">
+                 <div v-if="editMode" class="absolute top-2 right-2 cursor-pointer text-gray-400 hover:text-red-400 z-10 transition-colors p-1 rounded hover:bg-red-500/20 bg-gray-800 shadow-sm" @click="removeWidget(widget.id)">
                     <i class="pi pi-times text-sm"></i>
                 </div>
             </div>
@@ -302,18 +302,20 @@ const fetchData = async () => {
 <style>
 .grid-stack-item-content {
     background-color: #1f2937; /* gray-800 */
+    background-image: linear-gradient(to bottom right, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
     color: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     overflow: hidden;
-    transition: all 0.3s ease;
-    border: 1px solid transparent;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(75, 85, 99, 0.4); /* gray-600 with opacity */
 }
 
 .grid-stack-item:hover .grid-stack-item-content {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-    border-color: #3b82f6;
-    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border-color: #3b82f6; /* blue-500 */
+    transform: translateY(-4px);
+    z-index: 10 !important;
 }
 
 .grid-stack-item.ui-draggable-dragging .grid-stack-item-content {

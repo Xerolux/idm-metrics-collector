@@ -14,7 +14,7 @@ SCREENSHOT_SIZE = {"width": 1280, "height": 800}
 
 # Mock Data
 MOCK_CONFIG = {
-    "idm": {"host": "192.168.1.10", "port": 502, "circuits": 1, "zones": 1},
+    "idm": {"host": "192.168.1.10", "port": 502, "circuits": ["A"], "zones": [1]},
     "web": {"write_enabled": True},
     "metrics": {"url": "http://victoriametrics:8428/write"},
     "mqtt": {
@@ -104,6 +104,10 @@ def mock_api_routes(page):
 
     page.route("**/api/signal/status", lambda route: route.fulfill(json={
         "enabled": False, "sender_set": False, "recipients_count": 0, "cli_path": "signal-cli", "cli_available": False
+    }))
+
+    page.route("**/api/check-update", lambda route: route.fulfill(json={
+        "current_version": "v0.6.0", "latest_version": "v0.6.1", "update_available": True
     }))
 
 

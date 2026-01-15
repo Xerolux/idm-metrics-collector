@@ -117,7 +117,7 @@ onUnmounted(() => {
         <NetworkStatus />
         <Menubar :model="items" class="rounded-none border-0 border-b !border-gray-700 !bg-gray-800">
              <template #start>
-               <span class="text-lg sm:text-xl font-bold px-2 sm:px-4 text-white">IDM Logger</span>
+               <span class="text-lg sm:text-xl font-bold px-2 sm:px-4 text-white">IDM Metrics Collector</span>
             </template>
             <template #item="{ item, props }">
                 <a v-ripple class="flex items-center gap-2 px-2 sm:px-3 py-2 hover:bg-gray-700 rounded cursor-pointer transition-colors text-gray-200" v-bind="props.action">

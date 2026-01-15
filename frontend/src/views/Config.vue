@@ -8,609 +8,292 @@
 
         <div v-else>
             <TabView>
-                <TabPanel header="Allgemein">
-                    <div class="flex flex-col gap-6">
-                        <Card class="bg-gray-800 text-white">
-                            <template #title>IDM Wärmepumpe</template>
-                            <template #content>
-                                <div class="flex flex-col gap-4">
+                <TabPanel header="Verbindung">
+                     <div class="flex flex-col gap-6">
+                        <Fieldset legend="IDM Wärmepumpe" :toggleable="true">
+                             <div class="flex flex-col gap-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="flex flex-col gap-2">
                                         <label>Host / IP</label>
-                                        <InputText v-model="config.idm.host" />
+                                        <InputText v-model="config.idm.host" class="w-full" />
                                     </div>
                                     <div class="flex flex-col gap-2">
                                         <label>Port</label>
-                                        <InputNumber v-model="config.idm.port" :useGrouping="false" />
+                                        <InputNumber v-model="config.idm.port" :useGrouping="false" class="w-full" />
                                     </div>
+                                </div>
 
-                                    <div class="flex flex-col gap-2">
-                                        <label class="font-bold">Aktivierte Features</label>
-                                        <div class="flex flex-col gap-2 p-2 border border-gray-700 rounded bg-gray-900/50">
-                                            <div class="flex items-center gap-2">
-                                                <Checkbox v-model="config.idm.circuits" inputId="circuitA" value="A" disabled />
-                                                <label for="circuitA" class="opacity-50">Heizkreis A (Immer aktiv)</label>
-                                            </div>
-                                            <div class="flex flex-wrap gap-4">
-                                                <div v-for="c in ['B', 'C', 'D', 'E', 'F', 'G']" :key="c" class="flex items-center gap-2">
-                                                    <Checkbox v-model="config.idm.circuits" :inputId="'circuit'+c" :value="c" />
-                                                    <label :for="'circuit'+c">Heizkreis {{ c }}</label>
-                                                </div>
-                                            </div>
+                                <div class="flex flex-col gap-2">
+                                    <label class="font-bold">Aktivierte Heizkreise</label>
+                                    <div class="flex flex-wrap gap-4 p-3 border border-gray-700 rounded bg-gray-900/50">
+                                        <div class="flex items-center gap-2">
+                                            <Checkbox v-model="config.idm.circuits" inputId="circuitA" value="A" disabled />
+                                            <label for="circuitA" class="opacity-50">Heizkreis A (Fest)</label>
                                         </div>
-                                        <div class="flex flex-col gap-2 p-2 border border-gray-700 rounded bg-gray-900/50">
-                                            <label class="text-sm text-gray-400">Zonenmodule</label>
-                                            <div class="flex flex-wrap gap-4">
-                                                <div v-for="z in 10" :key="z" class="flex items-center gap-2">
-                                                    <Checkbox v-model="config.idm.zones" :inputId="'zone'+(z-1)" :value="(z-1)" />
-                                                    <label :for="'zone'+(z-1)">Zone {{ z }}</label>
-                                                </div>
-                                            </div>
+                                        <div v-for="c in ['B', 'C', 'D', 'E', 'F', 'G']" :key="c" class="flex items-center gap-2">
+                                            <Checkbox v-model="config.idm.circuits" :inputId="'circuit'+c" :value="c" />
+                                            <label :for="'circuit'+c">Heizkreis {{ c }}</label>
                                         </div>
                                     </div>
                                 </div>
-                            </template>
-                        </Card>
 
-                        <Card class="bg-gray-800 text-white">
-                            <template #title>VictoriaMetrics</template>
-                            <template #content>
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex flex-col gap-2">
-                                        <label>URL</label>
-                                        <InputText v-model="config.metrics.url" />
-                                        <small class="text-gray-300">Standard: http://victoriametrics:8428/write</small>
+                                 <div class="flex flex-col gap-2">
+                                    <label class="font-bold">Zonenmodule</label>
+                                    <div class="flex flex-wrap gap-4 p-3 border border-gray-700 rounded bg-gray-900/50">
+                                        <div v-for="z in 10" :key="z" class="flex items-center gap-2">
+                                            <Checkbox v-model="config.idm.zones" :inputId="'zone'+(z-1)" :value="(z-1)" />
+                                            <label :for="'zone'+(z-1)">Zone {{ z }}</label>
+                                        </div>
                                     </div>
                                 </div>
-                            </template>
-                        </Card>
-                    </div>
-                </TabPanel>
+                            </div>
+                        </Fieldset>
 
-                <TabPanel header="Datenerfassung">
-                    <Card class="bg-gray-800 text-white">
-                        <template #title>Datenerfassung</template>
-                        <template #content>
+                        <Fieldset legend="Datenbank (VictoriaMetrics)" :toggleable="true">
                             <div class="flex flex-col gap-4">
-                                <div class="flex items-center gap-2">
+                                <div class="flex flex-col gap-2">
+                                    <label>Write URL</label>
+                                    <InputText v-model="config.metrics.url" class="w-full" />
+                                    <small class="text-gray-300">Standard: http://victoriametrics:8428/write</small>
+                                </div>
+                            </div>
+                        </Fieldset>
+
+                         <Fieldset legend="Datenerfassung" :toggleable="true">
+                            <div class="flex flex-col gap-4">
+                                <div class="flex items-center gap-2 p-3 bg-gray-800 rounded border border-gray-700">
                                     <Checkbox v-model="config.logging.realtime_mode" binary inputId="realtime_mode" />
-                                    <label for="realtime_mode">Echtzeit-Modus (1 Sekunden Intervall)</label>
+                                    <div class="flex flex-col">
+                                         <label for="realtime_mode" class="font-bold cursor-pointer">Echtzeit-Modus</label>
+                                         <span class="text-sm text-gray-400">Aktualisierung im Sekundentakt (Hohe Last)</span>
+                                    </div>
                                 </div>
                                 <div class="flex flex-col gap-2" v-if="!config.logging.realtime_mode">
                                     <label>Abfrage-Intervall (Sekunden)</label>
-                                    <InputNumber v-model="config.logging.interval" :min="1" :max="3600" :useGrouping="false" />
-                                    <small class="text-gray-400">Wie oft Daten von der Wärmepumpe gelesen werden (1-3600 Sekunden)</small>
+                                    <InputNumber v-model="config.logging.interval" :min="1" :max="3600" :useGrouping="false" class="w-full md:w-1/2" />
+                                    <small class="text-gray-400">Standard: 60 Sekunden</small>
                                 </div>
                             </div>
-                        </template>
-                    </Card>
+                        </Fieldset>
+                    </div>
                 </TabPanel>
 
-                <TabPanel header="MQTT">
-                    <Card class="bg-gray-800 text-white" v-if="config.mqtt">
-                        <template #title>
+                <TabPanel header="MQTT & Integration">
+                    <Fieldset legend="MQTT Publishing" :toggleable="false">
+                        <template #legend>
                             <div class="flex items-center gap-2">
-                                <i class="pi pi-send text-blue-400"></i>
-                                <span>MQTT Publishing</span>
+                                <Checkbox v-model="config.mqtt.enabled" binary inputId="mqtt_enabled" />
+                                <span class="font-bold text-lg">MQTT Aktivieren</span>
                             </div>
                         </template>
-                        <template #content>
-                            <div class="flex flex-col gap-4">
+
+                        <div v-if="config.mqtt.enabled" class="flex flex-col gap-6 mt-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="flex flex-col gap-2">
+                                    <label>Broker Adresse</label>
+                                    <InputText v-model="config.mqtt.broker" placeholder="mqtt.example.com" class="w-full" />
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <label>Port</label>
+                                    <InputNumber v-model="config.mqtt.port" :useGrouping="false" :min="1" :max="65535" class="w-full" />
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <label>Benutzername</label>
+                                    <InputText v-model="config.mqtt.username" placeholder="Optional" class="w-full" />
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <label>Passwort</label>
+                                    <InputText v-model="mqttPassword" type="password" placeholder="••••••" class="w-full" />
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-700 pt-4">
+                                <div class="flex flex-col gap-2">
+                                    <label>Topic Präfix</label>
+                                    <InputText v-model="config.mqtt.topic_prefix" class="w-full" />
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <label>QoS Level</label>
+                                    <SelectButton v-model="config.mqtt.qos" :options="[0, 1, 2]" aria-labelledby="basic" class="w-full" />
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col gap-3 border border-green-600/50 rounded bg-green-900/10 p-4">
                                 <div class="flex items-center gap-2">
-                                    <Checkbox v-model="config.mqtt.enabled" binary inputId="mqtt_enabled" />
-                                    <label for="mqtt_enabled" class="font-bold">MQTT Publishing aktivieren</label>
+                                    <Checkbox v-model="config.mqtt.ha_discovery_enabled" binary inputId="ha_discovery" />
+                                    <label for="ha_discovery" class="font-bold text-green-400 cursor-pointer">Home Assistant Auto-Discovery</label>
                                 </div>
-
-                                <div v-if="config.mqtt.enabled" class="flex flex-col gap-4 p-3 border border-blue-600 rounded bg-blue-900/10">
-                                    <div class="flex flex-col gap-2">
-                                        <label>Broker Adresse</label>
-                                        <InputText v-model="config.mqtt.broker" placeholder="mqtt.example.com" />
-                                    </div>
-
-                                    <div class="flex flex-col gap-2">
-                                        <label>Port</label>
-                                        <InputNumber v-model="config.mqtt.port" :useGrouping="false" :min="1" :max="65535" />
-                                        <small class="text-gray-400">Standard: 1883 (ohne TLS) oder 8883 (TLS)</small>
-                                    </div>
-
-                                    <div class="flex flex-col gap-2">
-                                        <label>Benutzername (Optional)</label>
-                                        <InputText v-model="config.mqtt.username" placeholder="Optional" />
-                                    </div>
-
-                                    <div class="flex flex-col gap-2">
-                                        <label>Passwort (Optional)</label>
-                                        <InputText v-model="mqttPassword" type="password" placeholder="Leer lassen um aktuelles zu behalten" />
-                                        <small class="text-gray-400">Wird nur aktualisiert wenn angegeben</small>
-                                    </div>
-
-                                    <div class="flex flex-col gap-2">
-                                        <label>Topic Präfix</label>
-                                        <InputText v-model="config.mqtt.topic_prefix" placeholder="idm/heatpump" />
-                                        <small class="text-gray-400">Topics sind: {prefix}/{sensor_name}</small>
-                                    </div>
-
-                                    <div class="p-3 border border-green-600 rounded bg-green-900/10 flex flex-col gap-3">
-                                        <div class="flex items-center gap-2">
-                                            <i class="pi pi-home text-green-400"></i>
-                                            <span class="font-bold text-green-400">Home Assistant Discovery</span>
-                                        </div>
-                                        <div class="flex items-center gap-2">
-                                            <Checkbox v-model="config.mqtt.ha_discovery_enabled" binary inputId="ha_discovery_enabled" />
-                                            <label for="ha_discovery_enabled">Home Assistant Discovery aktivieren</label>
-                                        </div>
-                                        <div class="flex flex-col gap-2" v-if="config.mqtt.ha_discovery_enabled">
-                                            <label>Discovery Präfix</label>
-                                            <InputText v-model="config.mqtt.ha_discovery_prefix" placeholder="homeassistant" />
-                                            <small class="text-gray-400">Standard: homeassistant</small>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex flex-col gap-2">
-                                        <label>QoS Level</label>
-                                        <select v-model="config.mqtt.qos" class="p-2 bg-gray-700 border border-gray-600 rounded">
-                                            <option :value="0">0 - At most once</option>
-                                            <option :value="1">1 - At least once</option>
-                                            <option :value="2">2 - Exactly once</option>
-                                        </select>
-                                    </div>
-
-                                    <div class="flex items-center gap-2">
-                                        <Checkbox v-model="config.mqtt.use_tls" binary inputId="mqtt_use_tls" />
-                                        <label for="mqtt_use_tls">TLS/SSL Verschlüsselung nutzen</label>
-                                    </div>
-
-                                    <div class="flex flex-col gap-2">
-                                        <label>Publish Intervall (Sekunden)</label>
-                                        <InputNumber v-model="config.mqtt.publish_interval" :min="1" :max="3600" :useGrouping="false" />
-                                        <small class="text-gray-400">Wie oft Sensordaten veröffentlicht werden (1-3600 Sekunden)</small>
-                                    </div>
+                                <div v-if="config.mqtt.ha_discovery_enabled" class="ml-8">
+                                    <label class="text-sm">Discovery Präfix</label>
+                                    <InputText v-model="config.mqtt.ha_discovery_prefix" class="w-full mt-1" />
                                 </div>
                             </div>
-                        </template>
-                    </Card>
+                        </div>
+                        <div v-else class="text-gray-400 italic">
+                            Aktivieren Sie MQTT, um Daten an Broker wie Mosquitto oder Home Assistant zu senden.
+                        </div>
+                    </Fieldset>
                 </TabPanel>
 
-                <TabPanel header="Benachrichtigungen & AI">
+                <TabPanel header="Benachrichtigungen">
                     <div class="flex flex-col gap-6">
-                        <Card class="bg-gray-800 text-white" v-if="config.signal">
-                            <template #title>
+                        <Fieldset legend="Signal Messenger" :toggleable="true">
+                            <template #legend>
                                 <div class="flex items-center gap-2">
-                                    <i class="pi pi-comments text-green-400"></i>
-                                    <span>Signal Benachrichtigungen</span>
+                                    <Checkbox v-model="config.signal.enabled" binary />
+                                    <span class="font-bold">Signal</span>
                                 </div>
                             </template>
-                            <template #content>
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex items-center gap-2">
-                                        <Checkbox v-model="config.signal.enabled" binary inputId="signal_enabled" />
-                                        <label for="signal_enabled" class="font-bold">Aktivieren</label>
-                                    </div>
 
-                                    <div v-if="config.signal.enabled" class="flex flex-col gap-4 p-3 border border-green-600 rounded bg-green-900/10">
-                                        <div class="flex flex-col gap-2">
-                                            <label>Signal CLI Pfad</label>
-                                            <InputText v-model="config.signal.cli_path" placeholder="signal-cli" />
-                                        </div>
-                                        <div class="flex flex-col gap-2">
-                                            <label>Sender-Nummer</label>
-                                            <InputText v-model="config.signal.sender" placeholder="+49..." />
-                                        </div>
-                                        <div class="flex flex-col gap-2">
-                                            <label>Empfänger (eine Nummer pro Zeile)</label>
-                                            <Textarea v-model="signalRecipientsText" rows="4" class="font-mono text-sm" />
-                                        </div>
-                                        <Button label="Signal Test senden" icon="pi pi-send" severity="success" @click="sendSignalTest" />
-                                    </div>
+                            <div v-if="config.signal.enabled" class="flex flex-col gap-4">
+                                <div class="flex flex-col gap-2">
+                                    <label>Sender Nummer</label>
+                                    <InputText v-model="config.signal.sender" placeholder="+49..." class="w-full md:w-1/2" />
                                 </div>
-                            </template>
-                        </Card>
+                                <div class="flex flex-col gap-2">
+                                    <label>Empfänger (Pro Zeile eine Nummer)</label>
+                                    <Textarea v-model="signalRecipientsText" rows="3" class="w-full font-mono" />
+                                </div>
+                                <Button label="Testnachricht senden" icon="pi pi-send" severity="success" outlined @click="sendSignalTest" class="w-full md:w-auto self-start" />
+                            </div>
+                        </Fieldset>
 
-                        <Card class="bg-gray-800 text-white" v-if="config.ai">
-                            <template #title>
+                         <Fieldset legend="AI Anomalie-Erkennung" :toggleable="true">
+                            <template #legend>
                                 <div class="flex items-center gap-2">
-                                    <i class="pi pi-bolt text-purple-400"></i>
-                                    <span>AI Anomalie-Erkennung</span>
+                                    <Checkbox v-model="config.ai.enabled" binary />
+                                    <span class="font-bold">AI Detection</span>
                                 </div>
                             </template>
-                            <template #content>
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex items-center gap-2">
-                                        <Checkbox v-model="config.ai.enabled" binary inputId="ai_enabled" />
-                                        <label for="ai_enabled" class="font-bold">AI Alarm aktivieren</label>
-                                    </div>
-                                    <small class="text-gray-400">Das System lernt automatisch Muster, auch wenn der Alarm deaktiviert ist.</small>
-
-                                    <div v-if="config.ai.enabled" class="flex flex-col gap-4 p-3 border border-purple-600 rounded bg-purple-900/10">
-                                        <div class="flex flex-col gap-2">
-                                            <label>Sensitivität (Sigma)</label>
-                                            <InputNumber v-model="config.ai.sensitivity" :min="1.0" :max="10.0" :step="0.1" :minFractionDigits="1" mode="decimal" />
-                                            <small class="text-gray-400">
-                                                Niedriger (z.B. 2.0) = Empfindlicher, mehr Fehlalarme.
-                                                Höher (z.B. 4.0) = Nur starke Abweichungen.
-                                                Standard: 3.0
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                        </Card>
+                             <div v-if="config.ai.enabled" class="flex flex-col gap-4">
+                                 <div class="flex flex-col gap-2">
+                                     <label>Sensitivität (1.0 - 10.0)</label>
+                                     <div class="flex items-center gap-4">
+                                         <Slider v-model="config.ai.sensitivity" :min="1" :max="10" :step="0.1" class="w-full md:w-1/2" />
+                                         <span class="font-mono">{{ config.ai.sensitivity }}</span>
+                                     </div>
+                                 </div>
+                             </div>
+                        </Fieldset>
                     </div>
                 </TabPanel>
 
                 <TabPanel header="Sicherheit">
                     <div class="flex flex-col gap-6">
-                        <Card class="bg-gray-800 text-white">
-                            <template #title>Admin Sicherheit</template>
-                            <template #content>
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex flex-col gap-2">
-                                        <label>Neues Passwort</label>
-                                        <InputText v-model="newPassword" type="password" />
+                         <Fieldset legend="Webzugriff" :toggleable="true">
+                            <div class="flex flex-col gap-4">
+                                <div class="flex flex-col gap-2">
+                                    <label>Admin Passwort ändern</label>
+                                    <InputText v-model="newPassword" type="password" placeholder="Neues Passwort eingeben..." class="w-full md:w-1/2" />
+                                </div>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <Checkbox v-model="config.web.write_enabled" binary inputId="write_access" />
+                                    <div class="flex flex-col">
+                                        <label for="write_access" class="font-bold cursor-pointer">Schreibzugriff erlauben</label>
+                                        <span class="text-sm text-gray-400">Erforderlich für manuelle Steuerung und Zeitpläne</span>
                                     </div>
                                 </div>
-                            </template>
-                        </Card>
+                            </div>
+                        </Fieldset>
 
-                        <Card class="bg-gray-800 text-white" v-if="config.network_security">
-                            <template #title>
+                        <Fieldset legend="Netzwerk Firewall" :toggleable="true">
+                            <template #legend>
                                 <div class="flex items-center gap-2">
-                                    <i class="pi pi-shield text-yellow-400"></i>
-                                    <span>Netzwerkzugriffskontrolle</span>
+                                    <Checkbox v-model="config.network_security.enabled" binary />
+                                    <span class="font-bold">IP Whitelist/Blacklist</span>
                                 </div>
                             </template>
-                            <template #content>
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex items-center gap-2">
-                                        <Checkbox v-model="config.network_security.enabled" binary inputId="network_security_enabled" />
-                                        <label for="network_security_enabled" class="font-bold">IP-basierte Zugriffskontrolle aktivieren</label>
+
+                            <div v-if="config.network_security.enabled" class="flex flex-col gap-4">
+                                <div class="bg-yellow-900/20 border border-yellow-600/50 p-3 rounded text-yellow-200 text-sm flex items-start gap-2">
+                                    <i class="pi pi-exclamation-triangle mt-0.5"></i>
+                                    <span>Deine IP ist <strong>{{ currentClientIP }}</strong>. Füge diese zur Whitelist hinzu, sonst sperrst du dich aus!</span>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="flex flex-col gap-2">
+                                        <label class="font-bold text-green-400">Whitelist (Erlaubt)</label>
+                                        <Textarea v-model="whitelistText" rows="5" class="w-full font-mono text-sm" placeholder="192.168.1.0/24" />
                                     </div>
-
-                                    <div v-if="config.network_security.enabled" class="flex flex-col gap-4 p-3 border border-yellow-600 rounded bg-yellow-900/10">
-                                        <div class="flex items-start gap-2 text-yellow-400">
-                                            <i class="pi pi-exclamation-triangle mt-1"></i>
-                                            <small>Warnung: Stelle sicher, dass deine IP auf der Whitelist steht, bevor du dies aktivierst, sonst sperrst du dich aus!</small>
-                                        </div>
-
-                                        <div class="flex flex-col gap-2">
-                                            <label class="font-semibold">
-                                                <i class="pi pi-check-circle text-green-400"></i> Whitelist (Diese IPs erlauben)
-                                            </label>
-                                            <Textarea
-                                                v-model="whitelistText"
-                                                placeholder="192.168.1.0/24&#10;10.0.0.5&#10;172.16.0.0/16"
-                                                rows="4"
-                                                class="font-mono text-sm"
-                                            />
-                                            <small class="text-gray-400">
-                                                Eine IP-Adresse oder Netzwerk (CIDR) pro Zeile. Wenn Whitelist leer ist, sind alle IPs erlaubt (außer Blacklist).
-                                                <br>Beispiel: 192.168.1.0/24 erlaubt 192.168.1.1 - 192.168.1.254
-                                            </small>
-                                        </div>
-
-                                        <div class="flex flex-col gap-2">
-                                            <label class="font-semibold">
-                                                <i class="pi pi-ban text-red-400"></i> Blacklist (Diese IPs blockieren)
-                                            </label>
-                                            <Textarea
-                                                v-model="blacklistText"
-                                                placeholder="203.0.113.0/24&#10;198.51.100.5"
-                                                rows="4"
-                                                class="font-mono text-sm"
-                                            />
-                                            <small class="text-gray-400">
-                                                Eine IP-Adresse oder Netzwerk (CIDR) pro Zeile. Blacklist wird zuerst geprüft (blockiert vor Whitelist).
-                                            </small>
-                                        </div>
-
-                                        <div class="p-3 bg-blue-900/30 border border-blue-600 rounded">
-                                            <div class="flex items-start gap-2">
-                                                <i class="pi pi-info-circle text-blue-400 mt-1"></i>
-                                                <div class="text-sm text-blue-200">
-                                                    <strong>Deine aktuelle IP:</strong> {{ currentClientIP || 'Lade...' }}
-                                                    <br><small class="text-blue-300">Stelle sicher, diese zur Whitelist hinzuzufügen!</small>
-                                                </div>
-                                            </div>
-                                        </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label class="font-bold text-red-400">Blacklist (Blockiert)</label>
+                                        <Textarea v-model="blacklistText" rows="5" class="w-full font-mono text-sm" placeholder="1.2.3.4" />
                                     </div>
                                 </div>
-                            </template>
-                        </Card>
+                            </div>
+                        </Fieldset>
                     </div>
                 </TabPanel>
 
-                <TabPanel header="System">
-                    <div class="flex flex-col gap-6">
-                        <Card class="bg-gray-800 text-white">
-                            <template #title>
-                                <div class="flex items-center gap-2">
-                                    <i class="pi pi-chart-bar text-teal-400"></i>
-                                    <span>Status</span>
-                                </div>
-                            </template>
-                            <template #content>
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex items-center justify-between">
-                                        <div>
-                                            <div class="font-semibold">Updates</div>
-                                            <div class="text-sm text-gray-400">
-                                                Aktuell: {{ updateStatus.current_version || '...' }} · Latest: {{ updateStatus.latest_version || '...' }}
-                                            </div>
-                                            <div class="text-xs text-gray-400" v-if="updateStatus.update_type && updateStatus.update_type !== 'none'">
-                                                Typ: {{ updateStatus.update_type }}
-                                            </div>
-                                        </div>
-                                        <span
-                                            class="text-xs font-semibold px-2 py-1 rounded-full"
-                                            :class="updateStatus.update_available ? 'bg-yellow-500/20 text-yellow-200' : 'bg-green-500/20 text-green-200'"
-                                        >
-                                            {{ updateStatus.update_available ? 'Update verfügbar' : 'Aktuell' }}
-                                        </span>
-                                    </div>
-                                    <div class="flex items-center justify-between">
-                                        <div>
-                                            <div class="font-semibold">Signal</div>
-                                            <div class="text-sm text-gray-400">
-                                                {{ signalStatus.enabled ? 'Aktiviert' : 'Deaktiviert' }}
-                                                · Empfänger: {{ signalStatus.recipients_count ?? 0 }}
-                                            </div>
-                                            <div class="text-xs text-gray-400">
-                                                CLI: {{ signalStatus.cli_available ? 'Verfügbar' : 'Nicht gefunden' }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="flex justify-end">
-                                        <Button label="Status aktualisieren" icon="pi pi-refresh" size="small" @click="loadStatus" :loading="statusLoading" />
-                                    </div>
-                                </div>
-                            </template>
-                        </Card>
+                <TabPanel header="System & Wartung">
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        <!-- Update Status -->
+                        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3">
+                            <h3 class="font-bold text-lg flex items-center gap-2">
+                                <i class="pi pi-refresh"></i> Update Status
+                            </h3>
+                             <div class="flex items-center justify-between bg-gray-900/50 p-3 rounded">
+                                 <div>
+                                     <div class="text-sm text-gray-400">Installierte Version</div>
+                                     <div class="font-mono">{{ updateStatus.current_version || 'v0.0.0' }}</div>
+                                 </div>
+                                 <div class="text-right">
+                                     <div class="text-sm text-gray-400">Verfügbare Version</div>
+                                     <div class="font-mono text-green-400">{{ updateStatus.latest_version || 'Checking...' }}</div>
+                                 </div>
+                             </div>
+                             <div class="flex items-center gap-2 mt-2">
+                                 <Checkbox v-model="config.updates.enabled" binary inputId="auto_updates" />
+                                 <label for="auto_updates">Auto-Updates aktivieren</label>
+                             </div>
+                        </div>
 
-                        <Card class="bg-gray-800 text-white" v-if="config.updates">
-                            <template #title>
-                                <div class="flex items-center gap-2">
-                                    <i class="pi pi-refresh text-purple-400"></i>
-                                    <span>Auto-Updates</span>
-                                </div>
-                            </template>
-                            <template #content>
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex items-center gap-2">
-                                        <Checkbox v-model="config.updates.enabled" binary inputId="updates_enabled" />
-                                        <label for="updates_enabled">Automatisch auf Updates prüfen & anwenden</label>
-                                    </div>
-                                    <div class="flex flex-col gap-2" v-if="config.updates.enabled">
-                                        <label>Prüf-Intervall (Stunden)</label>
-                                        <InputNumber v-model="config.updates.interval_hours" :min="1" :max="168" :useGrouping="false" />
-                                        <small class="text-gray-400">1-168 Stunden (1 Woche)</small>
-                                        <label class="mt-2">Modus</label>
-                                        <select v-model="config.updates.mode" class="p-2 bg-gray-700 border border-gray-600 rounded">
-                                            <option value="apply">Automatisch updaten</option>
-                                            <option value="check">Nur prüfen</option>
-                                        </select>
-                                        <label class="mt-2">Update-Ziel</label>
-                                        <select v-model="config.updates.target" class="p-2 bg-gray-700 border border-gray-600 rounded">
-                                            <option value="all">Alle Updates</option>
-                                            <option value="major">Nur Major</option>
-                                            <option value="minor">Nur Minor</option>
-                                            <option value="patch">Nur Patch</option>
-                                        </select>
+                        <!-- Backup Actions -->
+                        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3">
+                             <h3 class="font-bold text-lg flex items-center gap-2">
+                                <i class="pi pi-database"></i> Backup
+                            </h3>
+                            <div class="flex gap-2">
+                                <Button label="Backup erstellen" icon="pi pi-download" size="small" @click="createBackup" :loading="creatingBackup" />
+                                <Button label="Backup hochladen" icon="pi pi-upload" size="small" severity="secondary" @click="$refs.fileInput.click()" />
+                                <input type="file" ref="fileInput" class="hidden" @change="handleFileSelect" accept=".zip" />
+                            </div>
+                            <Button v-if="selectedFile" label="Wiederherstellen starten" severity="warning" class="w-full mt-2" @click="restoreFromFile" />
+
+                             <div class="mt-2 max-h-40 overflow-y-auto">
+                                <div v-for="backup in backups" :key="backup.filename" class="flex justify-between items-center p-2 hover:bg-gray-700 rounded text-sm border-b border-gray-700 last:border-0">
+                                    <span class="truncate">{{ backup.filename }}</span>
+                                    <div class="flex gap-1">
+                                        <Button icon="pi pi-download" text size="small" @click="downloadBackup(backup.filename)" />
+                                        <Button icon="pi pi-trash" text severity="danger" size="small" @click="confirmDeleteBackup(backup.filename)" />
                                     </div>
                                 </div>
-                            </template>
-                        </Card>
+                             </div>
+                        </div>
 
-                        <Card class="bg-gray-800 text-white">
-                            <template #title>Weboberfläche</template>
-                            <template #content>
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex items-center gap-2">
-                                        <Checkbox v-model="config.web.write_enabled" binary inputId="write_enabled" />
-                                        <label for="write_enabled">Schreibzugriff aktivieren (Manuelle Steuerung & Zeitplan)</label>
-                                    </div>
-                                </div>
-                            </template>
-                        </Card>
-
-                        <Card class="bg-gray-800 text-white">
-                            <template #title>
-                                <div class="flex items-center gap-2">
-                                    <i class="pi pi-database text-blue-400"></i>
-                                    <span>Backup & Wiederherstellung</span>
-                                </div>
-                            </template>
-                            <template #content>
-                                <div class="flex flex-col gap-4">
-                                    <!-- Create Backup -->
-                                    <div class="flex flex-col gap-3 p-4 border border-blue-600 rounded bg-blue-900/10">
-                                        <h3 class="text-lg font-semibold flex items-center gap-2">
-                                            <i class="pi pi-download"></i>
-                                            Backup erstellen
-                                        </h3>
-                                        <Button
-                                            label="Backup jetzt erstellen"
-                                            icon="pi pi-download"
-                                            @click="createBackup"
-                                            :loading="creatingBackup"
-                                            severity="info"
-                                        />
-                                    </div>
-
-                                    <!-- Backup List -->
-                                    <div class="flex flex-col gap-3">
-                                        <div class="flex justify-between items-center">
-                                            <h3 class="text-lg font-semibold flex items-center gap-2">
-                                                <i class="pi pi-list"></i>
-                                                Verfügbare Backups
-                                            </h3>
-                                            <Button
-                                                label="Aktualisieren"
-                                                icon="pi pi-refresh"
-                                                @click="loadBackups"
-                                                size="small"
-                                                text
-                                            />
-                                        </div>
-
-                                        <div v-if="loadingBackups" class="flex justify-center p-4">
-                                            <i class="pi pi-spin pi-spinner text-2xl"></i>
-                                        </div>
-
-                                        <div v-else-if="backups.length === 0" class="text-center text-gray-400 p-4">
-                                            Keine Backups verfügbar
-                                        </div>
-
-                                        <div v-else class="flex flex-col gap-2">
-                                            <div
-                                                v-for="backup in backups"
-                                                :key="backup.filename"
-                                                class="flex items-center justify-between p-3 bg-gray-700 rounded hover:bg-gray-600"
-                                            >
-                                                <div class="flex flex-col">
-                                                    <span class="font-mono text-sm">{{ backup.filename }}</span>
-                                                    <span class="text-xs text-gray-400">
-                                                        {{ formatDate(backup.created_at) }} • {{ formatSize(backup.size) }}
-                                                    </span>
-                                                </div>
-                                                <div class="flex gap-2">
-                                                    <Button
-                                                        icon="pi pi-download"
-                                                        @click="downloadBackup(backup.filename)"
-                                                        size="small"
-                                                        severity="info"
-                                                        text
-                                                    />
-                                                    <Button
-                                                        icon="pi pi-upload"
-                                                        @click="confirmRestore(backup.filename)"
-                                                        size="small"
-                                                        severity="warning"
-                                                        text
-                                                    />
-                                                    <Button
-                                                        icon="pi pi-trash"
-                                                        @click="confirmDeleteBackup(backup.filename)"
-                                                        size="small"
-                                                        severity="danger"
-                                                        text
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Upload Backup -->
-                                    <div class="flex flex-col gap-3 p-4 border border-yellow-600 rounded bg-yellow-900/10">
-                                        <h3 class="text-lg font-semibold flex items-center gap-2">
-                                            <i class="pi pi-upload"></i>
-                                            Aus Datei wiederherstellen
-                                        </h3>
-                                        <div class="flex items-start gap-2 text-yellow-400">
-                                            <i class="pi pi-exclamation-triangle mt-1"></i>
-                                            <small>Warnung: Wiederherstellung überschreibt die aktuelle Konfiguration!</small>
-                                        </div>
-                                        <input
-                                            type="file"
-                                            ref="fileInput"
-                                            @change="handleFileSelect"
-                                            accept=".zip"
-                                            class="block w-full text-sm text-gray-400
-                                                file:mr-4 file:py-2 file:px-4
-                                                file:rounded file:border-0
-                                                file:text-sm file:font-semibold
-                                                file:bg-blue-600 file:text-white
-                                                hover:file:bg-blue-700"
-                                        />
-                                        <Button
-                                            label="Aus gewählter Datei wiederherstellen"
-                                            icon="pi pi-upload"
-                                            @click="restoreFromFile"
-                                            :disabled="!selectedFile"
-                                            :loading="restoringBackup"
-                                            severity="warning"
-                                        />
-                                    </div>
-                                </div>
-                            </template>
-                        </Card>
-
-                        <div class="flex justify-end">
-                             <Button label="Dienst neu starten" icon="pi pi-refresh" severity="danger" @click="confirmRestart" />
+                         <!-- Service Control -->
+                         <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3 xl:col-span-2">
+                            <h3 class="font-bold text-lg flex items-center gap-2 text-red-400">
+                                <i class="pi pi-power-off"></i> Danger Zone
+                            </h3>
+                            <div class="flex gap-4">
+                                <Button label="Dienst neu starten" icon="pi pi-refresh" severity="warning" @click="confirmRestart" />
+                                <Button label="Datenbank löschen" icon="pi pi-trash" severity="danger" @click="showDeleteDialog = true" />
+                            </div>
                         </div>
                     </div>
                 </TabPanel>
-
-                <TabPanel header="Datenbank">
-                    <Card class="bg-gray-800 text-white">
-                        <template #title>
-                            <div class="flex items-center gap-2">
-                                <i class="pi pi-database text-red-400"></i>
-                                <span>Datenbank Wartung</span>
-                            </div>
-                        </template>
-                        <template #content>
-                            <div class="flex flex-col gap-4">
-                                <div class="flex flex-col gap-2 p-4 border border-blue-600 rounded bg-blue-900/10">
-                                    <div class="flex items-center justify-between gap-4">
-                                        <div>
-                                            <div class="font-semibold">VictoriaMetrics UI</div>
-                                            <div class="text-sm text-gray-300">
-                                                Öffne die VictoriaMetrics UI (vmui) für Datenabfragen und Administration.
-                                            </div>
-                                            <div class="text-xs text-gray-400 mt-1">{{ explorerUrl }}</div>
-                                        </div>
-                                        <Button
-                                            label="Explorer öffnen"
-                                            icon="pi pi-external-link"
-                                            severity="info"
-                                            @click="openExplorer"
-                                        />
-                                    </div>
-                                </div>
-                                <div class="flex flex-col gap-4 p-4 border border-red-600 rounded bg-red-900/10">
-                                    <div class="flex items-start gap-2 text-red-400">
-                                        <i class="pi pi-exclamation-triangle mt-1"></i>
-                                        <div>
-                                            <span class="font-bold">Gefahrenzone</span>
-                                            <p class="text-sm opacity-80">
-                                                Diese Aktionen sind destruktiv und können nicht rückgängig gemacht werden. Bitte sei vorsichtig.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex items-center justify-between mt-2">
-                                        <div class="flex flex-col">
-                                            <span class="font-semibold">Alle Daten löschen</span>
-                                            <span class="text-sm text-gray-400">Entferne dauerhaft alle geloggten Daten aus VictoriaMetrics.</span>
-                                        </div>
-                                        <Button
-                                            label="Datenbank löschen"
-                                            icon="pi pi-trash"
-                                            severity="danger"
-                                            @click="showDeleteDialog = true"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                    </Card>
-                </TabPanel>
-
-                <TabPanel header="Tools">
-                    <Card class="bg-gray-800 text-white">
-                        <template #title>
-                            <div class="flex items-center gap-2">
-                                <i class="pi pi-key text-yellow-400"></i>
-                                <span>Technikercode Generator</span>
-                            </div>
-                        </template>
-                        <template #content>
-                            <TechnicianCodeGenerator />
-                        </template>
-                    </Card>
+                 <TabPanel header="Tools">
+                     <TechnicianCodeGenerator />
                 </TabPanel>
             </TabView>
         </div>
 
+        <div class="flex gap-4 mt-4 justify-end border-t border-gray-700 pt-4 sticky bottom-0 bg-gray-900/90 backdrop-blur p-4 z-10">
+            <Button label="Speichern" icon="pi pi-save" @click="saveConfig" :loading="saving" size="large" severity="primary" />
+        </div>
+
+        <!-- Dialogs -->
         <Dialog v-model:visible="showDeleteDialog" modal header="Datenbank löschen" :style="{ width: '450px' }">
             <div class="flex flex-col gap-4">
                 <div class="flex items-start gap-3">
@@ -619,40 +302,16 @@
                         <span class="font-bold text-lg">Bist du dir absolut sicher?</span>
                         <p class="text-gray-300">
                             Diese Aktion löscht <span class="font-bold text-red-400">ALLE</span> Daten dauerhaft aus der Datenbank.
-                            Das kann nicht rückgängig gemacht werden.
-                        </p>
-                        <p class="text-sm text-gray-400">
-                            Bitte tippe <span class="font-mono bg-gray-700 px-1 rounded">DELETE</span> zur Bestätigung.
                         </p>
                     </div>
                 </div>
-
-                <div class="flex flex-col gap-2">
-                    <InputText
-                        v-model="deleteConfirmationText"
-                        placeholder="Tippe DELETE zur Bestätigung"
-                        class="w-full"
-                        :class="{'p-invalid': deleteConfirmationText && deleteConfirmationText !== 'DELETE'}"
-                    />
-                </div>
+                <InputText v-model="deleteConfirmationText" placeholder="Tippe DELETE" class="w-full" />
             </div>
-
             <template #footer>
-                <Button label="Abbrechen" icon="pi pi-times" text @click="showDeleteDialog = false" />
-                <Button
-                    label="Alles löschen"
-                    icon="pi pi-trash"
-                    severity="danger"
-                    @click="confirmDeleteDatabase"
-                    :disabled="deleteConfirmationText !== 'DELETE'"
-                    :loading="deletingDatabase"
-                />
+                <Button label="Abbrechen" text @click="showDeleteDialog = false" />
+                <Button label="Alles löschen" severity="danger" @click="confirmDeleteDatabase" :disabled="deleteConfirmationText !== 'DELETE'" :loading="deletingDatabase" />
             </template>
         </Dialog>
-
-        <div class="flex gap-4 mt-4 justify-end border-t border-gray-700 pt-4">
-            <Button label="Konfiguration speichern" icon="pi pi-save" @click="saveConfig" :loading="saving" size="large" />
-        </div>
 
         <Toast />
         <ConfirmDialog />
@@ -663,6 +322,7 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import Card from 'primevue/card';
+import Fieldset from 'primevue/fieldset';
 import InputText from 'primevue/inputtext';
 import InputNumber from 'primevue/inputnumber';
 import Checkbox from 'primevue/checkbox';
@@ -673,6 +333,8 @@ import TabPanel from 'primevue/tabpanel';
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import Dialog from 'primevue/dialog';
+import SelectButton from 'primevue/selectbutton';
+import Slider from 'primevue/slider';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import TechnicianCodeGenerator from '../components/TechnicianCodeGenerator.vue';
@@ -899,31 +561,6 @@ const downloadBackup = async (filename) => {
     }
 };
 
-const confirmRestore = (filename) => {
-    confirm.require({
-        message: `Konfiguration von "${filename}" wiederherstellen? Dies überschreibt deine aktuellen Einstellungen!`,
-        header: 'Backup Wiederherstellen',
-        icon: 'pi pi-exclamation-triangle',
-        acceptClass: 'p-button-warning',
-        accept: async () => {
-            restoringBackup.value = true;
-            try {
-                const res = await axios.post('/api/backup/restore', { filename });
-                if (res.data.success) {
-                    toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message, life: 5000 });
-                    setTimeout(() => location.reload(), 2000);
-                } else {
-                    toast.add({ severity: 'error', summary: 'Fehler', detail: res.data.error, life: 5000 });
-                }
-            } catch (e) {
-                toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || 'Wiederherstellung fehlgeschlagen', life: 5000 });
-            } finally {
-                restoringBackup.value = false;
-            }
-        }
-    });
-};
-
 const confirmDeleteBackup = (filename) => {
     confirm.require({
         message: `Backup "${filename}" löschen?`,
@@ -981,16 +618,6 @@ const restoreFromFile = async () => {
             }
         }
     });
-};
-
-const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
-};
-
-const formatSize = (bytes) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
 };
 
 const confirmDeleteDatabase = async () => {
