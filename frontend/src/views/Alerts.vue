@@ -73,6 +73,20 @@
 
         <form @submit.prevent="saveAlert" class="space-y-4">
 
+          <!-- Template Selection -->
+          <div v-if="!editingAlert" class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+             <label class="block text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">Vorlage laden (Optional)</label>
+             <select @change="loadTemplate($event)" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm">
+               <option value="">-- Vorlage auswählen --</option>
+               <option v-for="t in templates" :key="t.name" :value="t.name">
+                 {{ t.name }} - {{ t.description }}
+               </option>
+             </select>
+             <p class="mt-1 text-xs text-blue-800 dark:text-blue-200">
+               Wähle eine Vorlage, um die Felder automatisch auszufüllen.
+             </p>
+          </div>
+
           <!-- Name -->
           <div>
             <label for="alert-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
@@ -154,6 +168,7 @@ import axios from 'axios';
 
 const alerts = ref([]);
 const sensors = ref([]);
+const templates = ref([]);
 const loading = ref(true);
 const showModal = ref(false);
 const editingAlert = ref(null);
@@ -172,7 +187,17 @@ const form = ref({
 onMounted(async () => {
   await fetchSensors();
   await fetchAlerts();
+  await fetchTemplates();
 });
+
+async function fetchTemplates() {
+  try {
+    const response = await axios.get('/api/alerts/templates');
+    templates.value = response.data;
+  } catch (e) {
+    console.error("Failed to load templates", e);
+  }
+}
 
 async function fetchSensors() {
   try {
@@ -218,6 +243,19 @@ function openModal(alert = null) {
 function closeModal() {
   showModal.value = false;
   editingAlert.value = null;
+}
+
+function loadTemplate(event) {
+  const tName = event.target.value;
+  if (!tName) return;
+  const template = templates.value.find(t => t.name === tName);
+  if (template) {
+    form.value = { ...form.value, ...template.alert_data };
+    // Ensure enabled is true by default for templates
+    form.value.enabled = true;
+  }
+  // Reset select
+  event.target.value = "";
 }
 
 async function saveAlert() {
