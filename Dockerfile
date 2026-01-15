@@ -17,7 +17,11 @@ WORKDIR /app
 
 # Install dependencies
 COPY requirements.txt .
+COPY VERSION /app/VERSION
 ARG SIGNAL_CLI_VERSION=0.12.8
+ARG APP_VERSION
+
+RUN if [ -n "$APP_VERSION" ]; then echo "$APP_VERSION" > /app/VERSION; fi
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     apt-get update && apt-get install -y --no-install-recommends \

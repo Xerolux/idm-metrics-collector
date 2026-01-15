@@ -48,7 +48,7 @@ const trendColor = computed(() => {
             <i v-if="trendIcon" :class="[trendIcon, trendColor, 'text-sm transition-opacity']"></i>
         </div>
         <div class="flex items-baseline gap-1 mt-auto">
-             <div :class="['text-3xl sm:text-4xl font-bold truncate tracking-tight', statusColor]" :title="value">
+             <div :class="['text-2xl sm:text-3xl font-bold truncate tracking-tight', statusColor]" :title="value">
                 {{ value }}
             </div>
             <div class="text-sm font-medium text-gray-400 mb-1">{{ unit }}</div>
