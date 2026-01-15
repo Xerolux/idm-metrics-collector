@@ -111,14 +111,14 @@ onUnmounted(() => {
 <template>
     <div class="flex flex-col min-h-screen transition-colors duration-200" :class="isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'">
         <NetworkStatus />
-        <Menubar :model="items" class="rounded-none border-0 border-b !border-gray-700 !bg-gray-800">
+        <Menubar :model="items" breakpoint="1280px" class="rounded-none border-0 border-b !border-gray-700 !bg-gray-800">
              <template #start>
                <span class="text-lg sm:text-xl font-bold px-2 sm:px-4 text-white">IDM Metrics Collector</span>
             </template>
             <template #item="{ item, props }">
                 <a v-ripple class="flex items-center gap-2 px-2 sm:px-3 py-2 hover:bg-gray-700 rounded cursor-pointer transition-colors text-gray-200" v-bind="props.action">
                     <i :class="item.icon" class="text-sm sm:text-base"></i>
-                    <span class="hidden xl:inline text-sm sm:text-base">{{ item.label }}</span>
+                    <span class="text-sm sm:text-base">{{ item.label }}</span>
                 </a>
             </template>
             <template #end>
