@@ -52,10 +52,24 @@ class ModbusClient:
 
 
     def connect(self):
+        """Connects to the Modbus server."""
+        if self.client.is_socket_open():
+            return True
+        logger.info(f"Connecting to Modbus server at {self.host}:{self.port}")
         return self.client.connect()
 
     def close(self):
-        self.client.close()
+        """Closes the Modbus connection."""
+        if self.client.is_socket_open():
+            logger.info("Closing Modbus connection")
+            self.client.close()
+
+    def _ensure_connection(self):
+        """Ensures the client is connected, reconnecting if necessary."""
+        if self.client.is_socket_open():
+            return True
+        logger.warning("Modbus connection lost. Attempting to reconnect...")
+        return self.connect()
 
     def _build_read_blocks(self):
         """Groups sensors into contiguous blocks for optimized reading."""
@@ -131,7 +145,7 @@ class ModbusClient:
 
     def read_sensors(self):
         data = {}
-        if not self.connect():
+        if not self._ensure_connection():
             logger.error("Could not connect to Modbus server")
             return data
 
@@ -196,8 +210,10 @@ class ModbusClient:
                     # Mark block as failed and use individual reads
                     self._failed_blocks.add(block_key)
                     self._read_block_individually(block, data)
-        finally:
+        except Exception as e:
+            logger.error(f"Unhandled exception in read_sensors: {e}")
             self.close()
+            raise # Re-raise the exception to the caller
 
         return data
 
@@ -273,19 +289,18 @@ class ModbusClient:
             logger.error(f"Encoding error for {name}: {e}")
             raise ValueError(f"Invalid value for {name}: {e}")
 
-        if not self.connect():
-             raise IOError("Could not connect to Modbus")
+        if not self._ensure_connection():
+            raise IOError("Could not connect to Modbus")
 
         # Write
         try:
             # Pymodbus 3.x API: write_registers(address, values, device_id=1)
             rr = self.client.write_registers(sensor.address, registers, device_id=1)
             if rr.isError():
-                 raise IOError(f"Modbus write error: {rr}")
+                raise IOError(f"Modbus write error: {rr}")
         except Exception as e:
-             logger.error(f"Write failed: {e}")
-             raise
-        finally:
-             self.close()
+            logger.error(f"Write failed: {e}")
+            self.close() # Close connection on error
+            raise
 
         return True
