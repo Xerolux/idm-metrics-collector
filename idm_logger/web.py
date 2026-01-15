@@ -41,6 +41,14 @@ modbus_client_instance = None
 scheduler_instance = None
 metrics_writer_instance = None
 
+# Cache for network security objects to avoid re-parsing on every request
+_net_sec_cache = {
+    "whitelist_ref": None,
+    "whitelist_nets": [],
+    "blacklist_ref": None,
+    "blacklist_nets": []
+}
+
 def update_current_data(data):
     with data_lock:
         current_data.clear()
@@ -84,25 +92,45 @@ def check_ip_whitelist():
     whitelist = config.get("network_security.whitelist", [])
     blacklist = config.get("network_security.blacklist", [])
 
+    # Update blacklist cache if needed
+    if blacklist is not _net_sec_cache["blacklist_ref"]:
+        new_blacklist_nets = []
+        for block in blacklist:
+            try:
+                new_blacklist_nets.append((ipaddress.ip_network(block, strict=False), block))
+            except ValueError:
+                logger.error(f"Invalid blacklist entry: {block}")
+
+        # Atomic update
+        _net_sec_cache["blacklist_nets"] = new_blacklist_nets
+        _net_sec_cache["blacklist_ref"] = blacklist
+
     # Check blacklist first
-    for block in blacklist:
-        try:
-            if ip in ipaddress.ip_network(block, strict=False):
-                logger.warning(f"Blocked IP {client_ip} (matched blacklist {block})")
-                abort(403)
-        except ValueError:
-            logger.error(f"Invalid blacklist entry: {block}")
+    for net, original_block in _net_sec_cache["blacklist_nets"]:
+        if ip in net:
+            logger.warning(f"Blocked IP {client_ip} (matched blacklist {original_block})")
+            abort(403)
+
+    # Update whitelist cache if needed
+    if whitelist is not _net_sec_cache["whitelist_ref"]:
+        new_whitelist_nets = []
+        for allow in whitelist:
+            try:
+                new_whitelist_nets.append(ipaddress.ip_network(allow, strict=False))
+            except ValueError:
+                logger.error(f"Invalid whitelist entry: {allow}")
+
+        # Atomic update
+        _net_sec_cache["whitelist_nets"] = new_whitelist_nets
+        _net_sec_cache["whitelist_ref"] = whitelist
 
     # Check whitelist if it exists and is not empty
     if whitelist:
         allowed = False
-        for allow in whitelist:
-            try:
-                if ip in ipaddress.ip_network(allow, strict=False):
-                    allowed = True
-                    break
-            except ValueError:
-                logger.error(f"Invalid whitelist entry: {allow}")
+        for net in _net_sec_cache["whitelist_nets"]:
+            if ip in net:
+                allowed = True
+                break
 
         if not allowed:
             logger.warning(f"Blocked IP {client_ip} (not in whitelist)")
