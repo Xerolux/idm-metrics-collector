@@ -92,6 +92,12 @@ def check_for_update() -> Dict[str, Any]:
 
 
 def perform_update(repo_path: str = "/opt/idm-metrics-collector") -> None:
+    # Check if we are in a git repository
+    git_dir = Path(repo_path) / ".git"
+    if not git_dir.exists():
+        logger.error(f"Cannot update: {repo_path} is not a git repository (or .git is missing). This installation method does not support auto-update via git.")
+        raise RuntimeError("Update fehlgeschlagen: Keine Git-Installation gefunden.")
+
     logger.info("Pulling latest changes from git...")
     result = subprocess.run(
         ['git', 'pull', 'origin', 'main'],
