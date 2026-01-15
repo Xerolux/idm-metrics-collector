@@ -9,6 +9,14 @@ from .notifications import notification_manager
 logger = logging.getLogger(__name__)
 
 
+def _to_float(v):
+    """Helper to convert to float if possible."""
+    try:
+        return float(v)
+    except (ValueError, TypeError):
+        return None
+
+
 class AlertManager:
     def __init__(self):
         self.alerts = []
@@ -96,15 +104,8 @@ class AlertManager:
                         current_val = current_data[sensor]
                         trigger_value = current_val
 
-                        # Helper to convert to float if possible
-                        def to_float(v):
-                            try:
-                                return float(v)
-                            except (ValueError, TypeError):
-                                return None
-
-                        val_f = to_float(current_val)
-                        thresh_f = to_float(threshold_str)
+                        val_f = _to_float(current_val)
+                        thresh_f = _to_float(threshold_str)
 
                         if val_f is not None and thresh_f is not None:
                             # Numeric comparison
@@ -128,6 +129,7 @@ class AlertManager:
                         self._trigger_alert(alert, trigger_value)
 
                         # Update last_triggered in memory and batch update for db
+                        # Optimization: Batch DB updates to prevent N+1 write performance issue
                         alert["last_triggered"] = now
                         triggered_alerts_ids.append(alert["id"])
 
