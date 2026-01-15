@@ -12,6 +12,8 @@
 
 Ein umfassendes Überwachungs- und Steuerungssystem für IDM Wärmepumpen (Navigator 2.0) mit VictoriaMetrics Speicherung und Grafana-Visualisierung.
 
+![Demo](docs/images/demo.gif)
+
 ## Funktionen
 
 *   **Docker-First**: Optimiert für Docker und Docker Compose Deployments
