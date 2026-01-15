@@ -42,19 +42,16 @@ const trendColor = computed(() => {
 </script>
 
 <template>
-    <div class="h-full flex flex-col justify-between group hover:bg-gray-700/30 transition-all duration-300 rounded-lg p-2 -m-2">
+    <div class="h-full flex flex-col justify-between group hover:bg-gray-700/30 transition-all duration-300 rounded-lg p-3 -m-2 border border-transparent hover:border-gray-600">
         <div class="flex justify-between items-start">
-            <div class="text-gray-400 text-xs sm:text-sm font-medium uppercase tracking-wider">{{ title }}</div>
-            <i v-if="trendIcon" :class="[trendIcon, trendColor, 'text-xs opacity-0 group-hover:opacity-100 transition-opacity']"></i>
+            <div class="text-gray-300 text-sm sm:text-base font-semibold tracking-wide">{{ title }}</div>
+            <i v-if="trendIcon" :class="[trendIcon, trendColor, 'text-sm transition-opacity']"></i>
         </div>
-        <div class="flex items-end justify-between">
-            <div :class="['text-2xl sm:text-3xl font-bold my-2 truncate', statusColor]" :title="value">
+        <div class="flex items-baseline gap-1 mt-auto">
+             <div :class="['text-3xl sm:text-4xl font-bold truncate tracking-tight', statusColor]" :title="value">
                 {{ value }}
             </div>
-            <div class="text-sm text-gray-500 ml-2 self-end">{{ unit }}</div>
-        </div>
-        <div class="h-1 bg-gray-700 rounded-full overflow-hidden">
-            <div class="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full animate-pulse-subtle" style="width: 75%"></div>
+            <div class="text-sm font-medium text-gray-400 mb-1">{{ unit }}</div>
         </div>
     </div>
 </template>
