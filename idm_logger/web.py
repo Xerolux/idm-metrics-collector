@@ -605,8 +605,10 @@ def validate_write(sensor_name, value):
         try:
             if str(value).isdigit():
                 val_int = int(value)
-                if val_int not in [m.value for m in sensor.enum]:
-                     return False, f"Wert {value} ist keine gültige Option"
+                try:
+                    sensor.enum(val_int)
+                except ValueError:
+                    return False, f"Wert {value} ist keine gültige Option"
             else:
                  # Try key lookup
                  if value not in sensor.enum.__members__:
