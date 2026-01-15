@@ -64,5 +64,5 @@ Stelle sicher, dass deine iDM Wärmepumpe so konfiguriert ist, dass sie das PV-S
 
 ## Fehlerbehebung
 
-*   **Wert wird nicht angezeigt**: Prüfe die `idm-logger` Protokolle. Der Sensor `power_solar_surplus` ist in manchen Konfigurationen als "write-only" markiert (um Fehler beim Lesen zu vermeiden), daher erscheint er möglicherweise nicht in der Standard-Leseschleife oder InfluxDB, es sei denn, du schreibst darauf.
+*   **Wert wird nicht angezeigt**: Prüfe die `idm-logger` Protokolle. Der Sensor `power_solar_surplus` ist in manchen Konfigurationen als "write-only" markiert (um Fehler beim Lesen zu vermeiden), daher erscheint er möglicherweise nicht in der Standard-Leseschleife oder VictoriaMetrics, es sei denn, du schreibst darauf.
 *   **Skalierung**: Stelle sicher, dass du **kW** (Kilowatt) sendest, nicht Watt. Das Senden von `2500` anstatt `2.5` wird als 2,5 MegaWatt interpretiert!

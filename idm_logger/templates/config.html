@@ -98,23 +98,18 @@
 
                                 <!-- Database Tab -->
                                 <div class="tab-pane fade" id="database-pane" role="tabpanel">
-                                    <h5 class="mb-3"><i class="bi bi-server"></i> InfluxDB v3 Connection</h5>
+                                    <h5 class="mb-3"><i class="bi bi-server"></i> VictoriaMetrics Connection</h5>
                                     <div class="alert alert-info">
-                                        <i class="bi bi-info-circle"></i> <strong>InfluxDB v3 Core:</strong> Uses SQL queries instead of Flux. Database is auto-created on first write.
+                                        <i class="bi bi-info-circle"></i> <strong>VictoriaMetrics:</strong> Uses the Line Protocol compatible <code>/write</code> endpoint.
                                     </div>
                                     <div class="mb-3">
-                                        <label for="influx_url" class="form-label">InfluxDB URL</label>
-                                        <input type="text" class="form-control" id="influx_url" name="influx_url" value="{{ config.influx.url }}" placeholder="http://idm-influxdb:8181">
-                                        <div class="form-text">Docker default: <code>http://idm-influxdb:8181</code> (Port 8181 for v3)</div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="influx_database" class="form-label">Database Name</label>
-                                        <input type="text" class="form-control" id="influx_database" name="influx_database" value="{{ config.influx.database }}" placeholder="idm">
-                                        <div class="form-text">Database name (auto-created on first write)</div>
+                                        <label for="metrics_url" class="form-label">Metrics URL</label>
+                                        <input type="text" class="form-control" id="metrics_url" name="metrics_url" value="{{ config.metrics.url }}" placeholder="http://victoriametrics:8428/write">
+                                        <div class="form-text">Docker default: <code>http://victoriametrics:8428/write</code></div>
                                     </div>
 
                                     <div class="alert alert-warning">
-                                        <i class="bi bi-exclamation-triangle"></i> <strong>Security:</strong> Token and other sensitive settings must be changed in environment variables or docker-compose.yml for security reasons.
+                                        <i class="bi bi-exclamation-triangle"></i> <strong>Security:</strong> Sensitive settings should be managed in environment variables or docker-compose.yml.
                                     </div>
                                 </div>
 

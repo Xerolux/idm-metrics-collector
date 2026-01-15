@@ -45,22 +45,11 @@
                         </div>
 
                          <div class="flex flex-col gap-2">
-                             <label class="font-bold text-green-400">InfluxDB v2</label>
+                             <label class="font-bold text-green-400">VictoriaMetrics</label>
                              <div class="flex flex-col gap-2">
-                                <label>URL</label>
-                                <InputText v-model="form.influx_url" placeholder="http://localhost:8086" />
-                            </div>
-                            <div class="flex flex-col gap-2">
-                                <label>Organisation</label>
-                                <InputText v-model="form.influx_org" />
-                            </div>
-                             <div class="flex flex-col gap-2">
-                                <label>Bucket</label>
-                                <InputText v-model="form.influx_bucket" />
-                            </div>
-                             <div class="flex flex-col gap-2">
-                                <label>Token</label>
-                                <InputText v-model="form.influx_token" type="password" />
+                                <label>Metrics URL</label>
+                                <InputText v-model="form.metrics_url" placeholder="http://victoriametrics:8428/write" />
+                                <small class="text-gray-400">Standard: http://victoriametrics:8428/write</small>
                             </div>
                         </div>
                     </div>
@@ -108,10 +97,7 @@ const form = ref({
     idm_port: 502,
     circuits: ['A'],
     zones: [],
-    influx_url: 'http://localhost:8086',
-    influx_org: 'home',
-    influx_bucket: 'idm',
-    influx_token: '',
+    metrics_url: 'http://victoriametrics:8428/write',
     password: ''
 });
 

@@ -6,7 +6,7 @@ Dieses Dokument beschreibt, wie das Docker Compose Setup und die GHCR Images get
 
 - Docker und Docker Compose installiert
 - Zugriff auf GitHub Container Registry (ghcr.io)
-- Port 5008 (Webseite), 8086 (InfluxDB) und 3000 (Grafana) müssen verfügbar sein
+- Port 5008 (Webseite), 8428 (VictoriaMetrics) und 3000 (Grafana) müssen verfügbar sein
 
 ## Schnellstart
 
@@ -50,14 +50,14 @@ docker compose ps
 
 # Health Check Status einzeln prüfen
 docker inspect idm-logger --format='{{.State.Health.Status}}'
-docker inspect idm-influxdb --format='{{.State.Health.Status}}'
+docker inspect idm-victoriametrics --format='{{.State.Health.Status}}'
 docker inspect idm-grafana --format='{{.State.Health.Status}}'
 ```
 
 **Erwartetes Ergebnis:**
 - Alle Container zeigen Status "healthy" nach ca. 30-60 Sekunden
 - idm-logger: healthy
-- idm-influxdb: healthy
+- idm-victoriametrics: healthy
 - idm-grafana: healthy
 
 ### Test 3: Webseite auf Port 5008
@@ -88,19 +88,19 @@ start http://localhost:5008
 }
 ```
 
-### Test 4: InfluxDB Verbindung
+### Test 4: VictoriaMetrics Verbindung
 
 ```bash
-# InfluxDB Health prüfen
-curl http://localhost:8086/health
+# VictoriaMetrics Health prüfen
+curl http://localhost:8428/health
 
-# InfluxDB API testen
-curl http://localhost:8086/api/v2/ping
+# VictoriaMetrics Prometheus Endpoint testen
+curl http://localhost:8428/metrics
 ```
 
 **Erwartetes Ergebnis:**
 - HTTP 200 OK
-- InfluxDB ist erreichbar
+- VictoriaMetrics ist erreichbar
 
 ### Test 5: Grafana Dashboard
 
@@ -126,7 +126,7 @@ start http://localhost:3000
 **Erwartetes Ergebnis:**
 - Grafana Login-Seite wird angezeigt
 - Nach Login: Dashboard ist verfügbar
-- InfluxDB Datasource ist vorkonfiguriert
+- VictoriaMetrics Datasource ist vorkonfiguriert
 
 ### Test 6: Setup-Prozess durchlaufen
 
@@ -135,10 +135,7 @@ start http://localhost:3000
 3. Fülle das Setup-Formular aus:
    - **IDM Host:** IP-Adresse deiner IDM Wärmepumpe
    - **IDM Port:** 502 (Standard Modbus Port)
-   - **InfluxDB URL:** http://idm-influxdb:8086 (bereits vorkonfiguriert)
-   - **InfluxDB Org:** my-org (bereits vorkonfiguriert)
-   - **InfluxDB Bucket:** idm (bereits vorkonfiguriert)
-   - **InfluxDB Token:** my-super-secret-token-change-me (bereits vorkonfiguriert)
+   - **VictoriaMetrics URL:** http://victoriametrics:8428/write (bereits vorkonfiguriert)
    - **Admin Password:** Wähle ein sicheres Passwort (mind. 6 Zeichen)
 4. Klicke auf "Complete Setup"
 
@@ -156,8 +153,8 @@ docker compose logs
 # Nur IDM Logger Logs
 docker compose logs idm-logger
 
-# Nur InfluxDB Logs
-docker compose logs influxdb
+# Nur VictoriaMetrics Logs
+docker compose logs victoriametrics
 
 # Nur Grafana Logs
 docker compose logs grafana
@@ -169,7 +166,7 @@ docker compose logs -f
 **Erwartetes Ergebnis:**
 - Keine ERROR Messages
 - IDM Logger zeigt "Starting web server on 0.0.0.0:5000"
-- InfluxDB zeigt erfolgreichen Start
+- VictoriaMetrics zeigt erfolgreichen Start
 - Grafana zeigt erfolgreichen Start
 
 ### Test 8: Volumes und Persistenz
@@ -180,15 +177,14 @@ docker volume ls | grep idm
 
 # Volume Details
 docker volume inspect idm-logger-data
-docker volume inspect idm-influxdb-data
+docker volume inspect idm-vm-data
 docker volume inspect idm-grafana-data
 ```
 
 **Erwartetes Ergebnis:**
 - 4 Volumes existieren:
   - idm-logger-data
-  - idm-influxdb-data
-  - idm-influxdb-config
+  - idm-vm-data
   - idm-grafana-data
 
 ### Test 9: Neustart-Verhalten
@@ -344,9 +340,9 @@ docker rmi ghcr.io/xerolux/idm-metrics-collector:latest
 │  └──────────────────────────────────────────┘  │
 │               ↓                                 │
 │  ┌──────────────────────────────────────────┐  │
-│  │  Port 8086 → influxdb:8086              │  │
+│  │  Port 8428 → victoriametrics:8428       │  │
 │  │  (Time Series Database)                  │  │
-│  │  Image: influxdb:2                       │  │
+│  │  Image: victoriametrics/victoria-metrics:latest │  │
 │  └──────────────────────────────────────────┘  │
 │               ↓                                 │
 │  ┌──────────────────────────────────────────┐  │
@@ -366,7 +362,7 @@ Nach erfolgreichem Test:
 2. ✅ Setup-Prozess durchlaufen
 3. ✅ IDM Wärmepumpe konfigurieren
 4. ✅ Modbus-Verbindung testen
-5. ✅ Daten in InfluxDB prüfen
+5. ✅ Daten in VictoriaMetrics prüfen
 6. ✅ Grafana Dashboard anschauen
 7. ✅ Metriken überwachen
 

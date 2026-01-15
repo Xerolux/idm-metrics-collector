@@ -58,7 +58,7 @@ def main():
     metrics = None
     mqtt = None
 
-    # Start Web UI FIRST in background, so it's available even if Modbus/InfluxDB fails
+    # Start Web UI FIRST in background, so it's available even if Modbus/metrics fails
     try:
         web_enabled = config.get("web.enabled")
         if web_enabled:
