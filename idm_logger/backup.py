@@ -50,15 +50,7 @@ class BackupManager:
             config_copy = config.data.copy()
             backup_data["config"] = config_copy
 
-            # 2. Backup scheduler rules (from database)
-            try:
-                scheduler_data = db.get_setting("scheduler_rules")
-                if scheduler_data:
-                    backup_data["scheduler"] = json.loads(scheduler_data)
-            except Exception as e:
-                logger.warning(f"Could not backup scheduler rules: {e}")
-
-            # 3. Backup all other database settings
+            # 2. Backup all database settings (including scheduler rules)
             try:
                 # Get all settings from database
                 all_settings = {}
@@ -67,12 +59,25 @@ class BackupManager:
                 cursor.execute("SELECT key, value FROM settings")
                 for row in cursor.fetchall():
                     key, value = row
-                    # Skip config and scheduler (already backed up)
-                    if key not in ["config", "scheduler_rules"]:
+
+                    # Handle scheduler_rules specifically
+                    if key == "scheduler_rules":
                         try:
-                            all_settings[key] = json.loads(value) if value else None
-                        except json.JSONDecodeError:
-                            all_settings[key] = value
+                            if value:
+                                backup_data["scheduler"] = json.loads(value)
+                        except Exception as e:
+                            logger.warning(f"Could not backup scheduler rules: {e}")
+                        continue
+
+                    # Skip config (already backed up from memory)
+                    if key == "config":
+                        continue
+
+                    # All other settings
+                    try:
+                        all_settings[key] = json.loads(value) if value else None
+                    except json.JSONDecodeError:
+                        all_settings[key] = value
 
                 backup_data["db_settings"] = all_settings
                 conn.close()
