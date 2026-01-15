@@ -19,7 +19,7 @@ class MetricsWriter:
         if not measurements:
             return True
 
-        # Construct Influx Line Protocol
+        # Construct Line Protocol
         # measurement field1=val1,field2=val2
         # We omit timestamp to let VictoriaMetrics assign the current server time
 

@@ -22,8 +22,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && apt-get purge -y --auto-remove build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install InfluxDB v3 CLI (optional)
-# Note: For v3 CLI installation, visit https://docs.influxdata.com/influxdb/v3/reference/cli/
 
 # Copy application
 COPY idm_logger/ idm_logger/

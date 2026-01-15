@@ -426,10 +426,6 @@
                                             <i class="pi pi-download"></i>
                                             Backup erstellen
                                         </h3>
-                                        <div class="flex items-center gap-2">
-                                            <Checkbox v-model="backupIncludeInflux" binary inputId="backup_include_influx" />
-                                            <label for="backup_include_influx">Metrics Zugangsdaten einschließen (sensibel)</label>
-                                        </div>
                                         <Button
                                             label="Backup jetzt erstellen"
                                             icon="pi pi-download"
@@ -711,7 +707,6 @@ const backups = ref([]);
 const loadingBackups = ref(false);
 const creatingBackup = ref(false);
 const restoringBackup = ref(false);
-const backupIncludeInflux = ref(true);
 const selectedFile = ref(null);
 const fileInput = ref(null);
 const explorerUrl = ref('http://localhost:8888');
@@ -872,9 +867,7 @@ const loadBackups = async () => {
 const createBackup = async () => {
     creatingBackup.value = true;
     try {
-        const res = await axios.post('/api/backup/create', {
-            include_influx_config: backupIncludeInflux.value
-        });
+        const res = await axios.post('/api/backup/create');
         if (res.data.success) {
             toast.add({ severity: 'success', summary: 'Erfolg', detail: `Backup erstellt: ${res.data.filename}`, life: 3000 });
             loadBackups();

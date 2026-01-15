@@ -56,7 +56,7 @@ Alle Dienste sind vorkonfiguriert und einsatzbereit!
 
 **VictoriaMetrics**
 - URL: `http://dein-server-ip:8428`
-- Metrics Ingest Endpoint: `/write` (InfluxDB Line Protocol kompatibel)
+- Metrics Ingest Endpoint: `/write` (Line Protocol kompatibel)
 - Prometheus Endpoint: `/prometheus`
 
 ## Konfiguration

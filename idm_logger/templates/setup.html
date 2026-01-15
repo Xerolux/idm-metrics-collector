@@ -18,7 +18,7 @@
                         <p>Welcome to IDM Logger! Please configure your initial settings.</p>
 
                         <div class="alert alert-info" role="alert">
-                            <strong>Docker Users:</strong> InfluxDB settings are pre-filled with Docker defaults.
+                            <strong>Docker Users:</strong> VictoriaMetrics settings are pre-filled with Docker defaults.
                             Only the IDM Heat Pump IP needs to be configured.
                         </div>
 
@@ -37,27 +37,15 @@
                                        value="{{ config.idm.port if config.idm.port else 502 }}" required>
                             </div>
 
-                            <h5 class="mt-4 text-primary">InfluxDB v3</h5>
+                            <h5 class="mt-4 text-primary">VictoriaMetrics</h5>
                             <div class="alert alert-info" role="alert">
-                                <strong>InfluxDB v3 Core:</strong> Uses SQL queries instead of Flux, simplified configuration with database instead of org/bucket.
+                                <strong>VictoriaMetrics:</strong> Uses the Line Protocol compatible <code>/write</code> endpoint.
                             </div>
                             <div class="mb-3">
-                                <label for="influx_url" class="form-label">URL</label>
-                                <input type="text" class="form-control" id="influx_url" name="influx_url"
-                                       value="{{ config.influx.url if config.influx.url else 'http://idm-influxdb:8181' }}" required>
-                                <div class="form-text">Docker default: <code>http://idm-influxdb:8181</code> (Port 8181 for v3)</div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="influx_database" class="form-label">Database</label>
-                                <input type="text" class="form-control" id="influx_database" name="influx_database"
-                                       value="{{ config.influx.database if config.influx.database else 'idm' }}" required>
-                                <div class="form-text">Database name (auto-created on first write)</div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="influx_token" class="form-label">Token</label>
-                                <input type="password" class="form-control" id="influx_token" name="influx_token"
-                                       value="my-super-secret-token-change-me" required>
-                                <div class="form-text">Docker default token is pre-filled. Change in production!</div>
+                                <label for="metrics_url" class="form-label">Metrics URL</label>
+                                <input type="text" class="form-control" id="metrics_url" name="metrics_url"
+                                       value="{{ config.metrics.url if config.metrics.url else 'http://victoriametrics:8428/write' }}" required>
+                                <div class="form-text">Docker default: <code>http://victoriametrics:8428/write</code></div>
                             </div>
 
                             <h5 class="mt-4 text-primary">Admin Access</h5>
@@ -77,7 +65,7 @@
                             <strong>Grafana:</strong> <a href="http://localhost:3001" target="_blank" class="text-decoration-none">http://localhost:3001</a> (admin/admin)
                         </small>
                         <small class="d-block">
-                            <strong>InfluxDB v3:</strong> <a href="http://localhost:8181" target="_blank" class="text-decoration-none">http://localhost:8181</a> (Database: idm, Query: SQL)
+                            <strong>VictoriaMetrics:</strong> <a href="http://localhost:8428" target="_blank" class="text-decoration-none">http://localhost:8428</a> (Metrics ingest: /write)
                         </small>
                     </div>
                 </div>

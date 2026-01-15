@@ -44,7 +44,7 @@ def run(playwright):
     config_mock = {
         "idm": {"host": "192.168.1.10", "port": 502, "circuits": ["A"], "zones": []},
         "logging": {"interval": 60, "realtime_mode": False},
-        "influx": {"url": "http://localhost:8086", "org": "myorg", "bucket": "mybucket"},
+        "metrics": {"url": "http://victoriametrics:8428/write"},
         "web": {"write_enabled": True},
         "mqtt": {"enabled": False},
         "network_security": {"enabled": False, "whitelist": [], "blacklist": []}

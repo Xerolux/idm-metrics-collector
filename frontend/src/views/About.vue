@@ -46,7 +46,7 @@ import Button from 'primevue/button';
                                 <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">PrimeVue</span>
                                 <span class="px-3 py-1 bg-cyan-100 text-cyan-800 rounded-full text-sm font-medium">Tailwind CSS</span>
                                 <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">Flask</span>
-                                <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">InfluxDB v3</span>
+                                <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">VictoriaMetrics</span>
                             </div>
                         </div>
 
