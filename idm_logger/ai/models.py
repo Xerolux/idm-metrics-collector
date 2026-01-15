@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
 import collections
 import logging
-import math
 import numpy as np
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 try:
     from sklearn.ensemble import IsolationForest
     SKLEARN_AVAILABLE = True

@@ -334,7 +334,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
-import Card from 'primevue/card';
 import Fieldset from 'primevue/fieldset';
 import InputText from 'primevue/inputtext';
 import InputNumber from 'primevue/inputnumber';
@@ -388,7 +387,6 @@ const creatingBackup = ref(false);
 const restoringBackup = ref(false);
 const selectedFile = ref(null);
 const fileInput = ref(null);
-const explorerUrl = ref('http://localhost:8888');
 
 // Database Maintenance
 const showDeleteDialog = ref(false);
@@ -397,9 +395,6 @@ const deletingDatabase = ref(false);
 
 onMounted(async () => {
     try {
-        if (typeof window !== 'undefined') {
-            explorerUrl.value = `${window.location.protocol}//${window.location.hostname}:8428/vmui/`;
-        }
         const res = await axios.get('/api/config');
         config.value = res.data;
 
@@ -430,11 +425,6 @@ onMounted(async () => {
         loading.value = false;
     }
 });
-
-const openExplorer = () => {
-    if (typeof window === 'undefined') return;
-    window.open(explorerUrl.value, '_blank', 'noopener');
-};
 
 const sendSignalTest = async () => {
     try {

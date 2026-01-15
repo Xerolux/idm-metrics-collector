@@ -1,7 +1,6 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import numpy as np
-import collections
 import random
 
 # Mock the imports that might fail or are not needed for this isolated test
@@ -9,7 +8,7 @@ import sys
 sys.modules['idm_logger.config'] = MagicMock()
 sys.modules['idm_logger.config'].DATA_DIR = '.'
 
-from idm_logger.ai.models import RollingWindowStats, IsolationForestModel
+from idm_logger.ai.models import RollingWindowStats, IsolationForestModel  # noqa: E402
 
 class TestAIModels(unittest.TestCase):
 
@@ -37,7 +36,7 @@ class TestAIModels(unittest.TestCase):
     def test_isolation_forest(self):
         print("\nTesting Isolation Forest...")
         try:
-            from sklearn.ensemble import IsolationForest
+            from sklearn.ensemble import IsolationForest  # noqa: F401
         except ImportError:
             print("Skipping Isolation Forest test (sklearn not installed)")
             return
