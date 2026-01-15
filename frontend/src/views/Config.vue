@@ -158,7 +158,82 @@
                             </div>
                         </Fieldset>
 
-                         <Fieldset legend="KI & Anomalieerkennung" :toggleable="true">
+                        <Fieldset legend="Telegram" :toggleable="true">
+                            <template #legend>
+                                <div class="flex items-center gap-2">
+                                    <Checkbox v-model="config.telegram.enabled" binary />
+                                    <span class="font-bold">Telegram</span>
+                                </div>
+                            </template>
+                            <div v-if="config.telegram.enabled" class="flex flex-col gap-4">
+                                <div class="flex flex-col gap-2">
+                                    <label>Bot Token</label>
+                                    <InputText v-model="config.telegram.bot_token" type="password" class="w-full md:w-1/2" />
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <label>Chat IDs (Kommagetrennt)</label>
+                                    <InputText v-model="telegramChatIdsText" class="w-full md:w-1/2" />
+                                </div>
+                            </div>
+                        </Fieldset>
+
+                        <Fieldset legend="Discord" :toggleable="true">
+                            <template #legend>
+                                <div class="flex items-center gap-2">
+                                    <Checkbox v-model="config.discord.enabled" binary />
+                                    <span class="font-bold">Discord</span>
+                                </div>
+                            </template>
+                            <div v-if="config.discord.enabled" class="flex flex-col gap-4">
+                                <div class="flex flex-col gap-2">
+                                    <label>Webhook URL</label>
+                                    <InputText v-model="config.discord.webhook_url" type="password" class="w-full" />
+                                </div>
+                            </div>
+                        </Fieldset>
+
+                        <Fieldset legend="E-Mail" :toggleable="true">
+                            <template #legend>
+                                <div class="flex items-center gap-2">
+                                    <Checkbox v-model="config.email.enabled" binary />
+                                    <span class="font-bold">E-Mail</span>
+                                </div>
+                            </template>
+                            <div v-if="config.email.enabled" class="flex flex-col gap-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="flex flex-col gap-2">
+                                        <label>SMTP Server</label>
+                                        <InputText v-model="config.email.smtp_server" class="w-full" />
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Port</label>
+                                        <InputNumber v-model="config.email.smtp_port" :useGrouping="false" class="w-full" />
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Benutzername</label>
+                                        <InputText v-model="config.email.username" class="w-full" />
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Passwort</label>
+                                        <InputText v-model="emailPassword" type="password" class="w-full" />
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Absender Adresse</label>
+                                        <InputText v-model="config.email.sender" class="w-full" />
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <label>Empfänger (Kommagetrennt)</label>
+                                    <InputText v-model="emailRecipientsText" class="w-full" />
+                                </div>
+                            </div>
+                        </Fieldset>
+                    </div>
+                </TabPanel>
+
+                <TabPanel header="KI-Analyse">
+                     <div class="flex flex-col gap-6">
+                        <Fieldset legend="KI & Anomalieerkennung" :toggleable="true">
                             <template #legend>
                                 <div class="flex items-center gap-2">
                                     <Checkbox v-model="config.ai.enabled" binary />
@@ -188,7 +263,7 @@
                                  </div>
                              </div>
                         </Fieldset>
-                    </div>
+                     </div>
                 </TabPanel>
 
                 <TabPanel header="Sicherheit">
@@ -357,6 +432,9 @@ const config = ref({
     mqtt: { enabled: false, broker: '', port: 1883, username: '', topic_prefix: 'idm/heatpump', qos: 0, use_tls: false, publish_interval: 60, ha_discovery_enabled: false, ha_discovery_prefix: 'homeassistant' },
     network_security: { enabled: false, whitelist: [], blacklist: [] },
     signal: { enabled: false, cli_path: 'signal-cli', sender: '', recipients: [] },
+    telegram: { enabled: false, bot_token: '', chat_ids: [] },
+    discord: { enabled: false, webhook_url: '' },
+    email: { enabled: false, smtp_server: '', smtp_port: 587, username: '', sender: '', recipients: [] },
     ai: { enabled: false, sensitivity: 3.0, model: 'rolling' },
     updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all' }
 });
@@ -366,9 +444,12 @@ const aiModelOptions = ref([
 ]);
 const newPassword = ref('');
 const mqttPassword = ref('');
+const emailPassword = ref('');
 const whitelistText = ref('');
 const blacklistText = ref('');
 const signalRecipientsText = ref('');
+const telegramChatIdsText = ref('');
+const emailRecipientsText = ref('');
 const updateStatus = ref({});
 const signalStatus = ref({});
 const statusLoading = ref(false);
@@ -404,6 +485,13 @@ onMounted(async () => {
 
         if (config.value.signal) {
             signalRecipientsText.value = (config.value.signal.recipients || []).join('\n');
+        }
+
+        if (config.value.telegram) {
+            telegramChatIdsText.value = (config.value.telegram.chat_ids || []).join(', ');
+        }
+        if (config.value.email) {
+            emailRecipientsText.value = (config.value.email.recipients || []).join(', ');
         }
 
         // Get current client IP
@@ -483,6 +571,18 @@ const saveConfig = async () => {
             signal_sender: config.value.signal?.sender || '',
             signal_cli_path: config.value.signal?.cli_path || 'signal-cli',
             signal_recipients: signalRecipientsText.value,
+            telegram_enabled: config.value.telegram?.enabled || false,
+            telegram_bot_token: config.value.telegram?.bot_token || '',
+            telegram_chat_ids: telegramChatIdsText.value,
+            discord_enabled: config.value.discord?.enabled || false,
+            discord_webhook_url: config.value.discord?.webhook_url || '',
+            email_enabled: config.value.email?.enabled || false,
+            email_smtp_server: config.value.email?.smtp_server || '',
+            email_smtp_port: config.value.email?.smtp_port || 587,
+            email_username: config.value.email?.username || '',
+            email_password: emailPassword.value || undefined,
+            email_sender: config.value.email?.sender || '',
+            email_recipients: emailRecipientsText.value,
             ai_enabled: config.value.ai?.enabled || false,
             ai_sensitivity: config.value.ai?.sensitivity || 3.0,
             ai_model: config.value.ai?.model || 'rolling',

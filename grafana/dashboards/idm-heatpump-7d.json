@@ -1426,7 +1426,7 @@
   "timepicker": {},
   "timezone": "browser",
   "title": "IDM Waermepumpe - 24 Stunden (VictoriaMetrics)",
-  "uid": "idm-heatpump-24h-vm",
+  "uid": "idm-heatpump-7d-vm",
   "version": 1,
   "weekStart": "monday"
 }

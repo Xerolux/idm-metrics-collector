@@ -494,6 +494,47 @@ def config_page():
                     ]
                 config.data["signal"]["recipients"] = recipients
 
+            # Telegram
+            if "telegram_enabled" in data:
+                config.data["telegram"]["enabled"] = bool(data["telegram_enabled"])
+            if "telegram_bot_token" in data:
+                config.data["telegram"]["bot_token"] = data["telegram_bot_token"]
+            if "telegram_chat_ids" in data:
+                chat_ids = data["telegram_chat_ids"]
+                if isinstance(chat_ids, str):
+                    chat_ids = [x.strip() for x in chat_ids.split(",") if x.strip()]
+                config.data["telegram"]["chat_ids"] = chat_ids
+
+            # Discord
+            if "discord_enabled" in data:
+                config.data["discord"]["enabled"] = bool(data["discord_enabled"])
+            if "discord_webhook_url" in data:
+                config.data["discord"]["webhook_url"] = data["discord_webhook_url"]
+
+            # Email
+            if "email_enabled" in data:
+                config.data["email"]["enabled"] = bool(data["email_enabled"])
+            if "email_smtp_server" in data:
+                config.data["email"]["smtp_server"] = data["email_smtp_server"]
+            if "email_smtp_port" in data:
+                try:
+                    port = int(data["email_smtp_port"])
+                    if 1 <= port <= 65535:
+                        config.data["email"]["smtp_port"] = port
+                except ValueError:
+                    return jsonify({"error": "Ungültiger SMTP Port"}), 400
+            if "email_username" in data:
+                config.data["email"]["username"] = data["email_username"]
+            if "email_password" in data and data["email_password"]:
+                config.data["email"]["password"] = data["email_password"]
+            if "email_sender" in data:
+                config.data["email"]["sender"] = data["email_sender"]
+            if "email_recipients" in data:
+                recipients = data["email_recipients"]
+                if isinstance(recipients, str):
+                    recipients = [x.strip() for x in recipients.split(",") if x.strip()]
+                config.data["email"]["recipients"] = recipients
+
             # AI
             if "ai_enabled" in data:
                 config.data["ai"]["enabled"] = bool(data["ai_enabled"])

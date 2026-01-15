@@ -122,21 +122,21 @@ onUnmounted(() => {
                 </a>
             </template>
             <template #end>
-                <div class="flex items-center gap-2">
-                     <Select v-model="currentLang" :options="languages" optionLabel="label" optionValue="value" class="w-24 !text-sm" size="small" />
+                <div class="flex items-center gap-1 sm:gap-2 mr-2 sm:mr-4">
+                     <Select v-model="currentLang" :options="languages" optionLabel="label" optionValue="value" class="w-20 sm:w-24 !text-sm" size="small" />
 
-                    <Button :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'" text rounded severity="secondary" @click="toggleTheme" />
+                    <Button :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'" text rounded severity="secondary" @click="toggleTheme" class="w-8 h-8 sm:w-auto sm:h-auto" />
 
                     <Button
                         :label="ui.editMode ? '' : ''"
                         :icon="editModeIcon"
                         :severity="editModeSeverity"
                         text
-                        class="p-2 sm:p-3"
+                        class="p-1 sm:p-2"
                         @click="ui.toggleEditMode"
                     />
-                    <Button icon="pi pi-power-off" severity="danger" text @click="logout" class="p-2 sm:p-3">
-                        <span class="hidden sm:inline ml-2">{{ t('logout') }}</span>
+                    <Button icon="pi pi-power-off" severity="danger" text @click="logout" class="p-1 sm:p-2">
+                        <span class="hidden 2xl:inline ml-2">{{ t('logout') }}</span>
                     </Button>
                 </div>
             </template>
