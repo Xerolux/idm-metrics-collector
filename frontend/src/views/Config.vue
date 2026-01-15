@@ -296,9 +296,7 @@
                         </div>
                     </div>
                 </TabPanel>
-                 <TabPanel header="Tools">
-                     <TechnicianCodeGenerator />
-                </TabPanel>
+
             </TabView>
         </div>
 
@@ -349,7 +347,7 @@ import SelectButton from 'primevue/selectbutton';
 import Slider from 'primevue/slider';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
-import TechnicianCodeGenerator from '../components/TechnicianCodeGenerator.vue';
+
 
 const config = ref({
     idm: { host: '', port: 502, circuits: ['A'], zones: [] },

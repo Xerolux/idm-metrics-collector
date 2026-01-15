@@ -65,11 +65,7 @@ const items = computed(() => [
         icon: 'pi pi-cog',
         command: () => router.push('/config')
     },
-    {
-        label: t('tools'),
-        icon: 'pi pi-key',
-        command: () => router.push('/tools')
-    },
+
     {
         label: 'Grafana',
         icon: 'pi pi-chart-line',

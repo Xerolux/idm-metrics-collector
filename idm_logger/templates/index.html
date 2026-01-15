@@ -93,7 +93,7 @@
             // Sort items by name
             items.sort((a, b) => a.key.localeCompare(b.key));
 
-            html += `<h4 class="mb-3 mt-2 border-bottom pb-2 text-white-50">${catName}</h4>`;
+            html += `<h4 class="mb-3 mt-2 border-bottom pb-2 text-light">${catName}</h4>`;
             html += '<div class="row mb-4">';
 
             items.forEach(item => {
@@ -114,9 +114,9 @@
 
                 html += `
                     <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
-                        <div class="card card-sensor h-100 shadow-sm border-0 bg-dark-subtle">
+                        <div class="card card-sensor h-100 shadow-sm border-0 bg-dark">
                             <div class="card-body d-flex flex-column">
-                                <div class="text-muted small text-truncate mb-1" title="${item.key}">${formatKey(item.key)}</div>
+                                <div class="text-secondary small text-truncate mb-1" title="${item.key}">${formatKey(item.key)}</div>
                                 <div class="mt-auto d-flex align-items-baseline">
                                     <span class="sensor-value text-primary me-1">${displayValue}</span>
                                     <span class="sensor-unit">${unit}</span>
