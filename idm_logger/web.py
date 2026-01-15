@@ -10,6 +10,7 @@ from .mqtt import mqtt_publisher
 from .signal_notifications import send_signal_message
 from .update_manager import check_for_update, perform_update as run_update, get_current_version, can_run_updates
 from .alerts import alert_manager
+from .templates import get_alert_templates
 from shutil import which
 import threading
 import logging
@@ -837,6 +838,11 @@ def alerts_api():
             return jsonify({"success": True})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+
+@app.route('/api/alerts/templates', methods=['GET'])
+@login_required
+def get_templates():
+    return jsonify(get_alert_templates())
 
 # Catch-all route for Vue SPA client-side routing
 # This must be the last route to avoid catching API routes
