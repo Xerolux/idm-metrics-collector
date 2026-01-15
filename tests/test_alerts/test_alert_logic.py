@@ -1,6 +1,6 @@
 import unittest
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY
 import sys
 import os
 
@@ -59,7 +59,7 @@ class TestAlertManager(unittest.TestCase):
         # Test case 2: Value above threshold
         self.alert_manager.check_alerts({'temp': 60})
         self.mock_send.assert_called_with('High Temp: 60')
-        self.mock_db.update_alert.assert_called()
+        self.mock_db.update_alerts_last_triggered.assert_called_once_with(['1'], ANY)
 
     def test_threshold_alert_cooldown(self):
         # Setup alert with triggered state

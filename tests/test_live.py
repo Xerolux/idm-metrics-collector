@@ -4,6 +4,9 @@
 import logging
 import sys
 import struct
+import os
+
+import pytest
 
 # Setup logging
 logging.basicConfig(
@@ -53,6 +56,8 @@ def decode_uint16(registers):
 
 def test_connection():
     """Test connection and read basic values"""
+    if os.getenv("IDM_LIVE_TEST") != "1":
+        pytest.skip("Live Modbus test requires IDM_LIVE_TEST=1 to run.")
     print(f"\n{'='*60}")
     print(f"IDM Wärmepumpe Live-Test (READ ONLY)")
     print(f"{'='*60}")
