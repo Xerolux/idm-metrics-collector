@@ -649,8 +649,8 @@ def config_page():
                     ), 400
                 config.data["updates"]["target"] = data["updates_target"]
             if "updates_channel" in data:
-                if data["updates_channel"] not in ["dev", "release"]:
-                    return jsonify({"error": "Update-Kanal muss dev oder release sein"}), 400
+                if data["updates_channel"] not in ["latest", "beta", "release"]:
+                    return jsonify({"error": "Update-Kanal muss latest, beta oder release sein"}), 400
                 config.data["updates"]["channel"] = data["updates_channel"]
 
             # Backup

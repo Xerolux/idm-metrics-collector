@@ -1,7 +1,7 @@
 services:
   idm-logger:
     build: .
-    image: ghcr.io/xerolux/idm-metrics-collector:dev
+    image: ghcr.io/xerolux/idm-metrics-collector:latest
     container_name: idm-logger
     restart: unless-stopped
     ports:
