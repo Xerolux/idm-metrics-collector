@@ -116,7 +116,6 @@ def check_ip_whitelist():
     except ValueError:
         logger.warning(f"Invalid client IP: {client_ip}")
         abort(403)
-        return
 
     whitelist = config.get("network_security.whitelist", [])
     blacklist = config.get("network_security.blacklist", [])
@@ -539,6 +538,8 @@ def config_page():
                 config.data["mqtt"]["password"] = data["mqtt_password"]
             if "mqtt_use_tls" in data:
                 config.data["mqtt"]["use_tls"] = bool(data["mqtt_use_tls"])
+            if "mqtt_tls_ca_cert" in data:
+                config.data["mqtt"]["tls_ca_cert"] = data["mqtt_tls_ca_cert"]
             if "mqtt_topic_prefix" in data:
                 config.data["mqtt"]["topic_prefix"] = data["mqtt_topic_prefix"]
             if "mqtt_ha_discovery_enabled" in data:

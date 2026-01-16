@@ -118,6 +118,8 @@ class Config:
                 "1",
                 "yes",
             )
+        if os.environ.get("MQTT_TLS_CA_CERT"):
+            self.data["mqtt"]["tls_ca_cert"] = os.environ["MQTT_TLS_CA_CERT"]
         if os.environ.get("MQTT_TOPIC_PREFIX"):
             self.data["mqtt"]["topic_prefix"] = os.environ["MQTT_TOPIC_PREFIX"]
         if os.environ.get("MQTT_HA_DISCOVERY_ENABLED"):
@@ -269,6 +271,7 @@ class Config:
                 "username": "",
                 "password": "",
                 "use_tls": False,
+                "tls_ca_cert": "",
                 "topic_prefix": "idm/heatpump",
                 "publish_interval": 60,
                 "qos": 1,
