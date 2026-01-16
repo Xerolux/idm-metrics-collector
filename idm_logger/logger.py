@@ -17,7 +17,6 @@ from .update_manager import (
     is_update_allowed,
 )
 from .alerts import alert_manager
-from .ai.anomaly import anomaly_detector
 from .signal_notifications import send_signal_message
 
 # Get logger instance (configure in main())
@@ -190,40 +189,6 @@ def main():
                     # Update Web UI
                     update_current_data(data)
 
-                    # AI Anomaly Detection (Always learn)
-                    anomaly_detector.update(data)
-
-                    # Check AI Alerts if enabled
-                    if config.get("ai.enabled", False):
-                        # Configure model type if changed
-                        model_type = config.get("ai.model", "rolling")
-                        anomaly_detector.set_model_type(model_type)
-
-                        sigma = float(config.get("ai.sensitivity", 3.0))
-                        anomalies = anomaly_detector.detect(data, sigma)
-                        if anomalies:
-                            logger.info(f"AI Anomaly Detected: {anomalies}")
-                            # Construct rich message
-                            msg_lines = ["🤖 AI Anomalie erkannt!"]
-                            msg_lines.append(f"Modus: {model_type}")
-
-                            for sensor, det in anomalies.items():
-                                z = det['z_score']
-                                trend_icon = "↗️" if z > 0 else "↘️"
-                                msg_lines.append(f"\n📍 {sensor}")
-                                msg_lines.append(f"   Aktuell: {det['value']} {trend_icon}")
-                                msg_lines.append(f"   Erwartet: ~{det['mean']:.2f}")
-                                msg_lines.append(f"   Abweichung: {z:.1f}σ")
-
-                            try:
-                                # Simple rate limit prevention handled by user via cooldown?
-                                # For AI, we hardcode a basic check or just send.
-                                # Ideally we'd have a cooldown per sensor for AI too.
-                                # For now, we trust the Z-score is significant.
-                                send_signal_message("\n".join(msg_lines))
-                            except Exception as e:
-                                logger.error(f"Failed to send AI alert: {e}")
-
                     # Check Alerts
                     alert_manager.check_alerts(data)
 
@@ -260,7 +225,6 @@ def main():
             mqtt.stop()
         if modbus:
             modbus.close()
-        anomaly_detector.save()  # Save learned model
         logger.info("Stopped")
 
 

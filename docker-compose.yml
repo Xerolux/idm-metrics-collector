@@ -43,6 +43,17 @@ services:
       - "-storageDataPath=/storage"
       - "-retentionPeriod=1y"
 
+  ml-service:
+    build: ./ml_service
+    container_name: idm-ml-service
+    restart: unless-stopped
+    depends_on:
+      - victoriametrics
+    environment:
+      - METRICS_URL=http://victoriametrics:8428
+      - UPDATE_INTERVAL=60
+      - MEASUREMENT_NAME=idm_heatpump
+
   grafana:
     image: grafana/grafana:latest
     container_name: idm-grafana
