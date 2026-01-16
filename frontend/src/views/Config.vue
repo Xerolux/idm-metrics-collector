@@ -107,6 +107,20 @@
                                 </div>
                             </div>
 
+                            <div class="border-t border-gray-700 pt-4">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <Checkbox v-model="config.mqtt.use_tls" binary inputId="mqtt_tls" />
+                                    <label for="mqtt_tls" class="font-bold cursor-pointer">TLS/SSL Verschlüsselung</label>
+                                </div>
+                                <div v-if="config.mqtt.use_tls" class="ml-8 mb-4">
+                                    <div class="flex flex-col gap-2">
+                                        <label class="text-sm">CA-Zertifikat Pfad (optional)</label>
+                                        <InputText v-model="config.mqtt.tls_ca_cert" placeholder="/path/to/ca.crt" class="w-full" />
+                                        <small class="text-gray-400">Für selbst-signierte Zertifikate. Leer lassen für System-CA.</small>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-700 pt-4">
                                 <div class="flex flex-col gap-2">
                                     <label>Topic Präfix</label>
@@ -536,7 +550,7 @@ const config = ref({
     metrics: { url: '' },
     web: { write_enabled: false },
     logging: { interval: 60, realtime_mode: false },
-    mqtt: { enabled: false, broker: '', port: 1883, username: '', topic_prefix: 'idm/heatpump', qos: 0, use_tls: false, publish_interval: 60, ha_discovery_enabled: false, ha_discovery_prefix: 'homeassistant' },
+    mqtt: { enabled: false, broker: '', port: 1883, username: '', topic_prefix: 'idm/heatpump', qos: 0, use_tls: false, tls_ca_cert: '', publish_interval: 60, ha_discovery_enabled: false, ha_discovery_prefix: 'homeassistant' },
     network_security: { enabled: false, whitelist: [], blacklist: [] },
     signal: { enabled: false, cli_path: 'signal-cli', sender: '', recipients: [] },
     telegram: { enabled: false, bot_token: '', chat_ids: [] },
@@ -733,6 +747,7 @@ const saveConfig = async () => {
             mqtt_topic_prefix: config.value.mqtt?.topic_prefix || 'idm/heatpump',
             mqtt_qos: config.value.mqtt?.qos || 0,
             mqtt_use_tls: config.value.mqtt?.use_tls || false,
+            mqtt_tls_ca_cert: config.value.mqtt?.tls_ca_cert || '',
             mqtt_publish_interval: config.value.mqtt?.publish_interval || 60,
             mqtt_ha_discovery_enabled: config.value.mqtt?.ha_discovery_enabled || false,
             mqtt_ha_discovery_prefix: config.value.mqtt?.ha_discovery_prefix || 'homeassistant',

@@ -5,6 +5,7 @@ Publishes sensor data to MQTT broker with authentication support.
 
 import logging
 import json
+import os
 import time
 import ssl
 from threading import Event
@@ -74,10 +75,20 @@ class MQTTPublisher:
 
             # Configure TLS if enabled
             if config.get("mqtt.use_tls", False):
-                self.client.tls_set(
-                    cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLSv1_2
-                )
-                logger.info("MQTT TLS encryption enabled")
+                ca_cert = config.get("mqtt.tls_ca_cert", "")
+                tls_params = {
+                    "cert_reqs": ssl.CERT_REQUIRED,
+                    "tls_version": ssl.PROTOCOL_TLSv1_2
+                }
+
+                # Add CA certificate path if provided (for self-signed certs)
+                if ca_cert and os.path.exists(ca_cert):
+                    tls_params["ca_certs"] = ca_cert
+                    logger.info(f"MQTT TLS encryption enabled with CA cert: {ca_cert}")
+                else:
+                    logger.info("MQTT TLS encryption enabled with system CA certs")
+
+                self.client.tls_set(**tls_params)
 
             logger.info(f"MQTT client configured for broker: {broker}")
 
