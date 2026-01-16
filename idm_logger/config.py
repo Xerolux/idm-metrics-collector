@@ -311,7 +311,7 @@ class Config:
                 "interval_hours": 12,
                 "mode": "apply",
                 "target": "all",
-                "channel": "dev",
+                "channel": "latest",
             },
             "backup": {
                 "enabled": False,

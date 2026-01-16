@@ -2,19 +2,20 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Tuple, Optional
 
 import requests
 from .config import config
 
 logger = logging.getLogger(__name__)
 
-GITHUB_RELEASES_API = (
-    "https://api.github.com/repos/Xerolux/idm-metrics-collector/releases/latest"
-)
+GITHUB_REPO = "Xerolux/idm-metrics-collector"
+GITHUB_API_BASE = f"https://api.github.com/repos/{GITHUB_REPO}"
 
-# If configured channel is 'dev', we check against main branch via git
-# If 'release', we check against GitHub Releases API
+# Channels:
+# - latest: rolling updates from main (version: 0.6.<hash>)
+# - beta: pre-releases from GitHub (version: 0.6.x-betaX)
+# - release: stable releases from GitHub (version: 0.6.x)
 
 
 def get_current_version() -> str:
@@ -38,50 +39,108 @@ def get_current_version() -> str:
     return "unknown"
 
 
-def _parse_version(version: str) -> Any:
-    if not version:
+def _parse_version(version: str) -> Optional[Tuple[int, int, int, int, int]]:
+    """
+    Parses a version string into a tuple for comparison.
+    Format: (major, minor, patch, release_type, pre_release_num)
+
+    release_type:
+    - 0: alpha/beta/rc (prerelease)
+    - 1: stable (release)
+    - 2: dev/latest (hash-based, treated as newest if local hash logic isn't used)
+
+    However, we usually compare within channels.
+    But to support 0.6.0 > 0.6.0-beta1:
+    0.6.0 -> (0, 6, 0, 1, 0)
+    0.6.0-beta1 -> (0, 6, 0, 0, 1)
+
+    For hash versions (0.6.<hash>):
+    We can't easily compare numerically against semantic versions without context.
+    But for this function, we try to extract what we can.
+    """
+    if not version or version == "unknown":
         return None
+
     cleaned = version.lstrip("v")
-    # Handle version suffixes like .at<hash> by splitting them off
-    # We only care about the major.minor.patch part for numerical comparison
-    base_part = cleaned
 
-    # If the version has more than 3 parts (major.minor.patch.suffix), keep only first 3
-    # Or if one of the parts is not an integer, stop parsing there
-
-    parts = base_part.split(".")
+    # Check for dev/hash version (e.g. 0.6.a1b2c3d)
+    # Or beta version (e.g. 0.6.0-beta1)
 
     try:
-        major = int(parts[0])
-        minor = int(parts[1]) if len(parts) > 1 else 0
+        # Split by '-' to separate prerelease info
+        parts = cleaned.split("-")
+        main_part = parts[0]
+        suffix = parts[1] if len(parts) > 1 else ""
 
-        # Handle patch version: check if it's an integer, otherwise treat as 0
+        main_segments = main_part.split(".")
+        major = int(main_segments[0])
+        minor = int(main_segments[1]) if len(main_segments) > 1 else 0
         patch = 0
-        if len(parts) > 2:
-            patch_str = parts[2]
-            # Since format is now 0.6.<hash>, the 3rd part is the hash
-            # Hashes are not integers for comparison, so we treat patch as 0
-            if patch_str.isdigit():
-                patch = int(patch_str)
-            else:
-                patch = 0
 
-        return major, minor, patch
+        # Check 3rd segment
+        if len(main_segments) > 2:
+            seg3 = main_segments[2]
+            if seg3.isdigit():
+                patch = int(seg3)
+                is_hash = False
+            else:
+                # It's a hash, e.g. 0.6.a1b2c3d
+                # Treat as patch 0, but mark as special?
+                # Actually, our 'latest' channel uses 0.6.<hash>.
+                # We can't compare hashes numerically.
+                patch = 0
+                is_hash = True
+        else:
+            is_hash = False
+
+        if is_hash:
+            # Hash versions are tricky. We usually rely on git/api to check 'latest' updates.
+            # But for sorting, let's just say it's type 2 (dev)
+            return (major, minor, patch, 2, 0)
+
+        if suffix:
+            # Handle beta/rc/alpha
+            # e.g. beta1
+            import re
+            match = re.match(r"([a-zA-Z]+)(\d+)?", suffix)
+            if match:
+                # _type_str = match.group(1) # e.g. beta
+                num = int(match.group(2)) if match.group(2) else 0
+                return (major, minor, patch, 0, num)
+            else:
+                 # Unknown suffix
+                 return (major, minor, patch, 0, 0)
+        else:
+            # Stable
+            return (major, minor, patch, 1, 0)
+
     except (ValueError, IndexError):
         return None
 
 
 def get_update_type(current_version: str, latest_version: str) -> str:
+    # This is a rough estimation because strict semantic versioning isn't fully enforced
     current = _parse_version(current_version)
     latest = _parse_version(latest_version)
+
     if not current or not latest:
         return "unknown"
+
+    # If major diff
     if latest[0] != current[0]:
         return "major"
+    # If minor diff
     if latest[1] != current[1]:
         return "minor"
+    # If patch diff
     if latest[2] != current[2]:
         return "patch"
+
+    # If release type diff (beta vs stable) or prerelease num diff
+    if latest[3:] != current[3:]:
+         # Consider this a patch level update for simplicity
+         return "patch"
+
     return "none"
 
 
@@ -95,7 +154,8 @@ def is_update_allowed(update_type: str, target: str) -> bool:
 
 def check_for_update() -> Dict[str, Any]:
     current_version = get_current_version()
-    channel = config.get("updates.channel", "dev")
+    # Default channel is now 'latest' (formerly dev)
+    channel = config.get("updates.channel", "latest")
 
     latest_version = ""
     release_date = ""
@@ -104,74 +164,105 @@ def check_for_update() -> Dict[str, Any]:
 
     try:
         if channel == "release":
-            response = requests.get(GITHUB_RELEASES_API, timeout=10)
+            # Check for latest stable release
+            url = f"{GITHUB_API_BASE}/releases/latest"
+            response = requests.get(url, timeout=10)
             response.raise_for_status()
-            latest_release = response.json()
-            latest_version = latest_release.get("tag_name", "")
-            release_date = latest_release.get("published_at", "")
-            release_notes = latest_release.get("body", "")[:200]
-            # Simple string comparison for now, assuming v0.6.1 > v0.6.0
-            update_available = (latest_version != current_version and latest_version > current_version)
+            data = response.json()
 
-        else: # dev
-            # For dev, we check if local is behind origin/main
-            # This requires git fetch first
+            latest_version = data.get("tag_name", "")
+            release_date = data.get("published_at", "")
+            release_notes = data.get("body", "")[:200]
+
+            # Simple string comparison isn't enough (v0.6.0-beta vs v0.6.0)
+            # But typically 'latest' endpoint only returns stable.
+            if latest_version != current_version:
+                 # Ensure we don't downgrade or reinstall same
+                 # But parsing is hard. Let's assume if strings differ, it's an update
+                 # unless current is 'newer'.
+                 # Actually, if I am on 0.6.0-beta1 and latest is 0.6.0, I want update.
+                 # If I am on 0.6.1 and latest is 0.6.0, I don't.
+
+                 # Basic check:
+                 curr_p = _parse_version(current_version)
+                 lat_p = _parse_version(latest_version)
+
+                 if lat_p and curr_p and lat_p > curr_p:
+                     update_available = True
+
+        elif channel == "beta":
+            # Check for latest release (including prereleases)
+            url = f"{GITHUB_API_BASE}/releases"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            releases = response.json()
+
+            # Find the newest tag (releases are usually sorted by date desc)
+            # We want the first one that is newer than current.
+            # Or simply the first one in the list is the candidate.
+            if releases:
+                candidate = releases[0]
+                latest_version = candidate.get("tag_name", "")
+                release_date = candidate.get("published_at", "")
+                release_notes = candidate.get("body", "")[:200]
+
+                curr_p = _parse_version(current_version)
+                lat_p = _parse_version(latest_version)
+
+                if lat_p and curr_p and lat_p > curr_p:
+                     update_available = True
+                elif lat_p and not curr_p:
+                    # If current is unknown, assume update
+                    update_available = True
+
+        else: # channel == 'latest' (formerly dev)
+            # Checks against main branch
 
             git_worked = False
             try:
-                # First check if git is available and we are in a git repo
+                # Check git availability
                 subprocess.run(["git", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
                 subprocess.run(["git", "fetch", "origin", "main"], timeout=10, cwd="/app", capture_output=True, check=True)
-                # Get hash of HEAD
                 head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd="/app", text=True).strip()
-                # Get hash of origin/main
                 remote = subprocess.check_output(["git", "rev-parse", "origin/main"], cwd="/app", text=True).strip()
 
                 latest_version = f"dev-{remote[:7]}"
                 if head != remote:
                     update_available = True
-                    release_notes = "Neue Entwickler-Version verfügbar"
+                    release_notes = "Neue Version auf 'main' verfügbar"
                 else:
-                    release_notes = "System ist auf dem neuesten Stand (Dev)"
+                    release_notes = "System ist aktuell (latest)"
                 git_worked = True
             except (subprocess.CalledProcessError, FileNotFoundError, Exception) as e:
-                logger.debug(f"Git check failed, trying API fallback: {e}")
+                logger.debug(f"Git check failed: {e}")
 
             if not git_worked:
-                # Fallback to GitHub API for dev check
+                # Fallback to GitHub API for commits/main
                 try:
-                    # Get local commit hash from version string
-                    # Version format expected: 0.6.<hash>
+                    # Parse current hash from version 0.6.<hash>
                     current_hash = None
-
                     parts = current_version.split(".")
-                    # If we have at least 3 parts (0.6.hash), take the last one
                     if len(parts) >= 3:
                         current_hash = parts[-1]
-                        # Clean up any potential leftover suffix from previous versions if mixed
                         if ".at" in current_hash:
                              current_hash = current_hash.split(".at")[-1]
 
-                    if current_hash:
-                        # Fetch latest main commit from GitHub
-                        resp = requests.get("https://api.github.com/repos/Xerolux/idm-metrics-collector/commits/main", timeout=10)
-                        resp.raise_for_status()
-                        remote_data = resp.json()
-                        remote_hash = remote_data["sha"] # Full hash
+                    resp = requests.get(f"{GITHUB_API_BASE}/commits/main", timeout=10)
+                    resp.raise_for_status()
+                    remote_data = resp.json()
+                    remote_hash = remote_data["sha"]
 
-                        # Compare (remote_hash starts with current_hash?)
-                        # current_hash is likely short.
-                        if not remote_hash.startswith(current_hash):
-                            update_available = True
-                            latest_version = f"0.6.{remote_hash[:7]}"
-                            release_notes = f"Neue Version verfügbar: {remote_data.get('commit', {}).get('message', '').splitlines()[0]}"
-                        else:
-                            latest_version = current_version
-                            release_notes = "System ist auf dem neuesten Stand (Dev)"
+                    latest_version = f"0.6.{remote_hash[:7]}"
+
+                    if current_hash and not remote_hash.startswith(current_hash):
+                        update_available = True
+                        release_notes = f"Update: {remote_data.get('commit', {}).get('message', '').splitlines()[0]}"
+                    elif not current_hash:
+                         # Can't determine current hash, assume update if version looks wrong
+                         update_available = True
                     else:
-                        release_notes = "Version kann nicht geprüft werden (Kein Git, kein Hash in Version)"
-                        latest_version = "unknown"
+                        release_notes = "System ist aktuell (latest)"
 
                 except Exception as e:
                      logger.warning(f"API check failed: {e}")
@@ -196,35 +287,41 @@ def check_for_update() -> Dict[str, Any]:
 
 
 def perform_update(repo_path: str = "/opt/idm-metrics-collector") -> None:
-    # Check if we are in a git repository
     git_dir = Path(repo_path) / ".git"
     if not git_dir.exists():
-        logger.error(
-            f"Cannot update: {repo_path} is not a git repository (or .git is missing). This installation method does not support auto-update via git."
-        )
+        logger.error(f"Cannot update: {repo_path} is not a git repository.")
         raise RuntimeError("Update fehlgeschlagen: Keine Git-Installation gefunden.")
 
-    channel = config.get("updates.channel", "dev")
+    channel = config.get("updates.channel", "latest")
     logger.info(f"Performing update (Channel: {channel})...")
 
-    if channel == "release":
-        # Get latest tag
+    if channel in ["release", "beta"]:
+        # Fetch tags
         try:
-             response = requests.get(GITHUB_RELEASES_API, timeout=10)
-             response.raise_for_status()
-             tag = response.json().get("tag_name")
-             if not tag:
-                 raise RuntimeError("Kein Release-Tag gefunden")
+             # Logic is similar for beta and release: find the tag we want
+             check_res = check_for_update()
+             if not check_res.get("update_available"):
+                 logger.info("No update available according to check.")
+                 # Force pull anyway if user requested?
+                 # But we need a target tag.
+                 # If check_for_update fails or says no update, we might stick to current or latest available.
+                 pass
 
-             logger.info(f"Fetching tags and checking out {tag}...")
+             target_tag = check_res.get("latest_version")
+             if not target_tag or target_tag == "unknown":
+                 # Fallback: fetch tags and checkout based on logic again?
+                 # Or just fail
+                 raise RuntimeError("Konnte Ziel-Version nicht ermitteln.")
+
+             logger.info(f"Fetching tags and checking out {target_tag}...")
              subprocess.run(["git", "fetch", "--tags"], check=True, cwd=repo_path)
-             subprocess.run(["git", "checkout", tag], check=True, cwd=repo_path)
-        except Exception as e:
-            raise RuntimeError(f"Release update failed: {e}")
+             subprocess.run(["git", "checkout", target_tag], check=True, cwd=repo_path)
 
-    else: # dev
+        except Exception as e:
+            raise RuntimeError(f"Update failed: {e}")
+
+    else: # latest (main branch)
         logger.info("Pulling latest changes from git (main)...")
-        # Ensure we are on main
         subprocess.run(["git", "checkout", "main"], check=False, cwd=repo_path)
         result = subprocess.run(
             ["git", "pull", "origin", "main"],

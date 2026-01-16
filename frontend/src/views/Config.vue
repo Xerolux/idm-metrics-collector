@@ -368,7 +368,7 @@
                              <div class="flex flex-col gap-2 mt-2 border-t border-gray-700 pt-2">
                                  <label class="text-sm font-bold">Update Kanal</label>
                                  <div class="flex gap-2">
-                                    <SelectButton v-model="config.updates.channel" :options="['dev', 'release']" :allowEmpty="false" class="w-full" />
+                                    <SelectButton v-model="config.updates.channel" :options="['latest', 'beta', 'release']" :allowEmpty="false" class="w-full" />
                                  </div>
                                  <div class="flex justify-between items-center mt-1">
                                     <div class="flex items-center gap-2">
@@ -544,7 +544,7 @@ const config = ref({
     email: { enabled: false, smtp_server: '', smtp_port: 587, username: '', sender: '', recipients: [] },
     webdav: { enabled: false, url: '', username: '' },
     ai: { enabled: false, sensitivity: 3.0, model: 'rolling' },
-    updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all', channel: 'dev' },
+    updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all', channel: 'latest' },
     backup: { enabled: false, interval: 24, retention: 10, auto_upload: false }
 });
 const aiModelOptions = ref([
@@ -658,7 +658,7 @@ const loadStatus = async () => {
     statusLoading.value = true;
     try {
         const [updateRes, signalRes] = await Promise.all([
-            axios.get('/api/check-update', { params: { channel: config.value.updates?.channel || 'dev' } }),
+            axios.get('/api/check-update', { params: { channel: config.value.updates?.channel || 'latest' } }),
             axios.get('/api/signal/status')
         ]);
         updateStatus.value = updateRes.data;
@@ -766,7 +766,7 @@ const saveConfig = async () => {
             updates_interval_hours: config.value.updates?.interval_hours || 12,
             updates_mode: config.value.updates?.mode || 'apply',
             updates_target: config.value.updates?.target || 'all',
-            updates_channel: config.value.updates?.channel || 'dev',
+            updates_channel: config.value.updates?.channel || 'latest',
             backup_enabled: config.value.backup?.enabled || false,
             backup_interval: config.value.backup?.interval || 24,
             backup_retention: config.value.backup?.retention || 10,
