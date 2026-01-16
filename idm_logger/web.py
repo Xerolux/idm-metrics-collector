@@ -335,9 +335,10 @@ def get_ai_status():
 
         # Query for latest anomaly score
         # Using `last_over_time` is better if points are sparse, but `query` usually fetches instant vector at "now".
-        # We want the LAST point.
-        # Queries: idm_anomaly_score and idm_anomaly_flag
-        response = requests.get(query_url, params={"query": '{__name__=~"idm_anomaly_score|idm_anomaly_flag"}'}, timeout=5)
+        # We want the LAST point in the last 2 hours.
+        # Queries: idm_anomaly_score and idm_anomaly_flag (allowing suffixes like _value)
+        query = 'last_over_time({__name__=~"idm_anomaly_score.*|idm_anomaly_flag.*"}[2h])'
+        response = requests.get(query_url, params={"query": query}, timeout=5)
 
         status = {
             "service": "ml-service (River/HST)",
@@ -352,15 +353,15 @@ def get_ai_status():
             if data.get("status") == "success":
                 results = data.get("data", {}).get("result", [])
                 for res in results:
-                    name = res["metric"].get("__name__")
-                    val = res["value"][1] # [timestamp, value]
+                    name = res["metric"].get("__name__", "")
+                    val = res["value"][1]  # [timestamp, value]
                     timestamp = res["value"][0]
 
-                    if name == "idm_anomaly_score":
+                    if "idm_anomaly_score" in name:
                         status["score"] = float(val)
                         status["last_update"] = timestamp
                         status["online"] = True
-                    elif name == "idm_anomaly_flag":
+                    elif "idm_anomaly_flag" in name:
                         status["is_anomaly"] = float(val) > 0.5
 
         return jsonify(status)
