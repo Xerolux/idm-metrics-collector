@@ -13,6 +13,8 @@ RUN npm install -g pnpm && pnpm install && pnpm build
 # Stage 2: Runtime
 FROM python:3.12-slim
 
+LABEL org.opencontainers.image.description="Modern dashboard for IDM Heatpumps. Monitoring, control and automation for IDM Navigator 2.0."
+
 WORKDIR /app
 
 # Install dependencies
