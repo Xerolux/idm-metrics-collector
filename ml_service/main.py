@@ -8,6 +8,7 @@ from river import preprocessing
 from river import compose
 
 # Configuration
+# Default to "http://victoriametrics:8428"
 METRICS_URL = os.environ.get("METRICS_URL", "http://victoriametrics:8428")
 MEASUREMENT_NAME = os.environ.get("MEASUREMENT_NAME", "idm_heatpump")
 UPDATE_INTERVAL = int(os.environ.get("UPDATE_INTERVAL", 60))
@@ -47,31 +48,23 @@ def fetch_latest_data():
     """
     Fetch the latest values for the selected sensors from VictoriaMetrics.
     """
+    # Use /api/v1/query (Prometheus API) to fetch instant values
     query_url = f"{METRICS_URL.rstrip('/')}/api/v1/query"
     data_point = {}
 
-    # We need to query each sensor or use a regex selector if possible.
-    # To be robust, we query the last value for each sensor.
-    # A single query like '{__name__=~"idm_heatpump_.*"}' could work, but let's be specific.
-
-    # Construct a query that selects our specific metrics
-    # VM supports PromQL. Metric names are typically "idm_heatpump_{sensor_name}"
-    # We can try to fetch them all in one go using a regex match on __name__ if we know the prefix.
-    # query: {__name__=~"idm_heatpump_.*"}
-
-    # However, to filter exactly our SENSORS list:
+    # Query regex to match all relevant metrics
     regex = "|".join([f"{MEASUREMENT_NAME}_{s}" for s in SENSORS])
     query = f"{{__name__=~\"{regex}\"}}"
 
     try:
         response = requests.get(query_url, params={"query": query}, timeout=10)
         if response.status_code != 200:
-            logger.error(f"Failed to fetch data: {response.status_code} {response.text}")
+            logger.error(f"Failed to fetch data from {query_url}: {response.status_code} {response.text}")
             return None
 
         json_data = response.json()
         if json_data.get("status") != "success":
-            logger.error(f"Query failed: {json_data}")
+            logger.error(f"Query returned error status: {json_data}")
             return None
 
         results = json_data.get("data", {}).get("result", [])
@@ -81,9 +74,8 @@ def fetch_latest_data():
             # Extract sensor name by removing prefix
             sensor_name = metric_name.replace(f"{MEASUREMENT_NAME}_", "")
 
-            # Get the value (last element of value array is timestamp, value)
-            # PromQL instant query returns [timestamp, "value"]
             if "value" in result:
+                # PromQL instant query value is [timestamp, "value"]
                 val = result["value"][1]
                 try:
                     data_point[sensor_name] = float(val)
@@ -92,6 +84,9 @@ def fetch_latest_data():
 
         return data_point
 
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"Connection error fetching data from {query_url}: {e}")
+        return None
     except Exception as e:
         logger.error(f"Exception fetching data: {e}")
         return None
@@ -100,11 +95,8 @@ def write_anomaly_score(score: float, is_anomaly: bool):
     """
     Write the anomaly score back to VictoriaMetrics via InfluxDB line protocol.
     """
+    # Use /write for InfluxDB line protocol
     write_url = f"{METRICS_URL.rstrip('/')}/write"
-
-    # Line protocol: measurement field=value
-    # idm_anomaly_score value=0.123
-    # idm_anomaly_flag value=0
 
     lines = [
         f"idm_anomaly_score value={score}",
@@ -116,7 +108,7 @@ def write_anomaly_score(score: float, is_anomaly: bool):
     try:
         response = requests.post(write_url, data=data, timeout=5)
         if response.status_code not in (200, 204):
-            logger.error(f"Failed to write metrics: {response.status_code} {response.text}")
+            logger.error(f"Failed to write metrics to {write_url}: {response.status_code} {response.text}")
     except Exception as e:
         logger.error(f"Exception writing metrics: {e}")
 
@@ -127,23 +119,19 @@ def job():
     try:
         data = fetch_latest_data()
 
-        # We need a complete vector?
-        # River handles missing data reasonably well in some models, but StandardScaler might complain if features change.
-        # Ideally we want all sensors. If some are missing, we might skip or impute.
-        # For MVP, let's just proceed with what we have if we have at least >50% of sensors.
-
-        if not data or len(data) < len(SENSORS) / 2:
-            logger.warning(f"Insufficient data fetched ({len(data) if data else 0}/{len(SENSORS)} sensors). Skipping step.")
+        if not data:
+            logger.debug("No data fetched. Waiting for next cycle.")
             return
 
-        # Score first, then learn
+        if len(data) < len(SENSORS) / 2:
+            logger.warning(f"Insufficient data fetched ({len(data)}/{len(SENSORS)} sensors). Skipping step.")
+            return
+
+        # Update model
         score = model.score_one(data)
         model.learn_one(data)
 
-        # Threshold for flag (simple static threshold for now, usually 0.5 - 1.0 for HST)
-        # HST score is between 0 and 1.
-        # 0.5 is a common starting threshold, but user suggested user-defined alerting in Grafana.
-        # We'll just output the flag based on a reasonable default (e.g., > 0.7).
+        # Determine anomaly flag
         is_anomaly = score > 0.7
 
         logger.info(f"Score: {score:.4f} | Anomaly: {is_anomaly} | Features: {len(data)}")
@@ -153,9 +141,39 @@ def job():
     except Exception as e:
         logger.error(f"Job failed: {e}")
 
+def wait_for_connection():
+    """
+    Wait for VictoriaMetrics to be reachable.
+    """
+    # Check both query and write endpoints
+    query_url = f"{METRICS_URL.rstrip('/')}/api/v1/query"
+
+    logger.info(f"Attempting to connect to VictoriaMetrics at {METRICS_URL}...")
+
+    while True:
+        try:
+            # Simple health check query
+            response = requests.get(query_url, params={"query": "up"}, timeout=5)
+            if response.status_code == 200:
+                logger.info("Successfully connected to VictoriaMetrics.")
+                return
+            else:
+                logger.warning(f"VictoriaMetrics reachable but returned {response.status_code}. Retrying in 5s...")
+        except requests.exceptions.ConnectionError:
+            logger.warning(f"Connection refused to {METRICS_URL}. VictoriaMetrics might be starting up. Retrying in 5s...")
+        except Exception as e:
+            logger.error(f"Unexpected error connecting to {METRICS_URL}: {e}. Retrying in 5s...")
+
+        time.sleep(5)
+
 def main():
     logger.info("Starting IDM ML Service (River/HalfSpaceTrees)...")
+    logger.info(f"Python 3.12 | typing_extensions verified")
+    logger.info(f"Targeting Metrics URL: {METRICS_URL}")
     logger.info(f"Monitoring {len(SENSORS)} sensors.")
+
+    # Wait for DB connection before starting schedule
+    wait_for_connection()
 
     # Run once immediately
     job()
