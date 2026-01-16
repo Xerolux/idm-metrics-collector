@@ -126,8 +126,13 @@ def check_for_update() -> Dict[str, Any]:
         else: # dev
             # For dev, we check if local is behind origin/main
             # This requires git fetch first
+
+            git_worked = False
             try:
-                subprocess.run(["git", "fetch", "origin", "main"], timeout=10, cwd="/app", capture_output=True)
+                # First check if git is available and we are in a git repo
+                subprocess.run(["git", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
+                subprocess.run(["git", "fetch", "origin", "main"], timeout=10, cwd="/app", capture_output=True, check=True)
                 # Get hash of HEAD
                 head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd="/app", text=True).strip()
                 # Get hash of origin/main
@@ -139,9 +144,42 @@ def check_for_update() -> Dict[str, Any]:
                     release_notes = "Neue Entwickler-Version verfügbar"
                 else:
                     release_notes = "System ist auf dem neuesten Stand (Dev)"
-            except Exception as e:
-                logger.warning(f"Git check failed: {e}")
-                latest_version = "unknown"
+                git_worked = True
+            except (subprocess.CalledProcessError, FileNotFoundError, Exception) as e:
+                logger.debug(f"Git check failed, trying API fallback: {e}")
+
+            if not git_worked:
+                # Fallback to GitHub API for dev check
+                try:
+                    # Get local commit hash from version string
+                    # Version format expected: v0.6.at<hash> or similar
+                    current_hash = None
+                    if ".at" in current_version:
+                        current_hash = current_version.split(".at")[-1]
+
+                    if current_hash:
+                        # Fetch latest main commit from GitHub
+                        resp = requests.get("https://api.github.com/repos/Xerolux/idm-metrics-collector/commits/main", timeout=10)
+                        resp.raise_for_status()
+                        remote_data = resp.json()
+                        remote_hash = remote_data["sha"] # Full hash
+
+                        # Compare (remote_hash starts with current_hash?)
+                        # current_hash is likely short.
+                        if not remote_hash.startswith(current_hash):
+                            update_available = True
+                            latest_version = f"dev-{remote_hash[:7]}"
+                            release_notes = f"Neue Version verfügbar: {remote_data.get('commit', {}).get('message', '').splitlines()[0]}"
+                        else:
+                            latest_version = current_version
+                            release_notes = "System ist auf dem neuesten Stand (Dev)"
+                    else:
+                        release_notes = "Version kann nicht geprüft werden (Kein Git, kein Hash in Version)"
+                        latest_version = "unknown"
+
+                except Exception as e:
+                     logger.warning(f"API check failed: {e}")
+                     latest_version = "unknown"
 
     except Exception as e:
         logger.error(f"Update check failed: {e}")
