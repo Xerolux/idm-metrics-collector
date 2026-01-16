@@ -10,6 +10,11 @@ from typing import Dict, Any
 
 from .config import config, DATA_DIR
 from .db import db
+try:
+    from webdav4.client import Client as WebDavClient
+    WEBDAV_AVAILABLE = True
+except ImportError:
+    WEBDAV_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -109,12 +114,19 @@ class BackupManager:
                 f"Backup created successfully: {backup_name} ({file_size} bytes)"
             )
 
+            # Upload to WebDAV if enabled
+            webdav_result = None
+            if config.get("webdav.enabled", False):
+                logger.info("Auto-uploading backup to WebDAV...")
+                webdav_result = self.upload_to_webdav(str(backup_path))
+
             return {
                 "success": True,
                 "filename": backup_name,
                 "path": str(backup_path),
                 "size": file_size,
                 "created_at": backup_data["metadata"]["created_at"],
+                "webdav_upload": webdav_result
             }
 
         except Exception as e:
@@ -316,6 +328,47 @@ class BackupManager:
             }
         except Exception as e:
             logger.error(f"Backup cleanup failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def upload_to_webdav(file_path: str) -> Dict[str, Any]:
+        """Upload a file to WebDAV/Nextcloud."""
+        if not WEBDAV_AVAILABLE:
+            return {"success": False, "error": "WebDAV library not available"}
+
+        try:
+            url = config.get("webdav.url")
+            username = config.get("webdav.username")
+            password = config.get("webdav.password")
+
+            if not url or not username:
+                return {"success": False, "error": "WebDAV not configured"}
+
+            path = Path(file_path)
+            if not path.exists():
+                return {"success": False, "error": "File not found"}
+
+            client = WebDavClient(base_url=url, auth=(username, password))
+
+            # Check connection
+            try:
+                client.exists("/")
+            except Exception as e:
+                 # Try adding /remote.php/dav/files/USER/ if it's Nextcloud and failed
+                 # But we assume user provides full URL for now
+                 return {"success": False, "error": f"Connection failed: {e}"}
+
+            remote_path = f"/{path.name}"
+            # Nextcloud/WebDAV often requires the directory to exist or precise path
+            # We upload to root of WebDAV share
+
+            client.upload_file(file_path, remote_path, overwrite=True)
+            logger.info(f"Successfully uploaded {path.name} to WebDAV")
+
+            return {"success": True, "message": "Upload successful"}
+
+        except Exception as e:
+            logger.error(f"WebDAV upload failed: {e}")
             return {"success": False, "error": str(e)}
 
 

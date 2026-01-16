@@ -219,8 +219,10 @@ class AnomalyDetector:
 
     def get_stats(self):
         """Return current statistics for debugging/UI."""
-        # This is model dependent, for now just return empty or summary
-        return {}
+        with self.lock:
+            if self.current_model_type in self.models:
+                return self.models[self.current_model_type].get_stats()
+            return {"error": "No model active"}
 
 
 anomaly_detector = AnomalyDetector()

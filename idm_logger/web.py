@@ -26,6 +26,7 @@ from .update_manager import (
 )
 from .alerts import alert_manager
 from .templates import get_alert_templates
+from .ai.anomaly import anomaly_detector
 from shutil import which
 import threading
 import logging
@@ -313,6 +314,21 @@ def get_data():
         return jsonify(current_data)
 
 
+@app.route("/api/ai/status")
+@login_required
+def get_ai_status():
+    """
+    Get current AI model status.
+    ---
+    tags:
+      - AI
+    responses:
+      200:
+        description: AI status statistics
+    """
+    return jsonify(anomaly_detector.get_stats())
+
+
 @app.route("/api/health")
 def health_check():
     """Health check endpoint for Docker/Kubernetes."""
@@ -535,6 +551,16 @@ def config_page():
                 if isinstance(recipients, str):
                     recipients = [x.strip() for x in recipients.split(",") if x.strip()]
                 config.data["email"]["recipients"] = recipients
+
+            # WebDAV
+            if "webdav_enabled" in data:
+                config.data["webdav"]["enabled"] = bool(data["webdav_enabled"])
+            if "webdav_url" in data:
+                config.data["webdav"]["url"] = data["webdav_url"]
+            if "webdav_username" in data:
+                config.data["webdav"]["username"] = data["webdav_username"]
+            if "webdav_password" in data and data["webdav_password"]:
+                config.data["webdav"]["password"] = data["webdav_password"]
 
             # AI
             if "ai_enabled" in data:
@@ -993,6 +1019,23 @@ def create_backup():
     result = backup_manager.create_backup()
     if result.get("success"):
         backup_manager.cleanup_old_backups(keep_count=10)
+        return jsonify(result), 200
+    else:
+        return jsonify(result), 500
+
+
+@app.route("/api/backup/upload/<filename>", methods=["POST"])
+@login_required
+def upload_backup(filename):
+    if ".." in filename or "/" in filename or "\\" in filename:
+        return jsonify({"error": "Ungültiger Dateiname"}), 400
+
+    backup_path = Path(BACKUP_DIR) / filename
+    if not backup_path.exists():
+        return jsonify({"error": "Backup nicht gefunden"}), 404
+
+    result = backup_manager.upload_to_webdav(str(backup_path))
+    if result.get("success"):
         return jsonify(result), 200
     else:
         return jsonify(result), 500

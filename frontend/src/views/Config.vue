@@ -261,6 +261,41 @@
                                      </div>
                                      <small class="text-gray-400">Höherer Wert = Weniger Alarme (nur extreme Abweichungen).</small>
                                  </div>
+
+                                 <div class="bg-gray-800 p-4 rounded border border-gray-700 mt-4">
+                                     <h4 class="font-bold text-lg mb-2 flex items-center gap-2">
+                                         <i class="pi pi-chart-bar"></i> Modell Status
+                                     </h4>
+                                     <div v-if="aiStatus" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                         <div class="flex justify-between border-b border-gray-700 py-2">
+                                             <span class="text-gray-400">Aktives Modell:</span>
+                                             <span class="font-mono">{{ aiStatus.model_type || 'Unbekannt' }}</span>
+                                         </div>
+                                         <div class="flex justify-between border-b border-gray-700 py-2">
+                                             <span class="text-gray-400">Überwachte Sensoren:</span>
+                                             <span class="font-mono">{{ aiStatus.sensors_monitored || 0 }}</span>
+                                         </div>
+                                         <div class="flex justify-between border-b border-gray-700 py-2">
+                                             <span class="text-gray-400">Datenpunkte gesamt:</span>
+                                             <span class="font-mono">{{ aiStatus.data_points_total || 0 }}</span>
+                                         </div>
+                                         <div v-if="aiStatus.model_type === 'IsolationForest'" class="flex justify-between border-b border-gray-700 py-2">
+                                             <span class="text-gray-400">Trainierte Modelle:</span>
+                                             <span class="font-mono">{{ aiStatus.models_trained || 0 }}</span>
+                                         </div>
+                                         <div v-if="aiStatus.model_type === 'IsolationForest'" class="flex justify-between border-b border-gray-700 py-2">
+                                             <span class="text-gray-400">Letztes Training:</span>
+                                             <span class="font-mono">{{ aiStatus.last_train_relative || 'Nie' }}</span>
+                                         </div>
+                                          <div v-if="aiStatus.model_type === 'IsolationForest'" class="flex justify-between border-b border-gray-700 py-2">
+                                             <span class="text-gray-400">Anzahl Trainings:</span>
+                                             <span class="font-mono">{{ aiStatus.training_count || 0 }}</span>
+                                         </div>
+                                     </div>
+                                     <div v-else class="text-center py-4 text-gray-500">
+                                         <i class="pi pi-spin pi-spinner mr-2"></i> Lade Status...
+                                     </div>
+                                 </div>
                              </div>
                         </Fieldset>
                      </div>
@@ -352,8 +387,30 @@
                                 <div v-for="backup in backups" :key="backup.filename" class="flex justify-between items-center p-2 hover:bg-gray-700 rounded text-sm border-b border-gray-700 last:border-0">
                                     <span class="truncate">{{ backup.filename }}</span>
                                     <div class="flex gap-1">
+                                        <Button icon="pi pi-cloud-upload" text size="small" @click="uploadToCloud(backup.filename)" title="Upload to WebDAV" />
                                         <Button icon="pi pi-download" text size="small" @click="downloadBackup(backup.filename)" />
                                         <Button icon="pi pi-trash" text severity="danger" size="small" @click="confirmDeleteBackup(backup.filename)" />
+                                    </div>
+                                </div>
+                             </div>
+
+                             <div class="border-t border-gray-700 pt-3 mt-2">
+                                 <div class="flex items-center gap-2 mb-2">
+                                    <Checkbox v-model="config.webdav.enabled" binary inputId="webdav_enabled" />
+                                    <label for="webdav_enabled" class="font-bold cursor-pointer">Cloud Backup (WebDAV/Nextcloud)</label>
+                                </div>
+                                <div v-if="config.webdav.enabled" class="flex flex-col gap-2">
+                                    <div class="flex flex-col gap-1">
+                                        <label class="text-xs">URL</label>
+                                        <InputText v-model="config.webdav.url" placeholder="https://cloud.example.com/remote.php/dav/files/user/" class="p-inputtext-sm w-full" />
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="text-xs">Benutzername</label>
+                                        <InputText v-model="config.webdav.username" class="p-inputtext-sm w-full" />
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label class="text-xs">Passwort</label>
+                                        <InputText v-model="webdavPassword" type="password" class="p-inputtext-sm w-full" />
                                     </div>
                                 </div>
                              </div>
@@ -405,7 +462,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import Fieldset from 'primevue/fieldset';
 import InputText from 'primevue/inputtext';
@@ -435,6 +492,7 @@ const config = ref({
     telegram: { enabled: false, bot_token: '', chat_ids: [] },
     discord: { enabled: false, webhook_url: '' },
     email: { enabled: false, smtp_server: '', smtp_port: 587, username: '', sender: '', recipients: [] },
+    webdav: { enabled: false, url: '', username: '' },
     ai: { enabled: false, sensitivity: 3.0, model: 'rolling' },
     updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all' }
 });
@@ -445,6 +503,7 @@ const aiModelOptions = ref([
 const newPassword = ref('');
 const mqttPassword = ref('');
 const emailPassword = ref('');
+const webdavPassword = ref('');
 const whitelistText = ref('');
 const blacklistText = ref('');
 const signalRecipientsText = ref('');
@@ -452,12 +511,19 @@ const telegramChatIdsText = ref('');
 const emailRecipientsText = ref('');
 const updateStatus = ref({});
 const signalStatus = ref({});
+const aiStatus = ref(null);
 const statusLoading = ref(false);
 const currentClientIP = ref('');
 const loading = ref(true);
 const saving = ref(false);
 const toast = useToast();
 const confirm = useConfirm();
+
+let aiStatusInterval = null;
+
+onUnmounted(() => {
+    if (aiStatusInterval) clearInterval(aiStatusInterval);
+});
 
 // Backup & Restore state
 const backups = ref([]);
@@ -505,6 +571,10 @@ onMounted(async () => {
         // Load backups
         loadBackups();
         loadStatus();
+        loadAiStatus();
+
+        // Refresh AI status periodically
+        aiStatusInterval = setInterval(loadAiStatus, 10000);
     } catch (e) {
         toast.add({ severity: 'error', summary: 'Fehler', detail: 'Konfiguration konnte nicht geladen werden', life: 3000 });
     } finally {
@@ -538,6 +608,15 @@ const loadStatus = async () => {
         toast.add({ severity: 'error', summary: 'Fehler', detail: 'Status konnte nicht geladen werden', life: 3000 });
     } finally {
         statusLoading.value = false;
+    }
+};
+
+const loadAiStatus = async () => {
+    try {
+        const res = await axios.get('/api/ai/status');
+        aiStatus.value = res.data;
+    } catch (e) {
+        console.error("Failed to load AI status", e);
     }
 };
 
@@ -583,6 +662,10 @@ const saveConfig = async () => {
             email_password: emailPassword.value || undefined,
             email_sender: config.value.email?.sender || '',
             email_recipients: emailRecipientsText.value,
+            webdav_enabled: config.value.webdav?.enabled || false,
+            webdav_url: config.value.webdav?.url || '',
+            webdav_username: config.value.webdav?.username || '',
+            webdav_password: webdavPassword.value || undefined,
             ai_enabled: config.value.ai?.enabled || false,
             ai_sensitivity: config.value.ai?.sensitivity || 3.0,
             ai_model: config.value.ai?.model || 'rolling',
@@ -596,6 +679,7 @@ const saveConfig = async () => {
         toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message || 'Einstellungen erfolgreich gespeichert', life: 3000 });
         newPassword.value = '';
         mqttPassword.value = '';
+        webdavPassword.value = '';
     } catch (e) {
         toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || e.message, life: 5000 });
     } finally {
@@ -664,6 +748,20 @@ const downloadBackup = async (filename) => {
         toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Backup heruntergeladen', life: 2000 });
     } catch (e) {
         toast.add({ severity: 'error', summary: 'Fehler', detail: 'Backup Download fehlgeschlagen', life: 3000 });
+    }
+};
+
+const uploadToCloud = async (filename) => {
+    try {
+        toast.add({ severity: 'info', summary: 'Info', detail: 'Upload gestartet...', life: 2000 });
+        const res = await axios.post(`/api/backup/upload/${filename}`);
+        if (res.data.success) {
+             toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Backup erfolgreich hochgeladen', life: 3000 });
+        } else {
+             toast.add({ severity: 'error', summary: 'Fehler', detail: res.data.error, life: 5000 });
+        }
+    } catch (e) {
+        toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || 'Upload fehlgeschlagen', life: 5000 });
     }
 };
 

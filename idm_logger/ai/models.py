@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import collections
 import logging
+import time
 import numpy as np
 from typing import Dict, Any
 try:
@@ -46,6 +47,14 @@ class RollingWindowStats(BaseAnomalyModel):
         # We cache stats to avoid recomputing mean/std on every read if needed,
         # but for accuracy on every step, we recompute or use Welford's if we wanted pure streaming.
         # With deque and numpy, recomputing on window is fast enough for 2000 points.
+
+    def get_stats(self) -> Dict[str, Any]:
+        return {
+            "model_type": "RollingWindow",
+            "sensors_monitored": len(self.history),
+            "data_points_total": sum(len(h) for h in self.history.values()),
+            "window_size": self.window_size
+        }
 
     def update(self, data: Dict[str, float]):
         for sensor, value in data.items():
@@ -108,6 +117,7 @@ class IsolationForestModel(BaseAnomalyModel):
         self.models: Dict[str, Any] = {} # sensor -> trained model
         self.last_train_time = 0
         self.needs_retraining = False
+        self.training_count = 0
 
     def update(self, data: Dict[str, float]):
         for sensor, value in data.items():
@@ -128,9 +138,14 @@ class IsolationForestModel(BaseAnomalyModel):
         if len(data) < 50: # Need reasonable amount of data
             return
 
+        logger.info(f"Training Isolation Forest for sensor '{sensor}' with {len(data)} points...")
+        self.last_train_time = time.time()
+
         clf = IsolationForest(contamination=0.01, random_state=42)
         clf.fit(data)
         self.models[sensor] = clf
+        self.training_count += 1
+        logger.info(f"Training complete for {sensor}.")
 
     def detect(self, data: Dict[str, float], sensitivity: float) -> Dict[str, Any]:
         """
@@ -193,3 +208,16 @@ class IsolationForestModel(BaseAnomalyModel):
         for k, v in state.items():
             self.history[k] = collections.deque(v, maxlen=self.buffer_size)
         # Models will be retrained on first detect
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Return statistics about the model."""
+        stats = {
+            "model_type": "IsolationForest",
+            "sensors_monitored": len(self.history),
+            "models_trained": len(self.models),
+            "data_points_total": sum(len(h) for h in self.history.values()),
+            "last_train_time": self.last_train_time,
+            "last_train_relative": f"{int(time.time() - self.last_train_time)}s ago" if self.last_train_time > 0 else "never",
+            "training_count": self.training_count
+        }
+        return stats

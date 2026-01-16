@@ -195,6 +195,20 @@ class Config:
                 if x.strip()
             ]
 
+        # WebDAV settings
+        if os.environ.get("WEBDAV_ENABLED"):
+            self.data["webdav"]["enabled"] = os.environ["WEBDAV_ENABLED"].lower() in (
+                "true",
+                "1",
+                "yes",
+            )
+        if os.environ.get("WEBDAV_URL"):
+            self.data["webdav"]["url"] = os.environ["WEBDAV_URL"]
+        if os.environ.get("WEBDAV_USERNAME"):
+            self.data["webdav"]["username"] = os.environ["WEBDAV_USERNAME"]
+        if os.environ.get("WEBDAV_PASSWORD"):
+            self.data["webdav"]["password"] = os.environ["WEBDAV_PASSWORD"]
+
         # AI settings from environment
         if os.environ.get("AI_ENABLED"):
             self.data["ai"]["enabled"] = os.environ["AI_ENABLED"].lower() in (
@@ -285,6 +299,12 @@ class Config:
                 "sender": "",
                 "recipients": [],
             },
+            "webdav": {
+                "enabled": False,
+                "url": "",
+                "username": "",
+                "password": "",
+            },
             "ai": {"enabled": False, "sensitivity": 3.0},
             "updates": {
                 "enabled": False,
@@ -316,6 +336,10 @@ class Config:
                     data["email"]["password"] = self._decrypt(
                         data["email"].get("encrypted_password", "")
                     )
+                if "webdav" in data:
+                    data["webdav"]["password"] = self._decrypt(
+                        data["webdav"].get("encrypted_password", "")
+                    )
 
                 # Merge loaded data into defaults
                 return self._merge_dicts(defaults, data)
@@ -342,6 +366,13 @@ class Config:
             )
             if "password" in to_save["email"]:
                 del to_save["email"]["password"]
+
+        if "webdav" in to_save:
+            to_save["webdav"]["encrypted_password"] = self._encrypt(
+                to_save["webdav"].get("password", "")
+            )
+            if "password" in to_save["webdav"]:
+                del to_save["webdav"]["password"]
 
         db.set_setting("config", json.dumps(to_save))
 
