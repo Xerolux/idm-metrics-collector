@@ -1,4 +1,4 @@
+typing_extensions>=4.12.0
 requests
 river
 schedule
-typing_extensions
