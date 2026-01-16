@@ -38,15 +38,42 @@ def _parse_version(version: str) -> Any:
     if not version:
         return None
     cleaned = version.lstrip("v")
-    parts = cleaned.split(".")
-    if len(parts) < 2:
-        return None
+    # Handle version suffixes like .at<hash> by splitting them off
+    # We only care about the major.minor.patch part for numerical comparison
+    base_part = cleaned
+
+    # If the version has more than 3 parts (major.minor.patch.suffix), keep only first 3
+    # Or if one of the parts is not an integer, stop parsing there
+
+    parts = base_part.split(".")
+
     try:
         major = int(parts[0])
-        minor = int(parts[1])
-        patch = int(parts[2]) if len(parts) > 2 else 0
+        minor = int(parts[1]) if len(parts) > 1 else 0
+
+        # Handle patch version: check if it's an integer, otherwise treat as 0 or parse until non-digit
+        patch = 0
+        if len(parts) > 2:
+            patch_str = parts[2]
+            # If patch contains non-digits (like 'at073geu'), try to extract leading digits
+            # But usually '0.6.at...' means patch is effectively 0 or the 'at' is the patch?
+            # Assuming 'v0.6.at...' means Major 0, Minor 6, Patch 0 (or unknown) + Metadata
+            # If the user follows v0.6.1.at... then patch is 1.
+            # If the user uses v0.6.at... then parts[2] is 'at...' which is not an int.
+
+            if patch_str.isdigit():
+                patch = int(patch_str)
+            else:
+                # Try to extract leading digits if any, otherwise 0
+                import re
+                match = re.match(r'^(\d+)', patch_str)
+                if match:
+                    patch = int(match.group(1))
+                else:
+                    patch = 0
+
         return major, minor, patch
-    except ValueError:
+    except (ValueError, IndexError):
         return None
 
 

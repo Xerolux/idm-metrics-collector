@@ -83,6 +83,11 @@ const items = computed(() => [
         label: t('about'),
         icon: 'pi pi-info-circle',
         command: () => router.push('/about')
+    },
+    {
+        label: ui.editMode ? 'Bearbeiten beenden' : 'Bearbeiten',
+        icon: ui.editMode ? 'pi pi-lock-open' : 'pi pi-lock',
+        command: () => ui.toggleEditMode()
     }
 ]);
 
