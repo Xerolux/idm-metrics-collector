@@ -1420,13 +1420,13 @@
     "list": []
   },
   "time": {
-    "from": "now-7d",
+    "from": "now-1M",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "IDM Waermepumpe - 7 Tage (VictoriaMetrics)",
-  "uid": "idm-heatpump-7d-vm",
+  "title": "IDM Waermepumpe - 1 Monat (VictoriaMetrics)",
+  "uid": "idm-heatpump-1M-vm",
   "version": 1,
   "weekStart": "monday"
 }

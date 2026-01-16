@@ -12,6 +12,9 @@ GITHUB_RELEASES_API = (
     "https://api.github.com/repos/Xerolux/idm-metrics-collector/releases/latest"
 )
 
+# If configured channel is 'dev', we check against main branch via git
+# If 'release', we check against GitHub Releases API
+
 
 def get_current_version() -> str:
     try:
@@ -101,15 +104,48 @@ def is_update_allowed(update_type: str, target: str) -> bool:
 
 def check_for_update() -> Dict[str, Any]:
     current_version = get_current_version()
-    response = requests.get(GITHUB_RELEASES_API, timeout=10)
-    response.raise_for_status()
-    latest_release = response.json()
-    latest_version = latest_release.get("tag_name", "")
-    release_date = latest_release.get("published_at", "")
-    release_notes = latest_release.get("body", "")[:200]
-    update_available = (
-        latest_version != current_version and latest_version > current_version
-    )
+    channel = config.get("updates.channel", "dev")
+
+    latest_version = ""
+    release_date = ""
+    release_notes = ""
+    update_available = False
+
+    try:
+        if channel == "release":
+            response = requests.get(GITHUB_RELEASES_API, timeout=10)
+            response.raise_for_status()
+            latest_release = response.json()
+            latest_version = latest_release.get("tag_name", "")
+            release_date = latest_release.get("published_at", "")
+            release_notes = latest_release.get("body", "")[:200]
+            # Simple string comparison for now, assuming v0.6.1 > v0.6.0
+            update_available = (latest_version != current_version and latest_version > current_version)
+
+        else: # dev
+            # For dev, we check if local is behind origin/main
+            # This requires git fetch first
+            try:
+                subprocess.run(["git", "fetch", "origin", "main"], timeout=10, cwd="/app", capture_output=True)
+                # Get hash of HEAD
+                head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd="/app", text=True).strip()
+                # Get hash of origin/main
+                remote = subprocess.check_output(["git", "rev-parse", "origin/main"], cwd="/app", text=True).strip()
+
+                latest_version = f"dev-{remote[:7]}"
+                if head != remote:
+                    update_available = True
+                    release_notes = "Neue Entwickler-Version verfügbar"
+                else:
+                    release_notes = "System ist auf dem neuesten Stand (Dev)"
+            except Exception as e:
+                logger.warning(f"Git check failed: {e}")
+                latest_version = "unknown"
+
+    except Exception as e:
+        logger.error(f"Update check failed: {e}")
+        return {"error": str(e)}
+
     update_type = (
         get_update_type(current_version, latest_version) if update_available else "none"
     )
@@ -133,17 +169,38 @@ def perform_update(repo_path: str = "/opt/idm-metrics-collector") -> None:
         )
         raise RuntimeError("Update fehlgeschlagen: Keine Git-Installation gefunden.")
 
-    logger.info("Pulling latest changes from git...")
-    result = subprocess.run(
-        ["git", "pull", "origin", "main"],
-        capture_output=True,
-        text=True,
-        timeout=60,
-        cwd=repo_path,
-    )
+    channel = config.get("updates.channel", "dev")
+    logger.info(f"Performing update (Channel: {channel})...")
 
-    if result.returncode != 0:
-        raise RuntimeError(f"Git pull failed: {result.stderr}")
+    if channel == "release":
+        # Get latest tag
+        try:
+             response = requests.get(GITHUB_RELEASES_API, timeout=10)
+             response.raise_for_status()
+             tag = response.json().get("tag_name")
+             if not tag:
+                 raise RuntimeError("Kein Release-Tag gefunden")
+
+             logger.info(f"Fetching tags and checking out {tag}...")
+             subprocess.run(["git", "fetch", "--tags"], check=True, cwd=repo_path)
+             subprocess.run(["git", "checkout", tag], check=True, cwd=repo_path)
+        except Exception as e:
+            raise RuntimeError(f"Release update failed: {e}")
+
+    else: # dev
+        logger.info("Pulling latest changes from git (main)...")
+        # Ensure we are on main
+        subprocess.run(["git", "checkout", "main"], check=False, cwd=repo_path)
+        result = subprocess.run(
+            ["git", "pull", "origin", "main"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=repo_path,
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(f"Git pull failed: {result.stderr}")
 
     logger.info("Restarting Docker Compose stack...")
     compose_cmd = ["docker", "compose"]

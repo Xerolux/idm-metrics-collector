@@ -18,6 +18,7 @@ from .update_manager import (
 )
 from .alerts import alert_manager
 from .signal_notifications import send_signal_message
+from .backup import backup_manager
 
 # Get logger instance (configure in main())
 logger = logging.getLogger("idm_logger")
@@ -115,6 +116,43 @@ def main():
 
     update_thread = threading.Thread(target=update_worker, daemon=True)
     update_thread.start()
+
+    def backup_worker():
+        last_backup_check = 0
+        while not stop_event.is_set():
+            now = time.time()
+            # Check every hour if backup is due
+            if now - last_backup_check > 3600:
+                last_backup_check = now
+                if config.get("backup.enabled", False):
+                    try:
+                        interval_hours = int(config.get("backup.interval", 24))
+                        # Find last backup time
+                        backups = backup_manager.list_backups()
+                        should_run = True
+                        if backups:
+                            last_backup = backups[0] # Sorted by date desc
+                            # Parse ISO format from filename or metadata? list_backups returns sorted dicts
+                            # last_backup['created_at'] is isoformat
+                            from datetime import datetime
+                            last_date = datetime.fromisoformat(last_backup['created_at'])
+                            # Convert to timestamp
+                            last_ts = last_date.timestamp()
+
+                            if (now - last_ts) < (interval_hours * 3600):
+                                should_run = False
+
+                        if should_run:
+                            logger.info("Starting scheduled backup...")
+                            backup_manager.create_backup()
+                            # create_backup handles cleanup and auto-upload internally based on config
+                    except Exception as e:
+                        logger.error(f"Backup scheduler error: {e}")
+
+            stop_event.wait(60)
+
+    backup_thread = threading.Thread(target=backup_worker, daemon=True)
+    backup_thread.start()
 
     # Now initialize the backend components
     try:
