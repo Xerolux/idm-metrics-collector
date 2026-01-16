@@ -14,7 +14,7 @@ import Button from 'primevue/button';
                     </div>
                 </template>
                 <template #subtitle>
-                    Open Source Logger für IDM Wärmepumpen
+                    Open Source Logger für IDM Wärmepumpen mit AI-Unterstützung
                 </template>
                 <template #content>
                     <div class="space-y-6">
@@ -23,8 +23,18 @@ import Button from 'primevue/button';
                         <div>
                             <p class="text-gray-700 dark:text-gray-300 mb-4">
                                 Ein umfassendes Tool zum Protokollieren, Visualisieren und Steuern von IDM-Wärmepumpen über Modbus TCP.
-                                Gebaut mit modernen Webtechnologien für optimale Leistung auf allen Geräten.
+                                Jetzt neu mit integrierter KI-Anomalieerkennung zur frühzeitigen Identifikation von Unregelmäßigkeiten.
                             </p>
+
+                            <h3 class="text-lg font-semibold mb-2">Hauptfunktionen</h3>
+                            <ul class="list-disc list-inside text-gray-700 dark:text-gray-300 mb-4 space-y-1">
+                                <li>Detailliertes Logging & Visualisierung (VictoriaMetrics + Grafana)</li>
+                                <li>Intelligente Steuerung via Modbus TCP</li>
+                                <li>AI Anomalie-Erkennung (Echtzeit-Überwachung mit River)</li>
+                                <li>Techniker-Tools (Code Generator)</li>
+                                <li>Benachrichtigungssystem (Signal Messenger)</li>
+                            </ul>
+
                             <div class="flex flex-wrap gap-2">
                                 <a href="https://github.com/Xerolux/idm-metrics-collector" target="_blank" rel="noopener">
                                     <Button label="GitHub Repository" icon="pi pi-github" severity="secondary" />
@@ -47,6 +57,8 @@ import Button from 'primevue/button';
                                 <span class="px-3 py-1 bg-cyan-100 text-cyan-800 rounded-full text-sm font-medium">Tailwind CSS</span>
                                 <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">Flask</span>
                                 <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">VictoriaMetrics</span>
+                                <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">River (Online ML)</span>
+                                <span class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium">Docker</span>
                             </div>
                         </div>
 
