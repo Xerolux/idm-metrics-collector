@@ -1,19 +1,93 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 
-const isOnline = ref(navigator.onLine);
+const isBrowserOnline = ref(navigator.onLine);
+const isBackendOnline = ref(false);
 const showOfflineBanner = ref(!navigator.onLine);
 
-// Listen for online/offline events
-window.addEventListener('online', () => {
-  isOnline.value = true;
-  showOfflineBanner.value = false;
-});
+// Check backend connectivity
+const checkBackendHealth = async () => {
+  try {
+    const response = await fetch('/api/health', { 
+      method: 'GET',
+      cache: 'no-cache',
+      timeout: 5000
+    });
+    isBackendOnline.value = response.ok;
+  } catch (error) {
+    isBackendOnline.value = false;
+  }
+};
 
-window.addEventListener('offline', () => {
+// Combined online status
+const isOnline = ref(isBrowserOnline.value && isBackendOnline.value);
+
+// Listen for browser online/offline events
+const handleBrowserOnline = () => {
+  isBrowserOnline.value = true;
+  checkBackendHealth();
+};
+
+const handleBrowserOffline = () => {
+  isBrowserOnline.value = false;
   isOnline.value = false;
   showOfflineBanner.value = true;
+};
+
+// Update combined status
+const updateOnlineStatus = () => {
+  const wasOnline = isOnline.value;
+  isOnline.value = isBrowserOnline.value && isBackendOnline.value;
+  
+  // Show offline banner if we went offline
+  if (wasOnline && !isOnline.value) {
+    showOfflineBanner.value = true;
+  } else if (!wasOnline && isOnline.value) {
+    showOfflineBanner.value = false;
+  }
+};
+
+window.addEventListener('online', handleBrowserOnline);
+window.addEventListener('offline', handleBrowserOffline);
+
+// Check backend status periodically
+let healthCheckInterval;
+onMounted(() => {
+  checkBackendHealth();
+  healthCheckInterval = setInterval(checkBackendHealth, 30000); // Check every 30 seconds
 });
+
+onUnmounted(() => {
+  clearInterval(healthCheckInterval);
+  window.removeEventListener('online', handleBrowserOnline);
+  window.removeEventListener('offline', handleBrowserOffline);
+});
+
+// Watch for backend status changes and update status
+const updateOnlineStatus = () => {
+  const wasOnline = isOnline.value;
+  isOnline.value = isBrowserOnline.value && isBackendOnline.value;
+  
+  // Show offline banner if we went offline
+  if (wasOnline && !isOnline.value) {
+    showOfflineBanner.value = true;
+  } else if (!wasOnline && isOnline.value) {
+    showOfflineBanner.value = false;
+  }
+};
+
+// Get status text for tooltip
+const getStatusText = () => {
+  if (!isBrowserOnline.value) return 'Browser Offline';
+  if (!isBackendOnline.value) return 'Backend Offline';
+  return 'Online';
+};
+
+// Update status when backend changes
+const unwatchBackend = [isBackendOnline];
+setInterval(() => {
+  updateOnlineStatus();
+}, 1000);
 </script>
 
 <template>
@@ -25,7 +99,9 @@ window.addEventListener('offline', () => {
     >
       <div class="container mx-auto flex items-center gap-2">
         <i class="pi pi-wifi-slash"></i>
-        <span class="text-sm font-medium">Offline - Einige Funktionen sind möglicherweise nicht verfügbar</span>
+        <span class="text-sm font-medium">
+          {{ !isBrowserOnline ? 'Browser Offline - Keine Internetverbindung' : 'Backend Offline - Server nicht erreichbar' }}
+        </span>
       </div>
     </div>
   </Transition>
@@ -35,9 +111,9 @@ window.addEventListener('offline', () => {
     <div 
       :class="[
         'w-3 h-3 rounded-full border-2 border-gray-700',
-        isOnline ? 'bg-success-500' : 'bg-error-500'
+        isOnline ? 'bg-success-500' : isBrowserOnline ? 'bg-warning-500' : 'bg-error-500'
       ]"
-      :title="isOnline ? 'Online' : 'Offline'"
+      :title="getStatusText()"
     ></div>
   </div>
 </template>
