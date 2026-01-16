@@ -146,7 +146,7 @@ onUnmounted(() => {
                         @click="ui.toggleEditMode"
                     />
                     <Button icon="pi pi-power-off" severity="danger" text @click="logout" class="p-1 sm:p-2">
-                        <span class="hidden 2xl:inline ml-2">{{ t('logout') }}</span>
+                        <span class="hidden xl:inline ml-2 whitespace-nowrap">{{ t('logout') }}</span>
                     </Button>
                 </div>
             </template>

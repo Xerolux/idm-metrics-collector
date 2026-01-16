@@ -647,6 +647,38 @@ def config_page():
                         {"error": "Update-Ziel muss all, major, minor oder patch sein"}
                     ), 400
                 config.data["updates"]["target"] = data["updates_target"]
+            if "updates_channel" in data:
+                if data["updates_channel"] not in ["dev", "release"]:
+                    return jsonify({"error": "Update-Kanal muss dev oder release sein"}), 400
+                config.data["updates"]["channel"] = data["updates_channel"]
+
+            # Backup
+            if "backup_enabled" in data:
+                if "backup" not in config.data: config.data["backup"] = {}
+                config.data["backup"]["enabled"] = bool(data["backup_enabled"])
+            if "backup_interval" in data:
+                if "backup" not in config.data: config.data["backup"] = {}
+                try:
+                    interval = int(data["backup_interval"])
+                    if 1 <= interval <= 168:
+                        config.data["backup"]["interval"] = interval
+                    else:
+                        return jsonify({"error": "Backup Intervall ungültig"}), 400
+                except ValueError:
+                    return jsonify({"error": "Backup Intervall ungültig"}), 400
+            if "backup_retention" in data:
+                if "backup" not in config.data: config.data["backup"] = {}
+                try:
+                    ret = int(data["backup_retention"])
+                    if 1 <= ret <= 50:
+                        config.data["backup"]["retention"] = ret
+                    else:
+                        return jsonify({"error": "Backup Anzahl ungültig"}), 400
+                except ValueError:
+                     return jsonify({"error": "Backup Anzahl ungültig"}), 400
+            if "backup_auto_upload" in data:
+                if "backup" not in config.data: config.data["backup"] = {}
+                config.data["backup"]["auto_upload"] = bool(data["backup_auto_upload"])
 
             # Network Security
             if "network_security_enabled" in data:

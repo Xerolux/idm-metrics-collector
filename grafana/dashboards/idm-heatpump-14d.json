@@ -1420,12 +1420,12 @@
     "list": []
   },
   "time": {
-    "from": "now-24h",
+    "from": "now-14d",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "IDM Waermepumpe - 24 Stunden (VictoriaMetrics)",
+  "title": "IDM Waermepumpe - 14 Tage (VictoriaMetrics)",
   "uid": "idm-heatpump-14d-vm",
   "version": 1,
   "weekStart": "monday"

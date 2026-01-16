@@ -297,8 +297,8 @@
                          <Fieldset legend="Webzugriff" :toggleable="true">
                             <div class="flex flex-col gap-4">
                                 <div class="flex flex-col gap-2">
-                                    <label>Admin Passwort ändern</label>
-                                    <InputText v-model="newPassword" type="password" placeholder="Neues Passwort eingeben..." class="w-full md:w-1/2" />
+                                    <label>Admin Passwort</label>
+                                    <Button label="Passwort ändern" icon="pi pi-key" severity="secondary" outlined class="w-full md:w-auto self-start" @click="showPasswordDialog = true" />
                                 </div>
                                 <div class="flex items-center gap-2 mt-2">
                                     <Checkbox v-model="config.web.write_enabled" binary inputId="write_access" />
@@ -356,9 +356,19 @@
                                      <div class="font-mono text-green-400">{{ updateStatus.latest_version || 'Checking...' }}</div>
                                  </div>
                              </div>
-                             <div class="flex items-center gap-2 mt-2">
-                                 <Checkbox v-model="config.updates.enabled" binary inputId="auto_updates" />
-                                 <label for="auto_updates">Auto-Updates aktivieren</label>
+
+                             <div class="flex flex-col gap-2 mt-2 border-t border-gray-700 pt-2">
+                                 <label class="text-sm font-bold">Update Kanal</label>
+                                 <div class="flex gap-2">
+                                    <SelectButton v-model="config.updates.channel" :options="['dev', 'release']" :allowEmpty="false" class="w-full" />
+                                 </div>
+                                 <div class="flex justify-between items-center mt-1">
+                                    <div class="flex items-center gap-2">
+                                        <Checkbox v-model="config.updates.enabled" binary inputId="auto_updates" />
+                                        <label for="auto_updates" class="text-sm">Auto-Updates</label>
+                                    </div>
+                                    <Button label="Suche Updates" icon="pi pi-search" size="small" @click="checkUpdates" :loading="checkingUpdates" />
+                                 </div>
                              </div>
                         </div>
 
@@ -367,6 +377,29 @@
                              <h3 class="font-bold text-lg flex items-center gap-2">
                                 <i class="pi pi-database"></i> Backup
                             </h3>
+                            <div class="flex flex-col gap-2 mb-2">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                         <Checkbox v-model="config.backup.enabled" binary inputId="auto_backup" />
+                                         <label for="auto_backup" class="font-bold text-sm">Automatisches Backup</label>
+                                    </div>
+                                </div>
+                                <div v-if="config.backup.enabled" class="grid grid-cols-2 gap-2 text-sm bg-gray-900/30 p-2 rounded">
+                                     <div class="flex flex-col">
+                                         <label class="text-xs text-gray-400">Intervall (Std)</label>
+                                         <InputNumber v-model="config.backup.interval" :min="1" :max="168" class="p-inputtext-sm" />
+                                     </div>
+                                     <div class="flex flex-col">
+                                         <label class="text-xs text-gray-400">Behalten (Anzahl)</label>
+                                         <InputNumber v-model="config.backup.retention" :min="1" :max="50" class="p-inputtext-sm" />
+                                     </div>
+                                      <div class="col-span-2 flex items-center gap-2 mt-1">
+                                         <Checkbox v-model="config.backup.auto_upload" binary inputId="backup_upload" :disabled="!config.webdav.enabled" />
+                                         <label for="backup_upload" class="text-xs" :class="{'opacity-50': !config.webdav.enabled}">Automatisch in Cloud hochladen</label>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="flex gap-2">
                                 <Button label="Backup erstellen" icon="pi pi-download" size="small" @click="createBackup" :loading="creatingBackup" />
                                 <Button label="Backup hochladen" icon="pi pi-upload" size="small" severity="secondary" @click="$refs.fileInput.click()" />
@@ -428,6 +461,24 @@
         </div>
 
         <!-- Dialogs -->
+        <Dialog v-model:visible="showPasswordDialog" modal header="Passwort ändern" :style="{ width: '400px' }">
+            <div class="flex flex-col gap-4">
+                <div class="flex flex-col gap-2">
+                    <label>Neues Passwort</label>
+                    <InputText v-model="newPassword" type="password" class="w-full" />
+                </div>
+                 <div class="flex flex-col gap-2">
+                    <label>Bestätigen</label>
+                    <InputText v-model="confirmPassword" type="password" class="w-full" :class="{'p-invalid': passwordMismatch}" />
+                    <small v-if="passwordMismatch" class="text-red-500">Passwörter stimmen nicht überein</small>
+                </div>
+            </div>
+             <template #footer>
+                <Button label="Abbrechen" text @click="showPasswordDialog = false" />
+                <Button label="Speichern" @click="savePassword" :disabled="!newPassword || !confirmPassword || passwordMismatch" />
+            </template>
+        </Dialog>
+
         <Dialog v-model:visible="showDeleteDialog" modal header="Datenbank löschen" :style="{ width: '450px' }">
             <div class="flex flex-col gap-4">
                 <div class="flex items-start gap-3">
@@ -485,13 +536,16 @@ const config = ref({
     email: { enabled: false, smtp_server: '', smtp_port: 587, username: '', sender: '', recipients: [] },
     webdav: { enabled: false, url: '', username: '' },
     ai: { enabled: false, sensitivity: 3.0, model: 'rolling' },
-    updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all' }
+    updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all', channel: 'dev' },
+    backup: { enabled: false, interval: 24, retention: 10, auto_upload: false }
 });
 const aiModelOptions = ref([
     { label: 'Statistisch (Rolling Window)', value: 'rolling' },
     { label: 'Isolation Forest (Expert)', value: 'isolation_forest' }
 ]);
+const showPasswordDialog = ref(false);
 const newPassword = ref('');
+const confirmPassword = ref('');
 const mqttPassword = ref('');
 const emailPassword = ref('');
 const webdavPassword = ref('');
@@ -504,6 +558,7 @@ const updateStatus = ref({});
 const signalStatus = ref({});
 const aiStatus = ref(null);
 const statusLoading = ref(false);
+const checkingUpdates = ref(false);
 const currentClientIP = ref('');
 const loading = ref(true);
 const saving = ref(false);
@@ -511,6 +566,10 @@ const toast = useToast();
 const confirm = useConfirm();
 
 let aiStatusInterval = null;
+
+const passwordMismatch = computed(() => {
+    return newPassword.value && confirmPassword.value && newPassword.value !== confirmPassword.value;
+});
 
 onUnmounted(() => {
     if (aiStatusInterval) clearInterval(aiStatusInterval);
@@ -590,16 +649,50 @@ const loadStatus = async () => {
     statusLoading.value = true;
     try {
         const [updateRes, signalRes] = await Promise.all([
-            axios.get('/api/check-update'),
+            axios.get('/api/check-update', { params: { channel: config.value.updates?.channel || 'dev' } }),
             axios.get('/api/signal/status')
         ]);
         updateStatus.value = updateRes.data;
         signalStatus.value = signalRes.data;
     } catch (e) {
-        toast.add({ severity: 'error', summary: 'Fehler', detail: 'Status konnte nicht geladen werden', life: 3000 });
+        // Silent fail for status check
+        console.error("Status load failed", e);
     } finally {
         statusLoading.value = false;
     }
+};
+
+const checkUpdates = async () => {
+    checkingUpdates.value = true;
+    try {
+        const res = await axios.get('/api/check-update', { params: { channel: config.value.updates.channel } });
+        updateStatus.value = res.data;
+        if (res.data.update_available) {
+             toast.add({ severity: 'info', summary: 'Update verfügbar', detail: `Version ${res.data.latest_version} ist verfügbar.`, life: 5000 });
+        } else {
+             toast.add({ severity: 'success', summary: 'System aktuell', detail: 'Keine Updates gefunden.', life: 3000 });
+        }
+    } catch (e) {
+        toast.add({ severity: 'error', summary: 'Fehler', detail: 'Update-Prüfung fehlgeschlagen', life: 3000 });
+    } finally {
+        checkingUpdates.value = false;
+    }
+};
+
+const savePassword = () => {
+    // Password will be saved when main saveConfig is called, or we can save it separately.
+    // Given the architecture, newPassword variable is used in saveConfig.
+    // So we just close the dialog and let the user click "Save" on the main page?
+    // User request implies immediate action "Pop up zum Passwort ändern".
+    // But existing saveConfig handles it. Let's make the dialog just set the variable and then user saves?
+    // OR we trigger save immediately. Let's trigger save immediately for better UX if it's a separate dialog.
+    // Actually, saveConfig handles everything. To avoid confusion, let's call saveConfig here ONLY with password?
+    // The backend endpoint accepts partial updates effectively by merging.
+    // However, saveConfig sends the WHOLE config object.
+    // So we can just set the variable, close dialog, and call saveConfig.
+
+    showPasswordDialog.value = false;
+    saveConfig();
 };
 
 const loadAiStatus = async () => {
@@ -664,11 +757,17 @@ const saveConfig = async () => {
             updates_interval_hours: config.value.updates?.interval_hours || 12,
             updates_mode: config.value.updates?.mode || 'apply',
             updates_target: config.value.updates?.target || 'all',
+            updates_channel: config.value.updates?.channel || 'dev',
+            backup_enabled: config.value.backup?.enabled || false,
+            backup_interval: config.value.backup?.interval || 24,
+            backup_retention: config.value.backup?.retention || 10,
+            backup_auto_upload: config.value.backup?.auto_upload || false,
             new_password: newPassword.value || undefined
         };
         const res = await axios.post('/api/config', payload);
         toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message || 'Einstellungen erfolgreich gespeichert', life: 3000 });
         newPassword.value = '';
+        confirmPassword.value = '';
         mqttPassword.value = '';
         webdavPassword.value = '';
     } catch (e) {

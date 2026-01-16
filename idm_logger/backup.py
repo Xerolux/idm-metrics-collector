@@ -116,7 +116,7 @@ class BackupManager:
 
             # Upload to WebDAV if enabled
             webdav_result = None
-            if config.get("webdav.enabled", False):
+            if config.get("webdav.enabled", False) and config.get("backup.auto_upload", False):
                 logger.info("Auto-uploading backup to WebDAV...")
                 webdav_result = self.upload_to_webdav(str(backup_path))
 
@@ -303,6 +303,9 @@ class BackupManager:
             keep_count: Number of backups to keep
         """
         try:
+            # Refresh config just in case
+            keep_count = int(config.get("backup.retention", keep_count))
+
             backups = sorted(
                 BACKUP_DIR.glob("idm_backup_*.zip"),
                 key=lambda p: p.stat().st_mtime,

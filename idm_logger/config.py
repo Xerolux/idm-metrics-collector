@@ -311,6 +311,13 @@ class Config:
                 "interval_hours": 12,
                 "mode": "apply",
                 "target": "all",
+                "channel": "dev",
+            },
+            "backup": {
+                "enabled": False,
+                "interval": 24,
+                "retention": 10,
+                "auto_upload": False,
             },
             "setup_completed": False,
         }
