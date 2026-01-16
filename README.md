@@ -43,10 +43,15 @@ Ein modernes, docker-basiertes System zur Überwachung, Steuerung und Automatisi
 | ![Dashboard](docs/screenshots/02_dashboard.png) | ![Control](docs/screenshots/03_control.png) |
 | **Alles im Blick** | **Volle Kontrolle** |
 
-| Zeitplaner | Konfiguration |
+| Zeitplaner | Sicherheit |
 | :---: | :---: |
-| ![Schedule](docs/screenshots/04_schedule.png) | ![Config](docs/screenshots/06_config.png) |
-| **Smarte Zeitpläne** | **Einfache Einrichtung** |
+| ![Schedule](docs/screenshots/04_schedule.png) | ![Force Password](docs/screenshots/00_force_password.png) |
+| **Smarte Zeitpläne** | **Erhöhte Sicherheit** |
+
+| Konfiguration |
+| :---: |
+| ![Config](docs/screenshots/06_config.png) |
+| **Einfache Einrichtung** |
 
 ## 🚀 Schnellstart
 

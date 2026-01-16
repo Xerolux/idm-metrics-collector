@@ -298,7 +298,10 @@ def login():
 
 @app.route("/api/auth/check")
 def check_auth():
-    return jsonify({"authenticated": session.get("logged_in", False)})
+    return jsonify({
+        "authenticated": session.get("logged_in", False),
+        "must_change_password": config.is_default_password() if session.get("logged_in") else False
+    })
 
 
 @app.route("/logout")

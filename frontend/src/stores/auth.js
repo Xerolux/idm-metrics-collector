@@ -4,6 +4,7 @@ import axios from 'axios'
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     isAuthenticated: false,
+    mustChangePassword: false,
     isSetup: true
   }),
   actions: {
@@ -11,6 +12,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         const authRes = await axios.get('/api/auth/check')
         this.isAuthenticated = authRes.data.authenticated
+        this.mustChangePassword = authRes.data.must_change_password
         return this.isAuthenticated
       } catch (e) {
         this.isAuthenticated = false

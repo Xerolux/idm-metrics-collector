@@ -414,6 +414,12 @@ class Config:
             return password == "admin"
         return check_password_hash(self.data["web"]["admin_password_hash"], password)
 
+    def is_default_password(self):
+        """Check if the current password is the default one."""
+        if "admin_password_hash" not in self.data["web"]:
+            return True
+        return check_password_hash(self.data["web"]["admin_password_hash"], "admin")
+
     def is_setup(self):
         return self.data.get("setup_completed", False)
 

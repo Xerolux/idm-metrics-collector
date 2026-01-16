@@ -13,6 +13,12 @@ const routes = [
     component: () => import('../views/Setup.vue')
   },
   {
+    path: '/change-password',
+    name: 'ForcePasswordChange',
+    component: () => import('../views/ForcePasswordChange.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/',
     component: () => import('../components/Layout.vue'),
     meta: { requiresAuth: true },
@@ -73,6 +79,11 @@ router.beforeEach(async (to, from, next) => {
      const valid = await auth.checkAuth()
      if (!valid) {
          next('/login')
+         return
+     }
+
+     if (auth.mustChangePassword && to.name !== 'ForcePasswordChange') {
+         next('/change-password')
          return
      }
   }

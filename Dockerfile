@@ -33,6 +33,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     default-jre-headless \
     tar \
     && pip install --no-cache-dir -r requirements.txt \
+    && apt-get install -y --no-install-recommends git \
     && curl -fsSL -o /tmp/signal-cli.tar.gz \
         https://github.com/AsamK/signal-cli/releases/download/v${SIGNAL_CLI_VERSION}/signal-cli-${SIGNAL_CLI_VERSION}.tar.gz \
     && tar -xzf /tmp/signal-cli.tar.gz -C /opt \
