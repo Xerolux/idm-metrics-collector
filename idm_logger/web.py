@@ -322,6 +322,53 @@ def get_data():
         return jsonify(current_data)
 
 
+@app.route("/api/ai/status")
+@login_required
+def get_ai_status():
+    """
+    Get current AI service status from VictoriaMetrics.
+    """
+    try:
+        metrics_url = config.data.get("metrics", {}).get("url", "http://victoriametrics:8428/write")
+        base_url = metrics_url.replace("/write", "")
+        query_url = f"{base_url}/api/v1/query"
+
+        # Query for latest anomaly score
+        # Using `last_over_time` is better if points are sparse, but `query` usually fetches instant vector at "now".
+        # We want the LAST point.
+        # Queries: idm_anomaly_score and idm_anomaly_flag
+        response = requests.get(query_url, params={"query": '{__name__=~"idm_anomaly_score|idm_anomaly_flag"}'}, timeout=5)
+
+        status = {
+            "service": "ml-service (River/HST)",
+            "online": False,
+            "score": 0.0,
+            "is_anomaly": False,
+            "last_update": None
+        }
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success":
+                results = data.get("data", {}).get("result", [])
+                for res in results:
+                    name = res["metric"].get("__name__")
+                    val = res["value"][1] # [timestamp, value]
+                    timestamp = res["value"][0]
+
+                    if name == "idm_anomaly_score":
+                        status["score"] = float(val)
+                        status["last_update"] = timestamp
+                        status["online"] = True
+                    elif name == "idm_anomaly_flag":
+                        status["is_anomaly"] = float(val) > 0.5
+
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"Failed to fetch AI status: {e}")
+        return jsonify({"service": "ml-service", "online": False, "error": str(e)})
+
+
 @app.route("/api/health")
 def health_check():
     """Health check endpoint for Docker/Kubernetes."""

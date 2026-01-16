@@ -237,63 +237,54 @@
                             <template #legend>
                                 <div class="flex items-center gap-2">
                                     <Checkbox v-model="config.ai.enabled" binary />
-                                    <span class="font-bold">KI-Analyse aktivieren</span>
+                                    <span class="font-bold">KI-Analyse Status anzeigen</span>
                                 </div>
                             </template>
                              <div v-if="config.ai.enabled" class="flex flex-col gap-6">
-                                 <div class="flex flex-col gap-2">
-                                     <label class="font-bold">Modell-Typ</label>
-                                     <SelectButton v-model="config.ai.model" :options="aiModelOptions" optionLabel="label" optionValue="value" aria-labelledby="basic" class="w-full md:w-1/2" />
-                                     <small v-if="config.ai.model === 'isolation_forest'" class="text-yellow-400 flex items-center gap-1">
-                                         <i class="pi pi-exclamation-triangle"></i>
-                                         Achtung: "Isolation Forest" benötigt viel RAM/CPU. Nicht für Raspberry Pi Zero/3 empfohlen!
-                                     </small>
-                                     <small v-else class="text-gray-400">
-                                         Standard: Gleitendes Fenster für flexible Anpassung an Jahreszeiten.
-                                     </small>
-                                 </div>
-
-                                 <div class="flex flex-col gap-2">
-                                     <label>Sensitivität (Sigma)</label>
-                                     <div class="flex items-center gap-4">
-                                         <Slider v-model="config.ai.sensitivity" :min="1" :max="10" :step="0.1" class="w-full md:w-1/2" />
-                                         <span class="font-mono">{{ config.ai.sensitivity }} σ</span>
+                                 <div class="bg-blue-900/20 border border-blue-600/50 p-4 rounded flex items-start gap-3">
+                                     <i class="pi pi-info-circle text-blue-400 text-xl mt-1"></i>
+                                     <div class="text-sm text-blue-200">
+                                         Die Anomalieerkennung läuft nun als eigenständiger <strong>ml-service</strong> Container.
+                                         Er nutzt die "HalfSpaceTrees" Methode (via Python <code>river</code>), um kontinuierlich aus dem Datenstrom zu lernen.
                                      </div>
-                                     <small class="text-gray-400">Höherer Wert = Weniger Alarme (nur extreme Abweichungen).</small>
                                  </div>
 
                                  <div class="bg-gray-800 p-4 rounded border border-gray-700 mt-4">
                                      <h4 class="font-bold text-lg mb-2 flex items-center gap-2">
-                                         <i class="pi pi-chart-bar"></i> Modell Status
+                                         <i class="pi pi-chart-line"></i> Service Status
                                      </h4>
                                      <div v-if="aiStatus" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                          <div class="flex justify-between border-b border-gray-700 py-2">
-                                             <span class="text-gray-400">Aktives Modell:</span>
-                                             <span class="font-mono">{{ aiStatus.model_type || 'Unbekannt' }}</span>
+                                             <span class="text-gray-400">Service:</span>
+                                             <span class="font-mono">{{ aiStatus.service || 'Unbekannt' }}</span>
                                          </div>
                                          <div class="flex justify-between border-b border-gray-700 py-2">
-                                             <span class="text-gray-400">Überwachte Sensoren:</span>
-                                             <span class="font-mono">{{ aiStatus.sensors_monitored || 0 }}</span>
+                                             <span class="text-gray-400">Status:</span>
+                                             <span class="font-bold" :class="aiStatus.online ? 'text-green-400' : 'text-red-400'">
+                                                 {{ aiStatus.online ? 'Online' : 'Offline / Keine Daten' }}
+                                             </span>
                                          </div>
                                          <div class="flex justify-between border-b border-gray-700 py-2">
-                                             <span class="text-gray-400">Datenpunkte gesamt:</span>
-                                             <span class="font-mono">{{ aiStatus.data_points_total || 0 }}</span>
+                                             <span class="text-gray-400">Letzter Score:</span>
+                                             <span class="font-mono text-lg">{{ aiStatus.score ? aiStatus.score.toFixed(4) : '0.0000' }}</span>
                                          </div>
-                                         <div v-if="aiStatus.model_type === 'IsolationForest'" class="flex justify-between border-b border-gray-700 py-2">
-                                             <span class="text-gray-400">Trainierte Modelle:</span>
-                                             <span class="font-mono">{{ aiStatus.models_trained || 0 }}</span>
+                                         <div class="flex justify-between border-b border-gray-700 py-2">
+                                             <span class="text-gray-400">Aktuelle Anomalie:</span>
+                                             <span class="font-bold" :class="aiStatus.is_anomaly ? 'text-red-500' : 'text-green-500'">
+                                                 {{ aiStatus.is_anomaly ? 'JA' : 'NEIN' }}
+                                             </span>
                                          </div>
-                                         <div v-if="aiStatus.model_type === 'IsolationForest'" class="flex justify-between border-b border-gray-700 py-2">
-                                             <span class="text-gray-400">Letztes Training:</span>
-                                             <span class="font-mono">{{ aiStatus.last_train_relative || 'Nie' }}</span>
-                                         </div>
-                                          <div v-if="aiStatus.model_type === 'IsolationForest'" class="flex justify-between border-b border-gray-700 py-2">
-                                             <span class="text-gray-400">Anzahl Trainings:</span>
-                                             <span class="font-mono">{{ aiStatus.training_count || 0 }}</span>
+                                          <div class="flex justify-between border-b border-gray-700 py-2">
+                                             <span class="text-gray-400">Letztes Update:</span>
+                                             <span class="font-mono">{{ aiStatus.last_update ? new Date(aiStatus.last_update * 1000).toLocaleString() : '-' }}</span>
                                          </div>
                                      </div>
                                      <div v-else class="text-center py-4 text-gray-500">
                                          <i class="pi pi-spin pi-spinner mr-2"></i> Lade Status...
+                                     </div>
+
+                                     <div class="mt-4 text-xs text-gray-500 text-center">
+                                         Hinweis: Alarme können über Grafana konfiguriert werden (Metrik: <code>idm_anomaly_flag</code>).
                                      </div>
                                  </div>
                              </div>
