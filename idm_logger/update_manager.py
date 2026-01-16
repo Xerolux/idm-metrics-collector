@@ -55,26 +55,16 @@ def _parse_version(version: str) -> Any:
         major = int(parts[0])
         minor = int(parts[1]) if len(parts) > 1 else 0
 
-        # Handle patch version: check if it's an integer, otherwise treat as 0 or parse until non-digit
+        # Handle patch version: check if it's an integer, otherwise treat as 0
         patch = 0
         if len(parts) > 2:
             patch_str = parts[2]
-            # If patch contains non-digits (like 'at073geu'), try to extract leading digits
-            # But usually '0.6.at...' means patch is effectively 0 or the 'at' is the patch?
-            # Assuming 'v0.6.at...' means Major 0, Minor 6, Patch 0 (or unknown) + Metadata
-            # If the user follows v0.6.1.at... then patch is 1.
-            # If the user uses v0.6.at... then parts[2] is 'at...' which is not an int.
-
+            # Since format is now 0.6.<hash>, the 3rd part is the hash
+            # Hashes are not integers for comparison, so we treat patch as 0
             if patch_str.isdigit():
                 patch = int(patch_str)
             else:
-                # Try to extract leading digits if any, otherwise 0
-                import re
-                match = re.match(r'^(\d+)', patch_str)
-                if match:
-                    patch = int(match.group(1))
-                else:
-                    patch = 0
+                patch = 0
 
         return major, minor, patch
     except (ValueError, IndexError):
@@ -152,10 +142,16 @@ def check_for_update() -> Dict[str, Any]:
                 # Fallback to GitHub API for dev check
                 try:
                     # Get local commit hash from version string
-                    # Version format expected: v0.6.at<hash> or similar
+                    # Version format expected: 0.6.<hash>
                     current_hash = None
-                    if ".at" in current_version:
-                        current_hash = current_version.split(".at")[-1]
+
+                    parts = current_version.split(".")
+                    # If we have at least 3 parts (0.6.hash), take the last one
+                    if len(parts) >= 3:
+                        current_hash = parts[-1]
+                        # Clean up any potential leftover suffix from previous versions if mixed
+                        if ".at" in current_hash:
+                             current_hash = current_hash.split(".at")[-1]
 
                     if current_hash:
                         # Fetch latest main commit from GitHub
@@ -168,7 +164,7 @@ def check_for_update() -> Dict[str, Any]:
                         # current_hash is likely short.
                         if not remote_hash.startswith(current_hash):
                             update_available = True
-                            latest_version = f"dev-{remote_hash[:7]}"
+                            latest_version = f"0.6.{remote_hash[:7]}"
                             release_notes = f"Neue Version verfügbar: {remote_data.get('commit', {}).get('message', '').splitlines()[0]}"
                         else:
                             latest_version = current_version

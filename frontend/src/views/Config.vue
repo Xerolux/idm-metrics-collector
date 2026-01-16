@@ -357,6 +357,14 @@
                                  </div>
                              </div>
 
+                             <div v-if="updateStatus.update_available" class="bg-blue-900/20 border border-blue-600/50 p-3 rounded mt-2 flex flex-col gap-2">
+                                <div class="flex items-center gap-2 text-blue-300 text-sm">
+                                    <i class="pi pi-info-circle"></i>
+                                    <span>Neue Version verfügbar!</span>
+                                </div>
+                                <Button label="Jetzt aktualisieren" icon="pi pi-download" severity="info" size="small" @click="confirmUpdate" :loading="updating" />
+                             </div>
+
                              <div class="flex flex-col gap-2 mt-2 border-t border-gray-700 pt-2">
                                  <label class="text-sm font-bold">Update Kanal</label>
                                  <div class="flex gap-2">
@@ -587,6 +595,7 @@ const fileInput = ref(null);
 const showDeleteDialog = ref(false);
 const deleteConfirmationText = ref('');
 const deletingDatabase = ref(false);
+const updating = ref(false);
 
 onMounted(async () => {
     try {
@@ -932,5 +941,31 @@ const confirmDeleteDatabase = async () => {
     } finally {
         deletingDatabase.value = false;
     }
+};
+
+const confirmUpdate = () => {
+    confirm.require({
+        message: 'Update wirklich durchführen? Der Dienst wird neu gestartet.',
+        header: 'Update Bestätigung',
+        icon: 'pi pi-refresh',
+        acceptClass: 'p-button-info',
+        accept: async () => {
+            updating.value = true;
+            try {
+                const res = await axios.post('/api/perform-update');
+                if (res.data.success) {
+                    toast.add({ severity: 'success', summary: 'Update gestartet', detail: 'System wird aktualisiert...', life: 5000 });
+                    // Refresh status after a delay
+                    setTimeout(loadStatus, 15000);
+                } else {
+                    toast.add({ severity: 'error', summary: 'Fehler', detail: res.data.error, life: 5000 });
+                }
+            } catch (e) {
+                toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || 'Update fehlgeschlagen', life: 5000 });
+            } finally {
+                updating.value = false;
+            }
+        }
+    });
 };
 </script>

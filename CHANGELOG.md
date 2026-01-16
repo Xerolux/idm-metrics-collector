@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.6.0 - 2026-01-09 - EEPROM-Schutz und Heizkreis A Dashboard Update
+## 0.6.0 - 2026-01-09 - EEPROM-Schutz und Heizkreis A Dashboard Update
 
 ### Neue Features
 
