@@ -18,6 +18,7 @@ from .log_handler import memory_handler
 from .backup import backup_manager, BACKUP_DIR
 from .mqtt import mqtt_publisher
 from .signal_notifications import send_signal_message
+from .notifications import notification_manager
 from .update_manager import (
     check_for_update,
     perform_update as run_update,
@@ -368,6 +369,42 @@ def get_ai_status():
     except Exception as e:
         logger.error(f"Failed to fetch AI status: {e}")
         return jsonify({"service": "ml-service", "online": False, "error": str(e)})
+
+
+@app.route("/api/internal/ml_alert", methods=["POST"])
+def ml_alert_endpoint():
+    """
+    Internal endpoint for ML service to send anomaly alerts.
+    Not requiring authentication as this is internal service communication.
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        alert_type = data.get("type", "anomaly")
+        score = data.get("score", 0.0)
+        threshold = data.get("threshold", 0.7)
+        message = data.get("message", f"ML Alert: Score {score}")
+
+        logger.warning(f"ML Alert received: {message} (Score: {score}, Threshold: {threshold})")
+
+        # Send notification via notification manager
+        notification_manager.send_all(
+            message=message,
+            subject="IDM ML Anomalie-Warnung"
+        )
+
+        return jsonify({
+            "status": "success",
+            "message": "Alert processed",
+            "notified": True
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Failed to process ML alert: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/health")

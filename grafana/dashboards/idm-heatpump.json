@@ -227,7 +227,7 @@
           },
           "expr": "idm_heatpump_temp_heat_pump_return",
           "refId": "A",
-          "legendFormat": "Rücklauf"
+          "legendFormat": "R\u00fccklauf"
         }
       ],
       "title": "Ruecklauf WP",
@@ -576,7 +576,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Rücklauf"
+              "options": "R\u00fccklauf"
             },
             "properties": [
               {
@@ -638,7 +638,7 @@
           },
           "expr": "idm_heatpump_temp_heat_pump_return",
           "refId": "C",
-          "legendFormat": "Rücklauf"
+          "legendFormat": "R\u00fccklauf"
         }
       ],
       "title": "Waermepumpe Temperaturen",
@@ -1406,6 +1406,156 @@
       ],
       "title": "COP Verlauf",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "victoriametrics"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "orange",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.9
+              }
+            ]
+          },
+          "unit": "short",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Anomalie Erkannt"
+            },
+            "properties": [
+              {
+                "id": "custom.fillOpacity",
+                "value": 30
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 0
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      },
+      "id": 105,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "idm_anomaly_score",
+          "legendFormat": "Anomalie Score",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "idm_anomaly_flag",
+          "legendFormat": "Anomalie Erkannt",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "victoriametrics"
+          },
+          "expr": "idm_ml_features_count",
+          "legendFormat": "Feature Count",
+          "refId": "C",
+          "hide": true
+        }
+      ],
+      "title": "\ud83e\udd16 AI Anomalie-Erkennung (River ML)",
+      "type": "timeseries",
+      "description": "Machine Learning basierte Anomalieerkennung mit River HalfSpaceTrees. Score > 0.7 indiziert ungew\u00f6hnliches Verhalten."
     }
   ],
   "refresh": "30s",

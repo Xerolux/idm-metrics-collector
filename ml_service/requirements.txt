@@ -2,3 +2,4 @@ typing_extensions>=4.12.0
 requests
 river==0.23.0
 schedule
+flask

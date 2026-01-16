@@ -49,10 +49,35 @@ services:
     restart: unless-stopped
     depends_on:
       - victoriametrics
+      - idm-logger
+    volumes:
+      - ml-model-data:/app/data
     environment:
+      # Core settings
       - METRICS_URL=http://victoriametrics:8428
-      - UPDATE_INTERVAL=60
+      - UPDATE_INTERVAL=30
       - MEASUREMENT_NAME=idm_heatpump
+      # ML Configuration
+      - ANOMALY_THRESHOLD=0.7
+      - MIN_DATA_RATIO=0.8
+      - MODEL_N_TREES=25
+      - MODEL_HEIGHT=15
+      - MODEL_WINDOW_SIZE=250
+      - MODEL_SAVE_INTERVAL=300
+      - MODEL_PATH=/app/data/model_state.pkl
+      # Alert settings
+      - ENABLE_ALERTS=true
+      - ALERT_COOLDOWN=3600
+      - IDM_LOGGER_URL=http://idm-logger:5000
+      # Sensor coverage (adjust to your setup)
+      - ML_CIRCUITS=A
+      - ML_ZONES=
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   grafana:
     image: grafana/grafana:latest
@@ -96,3 +121,5 @@ volumes:
     name: idm-grafana-data
   idm-data:
     name: idm-logger-data
+  ml-model-data:
+    name: idm-ml-model-data
