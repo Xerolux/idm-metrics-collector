@@ -19,13 +19,50 @@ GITHUB_API_BASE = f"https://api.github.com/repos/{GITHUB_REPO}"
 # - release: stable releases from GitHub (version: 0.6.x)
 
 
+def get_repo_path() -> str:
+    """
+    Determines the path to the git repository.
+    Priority:
+    1. REPO_PATH env var
+    2. config.system.repo_path
+    3. Current working directory (if .git exists)
+    4. /app (if .git exists)
+    5. Default /opt/idm-metrics-collector
+    """
+    # 1. Environment variable
+    env_path = os.environ.get("REPO_PATH")
+    if env_path:
+        return env_path
+
+    # 2. Config
+    conf_path = config.get("system.repo_path")
+    if conf_path:
+        return conf_path
+
+    # 3. Current directory
+    cwd = os.getcwd()
+    if (Path(cwd) / ".git").exists():
+        return cwd
+
+    # 4. /app (common in Docker)
+    if (Path("/app") / ".git").exists():
+        return "/app"
+
+    # 5. Default
+    return "/opt/idm-metrics-collector"
+
+
 def get_current_version() -> str:
     try:
+        # Try to use the detected repo path for git describe
+        repo_path = get_repo_path()
+        cwd_arg = repo_path if (Path(repo_path) / ".git").exists() else "/app"
+
         result = subprocess.run(
             ["git", "describe", "--tags", "--always"],
             capture_output=True,
             text=True,
-            cwd="/app",
+            cwd=cwd_arg,
             timeout=5,
         )
         if result.returncode == 0:
@@ -33,7 +70,11 @@ def get_current_version() -> str:
     except Exception as exc:
         logger.debug(f"Git version lookup failed: {exc}")
 
+    # Fallback to VERSION file (usually at /app/VERSION or repo_path/VERSION)
     version_file = Path("/app/VERSION")
+    if not version_file.exists():
+         version_file = Path(get_repo_path()) / "VERSION"
+
     if version_file.exists():
         return version_file.read_text().strip()
 
@@ -158,6 +199,9 @@ def check_for_update() -> Dict[str, Any]:
     # Default channel is now 'latest' (formerly dev)
     channel = config.get("updates.channel", "latest")
 
+    # Also need repo path for git checks
+    repo_path = get_repo_path()
+
     latest_version = ""
     release_date = ""
     release_notes = ""
@@ -224,9 +268,9 @@ def check_for_update() -> Dict[str, Any]:
                 # Check git availability
                 subprocess.run(["git", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
-                subprocess.run(["git", "fetch", "origin", "main"], timeout=10, cwd="/app", capture_output=True, check=True)
-                head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd="/app", text=True).strip()
-                remote = subprocess.check_output(["git", "rev-parse", "origin/main"], cwd="/app", text=True).strip()
+                subprocess.run(["git", "fetch", "origin", "main"], timeout=10, cwd=repo_path, capture_output=True, check=True)
+                head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo_path, text=True).strip()
+                remote = subprocess.check_output(["git", "rev-parse", "origin/main"], cwd=repo_path, text=True).strip()
 
                 latest_version = f"dev-{remote[:7]}"
                 if head != remote:
@@ -287,14 +331,18 @@ def check_for_update() -> Dict[str, Any]:
     }
 
 
-def perform_update(repo_path: str = "/opt/idm-metrics-collector") -> None:
+def perform_update(repo_path: Optional[str] = None) -> None:
+    # Use detected path if none provided, but prioritize argument if given
+    if repo_path is None:
+        repo_path = get_repo_path()
+
     git_dir = Path(repo_path) / ".git"
     if not git_dir.exists():
         logger.error(f"Cannot update: {repo_path} is not a git repository.")
-        raise RuntimeError("Update fehlgeschlagen: Keine Git-Installation gefunden.")
+        raise RuntimeError(f"Update fehlgeschlagen: {repo_path} ist kein Git-Repository.")
 
     channel = config.get("updates.channel", "latest")
-    logger.info(f"Performing update (Channel: {channel})...")
+    logger.info(f"Performing update (Channel: {channel}) in {repo_path}...")
 
     if channel in ["release", "beta"]:
         # Fetch tags
@@ -359,5 +407,16 @@ def perform_update(repo_path: str = "/opt/idm-metrics-collector") -> None:
     logger.info("Update completed successfully")
 
 
-def can_run_updates(repo_path: str = "/opt/idm-metrics-collector") -> bool:
-    return os.path.isdir(repo_path)
+def can_run_updates(repo_path: Optional[str] = None) -> bool:
+    if repo_path is None:
+        repo_path = get_repo_path()
+
+    path_obj = Path(repo_path)
+    if not path_obj.is_dir():
+        return False
+
+    # Check for .git directory to confirm it's a repo
+    if not (path_obj / ".git").exists():
+        return False
+
+    return True
