@@ -40,6 +40,7 @@ MODEL_PATH = os.environ.get("MODEL_PATH", "/app/data/model_state.pkl")
 ENABLE_ALERTS = os.environ.get("ENABLE_ALERTS", "true").lower() == "true"
 ALERT_COOLDOWN = int(os.environ.get("ALERT_COOLDOWN", "3600"))  # 1 hour between alerts
 IDM_LOGGER_URL = os.environ.get("IDM_LOGGER_URL", "http://idm-logger:5000")
+INTERNAL_API_KEY = os.environ.get("INTERNAL_API_KEY")
 
 # Circuit and Zone configuration
 ML_CIRCUITS = os.environ.get("ML_CIRCUITS", "A").split(",")
@@ -281,7 +282,11 @@ def send_anomaly_alert(score: float, data: dict):
             "message": f"⚠️ Anomalie erkannt! Score: {score:.2f} (Schwellwert: {ANOMALY_THRESHOLD})"
         }
 
-        response = requests.post(alert_url, json=payload, timeout=5)
+        headers = {}
+        if INTERNAL_API_KEY:
+            headers["X-Internal-Secret"] = INTERNAL_API_KEY
+
+        response = requests.post(alert_url, json=payload, headers=headers, timeout=5)
         if response.status_code in (200, 201):
             logger.info(f"Anomaly alert sent successfully (score: {score:.4f})")
             last_alert_time = time.time()
