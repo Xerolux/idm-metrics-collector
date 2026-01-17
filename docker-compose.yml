@@ -44,9 +44,12 @@ services:
       - "-retentionPeriod=1y"
 
   ml-service:
-    build:
-      context: .
-      dockerfile: ml_service/Dockerfile
+    # Option 1: Build locally (for development - comment out image below and uncomment build section)
+    # build:
+    #   context: .
+    #   dockerfile: ml_service/Dockerfile
+    # Option 2: Use pre-built image from GitHub (for production)
+    image: ghcr.io/xerolux/idm-metrics-collector-ml:latest
     container_name: idm-ml-service
     restart: unless-stopped
     depends_on:
