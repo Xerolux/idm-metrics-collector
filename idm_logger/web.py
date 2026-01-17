@@ -375,8 +375,16 @@ def get_ai_status():
 def ml_alert_endpoint():
     """
     Internal endpoint for ML service to send anomaly alerts.
-    Not requiring authentication as this is internal service communication.
+    Protected by shared secret if configured.
     """
+    # Security Check
+    internal_key = config.get("internal_api_key")
+    if internal_key:
+        auth_header = request.headers.get("X-Internal-Secret")
+        if not auth_header or auth_header != internal_key:
+            logger.warning(f"Unauthorized access attempt to ml_alert from {request.remote_addr}")
+            return jsonify({"error": "Unauthorized"}), 401
+
     try:
         data = request.get_json()
 

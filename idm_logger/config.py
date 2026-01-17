@@ -225,6 +225,10 @@ class Config:
             except ValueError:
                 pass
 
+        # Internal API Key
+        if os.environ.get("INTERNAL_API_KEY"):
+            self.data["internal_api_key"] = os.environ["INTERNAL_API_KEY"]
+
         # Update settings from environment
         if os.environ.get("UPDATES_ENABLED"):
             self.data["updates"]["enabled"] = os.environ["UPDATES_ENABLED"].lower() in (
@@ -323,6 +327,7 @@ class Config:
                 "retention": 10,
                 "auto_upload": False,
             },
+            "internal_api_key": None,
             "setup_completed": False,
         }
 
