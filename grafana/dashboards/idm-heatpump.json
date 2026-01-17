@@ -1410,7 +1410,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "victoriametrics"
+        "uid": "VictoriaMetrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1527,7 +1527,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "victoriametrics"
+            "uid": "VictoriaMetrics"
           },
           "expr": "idm_anomaly_score",
           "legendFormat": "Anomalie Score",
@@ -1536,7 +1536,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "victoriametrics"
+            "uid": "VictoriaMetrics"
           },
           "expr": "idm_anomaly_flag",
           "legendFormat": "Anomalie Erkannt",
@@ -1545,7 +1545,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "victoriametrics"
+            "uid": "VictoriaMetrics"
           },
           "expr": "idm_ml_features_count",
           "legendFormat": "Feature Count",
