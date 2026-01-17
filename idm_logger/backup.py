@@ -225,6 +225,28 @@ class BackupManager:
             return False
 
     @staticmethod
+    def _secure_extract(zipf: zipfile.ZipFile, target_dir: Path) -> None:
+        """
+        Extract files from zip archive securely, preventing path traversal.
+        """
+        target_dir = target_dir.resolve()
+        for member in zipf.infolist():
+            # Resolve destination path
+            member_path = (target_dir / member.filename).resolve()
+
+            # Check if the path is within the target directory
+            if os.path.commonpath([target_dir, member_path]) != str(target_dir):
+                logger.warning(f"Blocked path traversal attempt: {member.filename}")
+                continue
+
+            # Check if file is a symlink (security risk)
+            if member.create_system == 3 and (member.external_attr >> 16) & 0xA000 == 0xA000:
+                logger.warning(f"Blocked symlink extraction: {member.filename}")
+                continue
+
+            zipf.extract(member, target_dir)
+
+    @staticmethod
     def _backup_ml_service(backup_dir: Path) -> bool:
         """
         Backup ML service model state if available.
@@ -658,8 +680,9 @@ class BackupManager:
             restored_items = []
 
             with zipfile.ZipFile(backup_path, "r") as zipf:
-                # Extract all files to temp directory
-                zipf.extractall(temp_extract_dir)
+                # Extract all files to temp directory securely
+                BackupManager._secure_extract(zipf, temp_extract_dir)
+
                 # 1. Extract and load backup.json
                 backup_json = zipf.read("backup.json").decode("utf-8")
                 backup_data = json.loads(backup_json)
