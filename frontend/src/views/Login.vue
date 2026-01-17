@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useRouter } from 'vue-router';
 import Card from 'primevue/card';
-import InputText from 'primevue/inputtext';
+import Password from 'primevue/password';
 import Button from 'primevue/button';
 import AppFooter from '../components/AppFooter.vue';
 import ErrorDisplay from '../components/ErrorDisplay.vue';
@@ -56,12 +56,14 @@ const handleLogin = async () => {
                 <div class="flex flex-col gap-4">
                     <div class="flex flex-col gap-2">
                         <label for="password" class="text-sm font-medium text-gray-300">Passwort</label>
-                        <InputText 
-                            id="password" 
+                        <Password
+                            inputId="password"
                             v-model="password" 
-                            type="password" 
                             placeholder="Passwort eingeben"
-                            :class="{ 'border-error-500': showPasswordError, 'border-gray-600': !showPasswordError }"
+                            :inputClass="{ 'border-error-500': showPasswordError, 'border-gray-600': !showPasswordError }"
+                            toggleMask
+                            :feedback="false"
+                            fluid
                             @blur="touched = true"
                             @keyup.enter="handleLogin"
                         />
