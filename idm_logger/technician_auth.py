@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2024-2025 Xerolux
+# Copyright (c) 2024-2026 Xerolux
 #
 # This file contains encrypted logic for IDM Heat Pump authentication.
 # The code is obfuscated to protect the authentication algorithm implementation.
