@@ -19,9 +19,13 @@ export const useAuthStore = defineStore('auth', {
     },
     async login(password) {
       try {
-        await axios.post('/login', { password }, {
+        await axios.post(
+          '/login',
+          { password },
+          {
             headers: { 'Content-Type': 'application/json' }
-        })
+          }
+        )
         this.isAuthenticated = true
         return true
       } catch (e) {

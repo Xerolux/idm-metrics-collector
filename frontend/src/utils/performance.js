@@ -5,15 +5,15 @@
  * @returns {Function} - The debounced function
  */
 export function debounce(func, wait) {
-  let timeout;
+  let timeout
   return function executedFunction(...args) {
     const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
+      clearTimeout(timeout)
+      func(...args)
+    }
+    clearTimeout(timeout)
+    timeout = setTimeout(later, wait)
+  }
 }
 
 /**
@@ -23,14 +23,14 @@ export function debounce(func, wait) {
  * @returns {Function} - The throttled function
  */
 export function throttle(func, limit) {
-  let inThrottle;
-  return function(...args) {
+  let inThrottle
+  return function (...args) {
     if (!inThrottle) {
-      func.apply(this, args);
-      inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
+      func.apply(this, args)
+      inThrottle = true
+      setTimeout(() => (inThrottle = false), limit)
     }
-  };
+  }
 }
 
 /**
@@ -39,14 +39,14 @@ export function throttle(func, limit) {
  * @returns {Function} - The memoized function
  */
 export function memoize(func) {
-  const cache = new Map();
-  return function(...args) {
-    const key = JSON.stringify(args);
+  const cache = new Map()
+  return function (...args) {
+    const key = JSON.stringify(args)
     if (cache.has(key)) {
-      return cache.get(key);
+      return cache.get(key)
     }
-    const result = func.apply(this, args);
-    cache.set(key, result);
-    return result;
-  };
+    const result = func.apply(this, args)
+    cache.set(key, result)
+    return result
+  }
 }
