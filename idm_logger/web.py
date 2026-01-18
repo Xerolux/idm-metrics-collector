@@ -38,6 +38,7 @@ import signal
 import ipaddress
 import time
 from pathlib import Path
+import copy
 
 logger = logging.getLogger(__name__)
 
@@ -185,9 +186,20 @@ def add_security_headers(response):
     return response
 
 
+def _redact_secrets(conf):
+    """Redact sensitive information from config dictionary."""
+    if "mqtt" in conf and "password" in conf["mqtt"]:
+        conf["mqtt"]["password"] = None
+    if "email" in conf and "password" in conf["email"]:
+        conf["email"]["password"] = None
+    if "webdav" in conf and "password" in conf["webdav"]:
+        conf["webdav"]["password"] = None
+
+
 @app.context_processor
 def inject_config():
-    safe_config = config.data.copy()
+    safe_config = copy.deepcopy(config.data)
+    _redact_secrets(safe_config)
     return dict(config=safe_config)
 
 
@@ -464,7 +476,8 @@ def get_technician_code():
 @login_required
 def config_page():
     if request.method == "GET":
-        safe_config = config.data.copy()
+        safe_config = copy.deepcopy(config.data)
+        _redact_secrets(safe_config)
         response = safe_config
         response["_meta"] = {
             "token_synced": True,
