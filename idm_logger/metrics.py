@@ -4,6 +4,8 @@ import requests
 import os
 import queue
 import threading
+import time
+from typing import List
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -33,8 +35,13 @@ class MetricsWriter:
         if not measurements:
             return True
 
+        # Add timestamp to measurements to preserve time when queuing
+        # We use a copy to avoid modifying the passed dict which might be used elsewhere
+        queued_measurements = measurements.copy()
+        queued_measurements['_timestamp'] = time.time()
+
         try:
-            self.queue.put_nowait(measurements)
+            self.queue.put_nowait(queued_measurements)
             return True
         except queue.Full:
             logger.warning("Metrics queue full, dropping data")
@@ -43,49 +50,75 @@ class MetricsWriter:
     def _worker(self):
         """Worker thread to process metrics queue."""
         while not self.stop_event.is_set():
+            batch = []
             try:
                 # Wait for data with timeout to allow checking stop_event
-                measurements = self.queue.get(timeout=1.0)
+                # Block for up to 1s to get the first item
+                item = self.queue.get(timeout=1.0)
+                batch.append(item)
+
+                # Try to get more items immediately to fill the batch
+                # Limit batch size to avoid huge payloads (e.g., 50 items)
+                while len(batch) < 50:
+                    try:
+                        item = self.queue.get_nowait()
+                        batch.append(item)
+                    except queue.Empty:
+                        break
             except queue.Empty:
                 continue
 
             try:
-                self._send_data(measurements)
+                self._send_data(batch)
             except Exception as e:
                 logger.error(f"Error in metrics worker: {e}")
             finally:
-                self.queue.task_done()
+                # Mark all tasks as done
+                for _ in batch:
+                    self.queue.task_done()
 
-    def _send_data(self, measurements: dict) -> bool:
+    def _send_data(self, batch: List[dict]) -> bool:
         """Internal method to send data to VictoriaMetrics (executed in worker thread)."""
         # Construct Line Protocol
-        # measurement field1=val1,field2=val2
-        # We omit timestamp to let VictoriaMetrics assign the current server time
+        # measurement field1=val1,field2=val2 timestamp
 
         measurement = "idm_heatpump"
-        fields = []
+        lines = []
 
-        for key, value in measurements.items():
-            # Skip string representation fields
-            if key.endswith("_str"):
-                continue
-            # Convert booleans to int
-            if isinstance(value, bool):
-                value = int(value)
-            # Only write numeric values
-            if isinstance(value, (int, float)):
-                fields.append(f"{key}={value}")
+        for measurements in batch:
+            fields = []
+            timestamp = measurements.pop('_timestamp', None)
 
-        if not fields:
+            for key, value in measurements.items():
+                # Skip string representation fields
+                if key.endswith("_str"):
+                    continue
+                # Convert booleans to int
+                if isinstance(value, bool):
+                    value = int(value)
+                # Only write numeric values
+                if isinstance(value, (int, float)):
+                    fields.append(f"{key}={value}")
+
+            if fields:
+                field_str = ",".join(fields)
+                line = f"{measurement} {field_str}"
+
+                # Add timestamp if present (convert seconds to nanoseconds)
+                if timestamp:
+                    line += f" {int(timestamp * 1e9)}"
+
+                lines.append(line)
+
+        if not lines:
             return False
 
-        field_str = ",".join(fields)
-        line = f"{measurement} {field_str}"
+        payload = "\n".join(lines)
 
         try:
             # VictoriaMetrics /write endpoint
             # Use session for connection pooling
-            response = self.session.post(self.url, data=line, timeout=5)
+            response = self.session.post(self.url, data=payload, timeout=5)
             if response.status_code in (200, 204):
                 return True
             else:
