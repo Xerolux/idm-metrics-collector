@@ -69,10 +69,17 @@ Passe das System an deine Bedürfnisse an.
 
 ![Config](docs/screenshots/06_config.png)
 
+### 📜 Logs (Logs)
+Behalte den Überblick über alle Systemereignisse.
+*   **System-Status:** Überprüfe Verbindungsprotokolle und Systemmeldungen.
+*   **Fehleranalyse:** Finde schnell die Ursache bei Problemen.
+
+![Logs](docs/screenshots/07_logs.png)
+
 ### 🔧 Tools & Service
 Nützliche Werkzeuge für Profis und Eigentümer.
 *   **Code Generator:** Erzeuge temporäre Fachmann- oder Technikercodes für tiefergehende Einstellungen am Navigator Panel.
-*   **System Logs:** Detaillierte Einblicke in die Kommunikation mit der Wärmepumpe.
+*   **System Check:** Überprüfe die Gesundheit der verschiedenen Dienste.
 
 ![Tools](docs/screenshots/08_tools.png)
 
@@ -114,6 +121,7 @@ docker compose up -d
 2.  **Login:** Melde dich mit `admin` und deinem neuen Passwort an.
 
 ![Setup](docs/screenshots/00_setup.png)
+![Login](docs/screenshots/01_login.png)
 
 ---
 

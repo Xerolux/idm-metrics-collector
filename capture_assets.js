@@ -2,6 +2,8 @@ const { chromium } = require('playwright');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const net = require('net');
+const ffmpegPath = require('ffmpeg-static');
 
 // Constants
 const SCREENSHOT_DIR = path.join(__dirname, 'docs', 'screenshots');
@@ -71,7 +73,8 @@ async function startFrontend() {
 
     // Wait for server to be ready
     console.log("Waiting for Vite to spin up...");
-    await new Promise(resolve => setTimeout(resolve, 8000));
+    // Increased timeout to ensure it spins up in slower environments
+    await new Promise(resolve => setTimeout(resolve, 15000));
     return vite;
 }
 
@@ -80,7 +83,26 @@ async function capture() {
     let browser;
 
     try {
-        viteProcess = await startFrontend();
+        // Check if port 5173 is already in use, if so assume external server
+        const isPortInUse = await new Promise(resolve => {
+            const client = new net.Socket();
+            client.once('connect', () => {
+                client.destroy();
+                resolve(true);
+            });
+            client.once('error', () => {
+                client.destroy();
+                resolve(false);
+            });
+            client.connect(5173, 'localhost');
+        });
+
+        if (!isPortInUse) {
+             viteProcess = await startFrontend();
+        } else {
+            console.log("Port 5173 in use, assuming external server running.");
+        }
+
         browser = await chromium.launch({
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
@@ -245,7 +267,7 @@ async function capture() {
         // Close to save video
         await context.close();
         await browser.close();
-        viteProcess.kill();
+        if (viteProcess) viteProcess.kill();
 
         // Convert Video to GIF
         const videoFile = fs.readdirSync(VIDEO_DIR).find(f => f.endsWith('.webm'));
@@ -257,7 +279,7 @@ async function capture() {
 
             // ffmpeg to convert webm to gif
             // optimized filters for better quality/size ratio
-            const ffmpeg = spawn('ffmpeg', [
+            const ffmpeg = spawn(ffmpegPath, [
                 '-y',
                 '-i', inputPath,
                 '-vf', 'fps=10,scale=1000:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse',

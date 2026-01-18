@@ -1,0 +1,29 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "[![GitHub Release][releases-shield]][releases] [![Downloads][downloads-shield]][releases] [![License][license-shield]](LICENSE) [![Discord][discord-shield]][discord] [![Community Forum][forum-shield]][forum]",
+  "main": "capture_assets.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xerolux/idm-metrics-collector.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Xerolux/idm-metrics-collector/issues"
+  },
+  "homepage": "https://github.com/Xerolux/idm-metrics-collector#readme",
+  "dependencies": {
+    "ffmpeg-static": "^5.3.0",
+    "playwright": "^1.57.0"
+  }
+}
