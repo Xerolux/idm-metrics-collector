@@ -45,280 +45,280 @@
 
 /* Dialogs */
 .p-dialog {
-    @apply bg-gray-800 text-white border-gray-700;
+  @apply bg-gray-800 text-white border-gray-700;
 }
 
 .p-dialog .p-dialog-header,
 .p-dialog .p-dialog-content,
 .p-dialog .p-dialog-footer {
-    @apply bg-gray-800 text-white border-gray-700;
+  @apply bg-gray-800 text-white border-gray-700;
 }
 
 .p-dialog .p-dialog-header-icon {
-    @apply text-gray-300 hover:text-white transition-colors;
+  @apply text-gray-300 hover:text-white transition-colors;
 }
 
 /* Confirm Dialog */
 .p-confirm-dialog .p-dialog-header,
 .p-confirm-dialog .p-dialog-content,
 .p-confirm-dialog .p-dialog-footer {
-    @apply bg-gray-800 text-white border-gray-700;
+  @apply bg-gray-800 text-white border-gray-700;
 }
 
 .p-confirm-dialog .p-dialog-header-icon {
-    @apply text-gray-300 hover:text-white transition-colors;
+  @apply text-gray-300 hover:text-white transition-colors;
 }
 
 .p-confirm-dialog .p-button-text {
-    @apply text-gray-300 hover:text-white transition-colors;
+  @apply text-gray-300 hover:text-white transition-colors;
 }
 
 /* Cards */
 .p-card {
-    @apply bg-gray-800 text-white border-gray-700;
+  @apply bg-gray-800 text-white border-gray-700;
 }
 
 .p-card .p-card-title {
-    @apply text-white;
+  @apply text-white;
 }
 
 .p-card .p-card-subtitle {
-    @apply text-gray-300;
+  @apply text-gray-300;
 }
 
 .p-card .p-card-content {
-    @apply text-gray-50;
+  @apply text-gray-50;
 }
 
 /* Buttons */
 .p-button {
-    @apply transition-all duration-200 ease-in-out;
+  @apply transition-all duration-200 ease-in-out;
 }
 
 .p-button:hover {
-    @apply transform scale-105;
+  @apply transform scale-105;
 }
 
 .p-button:active {
-    @apply transform scale-95;
+  @apply transform scale-95;
 }
 
 /* Input Fields */
 .p-inputtext {
-    @apply bg-gray-700 border-gray-600 text-white placeholder-gray-400 transition-colors;
+  @apply bg-gray-700 border-gray-600 text-white placeholder-gray-400 transition-colors;
 }
 
 .p-inputtext:focus {
-    @apply border-blue-500 ring-2 ring-blue-500/30;
+  @apply border-blue-500 ring-2 ring-blue-500/30;
 }
 
 /* Dropdowns */
 .p-dropdown {
-    @apply bg-gray-700 border-gray-600;
+  @apply bg-gray-700 border-gray-600;
 }
 
 .p-dropdown .p-dropdown-label {
-    @apply text-white;
+  @apply text-white;
 }
 
 .p-dropdown .p-dropdown-trigger {
-    @apply text-gray-300;
+  @apply text-gray-300;
 }
 
 .p-dropdown-panel {
-    @apply bg-gray-800 border-gray-700;
+  @apply bg-gray-800 border-gray-700;
 }
 
 .p-dropdown-item {
-    @apply text-white hover:bg-gray-700 transition-colors;
+  @apply text-white hover:bg-gray-700 transition-colors;
 }
 
 /* Menubar */
 .p-menubar {
-    @apply bg-gray-800 border-gray-700;
+  @apply bg-gray-800 border-gray-700;
 }
 
 .p-menubar .p-menuitem-link {
-    @apply text-gray-300 hover:text-white hover:bg-gray-700 transition-colors;
+  @apply text-gray-300 hover:text-white hover:bg-gray-700 transition-colors;
 }
 
 /* Messages */
 .p-message {
-    @apply border-0;
+  @apply border-0;
 }
 
 .p-message-info {
-    @apply bg-blue-900 border-blue-700 text-blue-200;
+  @apply bg-blue-900 border-blue-700 text-blue-200;
 }
 
 .p-message-success {
-    @apply bg-green-900 border-green-700 text-green-200;
+  @apply bg-green-900 border-green-700 text-green-200;
 }
 
 .p-message-warn {
-    @apply bg-yellow-900 border-yellow-700 text-yellow-200;
+  @apply bg-yellow-900 border-yellow-700 text-yellow-200;
 }
 
 .p-message-error {
-    @apply bg-red-900 border-red-700 text-red-200;
+  @apply bg-red-900 border-red-700 text-red-200;
 }
 
 /* Toast */
 .p-toast {
-    @apply text-white;
+  @apply text-white;
 }
 
 .p-toast-message {
-    @apply bg-gray-800 border-gray-700;
+  @apply bg-gray-800 border-gray-700;
 }
 
 .p-toast-message-info {
-    @apply bg-blue-900 border-blue-700;
+  @apply bg-blue-900 border-blue-700;
 }
 
 .p-toast-message-success {
-    @apply bg-green-900 border-green-700;
+  @apply bg-green-900 border-green-700;
 }
 
 .p-toast-message-warn {
-    @apply bg-yellow-900 border-yellow-700;
+  @apply bg-yellow-900 border-yellow-700;
 }
 
 .p-toast-message-error {
-    @apply bg-red-900 border-red-700;
+  @apply bg-red-900 border-red-700;
 }
 
 /* Data Table */
 .p-datatable {
-    @apply bg-gray-800 text-white border-gray-700;
+  @apply bg-gray-800 text-white border-gray-700;
 }
 
 .p-datatable .p-datatable-header {
-    @apply bg-gray-700 border-gray-600 text-white;
+  @apply bg-gray-700 border-gray-600 text-white;
 }
 
 .p-datatable .p-datatable-tbody > tr {
-    @apply border-gray-700;
+  @apply border-gray-700;
 }
 
 .p-datatable .p-datatable-tbody > tr > td {
-    @apply text-gray-50;
+  @apply text-gray-50;
 }
 
 .p-datatable .p-datatable-tbody > tr:hover {
-    @apply bg-gray-700 transition-colors;
+  @apply bg-gray-700 transition-colors;
 }
 
 .p-datatable .p-paginator {
-    @apply bg-gray-700 border-gray-600;
+  @apply bg-gray-700 border-gray-600;
 }
 
 /* Loading */
 .p-progress-spinner {
-    @apply text-blue-500;
+  @apply text-blue-500;
 }
 
 /* Tooltip */
 .p-tooltip {
-    @apply text-white;
+  @apply text-white;
 }
 
 .p-tooltip .p-tooltip-text {
-    @apply bg-gray-900 text-white;
+  @apply bg-gray-900 text-white;
 }
 
 /* Checkbox and Radio */
 .p-checkbox .p-checkbox-box {
-    @apply bg-gray-700 border-gray-600;
+  @apply bg-gray-700 border-gray-600;
 }
 
 .p-checkbox .p-checkbox-box.p-highlight {
-    @apply bg-blue-500 border-blue-500;
+  @apply bg-blue-500 border-blue-500;
 }
 
 .p-radioButton .p-radiobutton-box {
-    @apply bg-gray-700 border-gray-600;
+  @apply bg-gray-700 border-gray-600;
 }
 
 .p-radioButton .p-radiobutton-box.p-highlight {
-    @apply bg-blue-500 border-blue-500;
+  @apply bg-blue-500 border-blue-500;
 }
 
 /* Badge */
 .p-badge {
-    @apply bg-blue-500 text-white;
+  @apply bg-blue-500 text-white;
 }
 
 .p-badge.p-badge-secondary {
-    @apply bg-gray-600 text-gray-200;
+  @apply bg-gray-600 text-gray-200;
 }
 
 .p-badge.p-badge-success {
-    @apply bg-green-500 text-white;
+  @apply bg-green-500 text-white;
 }
 
 .p-badge.p-badge-info {
-    @apply bg-blue-500 text-white;
+  @apply bg-blue-500 text-white;
 }
 
 .p-badge.p-badge-warning {
-    @apply bg-yellow-500 text-white;
+  @apply bg-yellow-500 text-white;
 }
 
 .p-badge.p-badge-danger {
-    @apply bg-red-500 text-white;
+  @apply bg-red-500 text-white;
 }
 
 /* Overlay Panel */
 .p-overlaypanel {
-    @apply bg-gray-800 border-gray-700 text-white;
+  @apply bg-gray-800 border-gray-700 text-white;
 }
 
 /* Sidebar */
 .p-sidebar {
-    @apply bg-gray-800 border-gray-700 text-white;
+  @apply bg-gray-800 border-gray-700 text-white;
 }
 
 /* Tabs */
 .p-tabview .p-tabview-nav {
-    @apply bg-gray-700 border-gray-600;
+  @apply bg-gray-700 border-gray-600;
 }
 
 .p-tabview .p-tabview-nav li .p-tabview-nav-link {
-    @apply text-gray-300 hover:text-white hover:bg-gray-600 transition-colors;
+  @apply text-gray-300 hover:text-white hover:bg-gray-600 transition-colors;
 }
 
 .p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
-    @apply bg-gray-800 text-white border-blue-500;
+  @apply bg-gray-800 text-white border-blue-500;
 }
 
 .p-tabview .p-tabview-panels {
-    @apply bg-gray-800 text-white;
+  @apply bg-gray-800 text-white;
 }
 
 /* Accordion */
 .p-accordion .p-accordion-header .p-accordion-header-link {
-    @apply bg-gray-700 text-white hover:bg-gray-600 transition-colors;
+  @apply bg-gray-700 text-white hover:bg-gray-600 transition-colors;
 }
 
 .p-accordion .p-accordion-header:not(.p-disabled).p-highlight .p-accordion-header-link {
-    @apply bg-gray-800 text-blue-400;
+  @apply bg-gray-800 text-blue-400;
 }
 
 .p-accordion .p-accordion-content {
-    @apply bg-gray-800 text-white border-gray-700;
+  @apply bg-gray-800 text-white border-gray-700;
 }
 
 /* Global transitions */
 * {
-    @apply transition-colors duration-200;
+  @apply transition-colors duration-200;
 }
 
 /* Focus styles for accessibility */
 *:focus {
-    @apply outline-none;
+  @apply outline-none;
 }
 
 *:focus-visible {
-    @apply ring-2 ring-blue-500/50;
+  @apply ring-2 ring-blue-500/50;
 }
