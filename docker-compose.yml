@@ -16,6 +16,8 @@ services:
       - IDM_PORT=502
       # Metrics connection
       - METRICS_URL=http://victoriametrics:8428/write
+      # Security: Shared secret for internal communication (ensure this matches ml-service)
+      # - INTERNAL_API_KEY=change_me_to_random_secret
       # MQTT settings (optional - configure via web UI or uncomment below)
       # - MQTT_ENABLED=false
       # - MQTT_BROKER=mqtt.example.com
@@ -74,6 +76,8 @@ services:
       - ENABLE_ALERTS=true
       - ALERT_COOLDOWN=3600
       - IDM_LOGGER_URL=http://idm-logger:5000
+      # Security: Shared secret for internal communication (ensure this matches idm-logger)
+      # - INTERNAL_API_KEY=change_me_to_random_secret
       # Sensor coverage (adjust to your setup)
       - ML_CIRCUITS=A
       - ML_ZONES=

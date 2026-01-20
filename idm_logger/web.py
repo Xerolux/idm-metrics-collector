@@ -37,9 +37,13 @@ import os
 import signal
 import ipaddress
 import time
+import secrets
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Security: Internal API Key for service-to-service communication
+INTERNAL_API_KEY = os.environ.get("INTERNAL_API_KEY")
 
 app = Flask(__name__)
 app.secret_key = config.get_flask_secret_key()
@@ -375,8 +379,15 @@ def get_ai_status():
 def ml_alert_endpoint():
     """
     Internal endpoint for ML service to send anomaly alerts.
-    Not requiring authentication as this is internal service communication.
+    Requires X-Internal-Secret header if INTERNAL_API_KEY is configured.
     """
+    # Security check: Verify internal shared secret if configured
+    if INTERNAL_API_KEY:
+        auth_header = request.headers.get("X-Internal-Secret")
+        if not auth_header or not secrets.compare_digest(auth_header, INTERNAL_API_KEY):
+            logger.warning(f"Unauthorized access attempt to ml_alert from {request.remote_addr}")
+            abort(401)
+
     try:
         data = request.get_json()
 
