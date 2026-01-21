@@ -12,6 +12,7 @@ from waitress import serve
 from flasgger import Swagger
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from werkzeug.middleware.proxy_fix import ProxyFix
 from .technician_auth import calculate_codes
 from .config import config
 from .sensor_addresses import SensorFeatures
@@ -46,6 +47,11 @@ app.secret_key = config.get_flask_secret_key()
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
+# Trust proxies if configured (common in Docker environments)
+if os.environ.get("TRUST_PROXIES") or config.get("web.trust_proxies"):
+    # X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host, X-Forwarded-Prefix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 # Swagger/OpenAPI Configuration
 app.config["SWAGGER"] = {
     "title": "IDM Metrics Collector API",
@@ -79,6 +85,15 @@ _net_sec_cache = {
 }
 
 
+@functools.lru_cache(maxsize=128)
+def get_ip_obj(ip_str):
+    """Cached IP object creation."""
+    try:
+        return ipaddress.ip_address(ip_str)
+    except ValueError:
+        return None
+
+
 def update_current_data(data):
     with data_lock:
         current_data.clear()
@@ -98,11 +113,6 @@ def login_required(view):
 
 
 @app.before_request
-def check_setup():
-    pass
-
-
-@app.before_request
 def check_ip_whitelist():
     """Check if the request IP is allowed based on whitelist/blacklist."""
     if not config.get("network_security.enabled", False):
@@ -112,9 +122,8 @@ def check_ip_whitelist():
     if not client_ip:
         return
 
-    try:
-        ip = ipaddress.ip_address(client_ip)
-    except ValueError:
+    ip = get_ip_obj(client_ip)
+    if not ip:
         logger.warning(f"Invalid client IP: {client_ip}")
         abort(403)
 

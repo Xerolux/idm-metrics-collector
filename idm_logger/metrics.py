@@ -4,6 +4,8 @@ import requests
 import os
 import queue
 import threading
+import time
+from typing import List, Union, Dict
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -41,51 +43,93 @@ class MetricsWriter:
             return False
 
     def _worker(self):
-        """Worker thread to process metrics queue."""
+        """Worker thread to process metrics queue with batching."""
+        batch = []
+        last_send = time.time()
+        BATCH_SIZE = 50
+        BATCH_TIMEOUT = 1.0
+
         while not self.stop_event.is_set():
             try:
-                # Wait for data with timeout to allow checking stop_event
-                measurements = self.queue.get(timeout=1.0)
-            except queue.Empty:
-                continue
+                # Calculate timeout dynamically
+                now = time.time()
+                if batch:
+                    # If we have items, wait only the remaining time of the 1s window
+                    timeout = max(0, BATCH_TIMEOUT - (now - last_send))
+                else:
+                    # If empty, wait up to 1s (or until an item arrives)
+                    timeout = 1.0
 
-            try:
-                self._send_data(measurements)
-            except Exception as e:
-                logger.error(f"Error in metrics worker: {e}")
-            finally:
+                measurements = self.queue.get(timeout=timeout)
+                batch.append(measurements)
                 self.queue.task_done()
 
-    def _send_data(self, measurements: dict) -> bool:
-        """Internal method to send data to VictoriaMetrics (executed in worker thread)."""
-        # Construct Line Protocol
-        # measurement field1=val1,field2=val2
-        # We omit timestamp to let VictoriaMetrics assign the current server time
+                # If batch is full, send immediately
+                if len(batch) >= BATCH_SIZE:
+                    self._send_data(batch)
+                    batch = []
+                    last_send = time.time()
 
-        measurement = "idm_heatpump"
-        fields = []
-
-        for key, value in measurements.items():
-            # Skip string representation fields
-            if key.endswith("_str"):
+            except queue.Empty:
+                # Timeout expired (or queue empty for >1s)
+                # If we have data pending, send it now
+                if batch:
+                    self._send_data(batch)
+                    batch = []
+                    last_send = time.time()
                 continue
-            # Convert booleans to int
-            if isinstance(value, bool):
-                value = int(value)
-            # Only write numeric values
-            if isinstance(value, (int, float)):
-                fields.append(f"{key}={value}")
+            except Exception as e:
+                logger.error(f"Error in metrics worker: {e}")
+                # Try to flush what we have if possible, otherwise drop
+                if batch:
+                    try:
+                        self._send_data(batch)
+                    except Exception:
+                        pass
+                    batch = []
 
-        if not fields:
+        # Flush remaining items on exit
+        if batch:
+            try:
+                self._send_data(batch)
+            except Exception as e:
+                logger.error(f"Error flushing metrics on exit: {e}")
+
+    def _send_data(self, data: Union[Dict, List[Dict]]) -> bool:
+        """Internal method to send data to VictoriaMetrics (executed in worker thread)."""
+        # data can be a single dict (legacy call) or a list of dicts (batch)
+
+        items = data if isinstance(data, list) else [data]
+        lines = []
+
+        for measurements in items:
+            measurement_name = "idm_heatpump"
+            fields = []
+
+            for key, value in measurements.items():
+                # Skip string representation fields
+                if key.endswith("_str"):
+                    continue
+                # Convert booleans to int
+                if isinstance(value, bool):
+                    value = int(value)
+                # Only write numeric values
+                if isinstance(value, (int, float)):
+                    fields.append(f"{key}={value}")
+
+            if fields:
+                field_str = ",".join(fields)
+                # Timestamp is handled by VictoriaMetrics on ingestion
+                lines.append(f"{measurement_name} {field_str}")
+
+        if not lines:
             return False
 
-        field_str = ",".join(fields)
-        line = f"{measurement} {field_str}"
+        payload = "\n".join(lines)
 
         try:
             # VictoriaMetrics /write endpoint
-            # Use session for connection pooling
-            response = self.session.post(self.url, data=line, timeout=5)
+            response = self.session.post(self.url, data=payload, timeout=5)
             if response.status_code in (200, 204):
                 return True
             else:
