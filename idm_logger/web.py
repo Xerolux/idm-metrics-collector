@@ -38,6 +38,7 @@ import os
 import signal
 import ipaddress
 import time
+import secrets
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -413,9 +414,20 @@ def query_metrics_range():
 def ml_alert_endpoint():
     """
     Internal endpoint for ML service to send anomaly alerts.
-    Not requiring authentication as this is internal service communication.
+    Protected by shared secret.
     """
     try:
+        # Verify internal secret
+        internal_key = os.environ.get("INTERNAL_API_KEY")
+        if not internal_key:
+            logger.error("INTERNAL_API_KEY not set, rejecting request")
+            return jsonify({"error": "Server configuration error"}), 500
+
+        auth_header = request.headers.get("X-Internal-Secret")
+        if not auth_header or not secrets.compare_digest(auth_header, internal_key):
+            logger.warning(f"Unauthorized ML alert attempt from {request.remote_addr}")
+            return jsonify({"error": "Unauthorized"}), 401
+
         data = request.get_json()
 
         if not data:

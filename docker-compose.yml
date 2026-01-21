@@ -11,6 +11,8 @@ services:
     depends_on:
       - victoriametrics
     environment:
+      # Security
+      - INTERNAL_API_KEY=change_me_internal_secret_key_12345
       # IDM Heat Pump connection
       - IDM_HOST=192.168.178.103
       - IDM_PORT=502
@@ -58,6 +60,8 @@ services:
     volumes:
       - ml-model-data:/app/data
     environment:
+      # Security
+      - INTERNAL_API_KEY=change_me_internal_secret_key_12345
       # Core settings
       - METRICS_URL=http://victoriametrics:8428
       - UPDATE_INTERVAL=30
