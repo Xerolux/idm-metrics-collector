@@ -380,6 +380,35 @@ def get_ai_status():
         return jsonify({"service": "ml-service", "online": False, "error": str(e)})
 
 
+@app.route("/api/metrics/query_range", methods=["GET"])
+@login_required
+def query_metrics_range():
+    """
+    Proxy request to VictoriaMetrics /api/v1/query_range
+    """
+    try:
+        metrics_url = config.data.get("metrics", {}).get("url", "http://victoriametrics:8428/write")
+        base_url = metrics_url.replace("/write", "")
+        query_url = f"{base_url}/api/v1/query_range"
+
+        # Forward parameters
+        params = {
+            "query": request.args.get("query"),
+            "start": request.args.get("start"),
+            "end": request.args.get("end"),
+            "step": request.args.get("step"),
+        }
+
+        response = requests.get(query_url, params=params, timeout=10)
+        if response.status_code != 200:
+            logger.error(f"VictoriaMetrics query failed: {response.text}")
+            return jsonify({"status": "error", "error": response.text}), response.status_code
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Metrics query failed: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 @app.route("/api/internal/ml_alert", methods=["POST"])
 def ml_alert_endpoint():
     """

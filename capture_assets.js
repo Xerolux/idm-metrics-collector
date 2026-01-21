@@ -21,12 +21,28 @@ const VIDEO_DIR = path.join(__dirname, 'temp_videos');
 
 // Mock Data
 const MOCK_DATA = {
-    temp_outside: 12.5,
+    temp_outside: 5.2,
+    temp_internal_humidity: 49,
+    temp_external_humidity: 60,
+    power_current: 8.57,
+    power_current_draw: 6.40,
+    power_ac_3: 0.14,
+    power_ac_1: 667,
+    temp_flow_current_circuit_A: 28.5,
+    temp_return_circuit_A: 24.2,
+    temp_room_circuit_A: 21.1,
+    temp_heat_storage: 45.5,
+    temp_cold_storage: 38.2,
+    temp_flow_current_circuit_B: 42.1,
+    temp_return_circuit_B: 36.5,
+    temp_flow_current_circuit_C: 40.0,
+    temp_return_circuit_C: 34.0,
+    temp_room_circuit_C: 22.5,
+
+    // Legacy fields for other views
     temp_heat_pump_flow: 35.2,
     temp_heat_pump_return: 30.1,
-    temp_heat_storage: 45.0,
     temp_water_heater_top: 52.0,
-    power_current_draw: 2.1,
     status_pump_heat_circuit: true,
     status_pump_heat_source: true,
     status_compressor: true,
@@ -137,6 +153,31 @@ async function capture() {
         // Main Data
         await page.route('**/api/data', async route => {
             await route.fulfill({ json: MOCK_DATA });
+        });
+
+        // Metrics (Charts)
+        await page.route('**/api/metrics/query_range*', async route => {
+            // Generate dummy data points
+            const end = Math.floor(Date.now() / 1000);
+            const start = end - (12 * 3600);
+            const values = [];
+            // Generate ~50 points
+            for (let i = 0; i < 50; i++) {
+                const ts = start + (i * (end - start) / 50);
+                const val = 30 + (Math.sin(i / 5) * 10) + (Math.random() * 2);
+                values.push([ts, String(val.toFixed(2))]);
+            }
+
+            await route.fulfill({ json: {
+                status: "success",
+                data: {
+                    resultType: "matrix",
+                    result: [{
+                        metric: { __name__: "dummy" },
+                        values: values
+                    }]
+                }
+            }});
         });
 
         // Version
