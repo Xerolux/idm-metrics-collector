@@ -772,13 +772,16 @@ def ml_alert_endpoint():
     """
     # Security Check
     internal_key = config.get("internal_api_key")
-    if internal_key:
-        auth_header = request.headers.get("X-Internal-Secret")
-        if not auth_header or auth_header != internal_key:
-            logger.warning(
-                f"Unauthorized access attempt to ml_alert from {request.remote_addr}"
-            )
-            return jsonify({"error": "Unauthorized"}), 401
+    if not internal_key:
+        logger.error("INTERNAL_API_KEY not configured - rejecting ML alert")
+        return jsonify({"error": "Configuration Error: INTERNAL_API_KEY not set"}), 503
+
+    auth_header = request.headers.get("X-Internal-Secret")
+    if not auth_header or auth_header != internal_key:
+        logger.warning(
+            f"Unauthorized access attempt to ml_alert from {request.remote_addr}"
+        )
+        return jsonify({"error": "Unauthorized"}), 401
 
     try:
         data = request.get_json()
