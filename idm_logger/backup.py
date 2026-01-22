@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 import requests
+import threading
 
 from .config import config, DATA_DIR
 from .db import db
@@ -878,44 +879,52 @@ class BackupManager:
 
     @staticmethod
     def upload_to_webdav(file_path: str) -> Dict[str, Any]:
-        """Upload a file to WebDAV/Nextcloud."""
+        """
+        Upload a file to WebDAV/Nextcloud in the background.
+        Returns immediately with 'success': True to avoid blocking.
+        """
         if not WEBDAV_AVAILABLE:
             return {"success": False, "error": "WebDAV library not available"}
 
-        try:
-            url = config.get("webdav.url")
-            username = config.get("webdav.username")
-            password = config.get("webdav.password")
+        url = config.get("webdav.url")
+        username = config.get("webdav.username")
+        password = config.get("webdav.password")
 
-            if not url or not username:
-                return {"success": False, "error": "WebDAV not configured"}
+        if not url or not username:
+            return {"success": False, "error": "WebDAV not configured"}
 
-            path = Path(file_path)
-            if not path.exists():
-                return {"success": False, "error": "File not found"}
+        path = Path(file_path)
+        if not path.exists():
+            return {"success": False, "error": "File not found"}
 
-            client = WebDavClient(base_url=url, auth=(username, password))
-
-            # Check connection
+        def _do_upload():
             try:
-                client.exists("/")
+                client = WebDavClient(base_url=url, auth=(username, password))
+
+                # Check connection
+                try:
+                    client.exists("/")
+                except Exception as e:
+                    # Try adding /remote.php/dav/files/USER/ if it's Nextcloud and failed
+                    # But we assume user provides full URL for now
+                    logger.error(f"WebDAV connection failed: {e}")
+                    return
+
+                remote_path = f"/{path.name}"
+                # Nextcloud/WebDAV often requires the directory to exist or precise path
+                # We upload to root of WebDAV share
+
+                client.upload_file(file_path, remote_path, overwrite=True)
+                logger.info(f"Successfully uploaded {path.name} to WebDAV")
+
             except Exception as e:
-                 # Try adding /remote.php/dav/files/USER/ if it's Nextcloud and failed
-                 # But we assume user provides full URL for now
-                 return {"success": False, "error": f"Connection failed: {e}"}
+                logger.error(f"WebDAV upload failed: {e}")
 
-            remote_path = f"/{path.name}"
-            # Nextcloud/WebDAV often requires the directory to exist or precise path
-            # We upload to root of WebDAV share
+        # Start upload in background
+        thread = threading.Thread(target=_do_upload, daemon=True)
+        thread.start()
 
-            client.upload_file(file_path, remote_path, overwrite=True)
-            logger.info(f"Successfully uploaded {path.name} to WebDAV")
-
-            return {"success": True, "message": "Upload successful"}
-
-        except Exception as e:
-            logger.error(f"WebDAV upload failed: {e}")
-            return {"success": False, "error": str(e)}
+        return {"success": True, "message": "Upload started in background"}
 
 
 # Convenience instance
