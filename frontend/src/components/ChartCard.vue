@@ -255,27 +255,17 @@ const chartOptions = computed(() => {
             zoom: {
                 zoom: {
                     wheel: {
-                        enabled: true,
-                        speed: 0.1
+                        enabled: false // TEMPORARILY DISABLED to fix rendering
                     },
                     pinch: {
-                        enabled: true
+                        enabled: false
                     },
                     drag: {
-                        enabled: true,
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderColor: 'rgba(59, 130, 246, 0.3)',
-                        borderWidth: 1,
-                    },
-                    mode: 'x',
+                        enabled: false
+                    }
                 },
                 pan: {
-                    enabled: true,
-                    mode: 'x',
-                    modifierKey: 'ctrl'
-                },
-                limits: {
-                    x: { min: 'original', max: 'original' }
+                    enabled: false
                 }
             },
             annotation: {
