@@ -121,14 +121,9 @@ class Database:
             with self._get_locked_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT * FROM jobs")
-                rows = cursor.fetchall()
-                jobs = []
-                for row in rows:
-                    job = dict(row)
-                    # Decode days from JSON if necessary, or store as comma separated string
-                    # We'll assume stored as JSON string or handle conversion in scheduler
-                    jobs.append(job)
-                return jobs
+                # Return rows directly to avoid redundant copying.
+                # The caller should handle the Row objects or convert if necessary.
+                return cursor.fetchall()
         except sqlite3.Error as e:
             logger.error(f"Failed to retrieve jobs: {e}", exc_info=True)
             return []
