@@ -117,6 +117,80 @@ _net_sec_cache = {
     "blacklist_nets": [],
 }
 
+# AI Status Cache
+_ai_status_lock = threading.Lock()
+_ai_status_cache = {
+    "service": "ml-service (River/HST)",
+    "online": False,
+    "score": 0.0,
+    "is_anomaly": False,
+    "last_update": None,
+    "error": None,
+}
+
+
+def _update_ai_status_loop():
+    """Background thread to update AI status periodically."""
+    logger.info("Starting AI status update loop")
+    while True:
+        try:
+            metrics_url = config.data.get("metrics", {}).get(
+                "url", "http://victoriametrics:8428/write"
+            )
+            base_url = metrics_url.replace("/write", "")
+            query_url = f"{base_url}/api/v1/query"
+
+            query = 'last_over_time({__name__=~"idm_anomaly_score.*|idm_anomaly_flag.*"}[2h])'
+            try:
+                response = requests.get(query_url, params={"query": query}, timeout=10)
+            except requests.RequestException as e:
+                # Log specific network error but don't crash loop
+                logger.debug(f"AI status update network error: {e}")
+                with _ai_status_lock:
+                    _ai_status_cache["online"] = False
+                time.sleep(60)
+                continue
+
+            new_status = {
+                "service": "ml-service (River/HST)",
+                "online": False,
+                "score": 0.0,
+                "is_anomaly": False,
+                "last_update": None,
+                "error": None,
+            }
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "success":
+                    results = data.get("data", {}).get("result", [])
+                    for res in results:
+                        name = res["metric"].get("__name__", "")
+                        val = res["value"][1]  # [timestamp, value]
+                        timestamp = res["value"][0]
+
+                        if "idm_anomaly_score" in name:
+                            new_status["score"] = float(val)
+                            new_status["last_update"] = timestamp
+                            new_status["online"] = True
+                        elif "idm_anomaly_flag" in name:
+                            new_status["is_anomaly"] = float(val) > 0.5
+            else:
+                new_status["error"] = f"VictoriaMetrics error: {response.status_code}"
+
+            with _ai_status_lock:
+                _ai_status_cache.update(new_status)
+
+        except Exception as e:
+            logger.error(f"Error in AI status update loop: {e}")
+
+        time.sleep(60)  # Update every minute
+
+
+def _start_ai_status_thread():
+    t = threading.Thread(target=_update_ai_status_loop, daemon=True)
+    t.start()
+
 
 @functools.lru_cache(maxsize=128)
 def get_ip_obj(ip_str):
@@ -598,50 +672,9 @@ def get_ai_status():
     """
     Get current AI service status from VictoriaMetrics.
     """
-    try:
-        metrics_url = config.data.get("metrics", {}).get(
-            "url", "http://victoriametrics:8428/write"
-        )
-        base_url = metrics_url.replace("/write", "")
-        query_url = f"{base_url}/api/v1/query"
-
-        # Query for latest anomaly score
-        # Using `last_over_time` is better if points are sparse, but `query` usually fetches instant vector at "now".
-        # We want the LAST point in the last 2 hours.
-        # Queries: idm_anomaly_score and idm_anomaly_flag (allowing suffixes like _value)
-        query = (
-            'last_over_time({__name__=~"idm_anomaly_score.*|idm_anomaly_flag.*"}[2h])'
-        )
-        response = requests.get(query_url, params={"query": query}, timeout=5)
-
-        status = {
-            "service": "ml-service (River/HST)",
-            "online": False,
-            "score": 0.0,
-            "is_anomaly": False,
-            "last_update": None,
-        }
-
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("status") == "success":
-                results = data.get("data", {}).get("result", [])
-                for res in results:
-                    name = res["metric"].get("__name__", "")
-                    val = res["value"][1]  # [timestamp, value]
-                    timestamp = res["value"][0]
-
-                    if "idm_anomaly_score" in name:
-                        status["score"] = float(val)
-                        status["last_update"] = timestamp
-                        status["online"] = True
-                    elif "idm_anomaly_flag" in name:
-                        status["is_anomaly"] = float(val) > 0.5
-
-        return jsonify(status)
-    except Exception as e:
-        logger.error(f"Failed to fetch AI status: {e}")
-        return jsonify({"service": "ml-service", "online": False, "error": str(e)})
+    with _ai_status_lock:
+        status = _ai_status_cache.copy()
+    return jsonify(status)
 
 
 @app.route("/api/metrics/query_range", methods=["GET"])
@@ -2048,6 +2081,9 @@ def run_web(modbus_client, scheduler):
     global modbus_client_instance, scheduler_instance
     modbus_client_instance = modbus_client
     scheduler_instance = scheduler
+
+    # Start background tasks
+    _start_ai_status_thread()
 
     if config.get("web.enabled"):
         host = config.get("web.host", "0.0.0.0")
