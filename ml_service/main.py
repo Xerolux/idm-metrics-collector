@@ -31,7 +31,7 @@ UPDATE_INTERVAL = int(os.environ.get("UPDATE_INTERVAL", 30))
 
 # ML Configuration
 ANOMALY_THRESHOLD = float(os.environ.get("ANOMALY_THRESHOLD", "0.7"))
-MIN_DATA_RATIO = float(os.environ.get("MIN_DATA_RATIO", "0.8"))
+MIN_DATA_RATIO = float(os.environ.get("MIN_DATA_RATIO", "0.4"))
 MODEL_N_TREES = int(os.environ.get("MODEL_N_TREES", "25"))
 MODEL_HEIGHT = int(os.environ.get("MODEL_HEIGHT", "15"))
 MODEL_WINDOW_SIZE = int(os.environ.get("MODEL_WINDOW_SIZE", "250"))
@@ -335,9 +335,14 @@ def job():
 
         min_features = int(len(SENSORS) * MIN_DATA_RATIO)
         if len(data) < min_features:
+            missing_sensors = sorted(list(set(SENSORS) - set(data.keys())))
             logger.warning(
                 f"Insufficient data fetched ({len(data)}/{len(SENSORS)} sensors, need {min_features}). Skipping."
             )
+            if missing_sensors:
+                logger.warning(
+                    f"Missing sensors (first 10): {', '.join(missing_sensors[:10])}..."
+                )
             return
 
         # Enrich with temporal and computed features

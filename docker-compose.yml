@@ -65,7 +65,7 @@ services:
       - MEASUREMENT_NAME=idm_heatpump
       # ML Configuration
       - ANOMALY_THRESHOLD=0.7
-      - MIN_DATA_RATIO=0.8
+      - MIN_DATA_RATIO=0.4
       - MODEL_N_TREES=25
       - MODEL_HEIGHT=15
       - MODEL_WINDOW_SIZE=250
