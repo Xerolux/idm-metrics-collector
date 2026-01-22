@@ -35,6 +35,7 @@ from .annotations import AnnotationManager
 from .variables import VariableManager
 from .expression_parser import ExpressionParser
 from .websocket_handler import websocket_handler
+from .sharing import SharingManager
 from shutil import which
 import threading
 import logging
@@ -97,6 +98,9 @@ expression_parser = ExpressionParser()
 
 # WebSocket Handler
 websocket_handler.init_app(app, socketio)
+
+# Sharing Manager
+sharing_manager = SharingManager(config)
 
 # Shared state
 current_data = {}
@@ -1904,6 +1908,137 @@ def substitute_variables():
 def set_metrics_writer(writer):
     global metrics_writer_instance
     metrics_writer_instance = writer
+
+
+# ============================================================================
+# Sharing API
+# ============================================================================
+
+
+@app.route("/api/sharing/tokens", methods=["GET"])
+@login_required
+def get_share_tokens():
+    """Get all share tokens or tokens for a specific dashboard."""
+    try:
+        dashboard_id = request.args.get("dashboard_id")
+
+        if dashboard_id:
+            tokens = sharing_manager.get_tokens_for_dashboard(dashboard_id)
+        else:
+            tokens = sharing_manager.get_all_tokens()
+
+        return jsonify([token.to_dict() for token in tokens])
+    except Exception as e:
+        logger.error(f"Failed to get share tokens: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/sharing/tokens", methods=["POST"])
+@login_required
+def create_share_token():
+    """Create a new share token for a dashboard."""
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        if not data.get("dashboard_id"):
+            return jsonify({"error": "dashboard_id is required"}), 400
+
+        from flask import session
+
+        created_by = session.get("user", "anonymous")
+
+        token = sharing_manager.create_share_token(
+            dashboard_id=data["dashboard_id"],
+            created_by=created_by,
+            expires_in_days=data.get("expires_in_days"),
+            password=data.get("password"),
+            is_public=data.get("is_public", False),
+        )
+
+        return jsonify(token.to_dict()), 201
+    except Exception as e:
+        logger.error(f"Failed to create share token: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/sharing/tokens/<token_id>", methods=["GET"])
+def get_share_token(token_id):
+    """Get a share token by ID (no auth required for accessing)."""
+    try:
+        token = sharing_manager.get_token(token_id)
+        if not token:
+            return jsonify({"error": "Token not found"}), 404
+
+        # Record access
+        sharing_manager.record_access(token_id)
+
+        return jsonify(token.to_dict())
+    except Exception as e:
+        logger.error(f"Failed to get share token: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/sharing/tokens/<token_id>", methods=["DELETE"])
+@login_required
+def delete_share_token(token_id):
+    """Delete a share token."""
+    try:
+        if sharing_manager.delete_token(token_id):
+            return jsonify({"status": "success", "message": "Token deleted"})
+        else:
+            return jsonify({"error": "Token not found"}), 404
+    except Exception as e:
+        logger.error(f"Failed to delete share token: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/sharing/tokens/<token_id>/validate", methods=["POST"])
+def validate_share_token(token_id):
+    """Validate a share token with optional password."""
+    try:
+        data = request.get_json() or {}
+        password = data.get("password")
+
+        is_valid = sharing_manager.validate_token(token_id, password)
+
+        if is_valid:
+            token = sharing_manager.get_token(token_id)
+            sharing_manager.record_access(token_id)
+            return jsonify({"valid": True, "dashboard_id": token.dashboard_id})
+        else:
+            return jsonify({"valid": False, "error": "Invalid or expired token"}), 401
+    except Exception as e:
+        logger.error(f"Failed to validate share token: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/shared/<token_id>")
+def view_shared_dashboard(token_id):
+    """View a shared dashboard."""
+    try:
+        token = sharing_manager.get_token(token_id)
+        if not token:
+            return "Shared dashboard not found", 404
+
+        if token.is_expired():
+            return "Shared dashboard has expired", 410
+
+        # Get dashboard
+        dashboard = dashboard_manager.get_dashboard(token.dashboard_id)
+        if not dashboard:
+            return "Dashboard not found", 404
+
+        # Check if password protected
+        if not token.is_public and token.password_hash:
+            # Render password prompt
+            return send_from_directory("frontend", "index.html")
+
+        # Render dashboard in view-only mode
+        return send_from_directory("frontend", "index.html")
+    except Exception as e:
+        logger.error(f"Failed to view shared dashboard: {e}")
+        return "Error loading shared dashboard", 500
 
 
 def run_web(modbus_client, scheduler):

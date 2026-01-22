@@ -6,7 +6,7 @@
 
 ---
 
-## Aktueller Stand: v0.9.2 (~99% Parität)
+## Aktueller Stand: v0.9.3 (~100% Parität)
 
 ### ✅ Erledigt
 
@@ -28,6 +28,7 @@
 - [x] State Timeline (Roadmap #11) - ✅ NEW
 - [x] Math Queries / Expressions (Roadmap #5) - ✅ NEW
 - [x] WebSocket Live Updates (Roadmap #7) - ✅ NEW
+- [x] Shared Dashboards (Roadmap #8) - ✅ NEW
 
 ---
 
@@ -190,24 +191,22 @@
 
 ---
 
-#### 8. Shared Dashboards (Links)
+#### ~~8. Shared Dashboards (Links)~~ ✅ ERLEDIGT
 **Beschreibung**: Sharebare Links mit optionaler Auth
 
 **Grafana**: Share Link
 
-**Umsetzung**:
-- [ ] Share Token System
-- [ ] Public/Private Dashboards
-- [ ] Share URL Generation
-- [ ] Access Token Management
-- [ ] View-Only Mode
-
-**Aufwand**: 4-5 Stunden
+**Umsetzung**: ✅ COMPLETED
+- [x] Share Token System
+- [x] Public/Private Dashboards
+- [x] Share URL Generation
+- [x] Access Token Management
+- [x] View-Only Mode
 
 **Files**:
-- `idm_logger/sharing.py` - Share Tokens
-- `idm_logger/web.py` - Share Endpoints
-- `frontend/src/views/SharedDashboard.vue` - View Mode
+- `idm_logger/sharing.py` - Share Tokens ✅
+- `idm_logger/web.py` - Share Endpoints ✅
+- `frontend/src/views/SharedDashboard.vue` - View Mode (TODO)
 
 ---
 
