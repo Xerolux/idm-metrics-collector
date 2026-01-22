@@ -188,6 +188,41 @@ class DashboardManager:
     def __init__(self):
         """Initialize dashboard manager."""
         self._ensure_dashboards_key()
+        self._repair_broken_dashboards()
+
+    def _repair_broken_dashboards(self):
+        """Repair broken dashboards from bad seed data."""
+        dashboards = self.get_all_dashboards()
+        repaired = False
+
+        for i, dashboard in enumerate(dashboards):
+            if dashboard.get("id") == "default":
+                # Check for broken chart titles from the bad example
+                broken_titles = [
+                    "Underfloor Heating",
+                    "Tank Heating Sensing",
+                    "Radiators Flow & Return: 1st & 2nd Floor",
+                    "3rd Floor: Flow & Return Temperatures",
+                    "3rd Floor Deep Dive",
+                    "Consumption change",
+                ]
+
+                chart_titles = [c.get("title") for c in dashboard.get("charts", [])]
+
+                # If any of the specific broken titles are present
+                if any(title in chart_titles for title in broken_titles):
+                    logger.info("Detected broken dashboard configuration. Repairing...")
+                    # Replace with fresh default
+                    default_dashboards = get_default_dashboards()
+                    # We assume get_default_dashboards returns a list with one dashboard
+                    dashboards[i] = default_dashboards[0]
+                    repaired = True
+                    break
+
+        if repaired:
+            config.data["dashboards"] = dashboards
+            config.save()
+            logger.info("Dashboard repair completed.")
 
     def _ensure_dashboards_key(self):
         """Ensure dashboards key exists in config."""
