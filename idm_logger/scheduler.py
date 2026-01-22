@@ -9,6 +9,61 @@ from .db import db
 logger = logging.getLogger(__name__)
 
 
+class MutableRow:
+    """Wrapper around sqlite3.Row (or dict) to allow mutation."""
+    __slots__ = ('_row', '_overrides')
+
+    def __init__(self, row):
+        self._row = row
+        self._overrides = None
+
+    def __getitem__(self, key):
+        if self._overrides and key in self._overrides:
+            return self._overrides[key]
+        return self._row[key]
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except (IndexError, KeyError):
+            return default
+
+    def __setitem__(self, key, value):
+        if self._overrides is None:
+            self._overrides = {}
+        self._overrides[key] = value
+
+    def update(self, other):
+        if self._overrides is None:
+            self._overrides = {}
+        self._overrides.update(other)
+
+    def __iter__(self):
+        # Merge keys from row and overrides
+        keys = set(self._row.keys())
+        if self._overrides:
+            keys.update(self._overrides.keys())
+        return iter(keys)
+
+    def __len__(self):
+        keys = set(self._row.keys())
+        if self._overrides:
+            keys.update(self._overrides.keys())
+        return len(keys)
+
+    def keys(self):
+        return list(self)
+
+    def items(self):
+        return [(k, self[k]) for k in self]
+
+    def values(self):
+        return [self[k] for k in self]
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({dict(self)})"
+
+
 class Scheduler:
     def __init__(self, modbus_client):
         self.modbus_client = modbus_client
@@ -19,7 +74,7 @@ class Scheduler:
 
     def load(self):
         with self.lock:
-            self.jobs = db.get_jobs()
+            self.jobs = [MutableRow(row) for row in db.get_jobs()]
             # Convert JSON string days to list
             for job in self.jobs:
                 if isinstance(job.get("days"), str):
