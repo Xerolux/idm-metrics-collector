@@ -17,7 +17,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Zeitraum (Stunden)</label>
-                <Dropdown
+                <Select
                     v-model="localTable.hours"
                     :options="hourOptions"
                     optionLabel="label"
@@ -28,7 +28,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Einträge pro Seite</label>
-                <Dropdown
+                <Select
                     v-model="localTable.pageSize"
                     :options="pageSizeOptions"
                     optionLabel="label"
@@ -65,7 +65,7 @@
                                 placeholder="Key (z.B. timestamp, value)"
                                 class="w-full text-sm"
                             />
-                            <Dropdown
+                            <Select
                                 v-model="column.type"
                                 :options="typeOptions"
                                 optionLabel="label"
@@ -146,7 +146,7 @@
 import { ref } from 'vue';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import Button from 'primevue/button';
 
 const props = defineProps({

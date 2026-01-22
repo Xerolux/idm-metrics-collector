@@ -39,7 +39,7 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                     Typ *
                 </label>
-                <Dropdown
+                <Select
                     v-model="localVariable.type"
                     :options="typeOptions"
                     optionLabel="label"
@@ -76,7 +76,7 @@
                     class="w-full"
                 />
                 <p class="text-xs text-gray-500 mt-1">
-                    Vordefinierte Werte für das Dropdown
+                    Vordefinierte Werte für das Select
                 </p>
             </div>
 
@@ -136,7 +136,7 @@ import { ref, watch } from 'vue';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import Chips from 'primevue/chips';
 import Checkbox from 'primevue/checkbox';
 import Button from 'primevue/button';

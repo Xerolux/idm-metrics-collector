@@ -48,7 +48,7 @@
             <div class="flex flex-col gap-4 min-w-[300px] md:min-w-[400px]">
                  <div class="flex flex-col gap-2">
                      <label>Sensor</label>
-                     <Dropdown v-model="newJob.sensor" :options="sensors" optionLabel="name" optionValue="name" placeholder="Sensor wählen" filter />
+                     <Select v-model="newJob.sensor" :options="sensors" optionLabel="name" optionValue="name" placeholder="Sensor wählen" filter />
                  </div>
                  <div class="flex flex-col gap-2">
                      <label>Wert</label>
@@ -76,7 +76,7 @@ import Card from 'primevue/card';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
 import Dialog from 'primevue/dialog';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import InputText from 'primevue/inputtext';
 import InputMask from 'primevue/inputmask';
 import MultiSelect from 'primevue/multiselect';

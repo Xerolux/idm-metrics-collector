@@ -16,7 +16,7 @@
         <!-- Top Bar -->
         <div class="flex items-center justify-between gap-3 flex-shrink-0">
             <div class="flex items-center gap-2 flex-grow">
-                <Dropdown
+                <Select
                     v-model="currentDashboardId"
                     :options="dashboards"
                     optionLabel="name"
@@ -52,7 +52,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <!-- Time Range Selector -->
-                <Dropdown
+                <Select
                     v-model="timeRange"
                     :options="timeRangeOptions"
                     optionLabel="label"
@@ -240,7 +240,7 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Chart-Typ</label>
-                    <Dropdown
+                    <Select
                         v-model="newChart.type"
                         :options="chartTypeOptions"
                         optionLabel="label"
@@ -264,7 +264,7 @@
                                 </div>
                             </div>
                         </template>
-                    </Dropdown>
+                    </Select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Titel</label>
@@ -276,7 +276,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Zeitraum (Stunden)</label>
-                    <Dropdown
+                    <Select
                         v-model="newChart.hours"
                         :options="timeRangeOptions"
                         optionLabel="label"
@@ -423,7 +423,7 @@ import TableCard from './TableCard.vue';
 import StateTimelineCard from './StateTimelineCard.vue';
 import SensorValues from './SensorValues.vue';
 import OverviewHeader from './OverviewHeader.vue';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 // import MultiSelect from 'primevue/multiselect';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';

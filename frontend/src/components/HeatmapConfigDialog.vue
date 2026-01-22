@@ -17,7 +17,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Zeitraum (Stunden)</label>
-                <Dropdown
+                <Select
                     v-model="localHeatmap.hours"
                     :options="hourOptions"
                     optionLabel="label"
@@ -46,7 +46,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Zeit-Buckets</label>
-                <Dropdown
+                <Select
                     v-model="localHeatmap.buckets"
                     :options="bucketOptions"
                     optionLabel="label"
@@ -146,7 +146,7 @@
 import { ref } from 'vue';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import Button from 'primevue/button';
 import ColorPicker from 'primevue/colorpicker';
 

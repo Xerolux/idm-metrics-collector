@@ -17,7 +17,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Zeitraum (Stunden)</label>
-                <Dropdown
+                <Select
                     v-model="localTimeline.hours"
                     :options="hourOptions"
                     optionLabel="label"
@@ -106,7 +106,7 @@
 import { ref, watch } from 'vue';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import Button from 'primevue/button';
 import ColorPicker from 'primevue/colorpicker';
 

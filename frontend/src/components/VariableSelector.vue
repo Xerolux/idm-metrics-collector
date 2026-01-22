@@ -8,7 +8,7 @@
             <label class="block text-xs font-medium text-gray-600 mb-1">
                 {{ variable.name }}
             </label>
-            <Dropdown
+            <Select
                 v-if="!variable.multi"
                 v-model="selectedValues[variable.id]"
                 :options="variable.values"
@@ -34,7 +34,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import MultiSelect from 'primevue/multiselect';
 import axios from 'axios';
 

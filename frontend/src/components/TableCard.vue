@@ -56,7 +56,7 @@
                     placeholder="Filtern..."
                     class="text-sm w-48"
                 />
-                <Dropdown
+                <Select
                     v-model="sortBy"
                     :options="sortOptions"
                     optionLabel="label"
@@ -161,7 +161,7 @@ import axios from 'axios';
 import TableConfigDialog from './TableConfigDialog.vue';
 import ConfirmDialog from 'primevue/confirmdialog';
 import InputText from 'primevue/inputtext';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import Button from 'primevue/button';
 
 const props = defineProps({

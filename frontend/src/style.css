@@ -112,24 +112,24 @@
     @apply border-blue-500 ring-2 ring-blue-500/30;
 }
 
-/* Dropdowns */
-.p-dropdown {
+/* Selects */
+.p-select {
     @apply bg-gray-700 border-gray-600;
 }
 
-.p-dropdown .p-dropdown-label {
+.p-select .p-select-label {
     @apply text-white;
 }
 
-.p-dropdown .p-dropdown-trigger {
+.p-select .p-select-dropdown {
     @apply text-gray-300;
 }
 
-.p-dropdown-panel {
+.p-select-overlay {
     @apply bg-gray-800 border-gray-700;
 }
 
-.p-dropdown-item {
+.p-select-option {
     @apply text-white hover:bg-gray-700 transition-colors;
 }
 

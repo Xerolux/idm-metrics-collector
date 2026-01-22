@@ -30,7 +30,7 @@
                         </div>
 
                         <div v-if="sensor.enum" class="flex flex-col gap-2">
-                            <Dropdown v-model="formValues[sensor.name]" :options="sensor.enum" optionLabel="name" optionValue="value" placeholder="Wert wählen" class="w-full" />
+                            <Select v-model="formValues[sensor.name]" :options="sensor.enum" optionLabel="name" optionValue="value" placeholder="Wert wählen" class="w-full" />
                         </div>
                         <div v-else class="flex flex-col gap-2">
                              <InputText v-model="formValues[sensor.name]" type="text" placeholder="Wert" />
@@ -55,7 +55,7 @@ import axios from 'axios';
 import Card from 'primevue/card';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import { useToast } from 'primevue/usetoast';
