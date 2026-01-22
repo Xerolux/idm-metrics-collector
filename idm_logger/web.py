@@ -129,61 +129,66 @@ _ai_status_cache = {
 }
 
 
+def _update_ai_status_once():
+    """Perform a single update of the AI status."""
+    try:
+        metrics_url = config.data.get("metrics", {}).get(
+            "url", "http://victoriametrics:8428/write"
+        )
+        base_url = metrics_url.replace("/write", "")
+        query_url = f"{base_url}/api/v1/query"
+
+        query = (
+            'last_over_time({__name__=~"idm_anomaly_score.*|idm_anomaly_flag.*"}[2h])'
+        )
+        try:
+            response = requests.get(query_url, params={"query": query}, timeout=10)
+        except requests.RequestException as e:
+            # Log specific network error but don't crash loop
+            logger.debug(f"AI status update network error: {e}")
+            with _ai_status_lock:
+                _ai_status_cache["online"] = False
+            return
+
+        new_status = {
+            "service": "ml-service (River/HST)",
+            "online": False,
+            "score": 0.0,
+            "is_anomaly": False,
+            "last_update": None,
+            "error": None,
+        }
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success":
+                results = data.get("data", {}).get("result", [])
+                for res in results:
+                    name = res["metric"].get("__name__", "")
+                    val = res["value"][1]  # [timestamp, value]
+                    timestamp = res["value"][0]
+
+                    if "idm_anomaly_score" in name:
+                        new_status["score"] = float(val)
+                        new_status["last_update"] = timestamp
+                        new_status["online"] = True
+                    elif "idm_anomaly_flag" in name:
+                        new_status["is_anomaly"] = float(val) > 0.5
+        else:
+            new_status["error"] = f"VictoriaMetrics error: {response.status_code}"
+
+        with _ai_status_lock:
+            _ai_status_cache.update(new_status)
+
+    except Exception as e:
+        logger.error(f"Error in AI status update loop: {e}")
+
+
 def _update_ai_status_loop():
     """Background thread to update AI status periodically."""
     logger.info("Starting AI status update loop")
     while True:
-        try:
-            metrics_url = config.data.get("metrics", {}).get(
-                "url", "http://victoriametrics:8428/write"
-            )
-            base_url = metrics_url.replace("/write", "")
-            query_url = f"{base_url}/api/v1/query"
-
-            query = 'last_over_time({__name__=~"idm_anomaly_score.*|idm_anomaly_flag.*"}[2h])'
-            try:
-                response = requests.get(query_url, params={"query": query}, timeout=10)
-            except requests.RequestException as e:
-                # Log specific network error but don't crash loop
-                logger.debug(f"AI status update network error: {e}")
-                with _ai_status_lock:
-                    _ai_status_cache["online"] = False
-                time.sleep(60)
-                continue
-
-            new_status = {
-                "service": "ml-service (River/HST)",
-                "online": False,
-                "score": 0.0,
-                "is_anomaly": False,
-                "last_update": None,
-                "error": None,
-            }
-
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("status") == "success":
-                    results = data.get("data", {}).get("result", [])
-                    for res in results:
-                        name = res["metric"].get("__name__", "")
-                        val = res["value"][1]  # [timestamp, value]
-                        timestamp = res["value"][0]
-
-                        if "idm_anomaly_score" in name:
-                            new_status["score"] = float(val)
-                            new_status["last_update"] = timestamp
-                            new_status["online"] = True
-                        elif "idm_anomaly_flag" in name:
-                            new_status["is_anomaly"] = float(val) > 0.5
-            else:
-                new_status["error"] = f"VictoriaMetrics error: {response.status_code}"
-
-            with _ai_status_lock:
-                _ai_status_cache.update(new_status)
-
-        except Exception as e:
-            logger.error(f"Error in AI status update loop: {e}")
-
+        _update_ai_status_once()
         time.sleep(60)  # Update every minute
 
 

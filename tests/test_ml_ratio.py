@@ -22,6 +22,7 @@ sys.path.insert(0, os.getcwd())
 with patch("requests.get"), patch("requests.post"):
     from ml_service import main as ml_main
 
+
 class TestMlRatio(unittest.TestCase):
     def setUp(self):
         # Reset global state if needed
@@ -77,6 +78,7 @@ class TestMlRatio(unittest.TestCase):
         mock_write.assert_called()
 
         ml_main.SENSORS = original_sensors
+
 
 if __name__ == "__main__":
     unittest.main()

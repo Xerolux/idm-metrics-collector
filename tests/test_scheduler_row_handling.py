@@ -1,9 +1,9 @@
-
 import unittest
 from unittest.mock import MagicMock, patch
 import json
 import sqlite3
 from idm_logger.scheduler import Scheduler, MutableRow
+
 
 class TestSchedulerRowHandling(unittest.TestCase):
     def setUp(self):
@@ -20,11 +20,15 @@ class TestSchedulerRowHandling(unittest.TestCase):
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("CREATE TABLE jobs (id TEXT, sensor TEXT, value TEXT, days TEXT, last_run REAL, enabled INTEGER, time TEXT)")
+        cursor.execute(
+            "CREATE TABLE jobs (id TEXT, sensor TEXT, value TEXT, days TEXT, last_run REAL, enabled INTEGER, time TEXT)"
+        )
 
         days_json = json.dumps(["Mon", "Fri"])
-        cursor.execute("INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?)",
-                       ("job1", "sensor1", "20", days_json, 0, 1, "12:00"))
+        cursor.execute(
+            "INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("job1", "sensor1", "20", days_json, 0, 1, "12:00"),
+        )
 
         cursor.execute("SELECT * FROM jobs")
         row = cursor.fetchone()
@@ -63,9 +67,14 @@ class TestSchedulerRowHandling(unittest.TestCase):
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("CREATE TABLE jobs (id TEXT, sensor TEXT, value TEXT, days TEXT, last_run REAL, enabled INTEGER, time TEXT)")
+        cursor.execute(
+            "CREATE TABLE jobs (id TEXT, sensor TEXT, value TEXT, days TEXT, last_run REAL, enabled INTEGER, time TEXT)"
+        )
         days_json = json.dumps(["Mon"])
-        cursor.execute("INSERT INTO jobs VALUES ('db_job', 's1', '10', ?, 0, 1, '10:00')", (days_json,))
+        cursor.execute(
+            "INSERT INTO jobs VALUES ('db_job', 's1', '10', ?, 0, 1, '10:00')",
+            (days_json,),
+        )
         cursor.execute("SELECT * FROM jobs")
         row = cursor.fetchone()
 
@@ -79,19 +88,21 @@ class TestSchedulerRowHandling(unittest.TestCase):
             "value": "20",
             "time": "11:00",
             "days": ["Tue"],
-            "enabled": True
+            "enabled": True,
         }
+
         # Mock add_job side effects
         def mock_add_job(j):
             pass
+
         self.mock_db.add_job.side_effect = mock_add_job
 
         scheduler.add_job(api_job)
 
         self.assertEqual(len(scheduler.jobs), 2)
 
-        job1 = scheduler.jobs[0] # From DB
-        job2 = scheduler.jobs[1] # From API
+        job1 = scheduler.jobs[0]  # From DB
+        job2 = scheduler.jobs[1]  # From API
 
         self.assertIsInstance(job1, MutableRow)
         self.assertIsInstance(job2, dict)
@@ -127,29 +138,30 @@ class TestSchedulerRowHandling(unittest.TestCase):
 
         # Test keys
         keys = list(mr.keys())
-        self.assertIn('a', keys)
-        self.assertIn('b', keys)
+        self.assertIn("a", keys)
+        self.assertIn("b", keys)
 
         # Test items
         items = dict(mr.items())
-        self.assertEqual(items['a'], 'test')
-        self.assertEqual(items['b'], 1)
+        self.assertEqual(items["a"], "test")
+        self.assertEqual(items["b"], 1)
 
         # Test mutation affects keys/items/len
-        mr['c'] = 3
+        mr["c"] = 3
         self.assertEqual(len(mr), 3)
-        self.assertIn('c', mr.keys())
-        self.assertEqual(dict(mr)['c'], 3)
+        self.assertIn("c", mr.keys())
+        self.assertEqual(dict(mr)["c"], 3)
 
         # Test override existing
-        mr['b'] = 99
-        self.assertEqual(mr['b'], 99)
-        self.assertEqual(dict(mr)['b'], 99)
+        mr["b"] = 99
+        self.assertEqual(mr["b"], 99)
+        self.assertEqual(dict(mr)["b"], 99)
 
         # Test repr
         r = repr(mr)
         self.assertIn("'a': 'test'", r)
         self.assertIn("'c': 3", r)
+
 
 if __name__ == "__main__":
     unittest.main()

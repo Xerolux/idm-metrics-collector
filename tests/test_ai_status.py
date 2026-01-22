@@ -38,6 +38,9 @@ class TestAiStatus(unittest.TestCase):
         }
         mock_get.return_value = mock_response
 
+        # Trigger update
+        web._update_ai_status_once()
+
         # Mock login
         with self.app.session_transaction() as sess:
             sess["logged_in"] = True
@@ -71,6 +74,12 @@ class TestAiStatus(unittest.TestCase):
             },
         }
         mock_get.return_value = mock_response
+
+        # Trigger update
+        web._update_ai_status_once()
+
+        # Trigger update
+        web._update_ai_status_once()
 
         with self.app.session_transaction() as sess:
             sess["logged_in"] = True

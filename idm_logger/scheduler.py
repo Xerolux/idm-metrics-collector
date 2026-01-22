@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 class MutableRow:
     """Wrapper around sqlite3.Row (or dict) to allow mutation."""
-    __slots__ = ('_row', '_overrides')
+
+    __slots__ = ("_row", "_overrides")
 
     def __init__(self, row):
         self._row = row

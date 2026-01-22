@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import idm_logger.mqtt  # noqa: F401
 
+
 # Patch where config is IMPORTED, not where it is defined
 # idm_logger.mqtt imports config as 'config'
 @pytest.fixture
