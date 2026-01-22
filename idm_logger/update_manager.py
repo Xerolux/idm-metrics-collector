@@ -19,7 +19,7 @@ GITHUB_API_BASE = f"https://api.github.com/repos/{GITHUB_REPO}"
 # - release: stable releases from GitHub (version: 0.6.x)
 
 
-def get_repo_path() -> str:
+def get_repo_path() -> Optional[str]:
     """
     Determines the path to the git repository.
     Priority:
@@ -28,16 +28,22 @@ def get_repo_path() -> str:
     3. Current working directory (if .git exists)
     4. /app (if .git exists)
     5. Default /opt/idm-metrics-collector
+
+    Returns None if no valid repo found.
     """
     # 1. Environment variable
     env_path = os.environ.get("REPO_PATH")
     if env_path:
-        return env_path
+        if (Path(env_path) / ".git").exists():
+            return env_path
+        logger.warning(f"REPO_PATH set but .git not found: {env_path}")
 
     # 2. Config
     conf_path = config.get("system.repo_path")
     if conf_path:
-        return conf_path
+        if (Path(conf_path) / ".git").exists():
+            return conf_path
+        logger.warning(f"system.repo_path set but .git not found: {conf_path}")
 
     # 3. Current directory
     cwd = os.getcwd()
@@ -48,32 +54,39 @@ def get_repo_path() -> str:
     if (Path("/app") / ".git").exists():
         return "/app"
 
-    # 5. Default
-    return "/opt/idm-metrics-collector"
+    # 5. Default /opt/idm-metrics-collector
+    default_path = "/opt/idm-metrics-collector"
+    if (Path(default_path) / ".git").exists():
+        return default_path
+
+    # No repo found - return None (changed from returning invalid path)
+    logger.debug("No git repository found - updates disabled")
+    return None
 
 
 def get_current_version() -> str:
     try:
         # Try to use the detected repo path for git describe
         repo_path = get_repo_path()
-        cwd_arg = repo_path if (Path(repo_path) / ".git").exists() else "/app"
-
-        result = subprocess.run(
-            ["git", "describe", "--tags", "--always"],
-            capture_output=True,
-            text=True,
-            cwd=cwd_arg,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
+        if repo_path and (Path(repo_path) / ".git").exists():
+            result = subprocess.run(
+                ["git", "describe", "--tags", "--always"],
+                capture_output=True,
+                text=True,
+                cwd=repo_path,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
     except Exception as exc:
         logger.debug(f"Git version lookup failed: {exc}")
 
     # Fallback to VERSION file (usually at /app/VERSION or repo_path/VERSION)
     version_file = Path("/app/VERSION")
     if not version_file.exists():
-        version_file = Path(get_repo_path()) / "VERSION"
+        repo_path = get_repo_path()
+        if repo_path:
+            version_file = Path(repo_path) / "VERSION"
 
     if version_file.exists():
         return version_file.read_text().strip()
@@ -265,38 +278,43 @@ def check_for_update() -> Dict[str, Any]:
             # Checks against main branch
 
             git_worked = False
-            try:
-                # Check git availability
-                subprocess.run(
-                    ["git", "--version"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    check=True,
-                )
+            if repo_path:
+                try:
+                    # Check git availability
+                    subprocess.run(
+                        ["git", "--version"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        check=True,
+                    )
 
-                subprocess.run(
-                    ["git", "fetch", "origin", "main"],
-                    timeout=10,
-                    cwd=repo_path,
-                    capture_output=True,
-                    check=True,
-                )
-                head = subprocess.check_output(
-                    ["git", "rev-parse", "HEAD"], cwd=repo_path, text=True
-                ).strip()
-                remote = subprocess.check_output(
-                    ["git", "rev-parse", "origin/main"], cwd=repo_path, text=True
-                ).strip()
+                    subprocess.run(
+                        ["git", "fetch", "origin", "main"],
+                        timeout=10,
+                        cwd=repo_path,
+                        capture_output=True,
+                        check=True,
+                    )
+                    head = subprocess.check_output(
+                        ["git", "rev-parse", "HEAD"], cwd=repo_path, text=True
+                    ).strip()
+                    remote = subprocess.check_output(
+                        ["git", "rev-parse", "origin/main"], cwd=repo_path, text=True
+                    ).strip()
 
-                latest_version = f"dev-{remote[:7]}"
-                if head != remote:
-                    update_available = True
-                    release_notes = "Neue Version auf 'main' verfügbar"
-                else:
-                    release_notes = "System ist aktuell (latest)"
-                git_worked = True
-            except (subprocess.CalledProcessError, FileNotFoundError, Exception) as e:
-                logger.debug(f"Git check failed: {e}")
+                    latest_version = f"dev-{remote[:7]}"
+                    if head != remote:
+                        update_available = True
+                        release_notes = "Neue Version auf 'main' verfügbar"
+                    else:
+                        release_notes = "System ist aktuell (latest)"
+                    git_worked = True
+                except (
+                    subprocess.CalledProcessError,
+                    FileNotFoundError,
+                    Exception,
+                ) as e:
+                    logger.debug(f"Git check failed: {e}")
 
             if not git_worked:
                 # Fallback to GitHub API for commits/main
@@ -351,6 +369,13 @@ def perform_update(repo_path: Optional[str] = None) -> None:
     # Use detected path if none provided, but prioritize argument if given
     if repo_path is None:
         repo_path = get_repo_path()
+
+    if not repo_path:
+        logger.error("Cannot update: No git repository found")
+        raise RuntimeError(
+            "Update fehlgeschlagen: Kein Git-Repository gefunden. "
+            "Bitte mounten Sie das Repo oder setzen Sie REPO_PATH."
+        )
 
     git_dir = Path(repo_path) / ".git"
     if not git_dir.exists():
@@ -428,6 +453,9 @@ def perform_update(repo_path: Optional[str] = None) -> None:
 def can_run_updates(repo_path: Optional[str] = None) -> bool:
     if repo_path is None:
         repo_path = get_repo_path()
+
+    if not repo_path:
+        return False
 
     path_obj = Path(repo_path)
     if not path_obj.is_dir():
