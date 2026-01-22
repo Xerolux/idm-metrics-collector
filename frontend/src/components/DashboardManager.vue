@@ -1,5 +1,18 @@
 <template>
-    <div ref="dashboardElement" class="h-full flex flex-col gap-3">
+    <div
+        ref="dashboardElement"
+        class="h-full flex flex-col gap-3"
+        :data-dashboard-id="currentDashboardId"
+    >
+        <!-- Applied custom CSS (scoped) -->
+        <component
+            :is="'style'"
+            v-if="currentDashboard?.customCss"
+            :data-dashboard-id="currentDashboardId"
+        >
+            {{ currentDashboard.customCss }}
+        </component>
+
         <!-- Top Bar -->
         <div class="flex items-center justify-between gap-3 flex-shrink-0">
             <div class="flex items-center gap-2 flex-grow">
@@ -22,6 +35,12 @@
                     icon="pi pi-copy"
                     severity="secondary"
                     title="Aus Vorlage erstellen"
+                />
+                <Button
+                    @click="openDashboardSettings"
+                    icon="pi pi-cog"
+                    severity="secondary"
+                    title="Dashboard Einstellungen"
                 />
                 <Button
                     @click="confirmDeleteDashboard"
@@ -273,6 +292,12 @@
             @saved="loadVariables"
         />
 
+        <CssEditor
+            v-model="showCssEditor"
+            :css="currentDashboard?.customCss || ''"
+            @save="handleCssSave"
+        />
+
         <ConfirmDialog />
         <Toast />
     </div>
@@ -299,6 +324,7 @@ import ExportDialog from './ExportDialog.vue';
 import AnnotationList from './AnnotationList.vue';
 import VariableDialog from './VariableDialog.vue';
 import VariableSelector from './VariableSelector.vue';
+import CssEditor from './CssEditor.vue';
 
 const confirm = useConfirm();
 const toast = useToast();
@@ -312,6 +338,7 @@ const showExportDialog = ref(false);
 const showAnnotationsDialog = ref(false);
 const showVariablesDialog = ref(false);
 const showAddVariableDialog = ref(false);
+const showCssEditor = ref(false);
 const pendingSensors = ref([]);
 const isDraggingSensor = ref(false);
 const dashboardElement = ref(null);
@@ -543,6 +570,39 @@ const onVariableChange = (newValues) => {
     // The key is to trigger the computed properties in ChartCard
     // This is done by changing the currentDashboardId, which forces a re-fetch
     loadDashboards();
+};
+
+// Dashboard settings (including CSS)
+const openDashboardSettings = () => {
+    showCssEditor.value = true;
+};
+
+const handleCssSave = async (css) => {
+    if (!currentDashboard.value) return;
+
+    try {
+        await axios.put(`/api/dashboards/${currentDashboard.value.id}`, {
+            name: currentDashboard.value.name,
+            customCss: css
+        });
+
+        await loadDashboards();
+
+        toast.add({
+            severity: 'success',
+            summary: 'Erfolg',
+            detail: 'CSS gespeichert',
+            life: 2000
+        });
+    } catch (error) {
+        console.error('Failed to save CSS:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Fehler',
+            detail: 'CSS konnte nicht gespeichert werden',
+            life: 5000
+        });
+    }
 };
 
 const addChart = async () => {
