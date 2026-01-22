@@ -8,7 +8,8 @@ onMounted(async () => {
     try {
         const res = await axios.get('/api/version');
         version.value = res.data.version;
-    } catch (e) {
+    } catch (error) {
+        console.error(error);
         version.value = 'Unknown';
     }
 });

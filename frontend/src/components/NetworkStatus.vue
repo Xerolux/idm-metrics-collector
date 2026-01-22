@@ -15,6 +15,7 @@ const checkBackendHealth = async () => {
     });
     isBackendOnline.value = response.ok;
   } catch (error) {
+    console.error(error);
     isBackendOnline.value = false;
   }
 };

@@ -424,7 +424,7 @@ import StateTimelineCard from './StateTimelineCard.vue';
 import SensorValues from './SensorValues.vue';
 import OverviewHeader from './OverviewHeader.vue';
 import Dropdown from 'primevue/dropdown';
-import MultiSelect from 'primevue/multiselect';
+// import MultiSelect from 'primevue/multiselect';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
@@ -544,7 +544,8 @@ const loadDashboards = async () => {
         if (dashboards.value.length > 0 && !currentDashboardId.value) {
             currentDashboardId.value = dashboards.value[0].id;
         }
-    } catch (e) {
+    } catch (error) {
+        console.error(error);
         toast.add({
             severity: 'error',
             summary: 'Fehler',
@@ -605,7 +606,8 @@ const createDashboard = async () => {
             detail: `Dashboard "${name}" erstellt`,
             life: 3000
         });
-    } catch (e) {
+    } catch (error) {
+        console.error(error);
         toast.add({
             severity: 'error',
             summary: 'Fehler',
@@ -638,7 +640,8 @@ const deleteDashboard = async () => {
             detail: 'Dashboard wurde gelöscht',
             life: 3000
         });
-    } catch (e) {
+    } catch (error) {
+        console.error(error);
         toast.add({
             severity: 'error',
             summary: 'Fehler',
@@ -763,7 +766,8 @@ const addChart = async () => {
             detail: 'Chart wurde hinzugefügt',
             life: 3000
         });
-    } catch (e) {
+    } catch (error) {
+        console.error(error);
         toast.add({
             severity: 'error',
             summary: 'Fehler',

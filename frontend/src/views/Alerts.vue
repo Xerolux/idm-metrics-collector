@@ -278,6 +278,7 @@ async function deleteAlert(alert) {
     await axios.delete(`/api/alerts?id=${alert.id}`);
     await fetchAlerts();
   } catch (e) {
+    console.error(e);
     alert("Fehler beim Löschen");
   }
 }

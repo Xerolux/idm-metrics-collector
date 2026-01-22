@@ -89,7 +89,7 @@
 import { ref, computed, watch } from 'vue';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
-import { chartTemplates, getCategories, getTemplateById } from '../utils/chartTemplates';
+import { chartTemplates, getCategories } from '../utils/chartTemplates';
 
 const props = defineProps({
     modelValue: { type: Boolean, default: false }

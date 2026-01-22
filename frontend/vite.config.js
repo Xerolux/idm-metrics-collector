@@ -12,6 +12,15 @@ export default defineConfig({
   build: {
     outDir: '../idm_logger/static',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['vue', 'vue-router', 'pinia', 'axios'],
+          chartjs: ['chart.js', 'vue-chartjs', 'chartjs-adapter-date-fns', 'chartjs-plugin-zoom', 'chartjs-plugin-annotation'],
+          primevue: ['primevue', '@primevue/themes']
+        }
+      }
+    }
   },
   resolve: {
     alias: {

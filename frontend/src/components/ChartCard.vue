@@ -255,17 +255,18 @@ const chartOptions = computed(() => {
             zoom: {
                 zoom: {
                     wheel: {
-                        enabled: false // TEMPORARILY DISABLED to fix rendering
+                        enabled: true
                     },
                     pinch: {
-                        enabled: false
+                        enabled: true
                     },
                     drag: {
-                        enabled: false
+                        enabled: true
                     }
                 },
                 pan: {
-                    enabled: false
+                    enabled: true,
+                    mode: 'x'
                 }
             },
             annotation: {
@@ -363,7 +364,7 @@ const chartOptions = computed(() => {
         },
         elements: {
             point: {
-                radius: 0,
+                radius: 2,
                 hitRadius: 10,
                 hoverRadius: 4
             },
@@ -443,8 +444,8 @@ const fetchData = async () => {
                 }
             });
             return { q, res };
-        } catch (e) {
-            console.error(`Chart data fetch error for ${q.label}:`, e);
+        } catch (error) {
+            console.error(`Chart data fetch error for ${q.label}:`, error);
             return { q, res: null };
         }
     });
@@ -476,7 +477,8 @@ const fetchData = async () => {
                     data: dataPoints,
                     borderColor: q.color,
                     backgroundColor: q.color,
-                    fill: false
+                    fill: false,
+                    spanGaps: true
                 };
 
                 // Assign to second Y-axis if in dual mode and this is the second query
@@ -515,7 +517,8 @@ const fetchData = async () => {
                         data: dataPoints,
                         borderColor: q.color,
                         backgroundColor: q.color,
-                        fill: false
+                        fill: false,
+                        spanGaps: true
                     };
 
                     // Assign to second Y-axis if in dual mode
@@ -525,8 +528,8 @@ const fetchData = async () => {
 
                     datasets.push(dataset);
                 }
-            } catch (e) {
-                console.error(`Expression evaluation error for ${q.label}:`, e);
+            } catch (error) {
+                console.error(`Expression evaluation error for ${q.label}:`, error);
             }
         }
     }
@@ -582,7 +585,8 @@ const onConfigSave = async (config) => {
             detail: 'Chart gespeichert',
             life: 3000
         });
-    } catch (e) {
+    } catch (error) {
+        console.error('Save error:', error);
         toast.add({
             severity: 'error',
             summary: 'Fehler',
@@ -611,7 +615,8 @@ const deleteChart = async () => {
             life: 3000
         });
         emit('deleted');
-    } catch (e) {
+    } catch (error) {
+        console.error('Delete error:', error);
         toast.add({
             severity: 'error',
             summary: 'Fehler',

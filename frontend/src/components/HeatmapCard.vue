@@ -145,11 +145,11 @@ const renderHeatmap = () => {
     }
 
     // Calculate bucket boundaries
-    const bucketSize = Math.ceil(heatmapData.value.length / props.buckets);
+    // const bucketSize = Math.ceil(heatmapData.value.length / props.buckets);
 
     // Create matrix data for chartjs-chart-matrix
     const matrixData = [];
-    const labels = [];
+    // const labels = [];
 
     for (let i = 0; i < heatmapData.value.length; i++) {
         const [timestamp, value] = heatmapData.value[i];
@@ -157,7 +157,7 @@ const renderHeatmap = () => {
         const hour = date.getHours();
         const day = date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
 
-        const bucketIndex = Math.floor(i / bucketSize);
+        // const bucketIndex = Math.floor(i / bucketSize);
 
         matrixData.push({
             x: day,

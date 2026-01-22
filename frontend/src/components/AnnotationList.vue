@@ -162,13 +162,6 @@ const formatDate = (timestamp) => {
     });
 };
 
-// Reset editingAnnotation when dialog closes
-const onDialogHide = () => {
-    if (!showAddDialog.value) {
-        editingAnnotation.value = null;
-    }
-};
-
 onMounted(() => {
     loadAnnotations();
 });
