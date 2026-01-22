@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_default_dashboards() -> List[Dict[str, Any]]:
-    """Get default dashboard configuration."""
+    """Get default dashboard configuration matching Grafana standard dashboard."""
     return [
         {
             "id": "default",
@@ -21,19 +21,19 @@ def get_default_dashboards() -> List[Dict[str, Any]]:
                     "title": "Wärmepumpe Temperaturen",
                     "queries": [
                         {
-                            "label": "Außen",
+                            "label": "Aussen",
                             "query": "idm_heatpump_temp_outside",
-                            "color": "#3b82f6",
+                            "color": "#3b82f6",  # Blue
                         },
                         {
                             "label": "Vorlauf",
                             "query": "idm_heatpump_temp_heat_pump_flow",
-                            "color": "#ef4444",
+                            "color": "#ef4444",  # Red
                         },
                         {
                             "label": "Rücklauf",
                             "query": "idm_heatpump_temp_heat_pump_return",
-                            "color": "#f59e0b",
+                            "color": "#f59e0b",  # Orange
                         },
                     ],
                     "hours": 24,
@@ -145,6 +145,35 @@ def get_default_dashboards() -> List[Dict[str, Any]]:
                             "query": "idm_heatpump_temp_heat_source_output",
                             "color": "#14b8a6",
                         },
+                    ],
+                    "hours": 24,
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "title": "COP Verlauf",
+                    "queries": [
+                        {
+                            "label": "COP",
+                            "query": "idm_heatpump_power_current / idm_heatpump_power_current_draw",
+                            "color": "#22c55e",
+                        }
+                    ],
+                    "hours": 24,
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "title": "AI Anomalie-Erkennung",
+                    "queries": [
+                        {
+                            "label": "Anomalie Score",
+                            "query": "idm_anomaly_score",
+                            "color": "#ef4444",
+                        },
+                        {
+                            "label": "Anomalie Flag",
+                            "query": "idm_anomaly_flag",
+                            "color": "#f59e0b",
+                        }
                     ],
                     "hours": 24,
                 },

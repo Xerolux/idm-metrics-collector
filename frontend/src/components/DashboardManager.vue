@@ -32,7 +32,7 @@
                     :options="timeRangeOptions"
                     optionLabel="label"
                     optionValue="value"
-                    class="w-40"
+                    class="w-48"
                     @change="onTimeRangeChange"
                 />
                 <Button
@@ -47,11 +47,21 @@
         <div class="flex flex-col lg:flex-row gap-3 overflow-hidden">
             <!-- Left Sidebar: Current Values -->
             <div class="w-full lg:w-72 flex-shrink-0 overflow-y-auto">
-                <SensorValues />
+                <SensorValues @sensor-drag-start="onSensorDragStart" />
             </div>
 
             <!-- Main Grid with Drag & Drop -->
-            <div class="flex-grow overflow-y-auto pb-4 pr-1">
+            <div
+                class="flex-grow overflow-y-auto pb-4 pr-1 relative"
+                @dragover.prevent
+                @drop="onDrop"
+            >
+                <div v-if="isDraggingSensor" class="absolute inset-0 bg-teal-50/50 z-50 border-2 border-dashed border-teal-500 rounded-lg flex items-center justify-center pointer-events-none">
+                     <div class="bg-white p-4 rounded shadow-lg text-teal-700 font-bold">
+                         <i class="pi pi-plus mr-2"></i>Hier ablegen um Chart zu erstellen
+                     </div>
+                </div>
+
                 <!-- Draggable Charts Grid -->
                 <draggable
                     v-model="currentCharts"
@@ -60,11 +70,17 @@
                     class="grid grid-cols-1 md:grid-cols-2 gap-3"
                     ghost-class="ghost-card"
                     drag-class="dragging-card"
+                    handle=".drag-handle"
                     @start="onDragStart"
                     @end="onDragEnd"
                 >
                     <template #item="{ element: chart }">
-                        <div class="h-64 md:h-80">
+                        <div class="h-80 relative group">
+                            <!-- Drag Handle -->
+                            <div v-if="editMode" class="drag-handle absolute top-2 left-2 z-20 cursor-move p-1 bg-white/80 rounded hover:bg-white shadow-sm text-gray-400 hover:text-gray-700">
+                                <i class="pi pi-bars"></i>
+                            </div>
+
                             <ChartCard
                                 :title="chart.title"
                                 :queries="chart.queries"
@@ -81,12 +97,12 @@
                 <!-- Add Chart Button in Edit Mode -->
                 <div
                     v-if="editMode"
-                    class="h-64 md:h-80 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-teal-500 hover:bg-teal-50 cursor-pointer transition-colors"
+                    class="mt-3 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-teal-500 hover:bg-teal-50 cursor-pointer transition-colors"
                     @click="showAddChartDialog = true"
                 >
                     <div class="text-center text-gray-500">
                         <i class="pi pi-plus text-4xl mb-2"></i>
-                        <p class="font-medium">Chart hinzufügen</p>
+                        <p class="font-medium">Chart manuell hinzufügen</p>
                     </div>
                 </div>
             </div>
@@ -112,7 +128,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Zeitraum (Stunden)</label>
                     <Dropdown
                         v-model="newChart.hours"
-                        :options="hourOptions"
+                        :options="timeRangeOptions"
                         optionLabel="label"
                         optionValue="value"
                         class="w-full"
@@ -130,7 +146,7 @@
                     @click="addChart"
                     label="Hinzufügen"
                     severity="primary"
-                    :disabled="!newChart.title || pendingSensors.length === 0"
+                    :disabled="!newChart.title"
                 />
             </template>
         </Dialog>
@@ -141,7 +157,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import axios from 'axios';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
@@ -163,33 +179,32 @@ const currentDashboardId = ref('');
 const editMode = ref(false);
 const showAddChartDialog = ref(false);
 const pendingSensors = ref([]);
+const isDraggingSensor = ref(false);
 
 // Time range selector
 const timeRange = ref('24h');
 const timeRangeOptions = [
-    { label: '6 Stunden', value: '6h' },
     { label: '12 Stunden', value: '12h' },
     { label: '24 Stunden', value: '24h' },
     { label: '48 Stunden', value: '48h' },
-    { label: '7 Tage', value: '168h' }
+    { label: '72 Stunden', value: '72h' },
+    { label: '1 Woche', value: '168h' },
+    { label: '1 Monat', value: '720h' },
+    { label: '3 Monate', value: '2160h' },
+    { label: '6 Monate', value: '4320h' },
+    { label: '1 Jahr', value: '8760h' },
+    { label: 'Alles', value: '0' }
 ];
 
 const effectiveHours = computed(() => {
+    if (timeRange.value === '0') return 0;
     return parseInt(timeRange.value);
 });
 
 const newChart = ref({
     title: '',
-    hours: 24
+    hours: '24h'
 });
-
-const hourOptions = [
-    { label: '6 Stunden', value: 6 },
-    { label: '12 Stunden', value: 12 },
-    { label: '24 Stunden', value: 24 },
-    { label: '48 Stunden', value: 48 },
-    { label: '7 Tage', value: 168 }
-];
 
 const currentDashboard = computed(() => {
     return dashboards.value.find(d => d.id === currentDashboardId.value);
@@ -336,24 +351,26 @@ const deleteDashboard = async () => {
 };
 
 const onTimeRangeChange = () => {
-    console.log('Time range changed to:', timeRange.value);
+    // console.log('Time range changed to:', timeRange.value);
 };
 
 const addChart = async () => {
-    const queries = pendingSensors.value.map((s, i) => {
+    const queries = pendingSensors.value.length > 0 ? pendingSensors.value.map((s, i) => {
         const colors = ['#f59e0b', '#3b82f6', '#ef4444', '#22c55e', '#a855f7', '#ec4899'];
         return {
             label: s.display,
             query: s.name,
             color: colors[i % colors.length]
         };
-    });
+    }) : [];
+
+    const hoursVal = newChart.value.hours === '0' ? 0 : parseInt(newChart.value.hours);
 
     try {
         const res = await axios.post(`/api/dashboards/${currentDashboardId.value}/charts`, {
             title: newChart.value.title,
             queries,
-            hours: newChart.value.hours
+            hours: hoursVal
         });
 
         const dashboard = dashboards.value.find(d => d.id === currentDashboardId.value);
@@ -363,7 +380,7 @@ const addChart = async () => {
         }
 
         showAddChartDialog.value = false;
-        newChart.value = { title: '', hours: 24 };
+        newChart.value = { title: '', hours: '24h' };
         pendingSensors.value = [];
 
         toast.add({
@@ -382,13 +399,69 @@ const addChart = async () => {
     }
 };
 
-const onChartDeleted = () => {
-    loadDashboards();
+const onSensorDragStart = (metric) => {
+    isDraggingSensor.value = true;
+};
+
+const onDrop = async (event) => {
+    isDraggingSensor.value = false;
+    try {
+        const metricData = event.dataTransfer.getData('application/json');
+        if (!metricData) return;
+
+        const metric = JSON.parse(metricData);
+
+        // Add single chart for dropped metric
+        const colors = ['#f59e0b', '#3b82f6', '#ef4444', '#22c55e', '#a855f7', '#ec4899'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+        const queries = [{
+            label: metric.display,
+            query: metric.name,
+            color: randomColor
+        }];
+
+        const res = await axios.post(`/api/dashboards/${currentDashboardId.value}/charts`, {
+            title: metric.display,
+            queries,
+            hours: effectiveHours.value
+        });
+
+        const dashboard = dashboards.value.find(d => d.id === currentDashboardId.value);
+        if (dashboard) {
+            dashboard.charts.push(res.data);
+            currentCharts.value = [...dashboard.charts];
+        }
+
+        toast.add({
+            severity: 'success',
+            summary: 'Hinzugefügt',
+            detail: 'Chart erstellt',
+            life: 2000
+        });
+
+    } catch (e) {
+        console.error("Drop error", e);
+    }
+};
+
+// Global drag end listener to reset state if dropped outside
+const onGlobalDragEnd = () => {
+    isDraggingSensor.value = false;
 };
 
 onMounted(() => {
     loadDashboards();
+    document.addEventListener('dragend', onGlobalDragEnd);
 });
+
+onUnmounted(() => {
+    document.removeEventListener('dragend', onGlobalDragEnd);
+});
+
+const onChartDeleted = () => {
+    loadDashboards();
+};
 </script>
 
 <style scoped>

@@ -23,7 +23,7 @@
         <div class="flex justify-between items-start mb-1 px-1">
             <div>
                 <h3 class="text-gray-900 font-bold text-sm leading-tight pr-16">{{ title }}</h3>
-                <span class="text-xs text-gray-500">Verlauf - letzte {{ hours }} Stunden</span>
+                <span class="text-xs text-gray-500">Verlauf - letzte {{ displayHours }}</span>
             </div>
             <button
                 @click="toggleFullscreen"
@@ -36,12 +36,29 @@
         <div
             ref="chartContainer"
             class="flex-grow relative w-full min-h-0"
-            :class="{ 'fixed inset-0 z-50 bg-white p-4': isFullscreen }"
+            :class="{ 'fixed inset-0 z-50 bg-white p-4 h-full w-full': isFullscreen }"
         >
+            <div v-if="isFullscreen" class="absolute top-4 right-4 z-50">
+                 <button
+                    @click="toggleFullscreen"
+                    class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full"
+                >
+                    <i class="pi pi-times text-lg"></i>
+                </button>
+            </div>
             <Line :data="chartData" :options="chartOptions" />
+            <!-- Stats Overlay (Bottom) -->
+            <div v-if="hasData" class="absolute bottom-2 left-2 right-2 flex justify-center gap-4 text-[10px] text-gray-500 bg-white/80 p-1 rounded backdrop-blur-sm pointer-events-none">
+                 <div v-for="stat in stats" :key="stat.label" class="flex gap-2">
+                     <span class="font-bold" :style="{ color: stat.color }">{{ stat.label }}:</span>
+                     <span>Min: {{ stat.min.toFixed(1) }}</span>
+                     <span>Max: {{ stat.max.toFixed(1) }}</span>
+                     <span>Avg: {{ stat.avg.toFixed(1) }}</span>
+                 </div>
+            </div>
         </div>
 
-        <div class="flex flex-wrap gap-x-3 gap-y-1 justify-center mt-1 px-1">
+        <div v-if="!isFullscreen" class="flex flex-wrap gap-x-3 gap-y-1 justify-center mt-1 px-1">
             <div v-for="(dataset, idx) in chartData.datasets" :key="idx" class="flex items-center gap-1">
                 <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: dataset.borderColor }"></span>
                 <span class="text-[10px] text-gray-600 leading-none">{{ dataset.label }}</span>
@@ -71,6 +88,8 @@ import {
   Legend,
   TimeScale
 } from 'chart.js';
+import 'chartjs-adapter-date-fns';
+import zoomPlugin from 'chartjs-plugin-zoom';
 import { Line } from 'vue-chartjs';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
@@ -86,13 +105,14 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  TimeScale
+  TimeScale,
+  zoomPlugin
 );
 
 const props = defineProps({
     title: { type: String, required: true },
     queries: { type: Array, required: true },
-    hours: { type: Number, default: 12 },
+    hours: { type: [Number, String], default: 12 },
     chartId: { type: String, required: true },
     dashboardId: { type: String, required: true },
     editMode: { type: Boolean, default: false }
@@ -111,12 +131,20 @@ const chartData = ref({
 const isFullscreen = ref(false);
 const chartContainer = ref(null);
 const configDialog = ref(null);
+const stats = ref([]);
 
 const chartConfig = computed(() => ({
     title: props.title,
     queries: props.queries,
     hours: props.hours
 }));
+
+const displayHours = computed(() => {
+    if (props.hours === 0 || props.hours === '0') return 'Start';
+    return props.hours + ' Stunden';
+});
+
+const hasData = computed(() => chartData.value.datasets.length > 0);
 
 const chartOptions = {
     responsive: true,
@@ -128,11 +156,34 @@ const chartOptions = {
         tooltip: {
             mode: 'index',
             intersect: false,
+        },
+        zoom: {
+            zoom: {
+                wheel: {
+                    enabled: true,
+                },
+                pinch: {
+                    enabled: true
+                },
+                mode: 'x',
+            },
+            pan: {
+                enabled: true,
+                mode: 'x',
+            }
         }
     },
     scales: {
         x: {
             display: true,
+            type: 'time',
+             time: {
+                tooltipFormat: 'dd.MM.yyyy HH:mm',
+                displayFormats: {
+                    hour: 'HH:mm',
+                    day: 'dd.MM'
+                }
+            },
             grid: {
                 display: true,
                 color: '#f0f0f0'
@@ -168,13 +219,44 @@ const chartOptions = {
     }
 };
 
+const calculateStats = (datasets) => {
+    const calculatedStats = [];
+    datasets.forEach(ds => {
+        const values = ds.data.filter(v => v !== null && !isNaN(v));
+        if (values.length > 0) {
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const sum = values.reduce((a, b) => a + b, 0);
+            const avg = sum / values.length;
+            calculatedStats.push({
+                label: ds.label,
+                color: ds.borderColor,
+                min,
+                max,
+                avg
+            });
+        }
+    });
+    stats.value = calculatedStats;
+};
+
 const fetchData = async () => {
     const end = Math.floor(Date.now() / 1000);
-    const start = end - (props.hours * 3600);
-    const step = Math.max(60, Math.floor((end - start) / 100));
+    let start;
+
+    // Check for "All" (0)
+    if (props.hours === 0 || props.hours === '0') {
+         start = end - (365 * 24 * 3600); // Default to 1 year if "All" is selected to avoid too much data, or maybe 5 years
+    } else {
+         start = end - (parseInt(props.hours) * 3600);
+    }
+
+    const duration = end - start;
+    // Dynamic step calculation to avoid fetching too many points
+    // Aim for around 500-1000 points
+    const step = Math.max(60, Math.floor(duration / 500));
 
     const datasets = [];
-    let labels = [];
 
     const promises = props.queries.map(async (q) => {
         try {
@@ -199,15 +281,11 @@ const fetchData = async () => {
         if (res && res.data && res.data.status === 'success') {
             const result = res.data.data.result;
             if (result.length > 0) {
-                const values = result[0].values;
-                const dataPoints = values.map(v => parseFloat(v[1]));
-
-                if (labels.length === 0) {
-                    labels = values.map(v => {
-                        const date = new Date(v[0] * 1000);
-                        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    });
-                }
+                const values = result[0].values; // [[timestamp, "value"], ...]
+                const dataPoints = values.map(v => ({
+                    x: v[0] * 1000,
+                    y: parseFloat(v[1])
+                }));
 
                 datasets.push({
                     label: q.label,
@@ -221,9 +299,9 @@ const fetchData = async () => {
     }
 
     chartData.value = {
-        labels,
         datasets
     };
+    calculateStats(datasets);
 };
 
 const toggleFullscreen = () => {
