@@ -48,6 +48,12 @@
                     title="Exportieren"
                 />
                 <Button
+                    @click="showAnnotationsDialog = true"
+                    icon="pi pi-bookmark"
+                    severity="secondary"
+                    title="Annotations"
+                />
+                <Button
                     @click="editMode = !editMode"
                     :icon="editMode ? 'pi pi-lock-open' : 'pi pi-lock'"
                     :severity="editMode ? 'success' : 'secondary'"
@@ -175,6 +181,20 @@
             :dashboard-element="dashboardElement"
         />
 
+        <Dialog
+            v-model:visible="showAnnotationsDialog"
+            modal
+            header="Annotations verwalten"
+            :style="{ width: '90vw', maxWidth: '600px' }"
+        >
+            <AnnotationList
+                v-if="showAnnotationsDialog"
+                :dashboard-id="currentDashboardId"
+                :start-time="annotationsStartTime"
+                :end-time="annotationsEndTime"
+            />
+        </Dialog>
+
         <ConfirmDialog />
         <Toast />
     </div>
@@ -197,6 +217,7 @@ import ConfirmDialog from 'primevue/confirmdialog';
 import Toast from 'primevue/toast';
 import ChartTemplateDialog from './ChartTemplateDialog.vue';
 import ExportDialog from './ExportDialog.vue';
+import AnnotationList from './AnnotationList.vue';
 
 const confirm = useConfirm();
 const toast = useToast();
@@ -207,6 +228,7 @@ const editMode = ref(false);
 const showAddChartDialog = ref(false);
 const showTemplateDialog = ref(false);
 const showExportDialog = ref(false);
+const showAnnotationsDialog = ref(false);
 const pendingSensors = ref([]);
 const isDraggingSensor = ref(false);
 const dashboardElement = ref(null);
@@ -238,6 +260,17 @@ const newChart = ref({
 
 const currentDashboard = computed(() => {
     return dashboards.value.find(d => d.id === currentDashboardId.value);
+});
+
+// Annotations time range
+const annotationsStartTime = computed(() => {
+    const end = Math.floor(Date.now() / 1000);
+    const start = effectiveHours.value === 0 ? end - 86400 * 7 : end - (effectiveHours.value * 3600);
+    return start;
+});
+
+const annotationsEndTime = computed(() => {
+    return Math.floor(Date.now() / 1000);
 });
 
 // Use v-model directly for draggable - it needs to be writable

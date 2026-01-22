@@ -30,6 +30,7 @@ from .update_manager import (
 from .alerts import alert_manager
 from .dashboard_config import dashboard_manager
 from .templates import get_alert_templates
+from .annotations import AnnotationManager
 from shutil import which
 import threading
 import logging
@@ -69,6 +70,9 @@ limiter = Limiter(
     default_limits=["200 per minute"],
     storage_uri="memory://",
 )
+
+# Annotation Manager
+annotation_manager = AnnotationManager(config)
 
 # Shared state
 current_data = {}
@@ -1535,6 +1539,124 @@ def delete_database():
             return jsonify({"error": f"Fehler beim Löschen: {response.text}"}), 500
     except Exception as e:
         logger.error(f"Failed to delete database: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# Annotations API
+# ============================================================================
+
+@app.route("/api/annotations", methods=["GET"])
+@login_required
+def get_annotations():
+    """Get all annotations or filter by dashboard and time range"""
+    try:
+        dashboard_id = request.args.get('dashboard_id')
+        start = request.args.get('start', type=int)
+        end = request.args.get('end', type=int)
+
+        if dashboard_id:
+            annotations = annotation_manager.get_annotations_for_dashboard(dashboard_id)
+        elif start and end:
+            annotations = annotation_manager.get_annotations_for_time_range(start, end, dashboard_id)
+        else:
+            annotations = annotation_manager.get_all_annotations()
+
+        return jsonify([a.to_dict() for a in annotations])
+    except Exception as e:
+        logger.error(f"Failed to get annotations: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/annotations", methods=["POST"])
+@login_required
+def create_annotation():
+    """Create a new annotation"""
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        if not data.get('text'):
+            return jsonify({"error": "text is required"}), 400
+
+        # Convert time to timestamp if provided as string
+        time = data.get('time')
+        if time and isinstance(time, str):
+            from datetime import datetime
+            time = int(datetime.fromisoformat(time.replace('Z', '+00:00')).timestamp())
+        elif not time:
+            from datetime import datetime
+            time = int(datetime.now().timestamp())
+
+        annotation = annotation_manager.add_annotation(
+            time=time,
+            text=data['text'],
+            tags=data.get('tags', []),
+            color=data.get('color', '#ef4444'),
+            dashboard_id=data.get('dashboard_id')
+        )
+
+        return jsonify(annotation.to_dict()), 201
+    except Exception as e:
+        logger.error(f"Failed to create annotation: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/annotations/<annotation_id>", methods=["GET"])
+@login_required
+def get_annotation(annotation_id):
+    """Get a specific annotation"""
+    try:
+        annotation = annotation_manager.get_annotation(annotation_id)
+        if not annotation:
+            return jsonify({"error": "Annotation not found"}), 404
+        return jsonify(annotation.to_dict())
+    except Exception as e:
+        logger.error(f"Failed to get annotation: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/annotations/<annotation_id>", methods=["PUT"])
+@login_required
+def update_annotation(annotation_id):
+    """Update an annotation"""
+    try:
+        data = request.get_json()
+
+        # Convert time to timestamp if provided as string
+        time = data.get('time')
+        if time and isinstance(time, str):
+            from datetime import datetime
+            time = int(datetime.fromisoformat(time.replace('Z', '+00:00')).timestamp())
+
+        annotation = annotation_manager.update_annotation(
+            annotation_id=annotation_id,
+            time=time,
+            text=data.get('text'),
+            tags=data.get('tags'),
+            color=data.get('color')
+        )
+
+        if not annotation:
+            return jsonify({"error": "Annotation not found"}), 404
+
+        return jsonify(annotation.to_dict())
+    except Exception as e:
+        logger.error(f"Failed to update annotation: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/annotations/<annotation_id>", methods=["DELETE"])
+@login_required
+def delete_annotation(annotation_id):
+    """Delete an annotation"""
+    try:
+        success = annotation_manager.delete_annotation(annotation_id)
+        if not success:
+            return jsonify({"error": "Annotation not found"}), 404
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"Failed to delete annotation: {e}")
         return jsonify({"error": str(e)}), 500
 
 

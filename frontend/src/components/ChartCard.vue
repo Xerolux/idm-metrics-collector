@@ -160,6 +160,8 @@ const chartContainer = ref(null);
 const chartRef = ref(null);
 const configDialog = ref(null);
 const stats = ref([]);
+const annotations = ref([]);
+
 
 const chartConfig = computed(() => ({
     title: props.title,
@@ -255,24 +257,49 @@ const chartOptions = computed(() => {
                 }
             },
             annotation: {
-                annotations: props.alertThresholds.reduce((acc, threshold, index) => {
-                    acc[`threshold-${index}`] = {
-                        type: 'line',
-                        yMin: threshold.value,
-                        yMax: threshold.value,
-                        borderColor: threshold.color || 'red',
-                        borderWidth: 2,
-                        borderDash: [6, 6],
-                        label: {
-                            display: true,
-                            content: threshold.label || `Threshold: ${threshold.value}`,
-                            position: 'end',
-                            backgroundColor: threshold.color || 'red',
-                            font: { size: 10 }
-                        }
-                    };
-                    return acc;
-                }, {})
+                annotations: {
+                    // Alert thresholds (horizontal lines)
+                    ...props.alertThresholds.reduce((acc, threshold, index) => {
+                        acc[`threshold-${index}`] = {
+                            type: 'line',
+                            yMin: threshold.value,
+                            yMax: threshold.value,
+                            borderColor: threshold.color || 'red',
+                            borderWidth: 2,
+                            borderDash: [6, 6],
+                            label: {
+                                display: true,
+                                content: threshold.label || `Threshold: ${threshold.value}`,
+                                position: 'end',
+                                backgroundColor: threshold.color || 'red',
+                                font: { size: 10 }
+                            }
+                        };
+                        return acc;
+                    }, {}),
+                    // Time-based annotations (vertical lines)
+                    ...annotations.value.reduce((acc, annotation, index) => {
+                        acc[`annotation-${index}`] = {
+                            type: 'line',
+                            xMin: annotation.time * 1000, // Chart.js uses milliseconds
+                            xMax: annotation.time * 1000,
+                            borderColor: annotation.color,
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            label: {
+                                display: true,
+                                content: annotation.text,
+                                position: 'start',
+                                backgroundColor: annotation.color,
+                                color: '#fff',
+                                font: { size: 10 },
+                                xAdjust: 5,
+                                yAdjust: -10
+                            }
+                        };
+                        return acc;
+                    }, {})
+                }
             }
         },
         scales: {
@@ -512,8 +539,29 @@ const deleteChart = async () => {
     }
 };
 
+const loadAnnotations = async () => {
+    try {
+        const end = Math.floor(Date.now() / 1000);
+        const start = props.hours === 0 || props.hours === '0' ? end - 86400 * 7 : end - (props.hours * 3600);
+
+        const response = await axios.get('/api/annotations', {
+            params: {
+                dashboard_id: props.dashboardId,
+                start: start,
+                end: end
+            }
+        });
+
+        annotations.value = response.data;
+    } catch (error) {
+        console.error('Failed to load annotations:', error);
+        // Don't show toast for annotations loading errors
+    }
+};
+
 onMounted(() => {
     fetchData();
+    loadAnnotations();
     const interval = setInterval(fetchData, 60000);
 
     // Cleanup on fullscreen change
@@ -528,7 +576,11 @@ onMounted(() => {
 });
 
 watch(() => props.queries, fetchData);
-watch(() => props.hours, fetchData);
+watch(() => props.hours, () => {
+    fetchData();
+    loadAnnotations();
+});
+watch(() => props.dashboardId, loadAnnotations);
 </script>
 
 <style scoped>
