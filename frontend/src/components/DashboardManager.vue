@@ -96,7 +96,7 @@
             @change="onVariableChange"
         />
 
-        <div class="flex flex-col lg:flex-row gap-3 overflow-hidden">
+        <div class="flex-grow min-h-0 flex flex-col lg:flex-row gap-3 lg:overflow-hidden">
             <!-- Left Sidebar: Current Values -->
             <div class="w-full lg:w-72 flex-shrink-0 overflow-y-auto">
                 <SensorValues @sensor-drag-start="onSensorDragStart" />
