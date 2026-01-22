@@ -444,8 +444,8 @@ const fetchData = async () => {
                 }
             });
             return { q, res };
-        } catch (e) {
-            console.error(`Chart data fetch error for ${q.label}:`, e);
+        } catch (error) {
+            console.error(`Chart data fetch error for ${q.label}:`, error);
             return { q, res: null };
         }
     });
@@ -528,8 +528,8 @@ const fetchData = async () => {
 
                     datasets.push(dataset);
                 }
-            } catch (e) {
-                console.error(`Expression evaluation error for ${q.label}:`, e);
+            } catch (error) {
+                console.error(`Expression evaluation error for ${q.label}:`, error);
             }
         }
     }
@@ -585,7 +585,8 @@ const onConfigSave = async (config) => {
             detail: 'Chart gespeichert',
             life: 3000
         });
-    } catch (e) {
+    } catch (error) {
+        console.error('Save error:', error);
         toast.add({
             severity: 'error',
             summary: 'Fehler',
@@ -614,7 +615,8 @@ const deleteChart = async () => {
             life: 3000
         });
         emit('deleted');
-    } catch (e) {
+    } catch (error) {
+        console.error('Delete error:', error);
         toast.add({
             severity: 'error',
             summary: 'Fehler',
