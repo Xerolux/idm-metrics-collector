@@ -6,7 +6,7 @@
 
 ---
 
-## Aktueller Stand: v0.7.1 (~85% Parität)
+## Aktueller Stand: v0.8.0 (~92% Parität)
 
 ### ✅ Erledigt
 
@@ -21,6 +21,8 @@
 - [x] Alert Display im Chart (Roadmap #12) - ✅ NEW
 - [x] Bar Charts (Roadmap #3) - ✅ NEW
 - [x] Dashboard Export PNG/PDF (Roadmap #4) - ✅ NEW
+- [x] Annotations / Markierungen (Roadmap #1) - ✅ NEW
+- [x] Variables / Template Variables (Roadmap #2) - ✅ NEW
 
 ---
 
@@ -80,47 +82,48 @@
 
 ---
 
-#### 1. Annotations / Markierungen
+#### ~~1. Annotations / Markierungen~~ ✅ ERLEDIGT
 **Beschreibung**: Zeitbasierte Markierungen im Chart (z.B. "Wartung am 15.1.", "Filter gewechselt")
 
 **Grafana**: Annotations Panel mit Event-Overlay
 
-**Umsetzung**:
-- [ ] Annotations API Endpoint (`/api/annotations`)
-- [ ] Annotation UI (Dialog zum Erstellen)
-- [ ] Chart Rendering (vertikale Linien, Labels)
-- [ ] Annotation Management (Liste, Edit, Delete)
+**Umsetzung**: ✅ COMPLETED
+- [x] Annotations API Endpoint (`/api/annotations`)
+- [x] Annotation UI (Dialog zum Erstellen)
+- [x] Chart Rendering (vertikale Linien, Labels)
+- [x] Annotation Management (Liste, Edit, Delete)
 
 **Aufwand**: 4-6 Stunden
 
 **Files**:
-- `idm_logger/web.py` - API Endpoints
-- `idm_logger/annotations.py` - Model & Manager
-- `frontend/src/components/AnnotationDialog.vue` - UI
-- `frontend/src/components/ChartCard.vue` - Rendering
+- `idm_logger/web.py` - API Endpoints ✅
+- `idm_logger/annotations.py` - Model & Manager ✅
+- `frontend/src/components/AnnotationDialog.vue` - UI ✅
+- `frontend/src/components/AnnotationList.vue` - List UI ✅
+- `frontend/src/components/ChartCard.vue` - Rendering ✅
 
 ---
 
-#### 2. Variables / Template Variables
+#### ~~2. Variables / Template Variables~~ ✅ ERLEDIGT
 **Beschreibung**: Platzhalter in Queries, z.B. `$heizkreis`, `$zeitraum`
 
 **Grafana**: Dashboard Variables mit Dropdown-Auswahl
 
-**Umsetzung**:
-- [ ] Variables API (`/api/variables`)
-- [ ] Variable Types: Query, Custom, Interval
-- [ ] Variable UI (Dropdown im Dashboard)
-- [ ] Query Parser (ersetze $vars in queries)
-- [ ] Variable Dependencies (var2 hängt von var1 ab)
+**Umsetzung**: ✅ COMPLETED
+- [x] Variables API (`/api/variables`)
+- [x] Variable Types: Query, Custom, Interval
+- [x] Variable UI (Dropdown im Dashboard)
+- [x] Query Parser (ersetze $vars in queries)
+- [x] Variable Dependencies (var2 hängt von var1 ab)
 
 **Aufwand**: 6-8 Stunden
 
 **Files**:
-- `idm_logger/variables.py` - Model
-- `idm_logger/web.py` - API
-- `frontend/src/stores/variables.js` - Store
-- `frontend/src/components/VariableSelector.vue` - UI
-- `frontend/src/utils/queryParser.js` - Parser
+- `idm_logger/variables.py` - Model ✅
+- `idm_logger/web.py` - API ✅
+- `frontend/src/components/VariableSelector.vue` - UI ✅
+- `frontend/src/components/VariableDialog.vue` - Management UI ✅
+- `frontend/src/utils/queryParser.js` - Parser ✅
 
 ---
 
@@ -363,16 +366,22 @@
 2. ~~**Bar Charts**~~ - ✅ Chart.js hat das schon eingebaut
 3. ~~**Alert Display**~~ - ✅ Nur visuelle Erweiterung
 
-### Weekend Projects (6-8 Stunden)
+### ~~Weekend Projects (6-8 Stunden)~~ ✅ ALLE ERLEDIGT
 
-1. **Variables System** - Sehr nützlich, aber komplexer
-2. **WebSocket Live** - Großes Plus für UX
+1. ~~**Annotations System**~~ - ✅ Zeitbasierte Markierungen
+2. ~~**Variables System**~~ - ✅ Template Variables für dynamische Queries
+
+### Nächste Projects (Mittlere Priorität)
+
 3. **Math Queries** - Mächtig, aber braucht sorgfältige Implementierung
+4. **Custom CSS** - Einfach, aber braucht Sicherheitsüberlegungen
+5. **WebSocket Live** - Großes Plus für UX
 
-### Week-long Projects
+### Week-long Projects (Fortgeschritten)
 
-1. **Annotations** - Braucht API + UI + Chart Rendering
-2. **Shared Dashboards** - Braucht Auth System + View Mode
+1. **Shared Dashboards** - Braucht Auth System + View Mode
+2. **Heatmaps** - Braucht Chart.js Plugin
+3. **Table Panel** - Braucht Custom Vue Component
 
 ---
 
@@ -384,23 +393,25 @@ Jede Hilfe ist willkommen! Schau dir die Issues an oder sprich mich auf Discord 
 - ~~Dashboard Export~~ ✅
 - ~~Bar Charts~~ ✅
 - ~~Alert Display~~ ✅
+- ~~Annotations System~~ ✅
+- ~~Variables System~~ ✅
 
 **Nächste Einfache Tasks**:
-- Heatmap Panel (Chart.js hat Plugins)
 - Table Panel (Standard Vue Component)
+- State Timeline (Status-Verläufe)
 
 **Für Fortgeschrittene**:
-- Variables System
+- ~~Variables System~~ ✅
 - WebSocket Integration
 - Math Query Parser
 
 **Für Experten**:
-- Annotations System
+- ~~Annotations System~~ ✅
 - Sharing/Permissions
 - Mobile Apps
 
 ---
 
 **Stand**: 2025-01-22
-**Version**: 0.7.1
-**Nächstes Release**: 0.8.0 (Core Features Complete)
+**Version**: 0.8.0
+**Nächstes Release**: 0.9.0 (Advanced Features)
