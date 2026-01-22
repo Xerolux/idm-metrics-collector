@@ -41,8 +41,8 @@ export class WebSocketClient {
      * @param {Object} options - Socket.IO options
      */
     connect(url = null, options = {}) {
-        if (this.socket?.connected) {
-            console.warn('WebSocket already connected');
+        if (this.socket?.connected || this.connectionState === ConnectionState.CONNECTING) {
+            if (this.socket?.connected) console.warn('WebSocket already connected');
             return;
         }
 
@@ -84,15 +84,15 @@ export class WebSocketClient {
      * @param {string} dashboardId - Dashboard ID (optional)
      */
     subscribe(metrics, dashboardId = null) {
-        if (!this.socket?.connected) {
-            console.warn('Cannot subscribe: WebSocket not connected');
-            return;
-        }
-
         // Store subscriptions
         metrics.forEach(m => this.subscriptions.add(m));
         if (dashboardId) {
             this.dashboardId = dashboardId;
+        }
+
+        if (!this.socket?.connected) {
+            console.log('WebSocket not connected, subscription queued for:', metrics);
+            return;
         }
 
         this.socket.emit('subscribe', {
@@ -110,13 +110,12 @@ export class WebSocketClient {
      * @param {string} dashboardId - Dashboard ID (optional)
      */
     unsubscribe(metrics, dashboardId = null) {
-        if (!this.socket?.connected) {
-            console.warn('Cannot unsubscribe: WebSocket not connected');
-            return;
-        }
-
         // Remove from stored subscriptions
         metrics.forEach(m => this.subscriptions.delete(m));
+
+        if (!this.socket?.connected) {
+            return;
+        }
 
         this.socket.emit('unsubscribe', {
             metrics,
