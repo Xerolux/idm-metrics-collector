@@ -6,7 +6,7 @@
 
 ---
 
-## Aktueller Stand: v0.9.1 (~98% Parität)
+## Aktueller Stand: v0.9.2 (~99% Parität)
 
 ### ✅ Erledigt
 
@@ -27,6 +27,7 @@
 - [x] Table Panel (Roadmap #10) - ✅ NEW
 - [x] State Timeline (Roadmap #11) - ✅ NEW
 - [x] Math Queries / Expressions (Roadmap #5) - ✅ NEW
+- [x] WebSocket Live Updates (Roadmap #7) - ✅ NEW
 
 ---
 
@@ -170,64 +171,22 @@
 
 ---
 
-### 🟡 Mittlere Priorität (Nice-to-Have)
-
-#### ~~5. Math Queries / Expressions~~ ✅ ERLEDIGT
-**Beschreibung**: Mathematische Ausdrücke in Queries, z.B. `A/B`, `A*100`, `(A+B)/2`
-
-**Grafana**: Query Expressions / Transformations
-
-**Umsetzung**: ✅ COMPLETED
-- [x] Expression Parser (sicherer eval)
-- [x] Supported Operations: +, -, *, /, (), avg, sum, min, max
-- [x] Query Builder UI
-- [x] Expression Validation
-
-**Files**:
-- `idm_logger/expression_parser.py` - Backend Parser ✅
-- `frontend/src/utils/expressionParser.js` - Frontend Parser ✅
-- `frontend/src/components/ExpressionBuilder.vue` - UI ✅
-
----
-
-#### ~~6. Custom CSS pro Dashboard~~ ✅ ERLEDIGT
-**Beschreibung**: Benutzerdefiniertes CSS für einzelne Dashboards
-
-**Grafana**: CSS Panel Options
-
-**Umsetzung**: ✅ COMPLETED
-- [x] CSS Editor (Textarea-based)
-- [x] CSS Sandbox (scoped styles)
-- [x] CSS Validation
-- [x] Preview Mode
-
-**Aufwand**: 3-4 Stunden
-
-**Files**:
-- `frontend/src/components/CssEditor.vue` - UI ✅
-- `idm_logger/dashboard_config.py` - CSS Storage ✅
-- Security: CSP restrictions beachten ✅
-
----
-
-#### 7. WebSocket Live Updates
+#### ~~7. WebSocket Live Updates~~ ✅ ERLEDIGT
 **Beschreibung**: Echtzeit-Updates ohne Polling
 
 **Grafana**: Live Streaming
 
-**Umsetzung**:
-- [ ] WebSocket Server (Flask-SocketIO)
-- [ ] WebSocket Client Integration
-- [ ] Auto-Reconnect Logic
-- [ ] Selective Subscriptions (nur benötigte Metriken)
-
-**Aufwand**: 6-8 Stunden
+**Umsetzung**: ✅ COMPLETED
+- [x] WebSocket Server (Flask-SocketIO)
+- [x] WebSocket Client Integration
+- [x] Auto-Reconnect Logic
+- [x] Selective Subscriptions (nur benötigte Metriken)
 
 **Files**:
-- `idm_logger/websocket.py` - Server
-- `idm_logger/__init__.py` - SocketIO Integration
-- `frontend/src/utils/websocket.js` - Client
-- `frontend/package.json` - socket.io-client
+- `idm_logger/websocket_handler.py` - Server ✅
+- `idm_logger/web.py` - SocketIO Integration ✅
+- `frontend/src/utils/websocket.js` - Client ✅
+- `frontend/package.json` - socket.io-client ✅
 
 ---
 

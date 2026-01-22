@@ -8,6 +8,7 @@ from flask import (
     send_from_directory,
     send_file,
 )
+from flask_socketio import SocketIO
 from waitress import serve
 from flasgger import Swagger
 from flask_limiter import Limiter
@@ -33,6 +34,7 @@ from .templates import get_alert_templates
 from .annotations import AnnotationManager
 from .variables import VariableManager
 from .expression_parser import ExpressionParser
+from .websocket_handler import websocket_handler
 from shutil import which
 import threading
 import logging
@@ -50,6 +52,17 @@ app = Flask(__name__)
 app.secret_key = config.get_flask_secret_key()
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+# Initialize SocketIO
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode="threading",
+    logger=False,
+    engineio_logger=False,
+    ping_timeout=60,
+    ping_interval=25,
+)
 
 # Trust proxies if configured (common in Docker environments)
 if os.environ.get("TRUST_PROXIES") or config.get("web.trust_proxies"):
@@ -81,6 +94,9 @@ variable_manager = VariableManager(config)
 
 # Expression Parser
 expression_parser = ExpressionParser()
+
+# WebSocket Handler
+websocket_handler.init_app(app, socketio)
 
 # Shared state
 current_data = {}
@@ -784,6 +800,13 @@ def status_check():
             and config.get("web.write_enabled"),
         }
     )
+
+
+@app.route("/api/websocket/stats")
+@login_required
+def websocket_stats():
+    """Get WebSocket connection statistics."""
+    return jsonify(websocket_handler.get_stats())
 
 
 @app.route("/api/logs")
@@ -1891,15 +1914,34 @@ def run_web(modbus_client, scheduler):
     if config.get("web.enabled"):
         host = config.get("web.host", "0.0.0.0")
         port = config.get("web.port", 5000)
+
+        # Check if WebSocket is enabled
+        websocket_enabled = config.get("web.websocket_enabled", True)
+
         try:
-            logger.info(f"Starting production web server (Waitress) on {host}:{port}")
-            serve(
-                app,
-                host=host,
-                port=port,
-                threads=4,
-                channel_timeout=60,
-                url_scheme="http",
-            )
+            if websocket_enabled:
+                logger.info(
+                    f"Starting web server with WebSocket support on {host}:{port}"
+                )
+                # Use socketio.run for WebSocket support
+                # Note: For production, use gunicorn with eventlet or gunicorn with --worker-class socketio.GunicornWorker
+                socketio.run(
+                    app,
+                    host=host,
+                    port=port,
+                    allow_unsafe_werkzeug=True,  # Required for WebSocket with Werkzeug
+                )
+            else:
+                logger.info(
+                    f"Starting production web server (Waitress) on {host}:{port}"
+                )
+                serve(
+                    app,
+                    host=host,
+                    port=port,
+                    threads=4,
+                    channel_timeout=60,
+                    url_scheme="http",
+                )
         except Exception as e:
             logger.error(f"Failed to start web server: {e}")

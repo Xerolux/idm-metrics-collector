@@ -98,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -117,6 +117,7 @@ import { Line } from 'vue-chartjs';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
+import { wsClient } from '../utils/websocket.js';
 import ChartConfigDialog from './ChartConfigDialog.vue';
 import ConfirmDialog from 'primevue/confirmdialog';
 
@@ -615,6 +616,50 @@ onMounted(() => {
     loadAnnotations();
     const interval = setInterval(fetchData, 60000);
 
+    // WebSocket connection for real-time updates
+    if (wsClient && !wsClient.isConnected()) {
+        wsClient.connect();
+    }
+
+    // Subscribe to metric updates
+    const metrics = props.queries
+        .filter(q => !q.type || q.type === 'metric')
+        .map(q => q.query);
+
+    if (metrics.length > 0) {
+        wsClient.subscribe(metrics, props.dashboardId);
+    }
+
+    // Handle metric updates
+    const handleMetricUpdate = (data) => {
+        // Update chart with new data point
+        const metric = data.metric;
+        const value = data.value;
+        const timestamp = data.timestamp * 1000; // Convert to milliseconds
+
+        // Find which query this metric belongs to
+        const queryIndex = props.queries.findIndex(q => q.query === metric);
+        if (queryIndex === -1) return;
+
+        // Update chart data
+        if (chartRef.value && chartData.value.datasets[queryIndex]) {
+            const dataset = chartData.value.datasets[queryIndex];
+
+            // Add new data point
+            dataset.data.push({ x: timestamp, y: value });
+
+            // Remove old data points to prevent memory leak (keep last 1000 points)
+            if (dataset.data.length > 1000) {
+                dataset.data.shift();
+            }
+
+            // Update chart
+            chartRef.value.chart.update('none'); // Update without animation for performance
+        }
+    };
+
+    wsClient.on('metric_update', handleMetricUpdate);
+
     // Cleanup on fullscreen change
     watch(isFullscreen, () => {
         // Force chart resize
@@ -623,7 +668,23 @@ onMounted(() => {
         }, 100);
     });
 
-    return () => clearInterval(interval);
+    return () => {
+        clearInterval(interval);
+        wsClient.off('metric_update', handleMetricUpdate);
+    };
+});
+
+onUnmounted(() => {
+    // Unsubscribe from WebSocket updates
+    if (wsClient && wsClient.isConnected()) {
+        const metrics = props.queries
+            .filter(q => !q.type || q.type === 'metric')
+            .map(q => q.query);
+
+        if (metrics.length > 0) {
+            wsClient.unsubscribe(metrics, props.dashboardId);
+        }
+    }
 });
 
 watch(() => props.queries, fetchData);
