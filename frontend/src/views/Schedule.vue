@@ -110,6 +110,7 @@ const fetchSchedule = async () => {
         jobs.value = res.data.jobs;
         sensors.value = res.data.sensors;
     } catch (e) {
+        console.error(e);
         toast.add({ severity: 'error', summary: 'Fehler', detail: 'Zeitplan konnte nicht geladen werden', life: 3000 });
     } finally {
         loading.value = false;
@@ -131,6 +132,7 @@ const addJob = async () => {
         fetchSchedule();
         newJob.value = { sensor: null, value: '', time: '', days: [] };
     } catch (e) {
+         console.error(e);
          toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || e.message, life: 3000 });
     } finally {
         saving.value = false;
@@ -143,6 +145,7 @@ const deleteJob = async (id) => {
         fetchSchedule();
         toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Gelöscht', life: 3000 });
     } catch (e) {
+        console.error(e);
          toast.add({ severity: 'error', summary: 'Fehler', detail: 'Löschen fehlgeschlagen', life: 3000 });
     }
 };
@@ -152,6 +155,7 @@ const toggleJob = async (id, currentState) => {
         await axios.post('/api/schedule', { action: 'toggle', job_id: id, current_state: currentState });
         fetchSchedule();
     } catch (e) {
+        console.error(e);
          toast.add({ severity: 'error', summary: 'Fehler', detail: 'Umschalten fehlgeschlagen', life: 3000 });
     }
 };
@@ -161,6 +165,7 @@ const runJob = async (id) => {
         const res = await axios.post('/api/schedule', { action: 'run_now', job_id: id });
         toast.add({ severity: 'success', summary: 'Ausgeführt', detail: res.data.message, life: 3000 });
     } catch (e) {
+        console.error(e);
          toast.add({ severity: 'error', summary: 'Fehler', detail: 'Ausführung fehlgeschlagen', life: 3000 });
     }
 };

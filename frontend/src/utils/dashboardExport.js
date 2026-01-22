@@ -48,7 +48,7 @@ export async function exportAsPNG(element, options = {}) {
  */
 export async function exportAsPDF(element, options = {}) {
     const {
-        filename = 'dashboard',
+        // filename = 'dashboard',
         format = 'a4',
         orientation = 'landscape',
         scale = 2,

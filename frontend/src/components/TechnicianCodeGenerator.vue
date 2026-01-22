@@ -64,6 +64,7 @@ const fetchCodes = async () => {
         codes.value = res.data;
         toast.add({ severity: 'success', summary: 'Aktualisiert', detail: 'Codes erfolgreich aktualisiert', life: 2000 });
     } catch (e) {
+        console.error(e);
         toast.add({ severity: 'error', summary: 'Fehler', detail: 'Technikercodes konnten nicht abgerufen werden', life: 3000 });
     } finally {
         loading.value = false;
@@ -98,6 +99,7 @@ const copy = async (text) => {
         }
         toast.add({ severity: 'success', summary: 'Kopiert', detail: 'Code in die Zwischenablage kopiert', life: 2000 });
     } catch (err) {
+        console.error(err);
         toast.add({ severity: 'error', summary: 'Fehler', detail: 'Konnte nicht kopiert werden', life: 2000 });
     }
 };

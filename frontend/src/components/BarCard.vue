@@ -120,7 +120,7 @@ const isFullscreen = ref(false);
 const chartContainer = ref(null);
 const chartRef = ref(null);
 const configDialog = ref(null);
-const stats = ref([]);
+// const stats = ref([]);
 
 const barConfig = computed(() => ({
     title: props.title,
@@ -135,7 +135,7 @@ const displayHours = computed(() => {
     return props.hours + ' Stunden';
 });
 
-const hasData = computed(() => chartData.value.datasets.length > 0);
+// const hasData = computed(() => chartData.value.datasets.length > 0);
 
 const chartOptions = computed(() => {
     const isHorizontal = props.barMode === 'horizontal';

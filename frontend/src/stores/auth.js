@@ -13,6 +13,7 @@ export const useAuthStore = defineStore('auth', {
         this.isAuthenticated = authRes.data.authenticated
         return this.isAuthenticated
       } catch (e) {
+        console.error(e)
         this.isAuthenticated = false
         return false
       }
@@ -25,6 +26,7 @@ export const useAuthStore = defineStore('auth', {
         this.isAuthenticated = true
         return true
       } catch (e) {
+        console.error(e)
         return false
       }
     },

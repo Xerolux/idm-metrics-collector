@@ -648,6 +648,7 @@ onMounted(async () => {
         // Refresh AI status periodically
         aiStatusInterval = setInterval(loadAiStatus, 10000);
     } catch (e) {
+        console.error(e);
         toast.add({ severity: 'error', summary: 'Fehler', detail: 'Konfiguration konnte nicht geladen werden', life: 3000 });
     } finally {
         loading.value = false;
@@ -663,6 +664,7 @@ const sendSignalTest = async () => {
             toast.add({ severity: 'error', summary: 'Fehler', detail: res.data.error || 'Signal Test fehlgeschlagen', life: 3000 });
         }
     } catch (e) {
+        console.error(e);
         toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || e.message, life: 5000 });
     }
 };
@@ -695,6 +697,7 @@ const checkUpdates = async () => {
              toast.add({ severity: 'success', summary: 'System aktuell', detail: 'Keine Updates gefunden.', life: 3000 });
         }
     } catch (e) {
+        console.error(e);
         toast.add({ severity: 'error', summary: 'Fehler', detail: 'Update-Prüfung fehlgeschlagen', life: 3000 });
     } finally {
         checkingUpdates.value = false;
@@ -810,6 +813,7 @@ const confirmRestart = () => {
                 const res = await axios.post('/api/restart');
                 toast.add({ severity: 'info', summary: 'Neustart', detail: res.data.message, life: 3000 });
             } catch (e) {
+        console.error(e);
                 toast.add({ severity: 'error', summary: 'Fehler', detail: 'Neustart fehlgeschlagen', life: 3000 });
             }
         }
@@ -823,6 +827,7 @@ const loadBackups = async () => {
         const res = await axios.get('/api/backup/list');
         backups.value = res.data.backups || [];
     } catch (e) {
+        console.error(e);
         toast.add({ severity: 'error', summary: 'Fehler', detail: 'Backups konnten nicht geladen werden', life: 3000 });
     } finally {
         loadingBackups.value = false;
@@ -860,6 +865,7 @@ const downloadBackup = async (filename) => {
         link.remove();
         toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Backup heruntergeladen', life: 2000 });
     } catch (e) {
+        console.error(e);
         toast.add({ severity: 'error', summary: 'Fehler', detail: 'Backup Download fehlgeschlagen', life: 3000 });
     }
 };
@@ -874,6 +880,7 @@ const uploadToCloud = async (filename) => {
              toast.add({ severity: 'error', summary: 'Fehler', detail: res.data.error, life: 5000 });
         }
     } catch (e) {
+        console.error(e);
         toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || 'Upload fehlgeschlagen', life: 5000 });
     }
 };
@@ -890,6 +897,7 @@ const confirmDeleteBackup = (filename) => {
                 toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Backup gelöscht', life: 2000 });
                 loadBackups();
             } catch (e) {
+        console.error(e);
                 toast.add({ severity: 'error', summary: 'Fehler', detail: 'Backup löschen fehlgeschlagen', life: 3000 });
             }
         }

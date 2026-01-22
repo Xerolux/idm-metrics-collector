@@ -104,7 +104,7 @@ const toast = useToast();
 const isFullscreen = ref(false);
 const canvasRef = ref(null);
 const configDialog = ref(null);
-const chartInstance = ref(null);
+// const chartInstance = ref(null);
 
 const timelineData = ref([]);
 const uniqueStates = ref([]);

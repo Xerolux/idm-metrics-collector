@@ -33,14 +33,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import Dropdown from 'primevue/dropdown';
 import MultiSelect from 'primevue/multiselect';
 import axios from 'axios';
 
-const props = defineProps({
-    dashboardId: { type: String, default: null }
-});
+// const props = defineProps({
+//     dashboardId: { type: String, default: null }
+// });
 
 const emit = defineEmits(['change']);
 
@@ -79,7 +79,7 @@ const loadVariables = async () => {
     }
 };
 
-const onValueChange = (variableId) => {
+const onValueChange = () => {
     emit('change', selectedValues.value);
 };
 
