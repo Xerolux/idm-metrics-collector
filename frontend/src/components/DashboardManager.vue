@@ -50,23 +50,33 @@
                 <SensorValues />
             </div>
 
-            <!-- Main Grid -->
-            <div class="flex-grow grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto pb-4 pr-1">
-                <div
-                    v-for="chart in currentCharts"
-                    :key="chart.id"
-                    class="h-64 md:h-80"
+            <!-- Main Grid with Drag & Drop -->
+            <div class="flex-grow overflow-y-auto pb-4 pr-1">
+                <!-- Draggable Charts Grid -->
+                <draggable
+                    v-model="currentCharts"
+                    :disabled="!editMode"
+                    item-key="id"
+                    class="grid grid-cols-1 md:grid-cols-2 gap-3"
+                    ghost-class="ghost-card"
+                    drag-class="dragging-card"
+                    @start="onDragStart"
+                    @end="onDragEnd"
                 >
-                    <ChartCard
-                        :title="chart.title"
-                        :queries="chart.queries"
-                        :hours="effectiveHours"
-                        :chart-id="chart.id"
-                        :dashboard-id="currentDashboardId"
-                        :edit-mode="editMode"
-                        @deleted="onChartDeleted"
-                    />
-                </div>
+                    <template #item="{ element: chart }">
+                        <div class="h-64 md:h-80">
+                            <ChartCard
+                                :title="chart.title"
+                                :queries="chart.queries"
+                                :hours="effectiveHours"
+                                :chart-id="chart.id"
+                                :dashboard-id="currentDashboardId"
+                                :edit-mode="editMode"
+                                @deleted="onChartDeleted"
+                            />
+                        </div>
+                    </template>
+                </draggable>
 
                 <!-- Add Chart Button in Edit Mode -->
                 <div
@@ -131,10 +141,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
+import draggable from 'vuedraggable';
 import ChartCard from './ChartCard.vue';
 import SensorValues from './SensorValues.vue';
 import Dropdown from 'primevue/dropdown';
@@ -184,9 +195,34 @@ const currentDashboard = computed(() => {
     return dashboards.value.find(d => d.id === currentDashboardId.value);
 });
 
-const currentCharts = computed(() => {
-    return currentDashboard.value?.charts || [];
-});
+// Use v-model directly for draggable - it needs to be writable
+const currentCharts = ref([]);
+
+// Debounce timer
+let saveTimer = null;
+let isDragging = false;
+
+// Watch for dashboard changes and update charts
+watch(() => currentDashboardId.value, (newId) => {
+    const dashboard = dashboards.value.find(d => d.id === newId);
+    if (dashboard && dashboard.charts) {
+        currentCharts.value = [...dashboard.charts];
+    } else {
+        currentCharts.value = [];
+    }
+}, { immediate: true });
+
+// Watch for charts array changes (from drag & drop)
+watch(currentCharts, (newCharts) => {
+    // Only save if we're in edit mode, NOT dragging, and dashboard exists
+    if (editMode.value && !isDragging && currentDashboard.value) {
+        // Debounce save to avoid too many API calls
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+            saveChartOrder(newCharts);
+        }, 500);
+    }
+}, { deep: true });
 
 const loadDashboards = async () => {
     try {
@@ -203,6 +239,43 @@ const loadDashboards = async () => {
             life: 5000
         });
     }
+};
+
+const saveChartOrder = async (charts) => {
+    try {
+        await axios.put(`/api/dashboards/${currentDashboardId.value}`, {
+            charts: charts
+        });
+        // Update local dashboard data
+        const dashboard = dashboards.value.find(d => d.id === currentDashboardId.value);
+        if (dashboard) {
+            dashboard.charts = [...charts];
+        }
+    } catch (e) {
+        console.error('Failed to save chart order:', e);
+        toast.add({
+            severity: 'error',
+            summary: 'Fehler',
+            detail: 'Reihenfolge konnte nicht gespeichert werden',
+            life: 3000
+        });
+    }
+};
+
+const onDragStart = () => {
+    isDragging = true;
+};
+
+const onDragEnd = () => {
+    isDragging = false;
+    // Save immediately after drag ends
+    saveChartOrder(currentCharts.value);
+    toast.add({
+        severity: 'success',
+        summary: 'Gespeichert',
+        detail: 'Chart-Reihenfolge gespeichert',
+        life: 2000
+    });
 };
 
 const createDashboard = async () => {
@@ -263,7 +336,6 @@ const deleteDashboard = async () => {
 };
 
 const onTimeRangeChange = () => {
-    // Time range changed - charts will react to effectiveHours computed property
     console.log('Time range changed to:', timeRange.value);
 };
 
@@ -287,6 +359,7 @@ const addChart = async () => {
         const dashboard = dashboards.value.find(d => d.id === currentDashboardId.value);
         if (dashboard) {
             dashboard.charts.push(res.data);
+            currentCharts.value = [...dashboard.charts];
         }
 
         showAddChartDialog.value = false;
@@ -333,5 +406,18 @@ onMounted(() => {
 }
 ::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
+}
+
+/* Drag & Drop Styles */
+.ghost-card {
+    opacity: 0.5;
+    background: #f0f9ff;
+}
+
+.dragging-card {
+    cursor: grabbing;
+    opacity: 0.9;
+    transform: scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
 }
 </style>
