@@ -20,7 +20,7 @@
             </button>
         </div>
 
-        <div class="flex justify-between items-start mb-1 px-1">
+        <div class="flex justify-between items-start mb-1 px-1 flex-shrink-0">
             <div>
                 <h3 class="text-gray-900 font-bold text-sm leading-tight pr-16">{{ title }}</h3>
                 <span class="text-xs text-gray-500">Verlauf - letzte {{ displayHours }}</span>
@@ -35,8 +35,8 @@
 
         <div
             ref="chartContainer"
-            class="flex-grow relative w-full min-h-0"
-            :class="{ 'fixed inset-0 z-50 bg-white p-4 h-full w-full': isFullscreen }"
+            class="flex-grow flex flex-col w-full min-h-0"
+            :class="{ 'fixed inset-0 z-50 bg-white p-4 h-full w-full': isFullscreen, 'relative': !isFullscreen }"
         >
             <div v-if="isFullscreen" class="absolute top-4 right-4 z-50">
                  <button
@@ -46,22 +46,34 @@
                     <i class="pi pi-times text-lg"></i>
                 </button>
             </div>
-            <Line :data="chartData" :options="chartOptions" />
-            <!-- Stats Overlay (Bottom) -->
-            <div v-if="hasData" class="absolute bottom-2 left-2 right-2 flex justify-center gap-4 text-[10px] text-gray-500 bg-white/80 p-1 rounded backdrop-blur-sm pointer-events-none">
-                 <div v-for="stat in stats" :key="stat.label" class="flex gap-2">
-                     <span class="font-bold" :style="{ color: stat.color }">{{ stat.label }}:</span>
-                     <span>Min: {{ stat.min.toFixed(1) }}</span>
-                     <span>Max: {{ stat.max.toFixed(1) }}</span>
-                     <span>Avg: {{ stat.avg.toFixed(1) }}</span>
-                 </div>
-            </div>
-        </div>
 
-        <div v-if="!isFullscreen" class="flex flex-wrap gap-x-3 gap-y-1 justify-center mt-1 px-1">
-            <div v-for="(dataset, idx) in chartData.datasets" :key="idx" class="flex items-center gap-1">
-                <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: dataset.borderColor }"></span>
-                <span class="text-[10px] text-gray-600 leading-none">{{ dataset.label }}</span>
+            <!-- Chart Wrapper -->
+            <div class="flex-grow relative min-h-0 w-full">
+                <Line :data="chartData" :options="chartOptions" />
+            </div>
+
+            <!-- Stats Table (embedded below chart) -->
+            <div v-if="hasData" class="mt-auto pt-2 border-t border-gray-100 flex-shrink-0">
+                 <div v-for="stat in stats" :key="stat.label" class="flex items-center justify-between text-[10px] text-gray-600 px-1 py-0.5 hover:bg-gray-50 rounded transition-colors">
+                     <div class="flex items-center gap-2 min-w-0 overflow-hidden">
+                         <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm" :style="{ backgroundColor: stat.color }"></span>
+                         <span class="font-medium truncate" :title="stat.label">{{ stat.label }}</span>
+                     </div>
+                     <div class="flex gap-3 flex-shrink-0 font-mono text-[10px]">
+                         <div class="flex flex-col sm:flex-row sm:gap-1 items-end sm:items-baseline">
+                            <span class="text-gray-400 text-[9px]">Min</span>
+                            <span class="text-gray-700 font-semibold">{{ stat.min.toFixed(1) }}</span>
+                         </div>
+                         <div class="flex flex-col sm:flex-row sm:gap-1 items-end sm:items-baseline">
+                            <span class="text-gray-400 text-[9px]">Max</span>
+                            <span class="text-gray-700 font-semibold">{{ stat.max.toFixed(1) }}</span>
+                         </div>
+                         <div class="flex flex-col sm:flex-row sm:gap-1 items-end sm:items-baseline">
+                            <span class="text-gray-400 text-[9px]">Avg</span>
+                            <span class="text-gray-700 font-semibold">{{ stat.avg.toFixed(1) }}</span>
+                         </div>
+                     </div>
+                 </div>
             </div>
         </div>
 
@@ -222,7 +234,10 @@ const chartOptions = {
 const calculateStats = (datasets) => {
     const calculatedStats = [];
     datasets.forEach(ds => {
-        const values = ds.data.filter(v => v !== null && !isNaN(v));
+        // Extract y values and filter out non-numbers
+        // Data format is [{x, y}, ...]
+        const values = ds.data.map(d => d.y).filter(v => v !== null && !isNaN(v));
+
         if (values.length > 0) {
             const min = Math.min(...values);
             const max = Math.max(...values);
