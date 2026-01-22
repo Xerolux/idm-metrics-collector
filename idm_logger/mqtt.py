@@ -316,8 +316,11 @@ class MQTTPublisher:
     def publish_data(self, data):
         """
         Publish sensor data to MQTT.
+
         Args:
-            data: Dictionary of sensor data from modbus.read_sensors()
+            data: Flat dictionary of sensor data from modbus.read_sensors(),
+                  where keys are sensor names and values are readings.
+                  Can include optional keys with "_str" suffix for string representations.
         """
         if not config.get("mqtt.enabled", False):
             return
@@ -335,6 +338,10 @@ class MQTTPublisher:
                 # Skip the string-representation variants of enums
                 if sensor_name.endswith("_str"):
                     continue
+
+                # Handle legacy nested dictionary format if present
+                if isinstance(value, dict) and "value" in value:
+                    value = value["value"]
 
                 # Find the sensor definition to get the unit
                 unit = ""

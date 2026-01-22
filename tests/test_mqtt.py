@@ -4,6 +4,8 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 
+import idm_logger.mqtt  # noqa: F401
+
 # Patch where config is IMPORTED, not where it is defined
 # idm_logger.mqtt imports config as 'config'
 @pytest.fixture
@@ -100,3 +102,39 @@ def test_publish_data_flat_dict(publisher, mock_mqtt_client):
     payload = get_payload("state")
     assert payload is not None
     assert payload == data
+
+
+def test_publish_data_legacy_nested_dict(publisher, mock_mqtt_client):
+    """Test publishing data from a legacy nested dictionary format."""
+    data = {
+        "temp_outside": {"value": 15.0},
+        "op_mode": {"value": 2},
+    }
+
+    publisher.sensors = {
+        "temp_outside": MagicMock(unit="°C"),
+        "op_mode": MagicMock(unit=""),
+    }
+
+    publisher.publish_data(data)
+
+    calls = mock_mqtt_client.publish.call_args_list
+
+    # Helper to find call by topic
+    def get_payload(topic_suffix):
+        topic = f"idm/heatpump/{topic_suffix}"
+        for call in calls:
+            if call.args[0] == topic:
+                return json.loads(call.args[1])
+        return None
+
+    # Check temp_outside
+    payload = get_payload("temp_outside")
+    assert payload is not None
+    assert payload["value"] == 15.0
+    assert payload["unit"] == "°C"
+
+    # Check op_mode
+    payload = get_payload("op_mode")
+    assert payload is not None
+    assert payload["value"] == 2
