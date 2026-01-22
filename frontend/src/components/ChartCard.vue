@@ -79,12 +79,12 @@
                 >
                     <i class="pi pi-spin pi-spinner text-2xl"></i>
                 </div>
-                <Line ref="chartRef" :data="chartData" :options="chartOptions" @zoom="onZoom" @zoomComplete="onZoomComplete" />
+                <Line v-if="!isLoading" ref="chartRef" :data="chartData" :options="chartOptions" @zoom="onZoom" @zoomComplete="onZoomComplete" />
             </div>
 
             <!-- Stats Table (embedded below chart) -->
             <div v-if="hasData" class="mt-auto pt-2 border-t border-gray-100 flex-shrink-0">
-                 <div v-for="stat in stats" :key="stat.label" class="flex items-center justify-between text-[10px] text-gray-600 px-1 py-0.5 hover:bg-gray-50 rounded transition-colors">
+                 <div v-for="(stat, index) in stats" :key="index + '_' + stat.label" class="flex items-center justify-between text-[10px] text-gray-600 px-1 py-0.5 hover:bg-gray-50 rounded transition-colors">
                      <div class="flex items-center gap-2 min-w-0 overflow-hidden">
                          <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm" :style="{ backgroundColor: stat.color }"></span>
                          <span class="font-medium truncate" :title="stat.label">{{ stat.label }}</span>
@@ -183,6 +183,7 @@ const chartRef = ref(null);
 const configDialog = ref(null);
 const stats = ref([]);
 const annotations = ref([]);
+let interval = null;
 
 
 const chartConfig = computed(() => ({
@@ -292,6 +293,7 @@ const chartOptions = computed(() => {
                     }, {}),
                     // Time-based annotations (vertical lines)
                     ...annotations.value.reduce((acc, annotation, index) => {
+                        if (!annotation.time || isNaN(annotation.time)) return acc;
                         acc[`annotation-${index}`] = {
                             type: 'line',
                             xMin: annotation.time * 1000, // Chart.js uses milliseconds
@@ -474,6 +476,7 @@ const fetchData = async () => {
 
                 const dataset = {
                     label: q.label,
+                    _query: q.query,
                     data: dataPoints,
                     borderColor: q.color,
                     backgroundColor: q.color,
@@ -535,6 +538,7 @@ const fetchData = async () => {
     }
 
     chartData.value = {
+        labels: [],
         datasets
     };
     calculateStats(datasets);
@@ -646,6 +650,34 @@ const loadAnnotations = async () => {
     }
 };
 
+// Handle metric updates
+const handleMetricUpdate = (data) => {
+    if (!chartRef.value || !chartData.value.datasets) return;
+
+    // Update chart with new data point
+    const metric = data.metric;
+    const value = data.value;
+    const timestamp = data.timestamp * 1000; // Convert to milliseconds
+
+    // Find dataset that corresponds to this metric
+    const dataset = chartData.value.datasets.find(ds => ds._query === metric);
+
+    if (dataset) {
+        // Add new data point
+        dataset.data.push({ x: timestamp, y: value });
+
+        // Remove old data points to prevent memory leak (keep last 1000 points)
+        if (dataset.data.length > 1000) {
+            dataset.data.shift();
+        }
+
+        // Update chart
+        if (chartRef.value.chart) {
+            chartRef.value.chart.update('none'); // Update without animation for performance
+        }
+    }
+};
+
 onMounted(() => {
     // Debug: Log props
     console.log('[ChartCard] Mounted with props:', {
@@ -659,7 +691,7 @@ onMounted(() => {
 
     fetchData();
     loadAnnotations();
-    const interval = setInterval(fetchData, 60000);
+    interval = setInterval(fetchData, 60000);
 
     // WebSocket connection for real-time updates
     if (wsClient && !wsClient.isConnected()) {
@@ -677,34 +709,6 @@ onMounted(() => {
         console.warn('[ChartCard] No metrics to subscribe to for chart:', props.title);
     }
 
-    // Handle metric updates
-    const handleMetricUpdate = (data) => {
-        // Update chart with new data point
-        const metric = data.metric;
-        const value = data.value;
-        const timestamp = data.timestamp * 1000; // Convert to milliseconds
-
-        // Find which query this metric belongs to
-        const queryIndex = props.queries.findIndex(q => q.query === metric);
-        if (queryIndex === -1) return;
-
-        // Update chart data
-        if (chartRef.value && chartData.value.datasets[queryIndex]) {
-            const dataset = chartData.value.datasets[queryIndex];
-
-            // Add new data point
-            dataset.data.push({ x: timestamp, y: value });
-
-            // Remove old data points to prevent memory leak (keep last 1000 points)
-            if (dataset.data.length > 1000) {
-                dataset.data.shift();
-            }
-
-            // Update chart
-            chartRef.value.chart.update('none'); // Update without animation for performance
-        }
-    };
-
     wsClient.on('metric_update', handleMetricUpdate);
 
     // Cleanup on fullscreen change
@@ -714,14 +718,14 @@ onMounted(() => {
             window.dispatchEvent(new Event('resize'));
         }, 100);
     });
-
-    return () => {
-        clearInterval(interval);
-        wsClient.off('metric_update', handleMetricUpdate);
-    };
 });
 
 onUnmounted(() => {
+    if (interval) clearInterval(interval);
+
+    // Remove event listener
+    wsClient.off('metric_update', handleMetricUpdate);
+
     // Unsubscribe from WebSocket updates
     if (wsClient && wsClient.isConnected()) {
         const metrics = props.queries

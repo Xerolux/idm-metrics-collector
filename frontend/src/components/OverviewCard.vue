@@ -18,7 +18,7 @@
 
         <!-- Sparkline Chart -->
         <div v-if="!isStatus" class="absolute bottom-0 left-0 right-0 h-12 w-full opacity-50">
-            <Line :data="chartData" :options="chartOptions" />
+            <Line v-if="chartData.datasets.length > 0" :data="chartData" :options="chartOptions" />
         </div>
     </div>
 </template>
@@ -94,7 +94,12 @@ const cardClass = computed(() => {
 const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false },
+        annotation: false,
+        zoom: false
+    },
     scales: {
         x: { display: false },
         y: { display: false }
