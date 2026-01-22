@@ -2,12 +2,12 @@
     <div class="p-4 flex flex-col gap-4">
         <h1 class="text-2xl font-bold mb-4">Systemprotokolle</h1>
 
-        <div v-if="loading" class="flex justify-center">
+        <div v-if="loading && logs.length === 0" class="flex justify-center">
              <i class="pi pi-spin pi-spinner text-4xl"></i>
         </div>
 
         <div v-else class="bg-gray-800 rounded p-4 font-mono text-sm h-[600px] overflow-y-auto">
-             <div v-for="(log, index) in logs" :key="index" class="mb-1 border-b border-gray-700 pb-1">
+             <div v-for="(log, index) in logs" :key="log.id || index" class="mb-1 border-b border-gray-700 pb-1">
                  <span class="text-gray-400">[{{ log.asctime }}]</span>
                  <span :class="getLevelColor(log.levelname)" class="mx-2 font-bold">{{ log.levelname }}</span>
                  <span class="text-blue-300">{{ log.name }}:</span>
@@ -24,6 +24,7 @@ import axios from 'axios';
 const logs = ref([]);
 const loading = ref(true);
 const timer = ref(null);
+const lastId = ref(0);
 
 onMounted(() => {
     fetchLogs();
@@ -36,8 +37,23 @@ onUnmounted(() => {
 
 const fetchLogs = async () => {
     try {
-        const res = await axios.get('/api/logs');
-        logs.value = res.data;
+        const url = lastId.value > 0 ? `/api/logs?since_id=${lastId.value}` : '/api/logs';
+        const res = await axios.get(url);
+
+        if (res.data && res.data.length > 0) {
+            // Logs are returned [newest, ..., oldest]
+            if (lastId.value === 0) {
+                // Initial load
+                logs.value = res.data;
+            } else {
+                // Incremental load: prepend new logs
+                logs.value = [...res.data, ...logs.value].slice(0, 1000);
+            }
+            // Update lastId from the newest log (first in list)
+            if (logs.value.length > 0) {
+                lastId.value = logs.value[0].id || 0;
+            }
+        }
     } catch (e) {
         console.error("Protokolle konnten nicht abgerufen werden", e);
     } finally {

@@ -489,8 +489,9 @@ def status_check():
 @app.route("/api/logs")
 @login_required
 def logs_page():
-    logs = memory_handler.get_logs()
-    logs.reverse()
+    since_id = request.args.get("since_id", type=int)
+    logs = memory_handler.get_logs(since_id=since_id)
+    # logs are already in [newest, ..., oldest] order
     return jsonify(logs)
 
 
