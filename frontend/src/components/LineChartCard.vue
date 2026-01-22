@@ -117,7 +117,8 @@ const fetchData = async () => {
     const datasets = [];
     let labels = [];
 
-    for (const q of props.queries) {
+    // ⚡ Bolt: Fetch all metrics in parallel to reduce load time
+    const promises = props.queries.map(async (q) => {
         try {
             const res = await axios.get('/api/metrics/query_range', {
                 params: {
@@ -127,31 +128,37 @@ const fetchData = async () => {
                     step
                 }
             });
+            return { q, res };
+        } catch (e) {
+            console.error(`Chart data fetch error for ${q.label}:`, e);
+            return { q, res: null };
+        }
+    });
 
-            if (res.data && res.data.status === 'success') {
-                const result = res.data.data.result;
-                if (result.length > 0) {
-                    const values = result[0].values; // [[timestamp, "value"], ...]
-                    const dataPoints = values.map(v => parseFloat(v[1]));
+    const results = await Promise.all(promises);
 
-                    if (labels.length === 0) {
-                        labels = values.map(v => {
-                            const date = new Date(v[0] * 1000);
-                            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                        });
-                    }
+    for (const { q, res } of results) {
+        if (res && res.data && res.data.status === 'success') {
+            const result = res.data.data.result;
+            if (result.length > 0) {
+                const values = result[0].values; // [[timestamp, "value"], ...]
+                const dataPoints = values.map(v => parseFloat(v[1]));
 
-                    datasets.push({
-                        label: q.label,
-                        data: dataPoints,
-                        borderColor: q.color,
-                        backgroundColor: q.color,
-                        fill: false
+                if (labels.length === 0) {
+                    labels = values.map(v => {
+                        const date = new Date(v[0] * 1000);
+                        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     });
                 }
+
+                datasets.push({
+                    label: q.label,
+                    data: dataPoints,
+                    borderColor: q.color,
+                    backgroundColor: q.color,
+                    fill: false
+                });
             }
-        } catch (e) {
-            console.error("Chart data fetch error:", e);
         }
     }
 
