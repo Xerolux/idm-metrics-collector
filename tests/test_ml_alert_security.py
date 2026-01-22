@@ -12,7 +12,7 @@ def client():
 
 def test_ml_alert_no_auth_by_default(client):
     """
-    Test that the endpoint accepts requests without auth if no key is configured.
+    Test that the endpoint returns 503 if no key is configured.
     """
     # Ensure no key is set
     if "internal_api_key" in config.data:
@@ -23,7 +23,7 @@ def test_ml_alert_no_auth_by_default(client):
             "/api/internal/ml_alert",
             json={"score": 0.9, "threshold": 0.7, "message": "Test"},
         )
-        assert response.status_code == 200
+        assert response.status_code == 503
 
 
 def test_ml_alert_auth_enforced(client):
