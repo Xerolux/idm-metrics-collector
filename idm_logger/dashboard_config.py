@@ -18,26 +18,43 @@ def get_default_dashboards() -> List[Dict[str, Any]]:
             "charts": [
                 {
                     "id": str(uuid.uuid4()),
-                    "title": "Vorlauf & Rücklauf Heizkreis A",
+                    "title": "Wärmepumpe Temperaturen",
                     "queries": [
                         {
-                            "label": "Vorlauf",
-                            "query": "idm_heatpump_temp_flow_current_circuit_A",
-                            "color": "#f59e0b",
-                        },
-                        {
-                            "label": "Rücklauf",
-                            "query": "idm_heatpump_temp_return_circuit_A",
+                            "label": "Außen",
+                            "query": "idm_heatpump_temp_outside",
                             "color": "#3b82f6",
                         },
                         {
-                            "label": "Leistung",
-                            "query": "idm_heatpump_power_current_draw",
+                            "label": "Vorlauf",
+                            "query": "idm_heatpump_temp_heat_pump_flow",
                             "color": "#ef4444",
                         },
                         {
-                            "label": "Außentemp.",
-                            "query": "idm_heatpump_temp_outside",
+                            "label": "Rücklauf",
+                            "query": "idm_heatpump_temp_heat_pump_return",
+                            "color": "#f59e0b",
+                        },
+                    ],
+                    "hours": 24,
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "title": "Warmwasser Temperaturen",
+                    "queries": [
+                        {
+                            "label": "WW oben",
+                            "query": "idm_heatpump_temp_water_heater_top",
+                            "color": "#ef4444",
+                        },
+                        {
+                            "label": "WW unten",
+                            "query": "idm_heatpump_temp_water_heater_bottom",
+                            "color": "#f59e0b",
+                        },
+                        {
+                            "label": "Sollwert",
+                            "query": "idm_heatpump_temp_water_target",
                             "color": "#22c55e",
                         },
                     ],
@@ -45,61 +62,88 @@ def get_default_dashboards() -> List[Dict[str, Any]]:
                 },
                 {
                     "id": str(uuid.uuid4()),
-                    "title": "Speichertemperaturen",
+                    "title": "Leistung",
                     "queries": [
                         {
-                            "label": "Speicher oben",
+                            "label": "Leistungsaufnahme",
+                            "query": "idm_heatpump_power_current_draw",
+                            "color": "#ef4444",
+                        },
+                        {
+                            "label": "Wärmeleistung",
+                            "query": "idm_heatpump_power_current",
+                            "color": "#3b82f6",
+                        },
+                    ],
+                    "hours": 24,
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "title": "Energie (kumuliert)",
+                    "queries": [
+                        {
+                            "label": "Gesamt",
+                            "query": "idm_heatpump_energy_heat_total",
+                            "color": "#3b82f6",
+                        },
+                        {
+                            "label": "Heizung",
+                            "query": "idm_heatpump_energy_heat_heating",
+                            "color": "#22c55e",
+                        },
+                        {
+                            "label": "Warmwasser",
+                            "query": "idm_heatpump_energy_heat_total_water",
+                            "color": "#f59e0b",
+                        },
+                    ],
+                    "hours": 24,
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "title": "Heizkreis A - Temperaturen",
+                    "queries": [
+                        {
+                            "label": "Vorlauf Ist",
+                            "query": "idm_heatpump_temp_flow_current_circuit_a",
+                            "color": "#ef4444",
+                        },
+                        {
+                            "label": "Vorlauf Soll",
+                            "query": "idm_heatpump_temp_flow_target_circuit_a",
+                            "color": "#22c55e",
+                        },
+                        {
+                            "label": "Raum",
+                            "query": "idm_heatpump_temp_room_circuit_a",
+                            "color": "#f59e0b",
+                        },
+                    ],
+                    "hours": 24,
+                },
+                {
+                    "id": str(uuid.uuid4()),
+                    "title": "Speicher & Quelltemperaturen",
+                    "queries": [
+                        {
+                            "label": "Pufferspeicher",
                             "query": "idm_heatpump_temp_heat_storage",
                             "color": "#a855f7",
                         },
                         {
-                            "label": "Speicher unten",
+                            "label": "Kältespeicher",
                             "query": "idm_heatpump_temp_cold_storage",
                             "color": "#3b82f6",
                         },
                         {
-                            "label": "Leistung",
-                            "query": "idm_heatpump_power_current_draw",
-                            "color": "#ef4444",
-                        },
-                    ],
-                    "hours": 24,
-                },
-                {
-                    "id": str(uuid.uuid4()),
-                    "title": "Heizkreis B & C",
-                    "queries": [
-                        {
-                            "label": "Vorlauf B",
-                            "query": "idm_heatpump_temp_flow_current_circuit_B",
-                            "color": "#f59e0b",
+                            "label": "Quelle Eingang",
+                            "query": "idm_heatpump_temp_heat_source_input",
+                            "color": "#06b6d4",
                         },
                         {
-                            "label": "Rücklauf B",
-                            "query": "idm_heatpump_temp_return_circuit_B",
-                            "color": "#3b82f6",
-                        },
-                        {
-                            "label": "Leistung",
-                            "query": "idm_heatpump_power_current_draw",
-                            "color": "#ef4444",
-                        },
-                    ],
-                    "hours": 24,
-                },
-                {
-                    "id": str(uuid.uuid4()),
-                    "title": "Leistung & Verbrauch",
-                    "queries": [
-                        {
-                            "label": "Wärmepumpe",
-                            "query": "idm_heatpump_power_current_draw",
-                            "color": "#ef4444",
-                        },
-                        {
-                            "label": "Gesamt",
-                            "query": "idm_heatpump_power_current",
-                            "color": "#3b82f6",
+                            "label": "Quelle Ausgang",
+                            "query": "idm_heatpump_temp_heat_source_output",
+                            "color": "#14b8a6",
                         },
                     ],
                     "hours": 24,

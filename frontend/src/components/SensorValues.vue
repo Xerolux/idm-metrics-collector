@@ -153,20 +153,29 @@ const loadCurrentValues = async () => {
 };
 
 const getDisplayName = (name) => {
-    // Convert temp_outside to "Außentemperatur", etc.
+    // Convert metric names to German display names
     const translations = {
         'temp_outside': 'Außentemperatur',
-        'temp_flow_current_circuit_A': 'Vorlauftemperatur HK A',
-        'temp_return_circuit_A': 'Rücklauftemperatur HK A',
-        'temp_flow_current_circuit_B': 'Vorlauftemperatur HK B',
-        'temp_return_circuit_B': 'Rücklauftemperatur HK B',
-        'temp_flow_current_circuit_C': 'Vorlauftemperatur HK C',
-        'temp_return_circuit_C': 'Rücklauftemperatur HK C',
-        'temp_room_circuit_C': 'Raumtemperatur HK C',
-        'temp_heat_storage': 'Speichertemperatur oben',
-        'temp_cold_storage': 'Speichertemperatur unten',
-        'power_current': 'Gesamtleistung',
-        'power_current_draw': 'Wärmepumpe Leistung',
+        'temp_heat_pump_flow': 'Vorlauf WP',
+        'temp_heat_pump_return': 'Rücklauf WP',
+        'temp_water_heater_top': 'Warmwasser oben',
+        'temp_water_heater_bottom': 'Warmwasser unten',
+        'temp_water_target': 'WW Sollwert',
+        'temp_flow_current_circuit_a': 'Vorlauf Ist HK A',
+        'temp_flow_target_circuit_a': 'Vorlauf Soll HK A',
+        'temp_room_circuit_a': 'Raumtemperatur HK A',
+        'temp_heat_storage': 'Pufferspeicher',
+        'temp_cold_storage': 'Kältespeicher',
+        'temp_heat_source_input': 'Quelle Eingang',
+        'temp_heat_source_output': 'Quelle Ausgang',
+        'power_current': 'Wärmeleistung',
+        'power_current_draw': 'Leistungsaufnahme',
+        'energy_heat_total': 'Energie Gesamt',
+        'energy_heat_heating': 'Energie Heizung',
+        'energy_heat_total_water': 'Energie Warmwasser',
+        'status_heat_pump': 'Status WP',
+        'anomaly_score': 'Anomalie Score',
+        'anomaly_flag': 'Anomalie Erkannt',
     };
     return translations[name] || name.replace(/_/g, ' ');
 };
