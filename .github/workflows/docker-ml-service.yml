@@ -7,6 +7,12 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Docker tag version (e.g. v1.0.0 or latest)'
+        required: true
+        default: 'latest'
+        type: string
 
 permissions:
   contents: read
@@ -46,8 +52,9 @@ jobs:
             ghcr.io/${{ github.repository }}-ml
             ${{ secrets.DOCKER_USERNAME }}/idm-metrics-collector-ml
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && github.event_name != 'workflow_dispatch' }}
             type=ref,event=tag
+            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
           labels: |
             org.opencontainers.image.description=ML Service for IDM Metrics Collector - Anomaly detection and predictive analytics.
           annotations: |
@@ -62,6 +69,9 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "app_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.version }}" != "latest" ]]; then
+            VERSION_INPUT="${{ inputs.version }}"
+            echo "app_version=${VERSION_INPUT#v}" >> $GITHUB_OUTPUT
           else
             echo "app_version=0.6.${{ steps.vars.outputs.sha_short }}" >> $GITHUB_OUTPUT
           fi
