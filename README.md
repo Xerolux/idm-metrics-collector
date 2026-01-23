@@ -12,6 +12,36 @@
 
 ![Demo](docs/images/demo.gif)
 
+<details>
+<summary>📸 <b>Screenshots & Galerie</b> (Klicken zum Ausklappen)</summary>
+<br>
+
+| Übersicht | Steuerung |
+|:---:|:---:|
+| ![Hauptseite](docs/images/screenshots/Hauptseite.png) | ![Steuerung](docs/images/screenshots/Steuerung.png) |
+
+| Zeitplan | Protokolle |
+|:---:|:---:|
+| ![Zeitplan](docs/images/screenshots/Zeitplan.png) | ![Protokoll](docs/images/screenshots/Protokoll.png) |
+
+| Benachrichtigung | Alarm |
+|:---:|:---:|
+| ![Benachrichtigung](docs/images/screenshots/Benachrichtigung.png) | ![Alarm](docs/images/screenshots/Alarm_Message.png) |
+
+| KI Anomalie | Einstellung |
+|:---:|:---:|
+| ![KI_Anomalie](docs/images/screenshots/KI_Anomalie.png) | ![Einstellung](docs/images/screenshots/Einstellung.png) |
+
+| MQTT | Wartung |
+|:---:|:---:|
+| ![MQTT](docs/images/screenshots/MQTT.png) | ![Wartung](docs/images/screenshots/Wartung.png) |
+
+| Tools | Login |
+|:---:|:---:|
+| ![Codegenerator](docs/images/screenshots/Codegenerator.png) | ![Login](docs/images/screenshots/Login.png) |
+
+</details>
+
 ---
 
 ## 🎯 Warum IDM Metrics Collector?
