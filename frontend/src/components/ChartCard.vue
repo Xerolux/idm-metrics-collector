@@ -256,7 +256,7 @@ const chartOptions = computed(() => {
             zoom: {
                 zoom: {
                     wheel: {
-                        enabled: true
+                        enabled: false
                     },
                     pinch: {
                         enabled: true

@@ -154,7 +154,7 @@ def get_default_dashboards() -> List[Dict[str, Any]]:
                     "queries": [
                         {
                             "label": "COP",
-                            "query": "idm_heatpump_power_current / idm_heatpump_power_current_draw",
+                            "query": "clamp_min(idm_heatpump_power_current / idm_heatpump_power_current_draw, 0)",
                             "color": "#22c55e",
                         }
                     ],
