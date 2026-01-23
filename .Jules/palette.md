@@ -5,3 +5,7 @@
 ## 2026-01-22 - Inline Validation Accessibility
 **Learning:** Inline form validation often visually communicates errors (red text) without programmatic association. In `Login.vue`, the error message was visible but not linked to the input via `aria-describedby` or flagged with `aria-invalid`.
 **Action:** When implementing custom validation, always bind `aria-invalid` to the error state and use `aria-describedby` to point to the error message ID. Ensure the error message has `role="alert"` for immediate announcement.
+
+## 2026-01-30 - Modernizing Alert Interactions
+**Learning:** Native browser dialogs (`confirm`, `alert`) interrupt the user workflow and look outdated compared to the rest of the application. Replacing them with PrimeVue's `ConfirmDialog` and `Toast` provides a seamless, non-blocking, and consistent experience.
+**Action:** Identify and replace any remaining usages of `window.confirm` or `window.alert` with `useConfirm` and `useToast` services to maintain UI consistency and accessibility.
