@@ -64,6 +64,20 @@ def get_repo_path() -> Optional[str]:
     return None
 
 
+def get_file_version() -> Optional[str]:
+    """Reads the base version from VERSION file."""
+    # Fallback to VERSION file (usually at /app/VERSION or repo_path/VERSION)
+    version_file = Path("/app/VERSION")
+    if not version_file.exists():
+        repo_path = get_repo_path()
+        if repo_path:
+            version_file = Path(repo_path) / "VERSION"
+
+    if version_file.exists():
+        return version_file.read_text().strip()
+    return None
+
+
 def get_current_version() -> str:
     try:
         # Try to use the detected repo path for git describe
@@ -81,15 +95,9 @@ def get_current_version() -> str:
     except Exception as exc:
         logger.debug(f"Git version lookup failed: {exc}")
 
-    # Fallback to VERSION file (usually at /app/VERSION or repo_path/VERSION)
-    version_file = Path("/app/VERSION")
-    if not version_file.exists():
-        repo_path = get_repo_path()
-        if repo_path:
-            version_file = Path(repo_path) / "VERSION"
-
-    if version_file.exists():
-        return version_file.read_text().strip()
+    v = get_file_version()
+    if v:
+        return v
 
     return "unknown"
 
@@ -332,7 +340,33 @@ def check_for_update() -> Dict[str, Any]:
                     remote_data = resp.json()
                     remote_hash = remote_data["sha"]
 
-                    latest_version = f"0.6.{remote_hash[:7]}"
+                    # Try to fetch authoritative base version from GitHub
+                    base_ver = "1.0.0"
+                    try:
+                        v_resp = requests.get(
+                            f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/VERSION",
+                            timeout=5,
+                        )
+                        if v_resp.status_code == 200:
+                            base_ver = v_resp.text.strip()
+                        else:
+                            # Fallback to local
+                            local_ver = get_file_version()
+                            if local_ver:
+                                base_ver = local_ver
+                                # Strip hash if present (assuming max 3 parts for base: X.Y.Z)
+                                parts = base_ver.split(".")
+                                if len(parts) > 3:
+                                    base_ver = ".".join(parts[:3])
+                    except Exception:
+                        local_ver = get_file_version()
+                        if local_ver:
+                            base_ver = local_ver
+                            parts = base_ver.split(".")
+                            if len(parts) > 3:
+                                base_ver = ".".join(parts[:3])
+
+                    latest_version = f"{base_ver}.{remote_hash[:7]}"
 
                     if current_hash and not remote_hash.startswith(current_hash):
                         update_available = True
