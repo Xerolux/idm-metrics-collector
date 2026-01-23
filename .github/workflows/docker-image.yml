@@ -7,6 +7,12 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Docker tag version (e.g. v1.0.0 or latest)'
+        required: true
+        default: 'latest'
+        type: string
 
 permissions:
   contents: read
@@ -32,11 +38,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Log in to Docker Hub
-      #   uses: docker/login-action@v3
-      #   with:
-      #     username: ${{ secrets.DOCKER_USERNAME }}
-      #     password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Extract Docker metadata
         id: meta
@@ -44,9 +50,11 @@ jobs:
         with:
           images: |
             ghcr.io/${{ github.repository }}
+            ${{ secrets.DOCKER_USERNAME }}/idm-metrics-collector
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && github.event_name != 'workflow_dispatch' }}
             type=ref,event=tag
+            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
           labels: |
             org.opencontainers.image.description=Modern dashboard for IDM Heatpumps. Monitoring, control and automation for IDM Navigator 2.0.
           annotations: |
@@ -61,9 +69,21 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "app_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.version }}" != "latest" ]]; then
+            VERSION_INPUT="${{ inputs.version }}"
+            echo "app_version=${VERSION_INPUT#v}" >> $GITHUB_OUTPUT
           else
             BASE_VERSION=$(cat VERSION | tr -d '[:space:]')
             echo "app_version=${BASE_VERSION}.${{ steps.vars.outputs.sha_short }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine Platforms
+        id: platforms
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" || "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "platforms=linux/amd64,linux/arm64,linux/arm/v7" >> $GITHUB_OUTPUT
+          else
+            echo "platforms=linux/amd64" >> $GITHUB_OUTPUT
           fi
 
       - name: Build and push
@@ -76,4 +96,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
-          platforms: linux/amd64
+          platforms: ${{ steps.platforms.outputs.platforms }}
