@@ -154,7 +154,7 @@ def get_default_dashboards() -> List[Dict[str, Any]]:
                     "queries": [
                         {
                             "label": "COP",
-                            "query": "idm_heatpump_power_current / idm_heatpump_power_current_draw",
+                            "query": "clamp_min(idm_heatpump_power_current / idm_heatpump_power_current_draw, 0)",
                             "color": "#22c55e",
                         }
                     ],
@@ -219,6 +219,23 @@ class DashboardManager:
                     repaired = True
                     break
 
+                # Check for old COP query and update it
+                for chart in dashboard.get("charts", []):
+                    if chart.get("title") == "COP Verlauf":
+                        for query in chart.get("queries", []):
+                            # If using the old query without clamp_min
+                            if (
+                                query.get("query")
+                                == "idm_heatpump_power_current / idm_heatpump_power_current_draw"
+                            ):
+                                logger.info(
+                                    "Updating COP query to handle negative values..."
+                                )
+                                query[
+                                    "query"
+                                ] = "clamp_min(idm_heatpump_power_current / idm_heatpump_power_current_draw, 0)"
+                                repaired = True
+
                 # Check for missing AI chart or update it
                 ai_chart_found = False
                 for chart in dashboard.get("charts", []):
@@ -237,9 +254,12 @@ class DashboardManager:
                                 "color": "#f59e0b",
                             },
                         ]
-                        # Simply update queries to be sure
-                        chart["queries"] = expected_queries
-                        repaired = True
+                        # Check if queries match expectation
+                        current_queries = chart.get("queries", [])
+                        if current_queries != expected_queries:
+                            logger.info("Updating AI chart queries...")
+                            chart["queries"] = expected_queries
+                            repaired = True
                         break
 
                 if not ai_chart_found:

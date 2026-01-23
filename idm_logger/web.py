@@ -596,7 +596,10 @@ def get_available_metrics():
 
         # Use series endpoint to get all metrics with idm_heatpump_ prefix
         query_url = f"{base_url}/api/v1/series"
-        params = {"match[]": '{__name__=~"idm_heatpump.*"}', "limit": "1000"}
+        params = {
+            "match[]": '{__name__=~"idm_heatpump.*|idm_anomaly_.*"}',
+            "limit": "1000",
+        }
 
         logger.debug(f"Fetching metrics from: {query_url} with params: {params}")
 
@@ -637,6 +640,7 @@ def get_available_metrics():
             "mode": [],
             "control": [],
             "state": [],
+            "ai": [],
             "other": [],
         }
 
@@ -644,7 +648,9 @@ def get_available_metrics():
             # Remove 'idm_heatpump_' prefix for display
             display_name = name.replace("idm_heatpump_", "")
 
-            if display_name.startswith("temp_"):
+            if name.startswith("idm_anomaly_"):
+                grouped["ai"].append({"name": name, "display": name})
+            elif display_name.startswith("temp_"):
                 grouped["temperature"].append({"name": name, "display": display_name})
             elif display_name.startswith("power_"):
                 grouped["power"].append({"name": name, "display": display_name})
