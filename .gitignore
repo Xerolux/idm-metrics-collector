@@ -31,3 +31,14 @@ temp_videos/
 # Built frontend assets (built in Docker)
 idm_logger/static/
 frontend/dist/
+
+# Screenshots and test outputs
+Screen/
+
+# Root-level test outputs (not in docs/)
+/*.png
+verification_*.png
+
+# AI assistant directories
+.Jules/
+.claude/
