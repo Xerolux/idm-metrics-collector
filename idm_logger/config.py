@@ -417,10 +417,8 @@ class Config:
         self.save()
 
     def check_admin_password(self, password):
-        # Allow default "admin" if no hash set (legacy/migration)
         if "admin_password_hash" not in self.data["web"]:
-            # Fallback
-            return password == "admin"
+            return False
         return check_password_hash(self.data["web"]["admin_password_hash"], password)
 
     def is_setup(self):
