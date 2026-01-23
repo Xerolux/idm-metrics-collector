@@ -26,8 +26,11 @@ ARG APP_VERSION
 RUN if [ -n "$APP_VERSION" ]; then echo "$APP_VERSION" > /app/VERSION; fi
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-    apt-get update && apt-get install -y --no-install-recommends \
+    mkdir -p /usr/share/man/man1 \
+    && apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    libssl-dev \
+    libffi-dev \
     ca-certificates \
     curl \
     default-jre-headless \
@@ -38,7 +41,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && tar -xzf /tmp/signal-cli.tar.gz -C /opt \
     && ln -s /opt/signal-cli-${SIGNAL_CLI_VERSION}/bin/signal-cli /usr/local/bin/signal-cli \
     && rm /tmp/signal-cli.tar.gz \
-    && apt-get purge -y --auto-remove build-essential \
+    && apt-get purge -y --auto-remove build-essential libssl-dev libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 
