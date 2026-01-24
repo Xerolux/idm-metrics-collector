@@ -118,7 +118,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, shallowRef, onMounted, onUnmounted, watch, computed } from 'vue';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -170,7 +170,9 @@ const emit = defineEmits(['deleted']);
 const confirm = useConfirm();
 const toast = useToast();
 
-const chartData = ref({
+// ⚡ Bolt: Use shallowRef for performance with large datasets to avoid deep reactivity overhead.
+// The chart is manually updated for real-time data, and replaced entirely for historical fetches.
+const chartData = shallowRef({
     labels: [],
     datasets: []
 });
@@ -667,24 +669,40 @@ const requestChartUpdate = () => {
 const handleMetricUpdate = (data) => {
     if (!chartRef.value || !chartData.value.datasets) return;
 
-    // Update chart with new data point
-    const metric = data.metric;
-    const value = data.value;
-    const timestamp = data.timestamp * 1000; // Convert to milliseconds
+    let updated = false;
 
-    // Find dataset that corresponds to this metric
-    const dataset = chartData.value.datasets.find(ds => ds._query === metric);
+    // ⚡ Bolt: Helper to process a single point, handling both single and batched updates
+    const processPoint = (point) => {
+        if (!point || !point.metric) return;
 
-    if (dataset) {
-        // Add new data point
-        dataset.data.push({ x: timestamp, y: value });
+        const metric = point.metric;
+        const value = point.value;
+        const timestamp = point.timestamp * 1000; // Convert to milliseconds
 
-        // Remove old data points to prevent memory leak (keep last 1000 points)
-        if (dataset.data.length > 1000) {
-            dataset.data.shift();
+        // Find dataset that corresponds to this metric
+        const dataset = chartData.value.datasets.find(ds => ds._query === metric);
+
+        if (dataset) {
+            // Add new data point
+            dataset.data.push({ x: timestamp, y: value });
+
+            // Remove old data points to prevent memory leak (keep last 1000 points)
+            if (dataset.data.length > 1000) {
+                dataset.data.shift();
+            }
+            updated = true;
         }
+    };
 
-        // Update chart
+    // Check if batch (map) or single
+    if (data.metric) {
+        processPoint(data);
+    } else {
+        // Assume batch map from wsClient
+        Object.values(data).forEach(point => processPoint(point));
+    }
+
+    if (updated) {
         requestChartUpdate();
     }
 };
