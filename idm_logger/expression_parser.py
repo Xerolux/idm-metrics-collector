@@ -18,6 +18,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Pre-compiled regex patterns for performance
+_VALID_CHARS_PATTERN = re.compile(r"^[\w\s+\-*/().,]+$")
+_FUNCTION_PATTERN = re.compile(r"(\w+)\s*\(")
+_INVALID_OPS_PATTERN = re.compile(r"([^\w\s])([^\w\s])")
+_QUERY_LABEL_PATTERN = re.compile(r"\b([A-Z])\b")
+
 
 class ExpressionParser:
     """Safe expression parser for mathematical operations on query results."""
@@ -74,18 +80,18 @@ class ExpressionParser:
             )
 
         # Check for invalid characters (only allow alphanumeric, operators, parentheses, commas, dots, spaces)
-        if not re.match(r"^[\w\s+\-*/().,]+$", expression):
+        if not _VALID_CHARS_PATTERN.match(expression):
             return False, "Expression contains invalid characters"
 
         # Check for valid function names
-        functions = re.findall(r"(\w+)\s*\(", expression)
+        functions = _FUNCTION_PATTERN.findall(expression)
         for func in functions:
             if func not in self.FUNCTIONS and func not in self.OPERATORS:
                 # Might be a query reference, which is fine
                 pass
 
         # Check for invalid operators
-        invalid_ops = re.findall(r"([^\w\s])([^\w\s])", expression)
+        invalid_ops = _INVALID_OPS_PATTERN.findall(expression)
         if invalid_ops:
             return False, f"Invalid operator sequence: {invalid_ops[0]}"
 
@@ -102,7 +108,7 @@ class ExpressionParser:
             List of query labels referenced in the expression
         """
         # Extract all standalone uppercase letters (A, B, C, etc.)
-        queries = re.findall(r"\b([A-Z])\b", expression)
+        queries = _QUERY_LABEL_PATTERN.findall(expression)
         return list(set(queries))
 
     def evaluate_expression(

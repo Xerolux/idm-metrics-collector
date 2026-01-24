@@ -8,6 +8,13 @@ from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
+# Whitelisted column names for SQL injection prevention
+ALLOWED_JOB_COLUMNS = frozenset({"sensor", "value", "time", "days", "enabled", "last_run"})
+ALLOWED_ALERT_COLUMNS = frozenset({
+    "name", "type", "sensor", "condition", "threshold",
+    "message", "enabled", "interval_seconds", "last_triggered"
+})
+
 # Use DATA_DIR environment variable or current directory for persistence
 DATA_DIR = os.environ.get("DATA_DIR", ".")
 DB_PATH = os.path.join(DATA_DIR, "idm_logger.db")
@@ -85,6 +92,20 @@ class Database:
                         last_triggered REAL
                     )
                 """)
+
+                # Performance: Create indexes for frequently queried columns
+                cursor.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_jobs_enabled ON jobs(enabled)"
+                )
+                cursor.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_jobs_sensor ON jobs(sensor)"
+                )
+                cursor.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_alerts_enabled ON alerts(enabled)"
+                )
+                cursor.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_alerts_sensor ON alerts(sensor)"
+                )
             logger.info(f"Database initialized at {self.db_path}")
         except sqlite3.Error as e:
             logger.error(f"Database initialization failed: {e}", exc_info=True)
@@ -168,10 +189,14 @@ class Database:
         try:
             with self._get_locked_connection() as conn:
                 cursor = conn.cursor()
-                # fields is dict
+                # fields is dict - validate column names against whitelist
                 query_parts = []
                 values = []
                 for k, v in fields.items():
+                    # Security: Only allow whitelisted column names
+                    if k not in ALLOWED_JOB_COLUMNS:
+                        logger.warning(f"Rejected invalid column name in job update: {k}")
+                        continue
                     query_parts.append(f"{k}=?")
                     if k == "days":
                         values.append(json.dumps(v))
@@ -179,6 +204,10 @@ class Database:
                         values.append(int(v))
                     else:
                         values.append(v)
+
+                if not query_parts:
+                    logger.warning(f"No valid fields to update for job {job_id}")
+                    return
 
                 values.append(job_id)
                 query = f"UPDATE jobs SET {', '.join(query_parts)} WHERE id=?"
@@ -264,14 +293,23 @@ class Database:
         try:
             with self._get_locked_connection() as conn:
                 cursor = conn.cursor()
+                # Validate column names against whitelist
                 query_parts = []
                 values = []
                 for k, v in fields.items():
+                    # Security: Only allow whitelisted column names
+                    if k not in ALLOWED_ALERT_COLUMNS:
+                        logger.warning(f"Rejected invalid column name in alert update: {k}")
+                        continue
                     query_parts.append(f"{k}=?")
                     if k == "enabled":
                         values.append(int(v))
                     else:
                         values.append(v)
+
+                if not query_parts:
+                    logger.warning(f"No valid fields to update for alert {alert_id}")
+                    return
 
                 values.append(alert_id)
                 query = f"UPDATE alerts SET {', '.join(query_parts)} WHERE id=?"

@@ -54,10 +54,17 @@ app.secret_key = config.get_flask_secret_key()
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
-# Initialize SocketIO
+# Initialize SocketIO with configurable CORS
+# Security: Read allowed origins from config, default to same-origin only
+_cors_origins = config.get("web.cors_allowed_origins", None)
+if _cors_origins == "*":
+    logger.warning(
+        "CORS is set to allow all origins ('*'). "
+        "Consider restricting to specific origins for production."
+    )
 socketio = SocketIO(
     app,
-    cors_allowed_origins="*",
+    cors_allowed_origins=_cors_origins,
     async_mode="threading",
     logger=False,
     engineio_logger=False,

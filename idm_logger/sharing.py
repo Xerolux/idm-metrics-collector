@@ -6,10 +6,10 @@ with optional authentication and view-only mode.
 """
 
 import secrets
-import hashlib
 import logging
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
 
 logger = logging.getLogger(__name__)
 
@@ -48,14 +48,19 @@ class ShareToken:
         self.last_accessed = None
 
     def _hash_password(self, password: str) -> str:
-        """Hash a password using SHA256."""
-        return hashlib.sha256(password.encode()).hexdigest()
+        """Hash a password using secure bcrypt-based hashing."""
+        return generate_password_hash(password, method='pbkdf2:sha256:600000')
 
     def check_password(self, password: str) -> bool:
         """Check if the provided password matches."""
         if not self.password_hash:
             return True
-        return self._hash_password(password) == self.password_hash
+        # Support legacy SHA256 hashes during migration
+        if self.password_hash.startswith('pbkdf2:'):
+            return check_password_hash(self.password_hash, password)
+        # Legacy SHA256 fallback - will be upgraded on next password set
+        import hashlib
+        return hashlib.sha256(password.encode()).hexdigest() == self.password_hash
 
     def is_expired(self) -> bool:
         """Check if the token has expired."""
