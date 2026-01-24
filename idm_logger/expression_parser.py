@@ -11,6 +11,7 @@ Supports operations like:
 - max(A,B) (maximum of A and B)
 """
 
+import ast
 import re
 from typing import List, Dict, Union
 import operator
@@ -23,6 +24,85 @@ _VALID_CHARS_PATTERN = re.compile(r"^[\w\s+\-*/().,]+$")
 _FUNCTION_PATTERN = re.compile(r"(\w+)\s*\(")
 _INVALID_OPS_PATTERN = re.compile(r"([^\w\s])([^\w\s])")
 _QUERY_LABEL_PATTERN = re.compile(r"\b([A-Z])\b")
+
+
+class SafeExpressionEvaluator(ast.NodeVisitor):
+    """
+    Safe AST-based expression evaluator.
+    Only allows basic arithmetic operations and whitelisted functions.
+    """
+
+    # Allowed binary operators
+    BINARY_OPS = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub,
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+    }
+
+    # Allowed unary operators
+    UNARY_OPS = {
+        ast.UAdd: operator.pos,
+        ast.USub: operator.neg,
+    }
+
+    # Allowed function names
+    ALLOWED_FUNCTIONS = {"min", "max", "abs"}
+
+    def __init__(self):
+        self.result = None
+
+    def evaluate(self, expr: str) -> float:
+        """Safely evaluate a mathematical expression."""
+        try:
+            tree = ast.parse(expr, mode='eval')
+            return self.visit(tree.body)
+        except (SyntaxError, ValueError, TypeError) as e:
+            raise ValueError(f"Invalid expression: {e}")
+
+    def visit_BinOp(self, node):
+        left = self.visit(node.left)
+        right = self.visit(node.right)
+        op_type = type(node.op)
+        if op_type not in self.BINARY_OPS:
+            raise ValueError(f"Unsupported operator: {op_type.__name__}")
+        return self.BINARY_OPS[op_type](left, right)
+
+    def visit_UnaryOp(self, node):
+        operand = self.visit(node.operand)
+        op_type = type(node.op)
+        if op_type not in self.UNARY_OPS:
+            raise ValueError(f"Unsupported unary operator: {op_type.__name__}")
+        return self.UNARY_OPS[op_type](operand)
+
+    def visit_Num(self, node):
+        # Python 3.7 compatibility
+        return node.n
+
+    def visit_Constant(self, node):
+        # Python 3.8+ numbers
+        if isinstance(node.value, (int, float)):
+            return node.value
+        raise ValueError(f"Unsupported constant type: {type(node.value)}")
+
+    def visit_Call(self, node):
+        if not isinstance(node.func, ast.Name):
+            raise ValueError("Only simple function calls allowed")
+        func_name = node.func.id
+        if func_name not in self.ALLOWED_FUNCTIONS:
+            raise ValueError(f"Function not allowed: {func_name}")
+        args = [self.visit(arg) for arg in node.args]
+        if func_name == "min":
+            return min(args)
+        elif func_name == "max":
+            return max(args)
+        elif func_name == "abs":
+            if len(args) != 1:
+                raise ValueError("abs() takes exactly one argument")
+            return abs(args[0])
+
+    def generic_visit(self, node):
+        raise ValueError(f"Unsupported expression element: {type(node).__name__}")
 
 
 class ExpressionParser:
@@ -186,17 +266,11 @@ class ExpressionParser:
                     rf"{func_name}\s*\({re.escape(match)}\)", replacement, expr
                 )
 
-        # Safe evaluation: only allow numbers, operators, parentheses, and basic functions
-        allowed_names = {
-            "min": min,
-            "max": max,
-            "abs": abs,
-        }
+        # Safe evaluation using AST-based evaluator (no eval!)
         expr = expr.strip()
-
-        # Use eval with restricted globals
         try:
-            result = eval(expr, {"__builtins__": {}}, allowed_names)
+            evaluator = SafeExpressionEvaluator()
+            result = evaluator.evaluate(expr)
             return float(result)
         except Exception as e:
             raise ValueError(f"Failed to evaluate expression '{expr}': {e}")

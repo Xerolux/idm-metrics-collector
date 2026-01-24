@@ -296,29 +296,65 @@ def check_ip_whitelist():
             abort(403)
 
 
+# Default CSP - can be overridden via config
+# Note: 'unsafe-inline' for styles is needed for Vue/PrimeVue dynamic styles
+# 'unsafe-eval' removed - not needed for production Vue builds
+_DEFAULT_CSP = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "object-src 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'; "
+    "connect-src 'self' ws: wss:; "
+    "font-src 'self' data:; "
+    "frame-src 'self'; "
+    "frame-ancestors 'self'"
+)
+
+
 @app.after_request
 def add_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-        "style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: blob:; "
-        "object-src 'none'; "
-        "base-uri 'self'; "
-        "form-action 'self'; "
-        "connect-src 'self' ws: wss:; "
-        "font-src 'self' data:; "
-        "frame-src 'self'"
-    )
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    # Use configurable CSP or default
+    csp = config.get("web.content_security_policy", _DEFAULT_CSP)
+    response.headers["Content-Security-Policy"] = csp
     return response
+
+
+# Keys that should never be exposed to templates/frontend
+_SENSITIVE_CONFIG_KEYS = frozenset({
+    "password", "secret", "token", "api_key", "private_key",
+    "smtp_password", "bot_token", "webhook_url", "internal_api_key"
+})
+
+
+def _filter_sensitive_config(data: dict, parent_key: str = "") -> dict:
+    """Recursively filter sensitive data from config."""
+    filtered = {}
+    for key, value in data.items():
+        full_key = f"{parent_key}.{key}" if parent_key else key
+        # Check if key contains sensitive patterns
+        key_lower = key.lower()
+        is_sensitive = any(s in key_lower for s in _SENSITIVE_CONFIG_KEYS)
+        if is_sensitive:
+            # Mask sensitive values
+            filtered[key] = "***" if value else None
+        elif isinstance(value, dict):
+            filtered[key] = _filter_sensitive_config(value, full_key)
+        else:
+            filtered[key] = value
+    return filtered
 
 
 @app.context_processor
 def inject_config():
-    safe_config = config.data.copy()
+    safe_config = _filter_sensitive_config(config.data)
     return dict(config=safe_config)
 
 
@@ -874,9 +910,12 @@ def websocket_stats():
 @login_required
 def logs_page():
     since_id = request.args.get("since_id", type=int)
+    # Performance: Add pagination with configurable limit (default 100, max 1000)
+    limit = request.args.get("limit", default=100, type=int)
+    limit = max(1, min(limit, 1000))  # Clamp between 1 and 1000
     logs = memory_handler.get_logs(since_id=since_id)
     # logs are already in [newest, ..., oldest] order
-    return jsonify(logs)
+    return jsonify(logs[:limit])
 
 
 @app.route("/api/tools/technician-code", methods=["GET"])
@@ -895,7 +934,8 @@ def get_technician_code():
 @login_required
 def config_page():
     if request.method == "GET":
-        safe_config = config.data.copy()
+        # Filter sensitive data before sending to frontend
+        safe_config = _filter_sensitive_config(config.data)
         response = safe_config
         response["_meta"] = {
             "token_synced": True,

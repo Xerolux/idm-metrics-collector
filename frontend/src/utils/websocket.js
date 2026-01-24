@@ -312,14 +312,30 @@ export function useWebSocket(onMetricUpdate = null, onStateChange = null) {
         wsClient.connect();
     }
 
+    // Track registered listeners for cleanup
+    const registeredListeners = [];
+
     // Register listeners
     if (onMetricUpdate) {
         wsClient.on('metric_update', onMetricUpdate);
+        registeredListeners.push(['metric_update', onMetricUpdate]);
     }
 
     if (onStateChange) {
         wsClient.on('state_change', onStateChange);
+        registeredListeners.push(['state_change', onStateChange]);
     }
+
+    /**
+     * Cleanup function to remove all registered listeners.
+     * IMPORTANT: Call this in Vue's onUnmounted() to prevent memory leaks.
+     */
+    const cleanup = () => {
+        registeredListeners.forEach(([event, callback]) => {
+            wsClient.off(event, callback);
+        });
+        registeredListeners.length = 0;
+    };
 
     return {
         client: wsClient,
@@ -327,7 +343,8 @@ export function useWebSocket(onMetricUpdate = null, onStateChange = null) {
         unsubscribe: (metrics, dashboardId) => wsClient.unsubscribe(metrics, dashboardId),
         disconnect: () => wsClient.disconnect(),
         isConnected: () => wsClient.isConnected(),
-        getState: () => wsClient.getState()
+        getState: () => wsClient.getState(),
+        cleanup  // Call this in onUnmounted() to prevent memory leaks
     };
 }
 
