@@ -4,7 +4,6 @@ import time
 import logging
 import requests
 import schedule
-import json
 import threading
 from datetime import datetime
 from river import anomaly

@@ -33,6 +33,25 @@ def test_webserver():
     base_url = f"http://{host}:{port}"
     server_error = None
 
+    # Setup: Create dummy index.html if not exists
+    # This is required because the backend tests might run without a frontend build
+    from pathlib import Path
+    static_dir = Path(os.path.join(os.path.dirname(__file__), "..", "idm_logger", "static"))
+    index_file = static_dir / "index.html"
+    created_dummy = False
+
+    # Ensure static directory exists
+    static_dir.mkdir(parents=True, exist_ok=True)
+
+    if not index_file.exists():
+        print(f"\n✓ Creating dummy {index_file} for testing...")
+        try:
+            with open(index_file, "w") as f:
+                f.write('<!doctype html><html><body><div id="app"></div></body></html>')
+            created_dummy = True
+        except Exception as e:
+            print(f"✗ Failed to create dummy index.html: {e}")
+
     # Start server in background thread
     def run_server():
         nonlocal server_error
@@ -157,6 +176,14 @@ def test_webserver():
     print("\n" + "=" * 60)
     print("TEST SUMMARY")
     print("=" * 60)
+
+    # Teardown: Remove dummy index.html if we created it
+    if created_dummy and index_file.exists():
+        print(f"\n✓ Removing dummy {index_file}...")
+        try:
+            os.remove(index_file)
+        except Exception as e:
+            print(f"✗ Failed to remove dummy index.html: {e}")
 
     if failures:
         print(f"✗ {len(failures)} TEST(S) FAILED:")
