@@ -183,6 +183,7 @@ const chartRef = ref(null);
 const configDialog = ref(null);
 const stats = ref([]);
 const annotations = ref([]);
+const pendingUpdate = ref(false);
 let interval = null;
 
 
@@ -650,6 +651,18 @@ const loadAnnotations = async () => {
     }
 };
 
+const requestChartUpdate = () => {
+    if (pendingUpdate.value) return;
+
+    pendingUpdate.value = true;
+    requestAnimationFrame(() => {
+        if (chartRef.value && chartRef.value.chart) {
+            chartRef.value.chart.update('none');
+        }
+        pendingUpdate.value = false;
+    });
+};
+
 // Handle metric updates
 const handleMetricUpdate = (data) => {
     if (!chartRef.value || !chartData.value.datasets) return;
@@ -672,9 +685,7 @@ const handleMetricUpdate = (data) => {
         }
 
         // Update chart
-        if (chartRef.value.chart) {
-            chartRef.value.chart.update('none'); // Update without animation for performance
-        }
+        requestChartUpdate();
     }
 };
 
