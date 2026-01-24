@@ -229,6 +229,17 @@ class Config:
         if os.environ.get("INTERNAL_API_KEY"):
             self.data["internal_api_key"] = os.environ["INTERNAL_API_KEY"]
 
+        # Admin Password
+        if os.environ.get("ADMIN_PASSWORD"):
+            self.data["web"]["admin_password_hash"] = generate_password_hash(
+                os.environ["ADMIN_PASSWORD"]
+            )
+
+        # Finalize setup status
+        # If we have metrics URL and a password hash, we consider setup completed
+        if self.data.get("metrics", {}).get("url") and "admin_password_hash" in self.data.get("web", {}):
+            self.data["setup_completed"] = True
+
         # Update settings from environment
         if os.environ.get("UPDATES_ENABLED"):
             self.data["updates"]["enabled"] = os.environ["UPDATES_ENABLED"].lower() in (
@@ -334,7 +345,6 @@ class Config:
         # Auto-complete setup in Docker environment
         # If METRICS_URL is provided, we assume environment setup
         if os.environ.get("METRICS_URL"):
-            defaults["setup_completed"] = True
             defaults["web"]["write_enabled"] = True
             defaults["metrics"]["url"] = os.environ.get("METRICS_URL")
 
@@ -417,10 +427,8 @@ class Config:
         self.save()
 
     def check_admin_password(self, password):
-        # Allow default "admin" if no hash set (legacy/migration)
         if "admin_password_hash" not in self.data["web"]:
-            # Fallback
-            return password == "admin"
+            return False
         return check_password_hash(self.data["web"]["admin_password_hash"], password)
 
     def is_setup(self):

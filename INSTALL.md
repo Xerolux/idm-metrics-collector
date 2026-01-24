@@ -85,8 +85,8 @@ docker compose up -d --build
 After installation, access:
 
 - **Web UI**: http://your-server-ip:5008
-  - Username: `admin`
-  - Password: `admin`
+  - **First Run**: Setup Wizard will appear
+  - **Login**: Use the password you set during setup (or `ADMIN_PASSWORD` env var)
 
 - **Grafana**: http://your-server-ip:3001
   - Username: `admin`
@@ -118,9 +118,9 @@ After installation, access:
 
 On first access to the Web UI (http://your-server-ip:5008):
 
-1. Log in with default credentials (`admin` / `admin`)
-2. Change admin password (important!)
-3. Test heat pump connection
+1. **Setup**: The Setup Wizard will appear automatically.
+2. **Configure**: Enter your heat pump IP and set a **secure password**.
+3. **Finish**: The service will restart and you can log in.
 
 ### Signal-CLI (Optional)
 
