@@ -7,6 +7,9 @@
       </button>
     </div>
 
+    <Toast />
+    <ConfirmDialog />
+
     <!-- Alert List -->
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
       <div v-if="loading" class="p-6 text-center text-gray-500">Lade Alarme...</div>
@@ -165,6 +168,10 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import Toast from 'primevue/toast';
+import ConfirmDialog from 'primevue/confirmdialog';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 
 const alerts = ref([]);
 const sensors = ref([]);
@@ -172,6 +179,8 @@ const templates = ref([]);
 const loading = ref(true);
 const showModal = ref(false);
 const editingAlert = ref(null);
+const toast = useToast();
+const confirm = useConfirm();
 
 const form = ref({
   name: '',
@@ -262,33 +271,45 @@ async function saveAlert() {
   try {
     if (editingAlert.value) {
       await axios.put('/api/alerts', { id: editingAlert.value.id, ...form.value });
+      toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Alarm aktualisiert', life: 3000 });
     } else {
       await axios.post('/api/alerts', form.value);
+      toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Alarm erstellt', life: 3000 });
     }
     await fetchAlerts();
     closeModal();
   } catch (e) {
-    alert("Fehler beim Speichern: " + (e.response?.data?.error || e.message));
+    toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || e.message, life: 5000 });
   }
 }
 
-async function deleteAlert(alert) {
-  if (!confirm(`Alarm "${alert.name}" wirklich löschen?`)) return;
-  try {
-    await axios.delete(`/api/alerts?id=${alert.id}`);
-    await fetchAlerts();
-  } catch (e) {
-    console.error(e);
-    alert("Fehler beim Löschen");
-  }
-}
+const deleteAlert = (alert) => {
+  confirm.require({
+    message: `Alarm "${alert.name}" wirklich löschen?`,
+    header: 'Bestätigung',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        await axios.delete(`/api/alerts?id=${alert.id}`);
+        toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Alarm gelöscht', life: 3000 });
+        await fetchAlerts();
+      } catch (e) {
+        console.error(e);
+        toast.add({ severity: 'error', summary: 'Fehler', detail: 'Fehler beim Löschen', life: 5000 });
+      }
+    }
+  });
+};
 
 async function toggleAlert(alert) {
   try {
     await axios.put('/api/alerts', { id: alert.id, enabled: !alert.enabled });
+    toast.add({ severity: 'success', summary: 'Erfolg', detail: `Alarm ${alert.enabled ? 'deaktiviert' : 'aktiviert'}`, life: 2000 });
     await fetchAlerts();
   } catch (e) {
     console.error("Failed to toggle alert", e);
+    toast.add({ severity: 'error', summary: 'Fehler', detail: 'Status konnte nicht geändert werden', life: 3000 });
   }
 }
 
