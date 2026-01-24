@@ -9,3 +9,7 @@
 ## 2026-01-30 - Modernizing Alert Interactions
 **Learning:** Native browser dialogs (`confirm`, `alert`) interrupt the user workflow and look outdated compared to the rest of the application. Replacing them with PrimeVue's `ConfirmDialog` and `Toast` provides a seamless, non-blocking, and consistent experience.
 **Action:** Identify and replace any remaining usages of `window.confirm` or `window.alert` with `useConfirm` and `useToast` services to maintain UI consistency and accessibility.
+
+## 2026-02-04 - Dangerous Action Confirmation
+**Learning:** Immediate execution of destructive actions (like delete) on icon-only buttons is a high-risk pattern. In `Schedule.vue`, clicking the trash icon deleted the job instantly, which is error-prone.
+**Action:** Wrap all destructive actions in `confirm.require` using PrimeVue's `ConfirmDialog`. Ensure the dialog has clear 'Accept'/'Reject' labels and visual urgency (e.g., `p-button-danger`).

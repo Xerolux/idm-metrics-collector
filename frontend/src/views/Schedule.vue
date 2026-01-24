@@ -26,9 +26,9 @@
                       </template>
                       <template #footer>
                            <div class="flex gap-2 justify-end">
-                                <Button icon="pi pi-play" text severity="info" v-tooltip="'Jetzt ausführen'" @click="runJob(job.id)" />
-                                <Button :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" text severity="warning" @click="toggleJob(job.id, job.enabled)" />
-                                <Button icon="pi pi-trash" text severity="danger" @click="deleteJob(job.id)" />
+                                <Button icon="pi pi-play" text severity="info" v-tooltip="'Jetzt ausführen'" @click="runJob(job.id)" aria-label="Jetzt ausführen" />
+                                <Button :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'" text severity="warning" @click="toggleJob(job.id, job.enabled)" :aria-label="job.enabled ? 'Pausieren' : 'Aktivieren'" />
+                                <Button icon="pi pi-trash" text severity="danger" @click="confirmDeleteJob(job.id)" aria-label="Löschen" />
                            </div>
                       </template>
                  </Card>
@@ -66,6 +66,7 @@
             </div>
         </Dialog>
         <Toast />
+        <ConfirmDialog />
     </div>
 </template>
 
@@ -81,7 +82,9 @@ import InputText from 'primevue/inputtext';
 import InputMask from 'primevue/inputmask';
 import MultiSelect from 'primevue/multiselect';
 import Toast from 'primevue/toast';
+import ConfirmDialog from 'primevue/confirmdialog';
 import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 
 const jobs = ref([]);
 const sensors = ref([]);
@@ -89,6 +92,7 @@ const loading = ref(true);
 const saving = ref(false);
 const showAddDialog = ref(false);
 const toast = useToast();
+const confirm = useConfirm();
 
 const newJob = ref({
     sensor: null,
@@ -148,6 +152,18 @@ const deleteJob = async (id) => {
         console.error(e);
          toast.add({ severity: 'error', summary: 'Fehler', detail: 'Löschen fehlgeschlagen', life: 3000 });
     }
+};
+
+const confirmDeleteJob = (id) => {
+    confirm.require({
+        message: 'Möchtest du diesen Zeitplan wirklich löschen?',
+        header: 'Löschen bestätigen',
+        icon: 'pi pi-info-circle',
+        rejectLabel: 'Abbrechen',
+        acceptLabel: 'Löschen',
+        acceptClass: 'p-button-danger',
+        accept: () => deleteJob(id)
+    });
 };
 
 const toggleJob = async (id, currentState) => {
