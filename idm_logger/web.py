@@ -1011,17 +1011,21 @@ def export_metrics_data():
 
                 for timestamp, value in values:
                     try:
-                        all_data.append({
-                            "timestamp": datetime.fromtimestamp(float(timestamp)),
-                            "metric": metric_name,
-                            "value": float(value)
-                        })
+                        all_data.append(
+                            {
+                                "timestamp": datetime.fromtimestamp(float(timestamp)),
+                                "metric": metric_name,
+                                "value": float(value),
+                            }
+                        )
                     except (ValueError, TypeError) as e:
                         logger.warning(f"Invalid data point: {e}")
                         continue
 
         if not all_data:
-            return jsonify({"error": "No data found for selected metrics and time range"}), 404
+            return jsonify(
+                {"error": "No data found for selected metrics and time range"}
+            ), 404
 
         # Create DataFrame
         df = pd.DataFrame(all_data)
@@ -1029,7 +1033,7 @@ def export_metrics_data():
 
         # Generate filename
         timestamp_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', dashboard_name)
+        safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", dashboard_name)
 
         # Export based on format
         if export_format == "csv":
@@ -1039,51 +1043,55 @@ def export_metrics_data():
             output.seek(0)
 
             return send_file(
-                io.BytesIO(output.getvalue().encode('utf-8')),
-                mimetype='text/csv',
+                io.BytesIO(output.getvalue().encode("utf-8")),
+                mimetype="text/csv",
                 as_attachment=True,
-                download_name=f"{safe_name}_export_{timestamp_str}.csv"
+                download_name=f"{safe_name}_export_{timestamp_str}.csv",
             )
 
         elif export_format == "excel":
             # Excel export
             output = io.BytesIO()
 
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            with pd.ExcelWriter(output, engine="openpyxl") as writer:
                 # Overview sheet with all data
-                df.to_excel(writer, sheet_name='All Data', index=False)
+                df.to_excel(writer, sheet_name="All Data", index=False)
 
                 # Create separate sheet for each metric
-                for metric in df['metric'].unique():
-                    metric_df = df[df['metric'] == metric][['timestamp', 'value']].copy()
+                for metric in df["metric"].unique():
+                    metric_df = df[df["metric"] == metric][
+                        ["timestamp", "value"]
+                    ].copy()
                     # Sanitize sheet name (max 31 chars, no special chars)
-                    sheet_name = re.sub(r'[^a-zA-Z0-9_]', '_', metric)[:31]
+                    sheet_name = re.sub(r"[^a-zA-Z0-9_]", "_", metric)[:31]
                     metric_df.to_excel(writer, sheet_name=sheet_name, index=False)
 
                 # Summary statistics sheet
                 summary_data = []
-                for metric in df['metric'].unique():
-                    metric_values = df[df['metric'] == metric]['value']
-                    summary_data.append({
-                        'Metric': metric,
-                        'Count': len(metric_values),
-                        'Min': metric_values.min(),
-                        'Max': metric_values.max(),
-                        'Mean': metric_values.mean(),
-                        'Median': metric_values.median(),
-                        'Std Dev': metric_values.std()
-                    })
+                for metric in df["metric"].unique():
+                    metric_values = df[df["metric"] == metric]["value"]
+                    summary_data.append(
+                        {
+                            "Metric": metric,
+                            "Count": len(metric_values),
+                            "Min": metric_values.min(),
+                            "Max": metric_values.max(),
+                            "Mean": metric_values.mean(),
+                            "Median": metric_values.median(),
+                            "Std Dev": metric_values.std(),
+                        }
+                    )
 
                 summary_df = pd.DataFrame(summary_data)
-                summary_df.to_excel(writer, sheet_name='Summary', index=False)
+                summary_df.to_excel(writer, sheet_name="Summary", index=False)
 
             output.seek(0)
 
             return send_file(
                 output,
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 as_attachment=True,
-                download_name=f"{safe_name}_export_{timestamp_str}.xlsx"
+                download_name=f"{safe_name}_export_{timestamp_str}.xlsx",
             )
 
         elif export_format == "json":
@@ -1093,40 +1101,36 @@ def export_metrics_data():
                 "export_info": {
                     "dashboard": dashboard_name,
                     "exported_at": datetime.now().isoformat(),
-                    "time_range": {
-                        "start": start,
-                        "end": end,
-                        "step": step
-                    },
-                    "total_data_points": len(df)
+                    "time_range": {"start": start, "end": end, "step": step},
+                    "total_data_points": len(df),
                 },
-                "metrics": {}
+                "metrics": {},
             }
 
-            for metric in df['metric'].unique():
-                metric_df = df[df['metric'] == metric]
+            for metric in df["metric"].unique():
+                metric_df = df[df["metric"] == metric]
                 json_data["metrics"][metric] = {
                     "data": [
                         {
-                            "timestamp": row['timestamp'].isoformat(),
-                            "value": row['value']
+                            "timestamp": row["timestamp"].isoformat(),
+                            "value": row["value"],
                         }
                         for _, row in metric_df.iterrows()
                     ],
                     "statistics": {
                         "count": len(metric_df),
-                        "min": float(metric_df['value'].min()),
-                        "max": float(metric_df['value'].max()),
-                        "mean": float(metric_df['value'].mean()),
-                        "median": float(metric_df['value'].median())
-                    }
+                        "min": float(metric_df["value"].min()),
+                        "max": float(metric_df["value"].max()),
+                        "mean": float(metric_df["value"].mean()),
+                        "median": float(metric_df["value"].median()),
+                    },
                 }
 
             return send_file(
                 io.BytesIO(jsonify(json_data).get_data()),
-                mimetype='application/json',
+                mimetype="application/json",
                 as_attachment=True,
-                download_name=f"{safe_name}_export_{timestamp_str}.json"
+                download_name=f"{safe_name}_export_{timestamp_str}.json",
             )
 
     except Exception as e:

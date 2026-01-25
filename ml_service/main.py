@@ -33,6 +33,7 @@ from idm_logger.sensor_addresses import (
     zone_sensors,
     HeatingCircuit,
 )
+from idm_logger.const import HeatPumpStatus
 
 # Configuration
 METRICS_URL = os.environ.get("METRICS_URL", "http://victoriametrics:8428")
@@ -51,6 +52,10 @@ MODEL_SAVE_INTERVAL = int(
 MODEL_PATH = os.environ.get("MODEL_PATH", "/app/data/model_state.pkl")
 ENABLE_ALERTS = os.environ.get("ENABLE_ALERTS", "true").lower() == "true"
 ALERT_COOLDOWN = int(os.environ.get("ALERT_COOLDOWN", "3600"))  # 1 hour between alerts
+WARMUP_UPDATES = int(
+    os.environ.get("WARMUP_UPDATES", "120")
+)  # Default 1 hour (30s * 120)
+ALARM_CONSECUTIVE_HITS = int(os.environ.get("ALARM_CONSECUTIVE_HITS", "3"))
 IDM_LOGGER_URL = os.environ.get("IDM_LOGGER_URL", "http://idm-logger:5000")
 INTERNAL_API_KEY = os.environ.get("INTERNAL_API_KEY")
 
@@ -69,10 +74,13 @@ logger = logging.getLogger("ml-service")
 # Global state
 start_time = time.time()
 last_score = 0.0
-model_trained = False
+model_trained = False  # Main trained flag (true if ANY model is trained)
 last_alert_time = 0
 update_counter = 0
 last_model_save = time.time()
+current_mode = "unknown"
+last_data_points = {}  # Store previous values for delta calculation
+consecutive_anomalies = 0
 
 # Flask health check app
 health_app = Flask(__name__)
@@ -85,6 +93,7 @@ def health():
         {
             "status": "healthy",
             "model_state": "trained" if model_trained else "learning",
+            "current_mode": current_mode,
             "last_score": last_score,
             "features_count": len(get_all_readable_sensors()),
             "uptime_seconds": int(time.time() - start_time),
@@ -143,19 +152,32 @@ def get_all_readable_sensors():
 
 SENSORS = get_all_readable_sensors()
 
-# Initialize River Model
+# Ensure status_heat_pump is in SENSORS if not already
+if "status_heat_pump" not in SENSORS:
+    SENSORS.append("status_heat_pump")
+
+
+def create_pipeline():
+    """Create a new River anomaly detection pipeline."""
+    return compose.Pipeline(
+        preprocessing.StandardScaler(),
+        anomaly.HalfSpaceTrees(
+            n_trees=MODEL_N_TREES,
+            height=MODEL_HEIGHT,
+            window_size=MODEL_WINDOW_SIZE,
+            seed=42,
+        ),
+    )
+
+
+# Initialize River Models (one per mode)
 logger.info(
-    f"Initializing model with: n_trees={MODEL_N_TREES}, height={MODEL_HEIGHT}, window_size={MODEL_WINDOW_SIZE}"
+    f"Initializing models with: n_trees={MODEL_N_TREES}, height={MODEL_HEIGHT}, window_size={MODEL_WINDOW_SIZE}"
 )
-model = compose.Pipeline(
-    preprocessing.StandardScaler(),
-    anomaly.HalfSpaceTrees(
-        n_trees=MODEL_N_TREES,
-        height=MODEL_HEIGHT,
-        window_size=MODEL_WINDOW_SIZE,
-        seed=42,
-    ),
-)
+
+# Modes: heating, cooling, water, standby. (Defrost is excluded/skipped)
+MODES = ["heating", "cooling", "water", "standby"]
+models = {mode: create_pipeline() for mode in MODES}
 
 
 def save_model_state():
@@ -163,10 +185,10 @@ def save_model_state():
     try:
         os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
         if USE_JOBLIB:
-            joblib.dump(model, MODEL_PATH)
+            joblib.dump(models, MODEL_PATH)
         else:
             with open(MODEL_PATH, "wb") as f:
-                pickle.dump(model, f)
+                pickle.dump(models, f)
         logger.info(f"Model state saved to {MODEL_PATH}")
         return True
     except Exception as e:
@@ -176,16 +198,28 @@ def save_model_state():
 
 def load_model_state():
     """Load model state from disk if available."""
-    global model, model_trained
+    global models, model_trained
     try:
         if os.path.exists(MODEL_PATH):
             if USE_JOBLIB:
-                model = joblib.load(MODEL_PATH)
+                loaded = joblib.load(MODEL_PATH)
             else:
                 with open(MODEL_PATH, "rb") as f:
-                    model = pickle.load(f)
+                    loaded = pickle.load(f)
+
+            if isinstance(loaded, dict) and all(k in loaded for k in MODES):
+                models = loaded
+                logger.info(f"Multi-mode model state loaded from {MODEL_PATH}")
+            else:
+                logger.warning(
+                    "Legacy model state found (single model). Starting fresh with multi-mode models."
+                )
+                # We could try to migrate, but a generic model is bad for specific modes.
+                # Better to start fresh.
+
+            # Assume if we loaded something valid, we have some training.
+            # Realistically, we should check per model, but this flag is for global health.
             model_trained = True
-            logger.info(f"Model state loaded from {MODEL_PATH}")
             return True
         else:
             logger.info("No saved model state found, starting fresh")
@@ -195,8 +229,32 @@ def load_model_state():
         return False
 
 
+def determine_mode(data: dict) -> str:
+    """Determine the operating mode based on status_heat_pump."""
+    status_raw = data.get("status_heat_pump", 0)
+    try:
+        status_val = int(status_raw)
+        # Use bitwise operations on integer directly to avoid Enum validation errors
+        # on combined flags (e.g., HEATING | DEFROSTING)
+
+        if status_val & HeatPumpStatus.DEFROSTING.value:
+            return "defrost"
+        if status_val & HeatPumpStatus.WATER.value:
+            return "water"
+        if status_val & HeatPumpStatus.COOLING.value:
+            return "cooling"
+        if status_val & HeatPumpStatus.HEATING.value:
+            return "heating"
+
+        # Default to standby
+        return "standby"
+    except (ValueError, TypeError):
+        return "standby"
+
+
 def enrich_features(data: dict) -> dict:
     """Add temporal and computed features for better anomaly detection."""
+    global last_data_points
     now = datetime.now()
 
     # Temporal features
@@ -204,16 +262,45 @@ def enrich_features(data: dict) -> dict:
     data["day_of_week"] = now.weekday()
     data["is_weekend"] = 1 if now.weekday() >= 5 else 0
 
+    # Delta features (Rate of change)
+    # We track deltas for all float sensors
+    # Use list(data.items()) to allow modifying data during iteration
+    for key, value in list(data.items()):
+        if isinstance(value, (int, float)) and key in last_data_points:
+            # Calculate delta per minute (approx, assuming 30s interval)
+            # Just raw delta is fine as interval is constant-ish
+            data[f"{key}_delta"] = value - last_data_points[key]
+
+        # Update last value
+        last_data_points[key] = value
+
     # Computed features (if sensors available)
     try:
-        # Temperature difference (common in heat pumps)
-        if "flow_temp" in data and "return_temp" in data:
-            data["temp_diff"] = data["flow_temp"] - data["return_temp"]
+        # Temperature difference (Spread)
+        # Try to find flow/return temps. Names vary by circuit but IDM usually has common ones.
+        flow_temp = data.get("temp_heat_pump_flow") or data.get(
+            "temp_flow_current_circuit_a"
+        )
+        return_temp = data.get("temp_heat_pump_return") or data.get(
+            "temp_return_current_circuit_a"
+        )  # Note: return might not be per circuit
 
-        # Efficiency approximation
-        if "power_consumption" in data and "heating_power" in data:
-            if data["power_consumption"] > 0:
-                data["efficiency"] = data["heating_power"] / data["power_consumption"]
+        if flow_temp is not None and return_temp is not None:
+            data["temp_spread"] = flow_temp - return_temp
+
+        # Efficiency approximation (COP)
+        # power_thermal = Heat Output, power_current = Electrical Input
+        power_thermal = data.get("power_thermal")
+        power_electrical = data.get("power_current")
+
+        if power_thermal is not None and power_electrical is not None:
+            if (
+                power_electrical > 0.2
+            ):  # Ignore very low power to avoid noise/division by zero
+                data["cop_instant"] = power_thermal / power_electrical
+            else:
+                data["cop_instant"] = 0.0
+
     except Exception as e:
         logger.debug(f"Feature engineering error: {e}")
 
@@ -270,7 +357,11 @@ def fetch_latest_data():
 
 
 def write_metrics(
-    score: float, is_anomaly: bool, features_count: int, processing_time: float
+    score: float,
+    is_anomaly: bool,
+    features_count: int,
+    processing_time: float,
+    mode: str,
 ):
     """
     Write anomaly and ML performance metrics to VictoriaMetrics.
@@ -278,11 +369,11 @@ def write_metrics(
     write_url = f"{METRICS_URL.rstrip('/')}/write"
 
     lines = [
-        f"idm_anomaly_score value={score}",
-        f"idm_anomaly_flag value={1 if is_anomaly else 0}",
-        f"idm_ml_features_count value={features_count}",
-        f"idm_ml_processing_time_ms value={processing_time * 1000}",
-        "idm_ml_model_updates value=1",  # Counter
+        f"idm_anomaly_score,mode={mode} value={score}",
+        f"idm_anomaly_flag,mode={mode} value={1 if is_anomaly else 0}",
+        f"idm_ml_features_count,mode={mode} value={features_count}",
+        f"idm_ml_processing_time_ms,mode={mode} value={processing_time * 1000}",
+        f"idm_ml_model_updates,mode={mode} value=1",  # Counter
     ]
 
     data = "\n".join(lines)
@@ -297,7 +388,44 @@ def write_metrics(
         logger.error(f"Exception writing metrics: {e}")
 
 
-def send_anomaly_alert(score: float, data: dict):
+def get_top_features(model, data, n=3):
+    """Identify top contributing features based on Z-score deviation."""
+    try:
+        # Access scaler from pipeline
+        if "StandardScaler" not in model.steps:
+            return []
+
+        scaler = model["StandardScaler"]
+        # Check if scaler has stats
+        if not hasattr(scaler, "means") or not hasattr(scaler, "vars"):
+            return []
+
+        contributions = []
+        for key, value in data.items():
+            if isinstance(value, (int, float)) and key in scaler.means:
+                mean = scaler.means[key]
+                var = scaler.vars[key]
+                std = var**0.5
+                if std > 1e-6:
+                    z_score = abs(value - mean) / std
+                    contributions.append(
+                        {
+                            "feature": key,
+                            "score": float(z_score),
+                            "value": float(value),
+                            "mean": float(mean),
+                        }
+                    )
+
+        # Sort by Z-score descending
+        contributions.sort(key=lambda x: x["score"], reverse=True)
+        return contributions[:n]
+    except Exception as e:
+        logger.debug(f"Error extracting features: {e}")
+        return []
+
+
+def send_anomaly_alert(score: float, data: dict, mode: str, top_features: list):
     """Send anomaly alert to IDM Logger notification system."""
     global last_alert_time
 
@@ -309,6 +437,15 @@ def send_anomaly_alert(score: float, data: dict):
         logger.debug("Alert cooldown active, skipping notification")
         return
 
+    feature_msg = ""
+    if top_features:
+        feature_msg = "\n\nAuffällige Werte:\n" + "\n".join(
+            [
+                f"- {f['feature']}: {f['value']:.2f} (Avg: {f['mean']:.2f}, Z: {f['score']:.1f})"
+                for f in top_features
+            ]
+        )
+
     try:
         alert_url = f"{IDM_LOGGER_URL}/api/internal/ml_alert"
         payload = {
@@ -317,7 +454,8 @@ def send_anomaly_alert(score: float, data: dict):
             "threshold": ANOMALY_THRESHOLD,
             "sensor_count": len(data),
             "timestamp": int(time.time()),
-            "message": f"⚠️ Anomalie erkannt! Score: {score:.2f} (Schwellwert: {ANOMALY_THRESHOLD})",
+            "message": f"⚠️ Anomalie erkannt! ({mode})\nScore: {score:.2f} (Limit: {ANOMALY_THRESHOLD}){feature_msg}",
+            "data": {"mode": mode, "top_features": top_features},
         }
 
         headers = {}
@@ -365,29 +503,71 @@ def job():
         # Enrich with temporal and computed features
         data = enrich_features(data)
 
+        # Determine mode
+        mode = determine_mode(data)
+        global current_mode
+        current_mode = mode
+
+        # Skip processing for defrost mode (user suggestion)
+        if mode == "defrost":
+            logger.info(
+                "Defrost mode detected - skipping anomaly detection to avoid false positives."
+            )
+            return
+
+        if mode not in models:
+            logger.warning(f"Unknown mode '{mode}' detected. Using standby model.")
+            mode = "standby"
+
+        active_model = models[mode]
+
         # Update model
-        score = model.score_one(data)
-        model.learn_one(data)
+        score = active_model.score_one(data)
+        active_model.learn_one(data)
 
-        if not model_trained and update_counter > 10:
-            model_trained = True
-            logger.info("Model training phase completed")
+        # Warm-up Logic
+        if not model_trained:
+            if update_counter > WARMUP_UPDATES:
+                model_trained = True
+                logger.info(
+                    f"Model training phase completed (Updates > {WARMUP_UPDATES})"
+                )
+            else:
+                # During warmup, we don't count anomalies
+                pass
 
-        # Determine anomaly flag
+        # Determine anomaly flag and Debounce
         is_anomaly = score > ANOMALY_THRESHOLD
+
+        global consecutive_anomalies
+        if is_anomaly:
+            consecutive_anomalies += 1
+        else:
+            consecutive_anomalies = 0
 
         processing_time = time.time() - start
 
         logger.info(
-            f"Score: {score:.4f} | Anomaly: {is_anomaly} | Features: {len(data)} | Time: {processing_time * 1000:.1f}ms"
+            f"Mode: {mode} | Score: {score:.4f} | Anomaly: {is_anomaly} ({consecutive_anomalies}/{ALARM_CONSECUTIVE_HITS}) | Features: {len(data)}"
         )
 
         # Write metrics
-        write_metrics(score, is_anomaly, len(data), processing_time)
+        write_metrics(score, is_anomaly, len(data), processing_time, mode)
 
-        # Send alert if anomaly detected
+        # Send alert if anomaly detected AND confirmed (debounce) AND warmed up
         if is_anomaly and model_trained:
-            send_anomaly_alert(score, data)
+            if consecutive_anomalies >= ALARM_CONSECUTIVE_HITS:
+                top_features = get_top_features(active_model, data)
+                send_anomaly_alert(score, data, mode, top_features)
+                # Reset counter to avoid spamming every cycle after trigger?
+                # Or keep it high? If we reset, we might alert again in 3 cycles.
+                # Usually better to let cooldown handle the frequency limit.
+                # But to prevent "flickering" alarm states, we keep counting.
+                # The send_anomaly_alert has cooldown.
+            else:
+                logger.info(
+                    f"Anomaly suppressed (Debounce {consecutive_anomalies}/{ALARM_CONSECUTIVE_HITS})"
+                )
 
         last_score = score
         update_counter += 1
