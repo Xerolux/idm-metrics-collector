@@ -74,6 +74,12 @@ class Config:
                 "WEB_WRITE_ENABLED"
             ].lower() in ("true", "1", "yes")
 
+        # Secure Admin Password Initialization
+        if os.environ.get("ADMIN_PASSWORD"):
+            self.data["web"]["admin_password_hash"] = generate_password_hash(
+                os.environ["ADMIN_PASSWORD"]
+            )
+
         # Network Security settings from environment
         if os.environ.get("NETWORK_SECURITY_ENABLED"):
             self.data["network_security"]["enabled"] = os.environ[
@@ -417,10 +423,9 @@ class Config:
         self.save()
 
     def check_admin_password(self, password):
-        # Allow default "admin" if no hash set (legacy/migration)
+        # Fail closed if no hash is set
         if "admin_password_hash" not in self.data["web"]:
-            # Fallback
-            return password == "admin"
+            return False
         return check_password_hash(self.data["web"]["admin_password_hash"], password)
 
     def is_setup(self):

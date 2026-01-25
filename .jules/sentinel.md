@@ -7,3 +7,8 @@
 **Vulnerability:** The `ml_alert` endpoint authentication logic was "Fail Open" - if `INTERNAL_API_KEY` was not configured (None), the check was skipped entirely, allowing unauthorized access.
 **Learning:** Security checks must always "Fail Closed". If a required secret or configuration is missing, the system should deny access rather than allowing it. Conditional security logic (`if key: check`) is prone to misconfiguration vulnerabilities.
 **Prevention:** Always initialize security variables to safe defaults (deny/block) and assert their presence before allowing access. Use `if not key: raise/return error`.
+
+## 2026-01-25 - Remove Hardcoded Admin Fallback
+**Vulnerability:** `Config.check_admin_password` allowed a hardcoded fallback to `admin` password if no hash was set.
+**Learning:** Default credentials in "fallback" logic are dangerous because they are often forgotten or triggered unexpectedly (e.g., config load failure). This violates "Fail Closed".
+**Prevention:** Remove all default password fallbacks. Use environment variables (e.g., `ADMIN_PASSWORD`) to allow secure initialization of credentials in automated environments.
