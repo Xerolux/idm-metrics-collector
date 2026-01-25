@@ -85,6 +85,7 @@ class WebSocketHandler:
                 if metric not in self.subscriptions:
                     self.subscriptions[metric] = set()
                 self.subscriptions[metric].add(sid)
+                join_room(metric)
 
             # Subscribe to dashboard room
             if dashboard_id:
@@ -160,6 +161,26 @@ class WebSocketHandler:
 
         data = {"metric": metric, "value": value, "timestamp": timestamp}
         self.socketio.emit("metric_update", data, room=metric)
+
+    def broadcast_metrics(self, data: Dict):
+        """
+        Broadcast multiple metric updates to subscribed clients.
+
+        Args:
+            data: Dictionary of metric values {metric_name: value, ...}
+        """
+        import time
+
+        timestamp = int(time.time())
+
+        for metric, value in data.items():
+            # Skip internal fields or non-metric data if any
+            if not isinstance(metric, str):
+                continue
+
+            if metric in self.subscriptions and self.subscriptions[metric]:
+                payload = {"metric": metric, "value": value, "timestamp": timestamp}
+                self.socketio.emit("metric_update", payload, room=metric)
 
     def broadcast_dashboard_update(self, dashboard_id: str, data: dict):
         """

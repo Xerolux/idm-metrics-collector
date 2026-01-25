@@ -339,6 +339,12 @@ def update_current_data(data):
         current_data.clear()
         current_data.update(data)
 
+    # Broadcast updates via WebSocket
+    try:
+        websocket_handler.broadcast_metrics(data)
+    except Exception as e:
+        logger.error(f"Failed to broadcast metrics: {e}")
+
 
 def login_required(view):
     @functools.wraps(view)

@@ -38,6 +38,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from 'axios';
+import { useWebSocket } from '../utils/websocket.js';
 
 const emit = defineEmits(['sensor-drag-start']);
 
@@ -59,6 +60,30 @@ const currentValues = ref({});
 const loading = ref(true);
 const error = ref(null);
 let refreshTimer = null;
+
+const handleMetricUpdate = (data) => {
+    const updatePoint = (point) => {
+        if (!point || !point.metric) return;
+
+        if (!currentValues.value[point.metric]) {
+            currentValues.value[point.metric] = {
+                value: point.value,
+                timestamp: point.timestamp
+            };
+        } else {
+            currentValues.value[point.metric].value = point.value;
+            currentValues.value[point.metric].timestamp = point.timestamp;
+        }
+    };
+
+    if (data.metric) {
+        updatePoint(data);
+    } else {
+        Object.values(data).forEach(updatePoint);
+    }
+};
+
+const { subscribe, unsubscribe } = useWebSocket(handleMetricUpdate);
 
 const filteredMetrics = computed(() => {
     const filtered = {};
@@ -191,13 +216,35 @@ const onDragStart = (event, metric) => {
 };
 
 onMounted(() => {
-    loadMetrics();
+    loadMetrics().then(() => {
+        const allMetrics = [];
+        Object.values(metrics.value).forEach(list => {
+            if (Array.isArray(list)) {
+                list.forEach(m => allMetrics.push(m.name));
+            }
+        });
+        if (allMetrics.length > 0) {
+            subscribe(allMetrics);
+        }
+    });
     loadCurrentValues();
-    refreshTimer = setInterval(loadCurrentValues, 5000);
+    refreshTimer = setInterval(loadCurrentValues, 60000);
 });
 
 onUnmounted(() => {
     if (refreshTimer) clearInterval(refreshTimer);
+
+    const allMetrics = [];
+    if (metrics.value) {
+        Object.values(metrics.value).forEach(list => {
+            if (Array.isArray(list)) {
+                list.forEach(m => allMetrics.push(m.name));
+            }
+        });
+    }
+    if (allMetrics.length > 0) {
+        unsubscribe(allMetrics);
+    }
 });
 </script>
 
