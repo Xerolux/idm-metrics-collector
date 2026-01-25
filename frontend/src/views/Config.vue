@@ -360,7 +360,7 @@
                 <TabPanel header="System & Wartung">
                     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                         <!-- Update Status -->
-                        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3">
+                        <div data-update-section class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3">
                             <h3 class="font-bold text-lg flex items-center gap-2">
                                 <i class="pi pi-refresh"></i> Update Status
                             </h3>

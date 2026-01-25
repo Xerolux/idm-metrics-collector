@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from "../stores/auth";
 import { useUiStore } from "../stores/ui";
 import { useI18n } from 'vue-i18n';
+import axios from 'axios';
 import Menubar from 'primevue/menubar';
 import Button from 'primevue/button';
 import Select from 'primevue/select';
@@ -14,6 +15,11 @@ const router = useRouter();
 const auth = useAuthStore();
 const ui = useUiStore();
 const { t, locale } = useI18n();
+
+// Update notification state
+const updateAvailable = ref(false);
+const updateInfo = ref(null);
+const showUpdateBanner = ref(true);
 
 const editModeIcon = computed(() => (ui.editMode ? 'pi pi-lock-open' : 'pi pi-lock'));
 const editModeSeverity = computed(() => (ui.editMode ? 'success' : 'secondary'));
@@ -96,6 +102,34 @@ const logout = async () => {
     router.push('/login');
 }
 
+// Check for updates
+const checkForUpdates = async () => {
+    try {
+        const res = await axios.get('/api/check-update');
+        if (res.data.update_available) {
+            updateAvailable.value = true;
+            updateInfo.value = res.data;
+        }
+    } catch (e) {
+        console.error('Update check failed:', e);
+    }
+};
+
+const goToUpdate = () => {
+    router.push('/config');
+    // Scroll to update section after navigation
+    setTimeout(() => {
+        const updateSection = document.querySelector('[data-update-section]');
+        if (updateSection) {
+            updateSection.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, 100);
+};
+
+const dismissUpdateBanner = () => {
+    showUpdateBanner.value = false;
+};
+
 let timer;
 const resetTimer = () => {
     clearTimeout(timer);
@@ -113,6 +147,9 @@ onMounted(() => {
     const events = ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'];
     events.forEach(event => window.addEventListener(event, resetTimer));
     resetTimer();
+
+    // Check for updates on app load
+    checkForUpdates();
 });
 
 onUnmounted(() => {
@@ -125,6 +162,29 @@ onUnmounted(() => {
 <template>
     <div class="flex flex-col min-h-screen transition-colors duration-200" :class="isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'">
         <NetworkStatus />
+
+        <!-- Update Available Banner -->
+        <div v-if="updateAvailable && showUpdateBanner"
+             class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 flex items-center justify-between cursor-pointer hover:from-blue-500 hover:to-blue-600 transition-all"
+             @click="goToUpdate">
+            <div class="flex items-center gap-3">
+                <i class="pi pi-download text-lg animate-bounce"></i>
+                <span class="font-medium">
+                    Update verfügbar!
+                    <span v-if="updateInfo?.docker?.updates_available" class="hidden sm:inline">
+                        - Neue Docker Images
+                    </span>
+                    <span v-if="updateInfo?.latest_version" class="hidden md:inline">
+                        ({{ updateInfo.latest_version }})
+                    </span>
+                </span>
+                <span class="text-blue-200 text-sm hidden lg:inline">Klicken zum Aktualisieren</span>
+            </div>
+            <button @click.stop="dismissUpdateBanner" class="p-1 hover:bg-blue-500 rounded transition-colors">
+                <i class="pi pi-times"></i>
+            </button>
+        </div>
+
         <Menubar :model="items" breakpoint="1280px" class="rounded-none border-0 border-b !border-gray-700 !bg-gray-800">
              <template #start>
                <span class="text-lg sm:text-xl font-bold px-2 sm:px-4 text-white">IDM Metrics Collector</span>
