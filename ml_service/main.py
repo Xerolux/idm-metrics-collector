@@ -41,7 +41,7 @@ UPDATE_INTERVAL = int(os.environ.get("UPDATE_INTERVAL", 30))
 
 # ML Configuration
 ANOMALY_THRESHOLD = float(os.environ.get("ANOMALY_THRESHOLD", "0.7"))
-MIN_DATA_RATIO = float(os.environ.get("MIN_DATA_RATIO", "0.4"))
+MIN_DATA_RATIO = float(os.environ.get("MIN_DATA_RATIO", "0.1"))
 MODEL_N_TREES = int(os.environ.get("MODEL_N_TREES", "25"))
 MODEL_HEIGHT = int(os.environ.get("MODEL_HEIGHT", "15"))
 MODEL_WINDOW_SIZE = int(os.environ.get("MODEL_WINDOW_SIZE", "250"))
@@ -353,13 +353,14 @@ def job():
         if len(data) < min_features:
             missing_sensors = sorted(list(set(SENSORS) - set(data.keys())))
             logger.warning(
-                f"Insufficient data fetched ({len(data)}/{len(SENSORS)} sensors, need {min_features}). Skipping."
+                f"Low data availability ({len(data)}/{len(SENSORS)} sensors, target {min_features}). Proceeding anyway to maintain data flow."
             )
             if missing_sensors:
-                logger.warning(
+                logger.debug(
                     f"Missing sensors (first 10): {', '.join(missing_sensors[:10])}..."
                 )
-            return
+            # We do NOT return here anymore, to ensure graphs are not empty.
+            # River can handle sparse data (though accuracy might suffer).
 
         # Enrich with temporal and computed features
         data = enrich_features(data)
