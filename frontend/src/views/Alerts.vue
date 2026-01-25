@@ -67,14 +67,14 @@
       </ul>
     </div>
 
-    <!-- Edit Modal -->
-    <div v-if="showModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-      <div class="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full p-6 shadow-xl">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
-          {{ editingAlert ? 'Alarm bearbeiten' : 'Neuer Alarm' }}
-        </h3>
-
-        <form @submit.prevent="saveAlert" class="space-y-4">
+    <!-- Edit Dialog -->
+    <Dialog
+      v-model:visible="showModal"
+      :header="editingAlert ? 'Alarm bearbeiten' : 'Neuer Alarm'"
+      modal
+      :style="{ width: '90vw', maxWidth: '600px' }"
+    >
+        <form id="alert-form" @submit.prevent="saveAlert" class="space-y-4">
 
           <!-- Template Selection -->
           <div v-if="!editingAlert" class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -150,18 +150,13 @@
               Du kannst diesen Text bearbeiten. Verfügbare Platzhalter: {value}, {sensor}, {name}, {time}
             </p>
           </div>
-
-          <div class="mt-5 flex justify-end space-x-3">
-            <button type="button" @click="closeModal" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600">
-              Abbrechen
-            </button>
-            <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
-              Speichern
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+
+        <template #footer>
+            <Button label="Abbrechen" icon="pi pi-times" text severity="secondary" @click="closeModal" />
+            <Button label="Speichern" icon="pi pi-check" severity="primary" type="submit" form="alert-form" />
+        </template>
+    </Dialog>
   </div>
 </template>
 
@@ -170,6 +165,8 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
+import Dialog from 'primevue/dialog';
+import Button from 'primevue/button';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 
