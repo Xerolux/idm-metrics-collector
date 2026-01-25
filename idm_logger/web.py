@@ -1464,12 +1464,19 @@ def perform_update():
     try:
         logger.info("Update requested by user")
 
+        # Check if updates can run BEFORE spawning thread
+        if not can_run_updates():
+            logger.warning("Update skipped: repo path not found.")
+            return jsonify({
+                "success": False,
+                "error": "Update nicht möglich: Git-Repository nicht gefunden. "
+                         "Bitte stellen Sie sicher, dass das Repository mit .git-Verzeichnis "
+                         "gemountet ist oder setzen Sie REPO_PATH."
+            }), 400
+
         def do_update():
             try:
                 time.sleep(2)
-                if not can_run_updates():
-                    logger.warning("Update skipped: repo path not found.")
-                    return
                 run_update()
             except Exception as e:
                 logger.error(f"Update failed: {e}")

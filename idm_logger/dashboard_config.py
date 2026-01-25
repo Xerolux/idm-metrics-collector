@@ -166,12 +166,12 @@ def get_default_dashboards() -> List[Dict[str, Any]]:
                     "queries": [
                         {
                             "label": "Anomalie Score",
-                            "query": "idm_anomaly_score",
+                            "query": "idm_anomaly_score_value",
                             "color": "#ef4444",
                         },
                         {
                             "label": "Anomalie Flag",
-                            "query": "idm_anomaly_flag",
+                            "query": "idm_anomaly_flag_value",
                             "color": "#f59e0b",
                         },
                     ],
@@ -245,12 +245,12 @@ class DashboardManager:
                         expected_queries = [
                             {
                                 "label": "Anomalie Score",
-                                "query": "idm_anomaly_score",
+                                "query": "idm_anomaly_score_value",
                                 "color": "#ef4444",
                             },
                             {
                                 "label": "Anomalie Flag",
-                                "query": "idm_anomaly_flag",
+                                "query": "idm_anomaly_flag_value",
                                 "color": "#f59e0b",
                             },
                         ]
@@ -270,12 +270,12 @@ class DashboardManager:
                         "queries": [
                             {
                                 "label": "Anomalie Score",
-                                "query": "idm_anomaly_score",
+                                "query": "idm_anomaly_score_value",
                                 "color": "#ef4444",
                             },
                             {
                                 "label": "Anomalie Flag",
-                                "query": "idm_anomaly_flag",
+                                "query": "idm_anomaly_flag_value",
                                 "color": "#f59e0b",
                             },
                         ],
