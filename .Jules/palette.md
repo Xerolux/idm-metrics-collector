@@ -9,3 +9,7 @@
 ## 2026-01-30 - Modernizing Alert Interactions
 **Learning:** Native browser dialogs (`confirm`, `alert`) interrupt the user workflow and look outdated compared to the rest of the application. Replacing them with PrimeVue's `ConfirmDialog` and `Toast` provides a seamless, non-blocking, and consistent experience.
 **Action:** Identify and replace any remaining usages of `window.confirm` or `window.alert` with `useConfirm` and `useToast` services to maintain UI consistency and accessibility.
+
+## 2026-10-18 - Modal Form Submission
+**Learning:** When moving form actions to a standardized Dialog footer (outside the `<form>` tag), native validation and submission break.
+**Action:** Assign an `id` to the form and use `type="submit" form="form-id"` on the footer button to retain native browser validation and submission behavior without custom JavaScript handlers.
