@@ -341,7 +341,7 @@ def check_for_update() -> Dict[str, Any]:
                     remote_hash = remote_data["sha"]
 
                     # Try to fetch authoritative base version from GitHub
-                    base_ver = "1.0.0"
+                    base_ver = "1.0.1"
                     try:
                         v_resp = requests.get(
                             f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/VERSION",

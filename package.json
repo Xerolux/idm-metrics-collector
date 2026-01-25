@@ -1,6 +1,6 @@
 {
   "name": "app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "[![GitHub Release][releases-shield]][releases] [![Downloads][downloads-shield]][releases] [![License][license-shield]](LICENSE) [![Discord][discord-shield]][discord] [![Community Forum][forum-shield]][forum]",
   "main": "capture_assets.js",
   "directories": {

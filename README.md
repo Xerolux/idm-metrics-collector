@@ -1,4 +1,4 @@
-# IDM Metrics Collector 1.0.0
+# IDM Metrics Collector 1.0.1
 
 [![GitHub Release][releases-shield]][releases]
 [![Downloads][downloads-shield]][releases]
@@ -46,9 +46,9 @@
 
 ## 🎯 Warum IDM Metrics Collector?
 
-Die integrierte Grafana-Lösung ist Vergangenheit. **Version 1.0.0** bringt ein leistungsstarkes, eigenständiges Dashboard mit ~80% Feature-Parität zu Grafana - aber einfacher, schneller und perfekt integriert.
+Die integrierte Grafana-Lösung ist Vergangenheit. **Version 1.0.1** bringt ein leistungsstarkes, eigenständiges Dashboard mit ~80% Feature-Parität zu Grafana - aber einfacher, schneller und perfekt integriert.
 
-### ✨ Highlights v1.0.0
+### ✨ Highlights v1.0.1
 
 - 🎨 **Modernes Dashboard** mit Drag & Drop, Zoom & Dark Mode
 - 📊 **Dual Y-Achsen** für Temperatur + Leistung in einem Chart
@@ -66,7 +66,7 @@ Wir legen Wert auf erstklassige Dokumentation:
 
 - 📄 **[Handbuch (PDF)][docs-pdf]** - Ausführliche Bedienungsanleitung
 - 📚 **[Online Dokumentation][docs-online]** - Vollständige Feature-Referenz
-- 🆕 **[Feature-Dokumentation][features]** - Alle neuen Features v1.0.0 im Detail
+- 🆕 **[Feature-Dokumentation][features]** - Alle neuen Features v1.0.1 im Detail
 
 ---
 
@@ -118,7 +118,7 @@ Das Herzstück der Anwendung - alles auf einen Blick.
 - **Stat Panels**: Einzelwerte als große Zahlen mit Trend-Anzeige
 - **Gauge Panels**: Tachometer für COP, Effizienz, etc.
 
-**Templates (v1.0.0):**
+**Templates (v1.0.1):**
 - Temperaturübersicht
 - Leistungsanalyse
 - Effizienz-Monitor
@@ -191,11 +191,11 @@ Systeminformationen auf einen Blick.
 
 ---
 
-## 🆕 Was ist neu in v1.0.0?
+## 🆕 Was ist neu in v1.0.1?
 
 ### Dashboard Revolution
 
-| Feature | v0.6.0 | v1.0.0 |
+| Feature | v0.6.0 | v1.0.1 |
 |---------|--------|--------|
 | Chart Zoom | ❌ | ✅ Mausrad, Drag, Pinch |
 | Tooltips | Basic | ✅ Deutsch, formatiert, farbig |
@@ -323,7 +323,7 @@ Warum wir das integrierte Dashboard dem externen Grafana vorziehen:
 - [ ] WebSocket Live-Updates
 - [ ] Shared Dashboards (Links)
 
-### v1.0.0 (Ziel)
+### v1.0.1 (Ziel)
 
 - [ ] 100% Feature-Parität zu Grafana
 - [ ] Mobile Apps (iOS/Android)

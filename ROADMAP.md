@@ -6,7 +6,7 @@
 
 ---
 
-## Aktueller Stand: v1.0.0 (100% Parität - COMPLETE!)
+## Aktueller Stand: v1.0.1 (100% Parität - COMPLETE!)
 
 ### ✅ Erledigt
 
@@ -316,7 +316,7 @@ Das IDM Metrics Collector Projekt hat nun die **vollständige Feature-Parität z
 
 ---
 
-### v1.0.0 - Feature Complete
+### v1.0.1 - Feature Complete
 
 **Ziel**: 100% Feature-Parität + Extras
 
@@ -387,5 +387,5 @@ Jede Hilfe ist willkommen! Schau dir die Issues an oder sprich mich auf Discord 
 ---
 
 **Stand**: 2025-01-22
-**Version**: 0.9.0
-**Nächstes Release**: 1.0.0 (Feature Complete)
+**Version**: 1.0.1
+**Nächstes Release**: 1.0.1 (Feature Complete)
