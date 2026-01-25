@@ -1474,10 +1474,12 @@ def perform_update():
 
         if not can_git and not can_docker:
             logger.warning("Update skipped: neither git repo nor docker available.")
-            return jsonify({
-                "success": False,
-                "error": "Update nicht möglich: Weder Git-Repository noch Docker verfügbar."
-            }), 400
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "Update nicht möglich: Weder Git-Repository noch Docker verfügbar.",
+                }
+            ), 400
 
         update_method = "docker" if (docker_only or not can_git) else "git+docker"
 
@@ -1489,11 +1491,9 @@ def perform_update():
                 logger.error(f"Update failed: {e}")
 
         threading.Thread(target=do_update, daemon=True).start()
-        return jsonify({
-            "success": True,
-            "message": "Update gestartet",
-            "method": update_method
-        })
+        return jsonify(
+            {"success": True, "message": "Update gestartet", "method": update_method}
+        )
     except Exception as e:
         logger.error(f"Error starting update: {e}")
         return jsonify({"success": False, "error": str(e)}), 500

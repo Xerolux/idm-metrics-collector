@@ -153,7 +153,7 @@ def get_remote_image_digest(image_name: str, tag: str = "latest") -> Optional[st
         headers = {
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.docker.distribution.manifest.v2+json, "
-                      "application/vnd.oci.image.manifest.v1+json",
+            "application/vnd.oci.image.manifest.v1+json",
         }
         manifest_resp = requests.head(manifest_url, headers=headers, timeout=10)
 
@@ -170,8 +170,13 @@ def get_local_image_digest(image_name: str) -> Optional[str]:
     """Get the RepoDigest of a local image (matches remote digest format)."""
     try:
         result = subprocess.run(
-            ["docker", "inspect", "--format",
-             "{{index .RepoDigests 0}}", f"{image_name}:latest"],
+            [
+                "docker",
+                "inspect",
+                "--format",
+                "{{index .RepoDigests 0}}",
+                f"{image_name}:latest",
+            ],
             capture_output=True,
             text=True,
             timeout=10,
@@ -225,7 +230,9 @@ def check_docker_updates() -> Dict[str, Any]:
             remote_digest = get_remote_image_digest(image)
 
             image_status["local_digest"] = local_digest[:16] if local_digest else None
-            image_status["remote_digest"] = remote_digest[:16] if remote_digest else None
+            image_status["remote_digest"] = (
+                remote_digest[:16] if remote_digest else None
+            )
 
             if local_digest and remote_digest:
                 if local_digest != remote_digest:
@@ -259,9 +266,7 @@ def can_run_docker_updates() -> bool:
         # Check docker compose availability
         for cmd in [["docker", "compose", "version"], ["docker-compose", "version"]]:
             try:
-                compose_check = subprocess.run(
-                    cmd, capture_output=True, timeout=5
-                )
+                compose_check = subprocess.run(cmd, capture_output=True, timeout=5)
                 if compose_check.returncode == 0:
                     return True
             except Exception:
@@ -626,7 +631,9 @@ def check_for_update() -> Dict[str, Any]:
     docker_status = check_docker_updates()
 
     # Combine update availability
-    any_update_available = update_available or docker_status.get("updates_available", False)
+    any_update_available = update_available or docker_status.get(
+        "updates_available", False
+    )
 
     return {
         "update_available": any_update_available,
