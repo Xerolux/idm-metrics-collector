@@ -653,8 +653,8 @@ def get_current_metrics():
         base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         query_url = f"{base_url}/api/v1/query"
 
-        # Query for latest values of all idm_heatpump metrics
-        query = '{__name__=~"idm_heatpump.*"}'
+        # Query for latest values of all idm_heatpump and idm_anomaly metrics
+        query = '{__name__=~"idm_heatpump.*|idm_anomaly.*"}'
         response = requests.get(query_url, params={"query": query}, timeout=10)
 
         if response.status_code != 200:
