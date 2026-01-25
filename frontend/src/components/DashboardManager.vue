@@ -14,76 +14,80 @@
         </component>
 
         <!-- Top Bar -->
-        <div class="flex items-center justify-between gap-3 flex-shrink-0">
-            <div class="flex items-center gap-2 flex-grow">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0">
+            <div class="flex flex-wrap items-center gap-2 flex-grow w-full sm:w-auto">
                 <Select
                     v-model="currentDashboardId"
                     :options="dashboards"
                     optionLabel="name"
                     optionValue="id"
-                    class="w-64"
+                    class="w-full sm:w-64"
                     placeholder="Dashboard wählen"
                 />
-                <Button
-                    @click="createDashboard"
-                    icon="pi pi-plus"
-                    severity="primary"
-                    title="Neues Dashboard"
-                />
-                <Button
-                    @click="showTemplateDialog = true"
-                    icon="pi pi-copy"
-                    severity="secondary"
-                    title="Aus Vorlage erstellen"
-                />
-                <Button
-                    @click="openDashboardSettings"
-                    icon="pi pi-cog"
-                    severity="secondary"
-                    title="Dashboard Einstellungen"
-                />
-                <Button
-                    @click="confirmDeleteDashboard"
-                    icon="pi pi-trash"
-                    severity="danger"
-                    :disabled="dashboards.length <= 1"
-                    title="Dashboard löschen"
-                />
+                <div class="flex gap-2">
+                    <Button
+                        @click="createDashboard"
+                        icon="pi pi-plus"
+                        severity="primary"
+                        title="Neues Dashboard"
+                    />
+                    <Button
+                        @click="showTemplateDialog = true"
+                        icon="pi pi-copy"
+                        severity="secondary"
+                        title="Aus Vorlage erstellen"
+                    />
+                    <Button
+                        @click="openDashboardSettings"
+                        icon="pi pi-cog"
+                        severity="secondary"
+                        title="Dashboard Einstellungen"
+                    />
+                    <Button
+                        @click="confirmDeleteDashboard"
+                        icon="pi pi-trash"
+                        severity="danger"
+                        :disabled="dashboards.length <= 1"
+                        title="Dashboard löschen"
+                    />
+                </div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <!-- Time Range Selector -->
                 <Select
                     v-model="timeRange"
                     :options="timeRangeOptions"
                     optionLabel="label"
                     optionValue="value"
-                    class="w-48"
+                    class="w-full sm:w-48"
                     @change="onTimeRangeChange"
                 />
-                <Button
-                    @click="showExportDialog = true"
-                    icon="pi pi-download"
-                    severity="secondary"
-                    title="Exportieren"
-                />
-                <Button
-                    @click="showAnnotationsDialog = true"
-                    icon="pi pi-bookmark"
-                    severity="secondary"
-                    title="Annotations"
-                />
-                <Button
-                    @click="showVariablesDialog = true"
-                    icon="pi pi-sliders-h"
-                    severity="secondary"
-                    title="Variables"
-                />
-                <Button
-                    @click="editMode = !editMode"
-                    :icon="editMode ? 'pi pi-lock-open' : 'pi pi-lock'"
-                    :severity="editMode ? 'success' : 'secondary'"
-                    :label="editMode ? 'Bearbeiten' : 'Normal'"
-                />
+                <div class="flex gap-2">
+                    <Button
+                        @click="showExportDialog = true"
+                        icon="pi pi-download"
+                        severity="secondary"
+                        title="Exportieren"
+                    />
+                    <Button
+                        @click="showAnnotationsDialog = true"
+                        icon="pi pi-bookmark"
+                        severity="secondary"
+                        title="Annotations"
+                    />
+                    <Button
+                        @click="showVariablesDialog = true"
+                        icon="pi pi-sliders-h"
+                        severity="secondary"
+                        title="Variables"
+                    />
+                    <Button
+                        @click="editMode = !editMode"
+                        :icon="editMode ? 'pi pi-lock-open' : 'pi pi-lock'"
+                        :severity="editMode ? 'success' : 'secondary'"
+                        :label="editMode ? 'Bearbeiten' : 'Normal'"
+                    />
+                </div>
             </div>
         </div>
 

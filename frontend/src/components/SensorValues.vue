@@ -51,6 +51,7 @@ const metrics = ref({
     mode: [],
     control: [],
     state: [],
+    ai: [],
     other: []
 });
 
@@ -102,6 +103,7 @@ const getCategoryLabel = (category) => {
         mode: 'Modi',
         control: 'Steuerung',
         state: 'Zustand',
+        ai: 'KI-Analyse',
         other: 'Sonstige'
     };
     return labels[category] || category;
@@ -118,6 +120,7 @@ const getCategoryIcon = (category) => {
         mode: 'pi pi-cog text-gray-500',
         control: 'pi pi-sliders-h text-purple-500',
         state: 'pi pi-check-circle text-emerald-500',
+        ai: 'pi pi-sparkles text-purple-500',
         other: 'pi pi-box text-gray-400'
     };
     return icons[category] || 'pi pi-circle';
@@ -125,6 +128,11 @@ const getCategoryIcon = (category) => {
 
 const formatValue = (name, value) => {
     if (value === undefined || value === null) return '-';
+
+    // AI Scores
+    if (name.includes('score')) {
+        return Number(value).toFixed(4);
+    }
 
     // Status/Mode mapping
     if (name.includes('status') || name.includes('mode') || name.includes('flag')) {
@@ -137,8 +145,11 @@ const formatValue = (name, value) => {
              if (num === 4) return 'WW';
              if (num === 8) return 'Abtauen';
          }
-         if (num === 0) return 'Aus';
-         if (num === 1) return 'Ein';
+
+         // Generic boolean/flag mapping
+         if (num === 0) return name.includes('flag') ? 'NEIN' : 'Aus';
+         if (num === 1) return name.includes('flag') ? 'JA' : 'Ein';
+
          return num;
     }
 

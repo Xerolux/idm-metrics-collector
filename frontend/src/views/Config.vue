@@ -7,7 +7,7 @@
         </div>
 
         <div v-else>
-            <TabView>
+            <TabView :scrollable="true">
                 <TabPanel header="Verbindung">
                      <div class="flex flex-col gap-6">
                         <Fieldset legend="IDM Wärmepumpe" :toggleable="true">
