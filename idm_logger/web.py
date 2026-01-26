@@ -279,8 +279,10 @@ def _update_ai_status_once():
         # For now, let's assume if file exists in DATA_DIR, it's used (since ML service prefers it)
         import os
         DATA_DIR = os.environ.get("DATA_DIR", ".")
-        if os.path.exists(os.path.join(DATA_DIR, "community_model.enc")):
+        model_path = os.path.join(DATA_DIR, "community_model.enc")
+        if os.path.exists(model_path):
             new_status["source"] = "Community Model (Encrypted)"
+            new_status["model_date"] = os.path.getmtime(model_path)
         else:
             new_status["source"] = "Local Training"
 

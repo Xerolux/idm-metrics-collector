@@ -313,6 +313,12 @@
                                                  {{ aiStatus.source || 'Local' }}
                                              </span>
                                          </div>
+                                         <div v-if="aiStatus.model_date" class="flex justify-between border-b border-gray-700 py-2">
+                                             <span class="text-gray-400">Modell-Datum:</span>
+                                             <span class="font-mono text-purple-300">
+                                                 {{ new Date(aiStatus.model_date * 1000).toLocaleString() }}
+                                             </span>
+                                         </div>
                                          <div class="flex justify-between border-b border-gray-700 py-2">
                                              <span class="text-gray-400">Status:</span>
                                              <span class="font-bold" :class="aiStatus.online ? 'text-green-400' : 'text-red-400'">
