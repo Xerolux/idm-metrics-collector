@@ -9,12 +9,14 @@ from .update_manager import get_current_version
 
 logger = logging.getLogger(__name__)
 
-# Default telemetry endpoint (placeholder)
-DEFAULT_ENDPOINT = "https://telemetry.idm-logger.com/api/v1/submit"
+# Default telemetry endpoint
+DEFAULT_ENDPOINT = "https://collector.xerolux.de/api/v1/submit"
 
 class TelemetryManager:
     def __init__(self, config_instance):
         self.config = config_instance
+        # Always prefer Environment Variable, but allow user to use default if not set
+        # The user SHOULD set TELEMETRY_ENDPOINT in docker-compose
         self.endpoint = os.environ.get("TELEMETRY_ENDPOINT", DEFAULT_ENDPOINT)
         self._buffer = []
         self._lock = threading.Lock()
@@ -85,12 +87,19 @@ class TelemetryManager:
             # Use a short timeout to not block anything
             # In a real scenario, we might want to retry, but for telemetry fire-and-forget is often okay
             # or we handle retries more robustly.
-            # checks if endpoint is the placeholder
-            if "telemetry.idm-logger.com" in self.endpoint:
-                 # Just log in dev mode/placeholder
+
+            # Check for legacy dummy endpoint to avoid spamming
+            if "example.com" in self.endpoint:
                  logger.debug(f"Telemetry (Simulation): Would send {len(data_to_send)} records to {self.endpoint}")
             else:
-                response = requests.post(self.endpoint, json=payload, timeout=10)
+                # Add Authorization Header if token is configured
+                headers = {}
+                token = self.config.get("telemetry_auth_token")
+                if token:
+                    headers["Authorization"] = f"Bearer {token}"
+
+                response = requests.post(self.endpoint, json=payload, headers=headers, timeout=10)
+
                 if response.status_code == 200:
                     logger.debug(f"Telemetry sent successfully: {len(data_to_send)} records")
                 else:

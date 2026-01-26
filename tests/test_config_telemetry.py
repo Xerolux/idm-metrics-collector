@@ -70,8 +70,8 @@ class TestConfigTelemetry(unittest.TestCase):
     def test_telemetry_submission(self, mock_post):
         """Test that telemetry sends data when enabled."""
         tm = TelemetryManager(self.config)
-        # Change endpoint to avoid simulation mode
-        tm.endpoint = "https://example.com/api"
+        # Change endpoint to a specific test domain (not example.com which is blocked in loop)
+        tm.endpoint = "https://my-test-server.com/api"
 
         self.config.data["heatpump_model"] = "TEST_MODEL"
         self.config.data["share_data"] = True
@@ -89,6 +89,10 @@ class TestConfigTelemetry(unittest.TestCase):
         payload = kwargs['json']
         self.assertEqual(payload['heatpump_model'], "TEST_MODEL")
         self.assertEqual(payload['data'][0]['temp'], 10)
+
+        # Verify Auth Header
+        # By default no token in test setup
+        self.assertNotIn("Authorization", kwargs.get('headers', {}))
 
     @patch('idm_logger.telemetry.requests.post')
     def test_telemetry_disabled(self, mock_post):

@@ -1,0 +1,26 @@
+services:
+  telemetry-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - VM_WRITE_URL=http://victoriametrics:8428/write
+      - AUTH_TOKEN=change-me-to-something-secure
+    depends_on:
+      - victoriametrics
+    restart: unless-stopped
+    command: uvicorn app:app --host 0.0.0.0 --port 8000
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.93.5
+    ports:
+      - "8428:8428"
+    volumes:
+      - vmdata:/storage
+    command:
+      - "-storageDataPath=/storage"
+      - "-retentionPeriod=12" # Months
+    restart: unless-stopped
+
+volumes:
+  vmdata:

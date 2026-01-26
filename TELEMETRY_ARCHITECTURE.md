@@ -66,6 +66,6 @@ Ein einfacher REST-Endpunkt, der JSON-Payloads empfängt.
 
 ## Nächste Schritte
 
-1.  Aufsetzen des Ingest-Servers (z.B. mit FastAPI und InfluxDB).
-2.  Bereitstellen der URL unter `telemetry.idm-logger.com` (oder ähnlich).
-3.  Setzen der Environment-Variable `TELEMETRY_ENDPOINT` im Docker-Image.
+1.  Aufsetzen des Ingest-Servers (z.B. mit FastAPI und VictoriaMetrics).
+2.  Bereitstellen der URL unter `collector.xerolux.de` (Standard im Client).
+3.  Optional: Setzen der Environment-Variable `TELEMETRY_ENDPOINT` im Docker-Image, falls eine andere URL verwendet werden soll.

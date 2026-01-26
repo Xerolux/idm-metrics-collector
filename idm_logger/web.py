@@ -478,6 +478,7 @@ _SENSITIVE_CONFIG_KEYS = frozenset(
         "bot_token",
         "webhook_url",
         "internal_api_key",
+        "telemetry_auth_token",
     }
 )
 
@@ -553,6 +554,9 @@ def setup():
 
         if "share_data" in data:
             config.data["share_data"] = bool(data.get("share_data"))
+
+        if "telemetry_auth_token" in data:
+            config.data["telemetry_auth_token"] = data.get("telemetry_auth_token")
 
         password = data.get("password")
         if not password or len(password) < 6:
@@ -1657,6 +1661,8 @@ def config_page():
                 config.data["heatpump_model"] = data["heatpump_model"]
             if "share_data" in data:
                 config.data["share_data"] = bool(data["share_data"])
+            if "telemetry_auth_token" in data:
+                config.data["telemetry_auth_token"] = data["telemetry_auth_token"]
 
             new_pass = data.get("new_password")
             if new_pass:

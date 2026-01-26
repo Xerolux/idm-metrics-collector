@@ -333,6 +333,7 @@ class Config:
             "heatpump_model": "",
             "share_data": True,
             "installation_id": str(uuid.uuid4()),
+            "telemetry_auth_token": "",  # Token for the telemetry server
         }
 
         # Auto-complete setup in Docker environment

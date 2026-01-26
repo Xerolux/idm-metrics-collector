@@ -272,6 +272,12 @@
                                         </p>
                                      </div>
                                 </div>
+
+                                <div class="flex flex-col gap-2 mt-2">
+                                    <label>Telemetry Authentifizierungs-Token (Optional)</label>
+                                    <InputText v-model="config.telemetry_auth_token" type="password" placeholder="Nur erforderlich für private Server" class="w-full" />
+                                    <small class="text-gray-400">Wird benötigt, wenn der Telemetry-Server eine Authentifizierung erfordert.</small>
+                                </div>
                             </div>
                         </Fieldset>
 
@@ -915,6 +921,7 @@ const saveConfig = async () => {
             ai_model: config.value.ai?.model || 'rolling',
             heatpump_model: config.value.heatpump_model || '',
             share_data: config.value.share_data || false,
+            telemetry_auth_token: config.value.telemetry_auth_token || '',
             updates_enabled: config.value.updates?.enabled || false,
             updates_interval_hours: config.value.updates?.interval_hours || 12,
             updates_mode: config.value.updates?.mode || 'apply',
