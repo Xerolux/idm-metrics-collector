@@ -96,7 +96,9 @@ class TelemetryManager:
                 timestamp = snapshot.get("timestamp", time.time())
 
                 # Check if this is nested data (Multi-HP) or flat (Legacy)
-                is_nested = any(isinstance(v, dict) for k, v in snapshot.items() if k != "timestamp")
+                is_nested = any(
+                    isinstance(v, dict) for k, v in snapshot.items() if k != "timestamp"
+                )
 
                 if is_nested:
                     heatpumps_data = []
@@ -104,20 +106,23 @@ class TelemetryManager:
                         if hp_id == "timestamp":
                             continue
                         if not isinstance(values, dict):
-                            continue # Skip non-dict items if any
+                            continue  # Skip non-dict items if any
 
                         hp_config = configs.get(hp_id, {})
-                        heatpumps_data.append({
-                            "id": hp_id,
-                            "manufacturer": hp_config.get("manufacturer", "unknown"),
-                            "model": hp_config.get("model", "unknown"),
-                            "values": values
-                        })
+                        heatpumps_data.append(
+                            {
+                                "id": hp_id,
+                                "manufacturer": hp_config.get(
+                                    "manufacturer", "unknown"
+                                ),
+                                "model": hp_config.get("model", "unknown"),
+                                "values": values,
+                            }
+                        )
 
-                    processed_data.append({
-                        "timestamp": timestamp,
-                        "heatpumps": heatpumps_data
-                    })
+                    processed_data.append(
+                        {"timestamp": timestamp, "heatpumps": heatpumps_data}
+                    )
                 else:
                     # Legacy flat data
                     processed_data.append(snapshot)
@@ -127,7 +132,7 @@ class TelemetryManager:
                 # Global model might be deprecated but kept for legacy
                 "heatpump_model": self.config.get("heatpump_model"),
                 "version": get_current_version(),
-                "data_version": "2.0", # Signal new format
+                "data_version": "2.0",  # Signal new format
                 "data": processed_data,
             }
 

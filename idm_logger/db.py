@@ -185,7 +185,9 @@ class Database:
         current_version = int(row["value"]) if row else 1
 
         if current_version < SCHEMA_VERSION:
-            logger.info(f"Migrating database from v{current_version} to v{SCHEMA_VERSION}")
+            logger.info(
+                f"Migrating database from v{current_version} to v{SCHEMA_VERSION}"
+            )
 
             # Migration v1 -> v2: Add heatpump_id to jobs and alerts
             if current_version < 2:
@@ -194,7 +196,7 @@ class Database:
             # Update schema version
             cursor.execute(
                 "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
-                ("schema_version", str(SCHEMA_VERSION))
+                ("schema_version", str(SCHEMA_VERSION)),
             )
             logger.info(f"Database migration completed to v{SCHEMA_VERSION}")
 
@@ -218,9 +220,7 @@ class Database:
 
         # Add heatpump_id to jobs if not exists
         if "heatpump_id" not in job_columns:
-            cursor.execute(
-                "ALTER TABLE jobs ADD COLUMN heatpump_id TEXT DEFAULT NULL"
-            )
+            cursor.execute("ALTER TABLE jobs ADD COLUMN heatpump_id TEXT DEFAULT NULL")
             logger.debug("Added heatpump_id column to jobs table")
 
         # Add heatpump_id to alerts if not exists
@@ -483,7 +483,9 @@ class Database:
                 for row in rows:
                     hp = dict(row)
                     # Parse JSON fields
-                    hp["connection_config"] = json.loads(hp.get("connection_config", "{}"))
+                    hp["connection_config"] = json.loads(
+                        hp.get("connection_config", "{}")
+                    )
                     hp["device_config"] = json.loads(hp.get("device_config", "{}"))
                     hp["enabled"] = bool(hp.get("enabled", 1))
                     result.append(hp)
@@ -501,7 +503,9 @@ class Database:
                 row = cursor.fetchone()
                 if row:
                     hp = dict(row)
-                    hp["connection_config"] = json.loads(hp.get("connection_config", "{}"))
+                    hp["connection_config"] = json.loads(
+                        hp.get("connection_config", "{}")
+                    )
                     hp["device_config"] = json.loads(hp.get("device_config", "{}"))
                     hp["enabled"] = bool(hp.get("enabled", 1))
                     return hp
@@ -550,7 +554,9 @@ class Database:
 
                 for k, v in fields.items():
                     if k not in ALLOWED_HEATPUMP_COLUMNS:
-                        logger.warning(f"Rejected invalid column in heatpump update: {k}")
+                        logger.warning(
+                            f"Rejected invalid column in heatpump update: {k}"
+                        )
                         continue
 
                     query_parts.append(f"{k}=?")
@@ -599,12 +605,16 @@ class Database:
         try:
             with self._get_locked_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM heatpumps WHERE enabled=1 ORDER BY created_at")
+                cursor.execute(
+                    "SELECT * FROM heatpumps WHERE enabled=1 ORDER BY created_at"
+                )
                 rows = cursor.fetchall()
                 result = []
                 for row in rows:
                     hp = dict(row)
-                    hp["connection_config"] = json.loads(hp.get("connection_config", "{}"))
+                    hp["connection_config"] = json.loads(
+                        hp.get("connection_config", "{}")
+                    )
                     hp["device_config"] = json.loads(hp.get("device_config", "{}"))
                     hp["enabled"] = True
                     result.append(hp)
@@ -623,7 +633,7 @@ class Database:
                 if heatpump_id:
                     cursor.execute(
                         "SELECT * FROM dashboards WHERE heatpump_id=? ORDER BY position",
-                        (heatpump_id,)
+                        (heatpump_id,),
                     )
                 else:
                     cursor.execute("SELECT * FROM dashboards ORDER BY position")
@@ -731,7 +741,9 @@ class Database:
                 )
             logger.info(f"Deleted dashboards for heatpump {heatpump_id}")
         except sqlite3.Error as e:
-            logger.error(f"Failed to delete dashboards for {heatpump_id}: {e}", exc_info=True)
+            logger.error(
+                f"Failed to delete dashboards for {heatpump_id}: {e}", exc_info=True
+            )
             raise
 
     # ==================== Filtered queries with heatpump_id ====================
@@ -743,7 +755,7 @@ class Database:
                 cursor = conn.cursor()
                 cursor.execute(
                     "SELECT * FROM jobs WHERE heatpump_id=? OR heatpump_id IS NULL",
-                    (heatpump_id,)
+                    (heatpump_id,),
                 )
                 return cursor.fetchall()
         except sqlite3.Error as e:
@@ -757,7 +769,7 @@ class Database:
                 cursor = conn.cursor()
                 cursor.execute(
                     "SELECT * FROM alerts WHERE heatpump_id=? OR heatpump_id IS NULL",
-                    (heatpump_id,)
+                    (heatpump_id,),
                 )
                 return [dict(row) for row in cursor.fetchall()]
         except sqlite3.Error as e:

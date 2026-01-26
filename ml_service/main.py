@@ -283,13 +283,13 @@ def get_context(hp_id: str) -> HeatpumpContext:
         if hp_id in saved_state_cache:
             ctx.restore_models(saved_state_cache[hp_id])
         elif "default" in saved_state_cache:
-             # Try to migrate legacy default to first seen HP?
-             # Or just use it as seed.
-             # If we have "default" and seeing a real ID, assume it's the migration.
-             # Only do this if we haven't assigned "default" to anyone else?
-             # Simplification: just use it.
-             logger.info(f"[{hp_id}] seeding with legacy model state")
-             ctx.restore_models(saved_state_cache["default"])
+            # Try to migrate legacy default to first seen HP?
+            # Or just use it as seed.
+            # If we have "default" and seeing a real ID, assume it's the migration.
+            # Only do this if we haven't assigned "default" to anyone else?
+            # Simplification: just use it.
+            logger.info(f"[{hp_id}] seeding with legacy model state")
+            ctx.restore_models(saved_state_cache["default"])
 
         contexts[hp_id] = ctx
 
@@ -425,11 +425,11 @@ def write_metrics(
     hp_label = ctx.hp_id.replace('"', '\\"')
 
     lines = [
-        f"idm_anomaly_score{{heatpump_id=\"{hp_label}\",mode=\"{mode}\"}} {score}",
-        f"idm_anomaly_flag{{heatpump_id=\"{hp_label}\",mode=\"{mode}\"}} {1 if is_anomaly else 0}",
-        f"idm_ml_features_count{{heatpump_id=\"{hp_label}\",mode=\"{mode}\"}} {features_count}",
-        f"idm_ml_processing_time_ms{{heatpump_id=\"{hp_label}\",mode=\"{mode}\"}} {processing_time * 1000}",
-        f"idm_ml_model_updates{{heatpump_id=\"{hp_label}\",mode=\"{mode}\"}} 1",
+        f'idm_anomaly_score{{heatpump_id="{hp_label}",mode="{mode}"}} {score}',
+        f'idm_anomaly_flag{{heatpump_id="{hp_label}",mode="{mode}"}} {1 if is_anomaly else 0}',
+        f'idm_ml_features_count{{heatpump_id="{hp_label}",mode="{mode}"}} {features_count}',
+        f'idm_ml_processing_time_ms{{heatpump_id="{hp_label}",mode="{mode}"}} {processing_time * 1000}',
+        f'idm_ml_model_updates{{heatpump_id="{hp_label}",mode="{mode}"}} 1',
     ]
 
     data = "\n".join(lines)
@@ -473,7 +473,9 @@ def get_top_features(model, data, n=3):
         return []
 
 
-def send_anomaly_alert(ctx: HeatpumpContext, score: float, data: dict, mode: str, top_features: list):
+def send_anomaly_alert(
+    ctx: HeatpumpContext, score: float, data: dict, mode: str, top_features: list
+):
     """Send anomaly alert to IDM Logger."""
     if not ENABLE_ALERTS:
         return
@@ -500,7 +502,11 @@ def send_anomaly_alert(ctx: HeatpumpContext, score: float, data: dict, mode: str
             "sensor_count": len(data),
             "timestamp": int(time.time()),
             "message": f"⚠️ Anomalie erkannt! ({ctx.hp_id} / {mode})\nScore: {score:.2f} (Limit: {ANOMALY_THRESHOLD}){feature_msg}",
-            "data": {"mode": mode, "top_features": top_features, "heatpump_id": ctx.hp_id},
+            "data": {
+                "mode": mode,
+                "top_features": top_features,
+                "heatpump_id": ctx.hp_id,
+            },
         }
 
         headers = {}

@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 class SensorCategory(Enum):
     """Categories for sensor classification."""
+
     TEMPERATURE = "temperature"
     POWER = "power"
     ENERGY = "energy"
@@ -42,21 +43,23 @@ class SensorCategory(Enum):
 
 class DataType(Enum):
     """Modbus data types."""
-    BOOL = "BOOL"           # 1 register, boolean
-    UCHAR = "UCHAR"         # 1 register, unsigned 8-bit
-    UINT8 = "UINT8"         # 1 register, unsigned 8-bit (Alias)
-    INT8 = "INT8"           # 1 register, signed 8-bit
-    UINT16 = "UINT16"       # 1 register, unsigned 16-bit
-    INT16 = "INT16"         # 1 register, signed 16-bit
-    UINT32 = "UINT32"       # 2 registers, unsigned 32-bit
-    INT32 = "INT32"         # 2 registers, signed 32-bit
-    FLOAT = "FLOAT"         # 2 registers, IEEE 754 float
+
+    BOOL = "BOOL"  # 1 register, boolean
+    UCHAR = "UCHAR"  # 1 register, unsigned 8-bit
+    UINT8 = "UINT8"  # 1 register, unsigned 8-bit (Alias)
+    INT8 = "INT8"  # 1 register, signed 8-bit
+    UINT16 = "UINT16"  # 1 register, unsigned 16-bit
+    INT16 = "INT16"  # 1 register, signed 16-bit
+    UINT32 = "UINT32"  # 2 registers, unsigned 32-bit
+    INT32 = "INT32"  # 2 registers, signed 32-bit
+    FLOAT = "FLOAT"  # 2 registers, IEEE 754 float
     # Legacy aliases
     WORD = "UINT16"
 
 
 class AccessMode(Enum):
     """Sensor access modes."""
+
     READ_ONLY = "RO"
     READ_WRITE = "RW"
     WRITE_ONLY = "WO"
@@ -87,6 +90,7 @@ class SensorDefinition:
         description: Detailed description
         eeprom_sensitive: Whether writes affect EEPROM (limited cycles)
     """
+
     id: str
     name: str
     name_de: str
@@ -127,6 +131,7 @@ class HeatpumpCapabilities:
     This information is used by the UI to show/hide features
     and by the system to validate operations.
     """
+
     heating: bool = True
     cooling: bool = False
     hot_water: bool = True
@@ -161,6 +166,7 @@ class ConnectionConfig:
     """
     Configuration for connecting to a heat pump.
     """
+
     host: str
     port: int = 502
     unit_id: int = 1
@@ -194,6 +200,7 @@ class ReadGroup:
 
     Used for optimizing read operations by grouping contiguous registers.
     """
+
     start_address: int
     count: int
     sensors: List[SensorDefinition]
@@ -267,7 +274,7 @@ class HeatpumpDriver(ABC):
         Returns:
             Decoded value (float, int, bool, or string)
         """
-        raw_bytes = b''.join(struct.pack('>H', r) for r in raw_registers)
+        raw_bytes = b"".join(struct.pack(">H", r) for r in raw_registers)
 
         try:
             if sensor.datatype == DataType.BOOL:
@@ -281,13 +288,13 @@ class HeatpumpDriver(ABC):
             elif sensor.datatype in (DataType.UINT16, DataType.WORD):
                 value = raw_registers[0]
             elif sensor.datatype == DataType.INT16:
-                value = struct.unpack('>h', raw_bytes[:2])[0]
+                value = struct.unpack(">h", raw_bytes[:2])[0]
             elif sensor.datatype == DataType.UINT32:
-                value = struct.unpack('>I', raw_bytes[:4])[0]
+                value = struct.unpack(">I", raw_bytes[:4])[0]
             elif sensor.datatype == DataType.INT32:
-                value = struct.unpack('>i', raw_bytes[:4])[0]
+                value = struct.unpack(">i", raw_bytes[:4])[0]
             elif sensor.datatype == DataType.FLOAT:
-                value = struct.unpack('>f', raw_bytes[:4])[0]
+                value = struct.unpack(">f", raw_bytes[:4])[0]
             else:
                 value = raw_registers[0]
 
@@ -299,10 +306,7 @@ class HeatpumpDriver(ABC):
             if sensor.enum_values and isinstance(value, (int, float)):
                 int_value = int(value)
                 if int_value in sensor.enum_values:
-                    return {
-                        "value": int_value,
-                        "text": sensor.enum_values[int_value]
-                    }
+                    return {"value": int_value, "text": sensor.enum_values[int_value]}
 
             return value
 
@@ -333,14 +337,20 @@ class HeatpumpDriver(ABC):
             elif sensor.datatype in (DataType.UINT16, DataType.INT16, DataType.WORD):
                 return [int(value) & 0xFFFF]
             elif sensor.datatype == DataType.UINT32:
-                packed = struct.pack('>I', int(value))
-                return [struct.unpack('>H', packed[i:i+2])[0] for i in range(0, 4, 2)]
+                packed = struct.pack(">I", int(value))
+                return [
+                    struct.unpack(">H", packed[i : i + 2])[0] for i in range(0, 4, 2)
+                ]
             elif sensor.datatype == DataType.INT32:
-                packed = struct.pack('>i', int(value))
-                return [struct.unpack('>H', packed[i:i+2])[0] for i in range(0, 4, 2)]
+                packed = struct.pack(">i", int(value))
+                return [
+                    struct.unpack(">H", packed[i : i + 2])[0] for i in range(0, 4, 2)
+                ]
             elif sensor.datatype == DataType.FLOAT:
-                packed = struct.pack('>f', float(value))
-                return [struct.unpack('>H', packed[i:i+2])[0] for i in range(0, 4, 2)]
+                packed = struct.pack(">f", float(value))
+                return [
+                    struct.unpack(">H", packed[i : i + 2])[0] for i in range(0, 4, 2)
+                ]
             else:
                 return [int(value) & 0xFFFF]
 
@@ -352,7 +362,7 @@ class HeatpumpDriver(ABC):
         self,
         sensors: List[SensorDefinition],
         max_block_size: int = 50,
-        max_gap: int = 5
+        max_gap: int = 5,
     ) -> List[ReadGroup]:
         """
         Optimizes sensors into contiguous read groups.
@@ -393,22 +403,22 @@ class HeatpumpDriver(ABC):
                 # Finalize current group and start new one
                 start = current_sensors[0].address
                 end = current_sensors[-1].address + current_sensors[-1].size
-                groups.append(ReadGroup(
-                    start_address=start,
-                    count=end - start,
-                    sensors=current_sensors
-                ))
+                groups.append(
+                    ReadGroup(
+                        start_address=start, count=end - start, sensors=current_sensors
+                    )
+                )
                 current_sensors = [sensor]
 
         # Don't forget the last group
         if current_sensors:
             start = current_sensors[0].address
             end = current_sensors[-1].address + current_sensors[-1].size
-            groups.append(ReadGroup(
-                start_address=start,
-                count=end - start,
-                sensors=current_sensors
-            ))
+            groups.append(
+                ReadGroup(
+                    start_address=start, count=end - start, sensors=current_sensors
+                )
+            )
 
         return groups
 
@@ -432,7 +442,7 @@ class HeatpumpDriver(ABC):
                         {"label": "Vorlauf", "metric": "temp_flow"},
                         {"label": "Rücklauf", "metric": "temp_return"},
                     ],
-                    "hours": 24
+                    "hours": 24,
                 },
                 {
                     "title": "Leistung",
@@ -440,9 +450,9 @@ class HeatpumpDriver(ABC):
                     "queries": [
                         {"label": "Aktuelle Leistung", "metric": "power_current"},
                     ],
-                    "hours": 24
-                }
-            ]
+                    "hours": 24,
+                },
+            ],
         }
 
     def get_setup_instructions(self) -> Optional[str]:
@@ -485,9 +495,7 @@ class HeatpumpDriver(ABC):
         return True, None
 
     def get_sensor_by_id(
-        self,
-        sensor_id: str,
-        config: Dict[str, Any]
+        self, sensor_id: str, config: Dict[str, Any]
     ) -> Optional[SensorDefinition]:
         """
         Finds a sensor by its ID.

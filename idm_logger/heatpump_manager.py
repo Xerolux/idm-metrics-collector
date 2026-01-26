@@ -50,7 +50,12 @@ from concurrent.futures import ThreadPoolExecutor
 from pymodbus.client import ModbusTcpClient
 
 from .db import db
-from .manufacturers import ManufacturerRegistry, HeatpumpDriver, SensorDefinition, ReadGroup
+from .manufacturers import (
+    ManufacturerRegistry,
+    HeatpumpDriver,
+    SensorDefinition,
+    ReadGroup,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +82,7 @@ class HeatpumpConnection:
         error_count: Consecutive error count
         last_error: Last error message
     """
+
     id: str
     name: str
     manufacturer: str
@@ -171,8 +177,7 @@ class HeatpumpManager:
 
         # Get the driver for this manufacturer/model
         driver = ManufacturerRegistry.get_driver(
-            hp_config["manufacturer"],
-            hp_config["model"]
+            hp_config["manufacturer"], hp_config["model"]
         )
 
         if not driver:
@@ -200,12 +205,7 @@ class HeatpumpManager:
         if driver.requires_custom_client() and hasattr(driver, "create_client"):
             client = driver.create_client(conn_config)
         else:
-            client = ModbusTcpClient(
-                host=host,
-                port=port,
-                timeout=timeout,
-                retries=3
-            )
+            client = ModbusTcpClient(host=host, port=port, timeout=timeout, retries=3)
 
         # Store connection
         connection = HeatpumpConnection(
@@ -266,8 +266,7 @@ class HeatpumpManager:
         # Combine results
         all_data = {}
         for hp_id, values in zip(
-            [hp_id for hp_id, c in self._connections.items() if c.enabled],
-            results
+            [hp_id for hp_id, c in self._connections.items() if c.enabled], results
         ):
             if isinstance(values, Exception):
                 logger.error(f"Read error for {hp_id}: {values}")
@@ -311,9 +310,7 @@ class HeatpumpManager:
             try:
                 # Read registers for this group
                 raw_registers = await self._read_registers(
-                    conn,
-                    group.start_address,
-                    group.count
+                    conn, group.start_address, group.count
                 )
 
                 if raw_registers is None:
@@ -322,7 +319,7 @@ class HeatpumpManager:
                 # Parse each sensor in the group
                 for sensor in group.sensors:
                     offset = sensor.address - group.start_address
-                    sensor_regs = raw_registers[offset:offset + sensor.size]
+                    sensor_regs = raw_registers[offset : offset + sensor.size]
 
                     if len(sensor_regs) >= sensor.size:
                         value = conn.driver.parse_value(sensor, sensor_regs)
@@ -335,9 +332,7 @@ class HeatpumpManager:
                 for sensor in group.sensors:
                     try:
                         raw = await self._read_registers(
-                            conn,
-                            sensor.address,
-                            sensor.size
+                            conn, sensor.address, sensor.size
                         )
                         if raw:
                             value = conn.driver.parse_value(sensor, raw)
@@ -349,10 +344,7 @@ class HeatpumpManager:
         return values
 
     async def _read_registers(
-        self,
-        conn: HeatpumpConnection,
-        address: int,
-        count: int
+        self, conn: HeatpumpConnection, address: int, count: int
     ) -> Optional[List[int]]:
         """
         Read Modbus registers asynchronously.
@@ -369,7 +361,9 @@ class HeatpumpManager:
 
         def _do_read():
             with conn._lock:
-                result = conn.client.read_holding_registers(address, count=count, slave=1)
+                result = conn.client.read_holding_registers(
+                    address, count=count, slave=1
+                )
                 if result.isError():
                     return None
                 return result.registers
@@ -392,12 +386,7 @@ class HeatpumpManager:
         """
         return await self._read_heatpump(hp_id)
 
-    async def write_value(
-        self,
-        hp_id: str,
-        sensor_id: str,
-        value: Any
-    ) -> bool:
+    async def write_value(self, hp_id: str, sensor_id: str, value: Any) -> bool:
         """
         Write a value to a heat pump sensor.
 
@@ -473,13 +462,10 @@ class HeatpumpManager:
         """
         # Validate manufacturer/model
         driver = ManufacturerRegistry.get_driver(
-            config["manufacturer"],
-            config["model"]
+            config["manufacturer"], config["model"]
         )
         if not driver:
-            raise ValueError(
-                f"Unsupported: {config['manufacturer']}/{config['model']}"
-            )
+            raise ValueError(f"Unsupported: {config['manufacturer']}/{config['model']}")
 
         # Validate device config
         device_config = config.get("config", {})
@@ -622,20 +608,22 @@ class HeatpumpManager:
             config = self._config_cache.get(hp_id, {})
             conn_config = config.get("connection_config", {})
 
-            status_list.append({
-                "id": hp_id,
-                "name": conn.name,
-                "manufacturer": conn.manufacturer,
-                "model": conn.model,
-                "host": conn_config.get("host", ""),
-                "port": conn_config.get("port", 502),
-                "connected": conn.is_connected,
-                "enabled": conn.enabled,
-                "sensor_count": len(conn.sensors),
-                "last_read": conn.last_read,
-                "error_count": conn.error_count,
-                "last_error": conn.last_error,
-            })
+            status_list.append(
+                {
+                    "id": hp_id,
+                    "name": conn.name,
+                    "manufacturer": conn.manufacturer,
+                    "model": conn.model,
+                    "host": conn_config.get("host", ""),
+                    "port": conn_config.get("port", 502),
+                    "connected": conn.is_connected,
+                    "enabled": conn.enabled,
+                    "sensor_count": len(conn.sensors),
+                    "last_read": conn.last_read,
+                    "error_count": conn.error_count,
+                    "last_error": conn.last_error,
+                }
+            )
 
         return status_list
 

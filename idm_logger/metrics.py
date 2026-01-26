@@ -9,6 +9,7 @@ Metric format:
 
 For backwards compatibility, metrics without labels are also supported.
 """
+
 import logging
 import requests
 import os
@@ -22,7 +23,7 @@ from .config import config
 logger = logging.getLogger(__name__)
 
 # Valid characters for metric names and labels
-METRIC_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+METRIC_NAME_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 
 class MetricsWriter:
@@ -115,7 +116,7 @@ class MetricsWriter:
         manufacturer: str,
         model: str,
         measurements: Dict[str, Any],
-        heatpump_name: Optional[str] = None
+        heatpump_name: Optional[str] = None,
     ) -> bool:
         """
         Write metrics for a specific heatpump with labels.
@@ -139,7 +140,7 @@ class MetricsWriter:
             "_manufacturer": manufacturer,
             "_model": model,
             "_name": heatpump_name or heatpump_id,
-            **measurements
+            **measurements,
         }
 
         try:
@@ -150,9 +151,7 @@ class MetricsWriter:
             return False
 
     def write_all_heatpumps(
-        self,
-        all_values: Dict[str, Dict[str, Any]],
-        configs: Dict[str, dict]
+        self, all_values: Dict[str, Dict[str, Any]], configs: Dict[str, dict]
     ) -> bool:
         """
         Write metrics for all heatpumps at once.
@@ -172,7 +171,7 @@ class MetricsWriter:
                 manufacturer=hp_config.get("manufacturer", "unknown"),
                 model=hp_config.get("model", "unknown"),
                 measurements=values,
-                heatpump_name=hp_config.get("name")
+                heatpump_name=hp_config.get("name"),
             )
             if not result:
                 success = False
@@ -248,7 +247,7 @@ class MetricsWriter:
         heatpump_id: str,
         manufacturer: Optional[str],
         model: Optional[str],
-        name: Optional[str]
+        name: Optional[str],
     ) -> str:
         """Build label string for metrics."""
         labels = [f'heatpump_id="{self._escape_label(heatpump_id)}"']
@@ -265,7 +264,7 @@ class MetricsWriter:
     def _sanitize_metric_name(self, name: str) -> str:
         """Sanitize a metric name to be valid."""
         # Replace invalid characters with underscores
-        sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', name)
+        sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
         # Ensure starts with letter or underscore
         if sanitized and sanitized[0].isdigit():
             sanitized = "_" + sanitized
@@ -273,7 +272,7 @@ class MetricsWriter:
 
     def _escape_label(self, value: str) -> str:
         """Escape special characters in label values."""
-        return value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+        return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
 
     def get_status(self) -> dict:
         return {

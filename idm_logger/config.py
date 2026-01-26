@@ -345,7 +345,11 @@ class Config:
         # Auto-complete setup in Docker environment
         # If METRICS_URL is provided, we assume environment setup
         if os.environ.get("METRICS_URL"):
-            defaults["setup_completed"] = True
+            # Only consider setup complete if admin password is also provided via environment
+            # This prevents locking out the user if they forget the password var
+            if os.environ.get("ADMIN_PASSWORD"):
+                defaults["setup_completed"] = True
+
             defaults["web"]["write_enabled"] = True
             defaults["metrics"]["url"] = os.environ.get("METRICS_URL")
 

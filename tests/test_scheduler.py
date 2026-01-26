@@ -40,7 +40,7 @@ class TestScheduler(unittest.TestCase):
                 "days": [current_day],
                 "enabled": True,
                 "last_run": 0,
-                "heatpump_id": "hp-1"
+                "heatpump_id": "hp-1",
             }
             self.scheduler.jobs.append(job)
 

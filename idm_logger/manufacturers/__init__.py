@@ -109,10 +109,7 @@ class ManufacturerRegistry:
 
     @classmethod
     def get_driver(
-        cls,
-        manufacturer: str,
-        model: str,
-        cached: bool = True
+        cls, manufacturer: str, model: str, cached: bool = True
     ) -> Optional[HeatpumpDriver]:
         """
         Returns a driver instance for the specified manufacturer and model.
@@ -168,18 +165,22 @@ class ManufacturerRegistry:
         for mfr_id, models in sorted(cls._drivers.items()):
             model_list = []
             for model_id, driver_class in sorted(models.items()):
-                model_list.append({
-                    "id": model_id,
-                    "name": driver_class.DISPLAY_NAME,
-                    "protocol": driver_class.PROTOCOL,
-                    "default_port": driver_class.DEFAULT_PORT,
-                })
+                model_list.append(
+                    {
+                        "id": model_id,
+                        "name": driver_class.DISPLAY_NAME,
+                        "protocol": driver_class.PROTOCOL,
+                        "default_port": driver_class.DEFAULT_PORT,
+                    }
+                )
 
-            result.append({
-                "id": mfr_id,
-                "name": cls._manufacturer_names.get(mfr_id, mfr_id.title()),
-                "models": model_list,
-            })
+            result.append(
+                {
+                    "id": mfr_id,
+                    "name": cls._manufacturer_names.get(mfr_id, mfr_id.title()),
+                    "models": model_list,
+                }
+            )
 
         return result
 
@@ -191,10 +192,7 @@ class ManufacturerRegistry:
     @classmethod
     def is_supported(cls, manufacturer: str, model: str) -> bool:
         """Checks if a manufacturer/model combination is supported."""
-        return (
-            manufacturer in cls._drivers
-            and model in cls._drivers[manufacturer]
-        )
+        return manufacturer in cls._drivers and model in cls._drivers[manufacturer]
 
     @classmethod
     def get_all_drivers(cls) -> Dict[str, Dict[str, Type[HeatpumpDriver]]]:
@@ -229,8 +227,7 @@ def _discover_drivers():
                 module_name = filename[:-3]
                 try:
                     importlib.import_module(
-                        f".{mfr}.{module_name}",
-                        package="idm_logger.manufacturers"
+                        f".{mfr}.{module_name}", package="idm_logger.manufacturers"
                     )
                 except ImportError as e:
                     logger.debug(f"Could not import {mfr}/{module_name}: {e}")

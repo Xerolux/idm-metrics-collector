@@ -52,8 +52,7 @@ logger = logging.getLogger(__name__)
 
 
 def _convert_legacy_sensor(
-    legacy: BaseSensorAddress,
-    category: Optional[SensorCategory] = None
+    legacy: BaseSensorAddress, category: Optional[SensorCategory] = None
 ) -> SensorDefinition:
     """
     Converts a legacy sensor definition to the new SensorDefinition format.
@@ -81,9 +80,9 @@ def _convert_legacy_sensor(
         access = AccessMode.READ_ONLY
 
     # Get constraints
-    min_val = getattr(legacy, 'min_value', None)
-    max_val = getattr(legacy, 'max_value', None)
-    scale = getattr(legacy, 'scale', 1.0)
+    min_val = getattr(legacy, "min_value", None)
+    max_val = getattr(legacy, "max_value", None)
+    scale = getattr(legacy, "scale", 1.0)
 
     # Get enum values if applicable
     enum_values = None
@@ -287,7 +286,7 @@ class IDMNavigator20Driver(HeatpumpDriver):
                 "request_heating",
                 "request_cooling",
                 "request_water",
-            ]
+            ],
         )
 
     def parse_value(self, sensor: SensorDefinition, raw_registers: List[int]) -> Any:
@@ -322,7 +321,11 @@ class IDMNavigator20Driver(HeatpumpDriver):
             elif sensor.datatype == DataType.INT16:
                 value = struct.unpack(">h", struct.pack(">H", raw_registers[0]))[0]
                 # Check for invalid value marker
-                if value == -1 and sensor.min_value is not None and sensor.min_value >= 0:
+                if (
+                    value == -1
+                    and sensor.min_value is not None
+                    and sensor.min_value >= 0
+                ):
                     return None
 
             elif sensor.datatype == DataType.BOOL:
@@ -339,10 +342,7 @@ class IDMNavigator20Driver(HeatpumpDriver):
             if sensor.enum_values is not None:
                 int_value = int(value) if isinstance(value, float) else value
                 if int_value in sensor.enum_values:
-                    return {
-                        "value": int_value,
-                        "text": sensor.enum_values[int_value]
-                    }
+                    return {"value": int_value, "text": sensor.enum_values[int_value]}
 
             return value
 
@@ -391,43 +391,87 @@ class IDMNavigator20Driver(HeatpumpDriver):
                     "title": "Temperaturen",
                     "type": "line",
                     "queries": [
-                        {"label": "Außentemperatur", "metric": "temp_outside", "color": "#3b82f6"},
-                        {"label": "Vorlauf", "metric": "temp_heat_pump_flow", "color": "#ef4444"},
-                        {"label": "Rücklauf", "metric": "temp_heat_pump_return", "color": "#f97316"},
+                        {
+                            "label": "Außentemperatur",
+                            "metric": "temp_outside",
+                            "color": "#3b82f6",
+                        },
+                        {
+                            "label": "Vorlauf",
+                            "metric": "temp_heat_pump_flow",
+                            "color": "#ef4444",
+                        },
+                        {
+                            "label": "Rücklauf",
+                            "metric": "temp_heat_pump_return",
+                            "color": "#f97316",
+                        },
                     ],
-                    "hours": 24
+                    "hours": 24,
                 },
                 {
                     "id": "temps_storage",
                     "title": "Speichertemperaturen",
                     "type": "line",
                     "queries": [
-                        {"label": "Wärmespeicher", "metric": "temp_heat_storage", "color": "#ef4444"},
-                        {"label": "Kältespeicher", "metric": "temp_cold_storage", "color": "#3b82f6"},
-                        {"label": "Warmwasser oben", "metric": "temp_water_heater_top", "color": "#f59e0b"},
+                        {
+                            "label": "Wärmespeicher",
+                            "metric": "temp_heat_storage",
+                            "color": "#ef4444",
+                        },
+                        {
+                            "label": "Kältespeicher",
+                            "metric": "temp_cold_storage",
+                            "color": "#3b82f6",
+                        },
+                        {
+                            "label": "Warmwasser oben",
+                            "metric": "temp_water_heater_top",
+                            "color": "#f59e0b",
+                        },
                     ],
-                    "hours": 24
+                    "hours": 24,
                 },
                 {
                     "id": "power",
                     "title": "Leistung",
                     "type": "line",
                     "queries": [
-                        {"label": "Aktuelle Leistung", "metric": "power_current", "color": "#22c55e"},
-                        {"label": "Stromaufnahme", "metric": "power_current_draw", "color": "#ef4444"},
+                        {
+                            "label": "Aktuelle Leistung",
+                            "metric": "power_current",
+                            "color": "#22c55e",
+                        },
+                        {
+                            "label": "Stromaufnahme",
+                            "metric": "power_current_draw",
+                            "color": "#ef4444",
+                        },
                     ],
-                    "hours": 24
+                    "hours": 24,
                 },
                 {
                     "id": "energy",
                     "title": "Energie (kumulativ)",
                     "type": "line",
                     "queries": [
-                        {"label": "Heizen", "metric": "energy_heat_heating", "color": "#ef4444"},
-                        {"label": "Warmwasser", "metric": "energy_heat_total_water", "color": "#f59e0b"},
-                        {"label": "Kühlen", "metric": "energy_heat_total_cooling", "color": "#3b82f6"},
+                        {
+                            "label": "Heizen",
+                            "metric": "energy_heat_heating",
+                            "color": "#ef4444",
+                        },
+                        {
+                            "label": "Warmwasser",
+                            "metric": "energy_heat_total_water",
+                            "color": "#f59e0b",
+                        },
+                        {
+                            "label": "Kühlen",
+                            "metric": "energy_heat_total_cooling",
+                            "color": "#3b82f6",
+                        },
                     ],
-                    "hours": 168  # 1 week
+                    "hours": 168,  # 1 week
                 },
                 {
                     "id": "hot_water_gauge",
@@ -442,7 +486,7 @@ class IDMNavigator20Driver(HeatpumpDriver):
                         {"value": 45, "color": "#22c55e"},
                         {"value": 55, "color": "#f59e0b"},
                         {"value": 60, "color": "#ef4444"},
-                    ]
+                    ],
                 },
                 {
                     "id": "status",
@@ -451,9 +495,9 @@ class IDMNavigator20Driver(HeatpumpDriver):
                     "queries": [
                         {"label": "Betriebsart", "metric": "status_system_str"},
                         {"label": "Smart Grid", "metric": "status_smart_grid_str"},
-                    ]
-                }
-            ]
+                    ],
+                },
+            ],
         }
 
     def get_setup_instructions(self) -> str:
@@ -526,7 +570,4 @@ bis zu 10 Zonen konfigurieren.
 
     def get_available_zones(self) -> List[Dict[str, Any]]:
         """Returns list of available zones."""
-        return [
-            {"id": i, "name": f"Zone {i+1}"}
-            for i in range(10)
-        ]
+        return [{"id": i, "name": f"Zone {i + 1}"} for i in range(10)]
