@@ -493,6 +493,13 @@ class BackupManager:
                     if ai_file.exists():
                         zipf.write(ai_file, "ai/anomaly_state.json")
 
+                    # Add ML model state file (River model)
+                    model_file = Path(DATA_DIR) / "model_state.pkl"
+                    if model_file.exists():
+                        zipf.write(model_file, "ml/model_state.pkl")
+                        backup_data["metadata"]["ml_model_backed_up"] = True
+                        logger.info("ML model state backed up")
+
                     # Add VictoriaMetrics backup if exists
                     vm_dir = temp_backup_dir / "victoriametrics"
                     if vm_dir.exists():
@@ -837,6 +844,14 @@ class BackupManager:
                         f.write(zipf.read("ai/anomaly_state.json"))
                     restored_items.append("ai_model")
                     logger.info("AI Model state restored")
+
+                # 6b. Restore ML model state (River model)
+                if "ml/model_state.pkl" in zipf.namelist():
+                    model_file = Path(DATA_DIR) / "model_state.pkl"
+                    with open(model_file, "wb") as f:
+                        f.write(zipf.read("ml/model_state.pkl"))
+                    restored_items.append("ml_model")
+                    logger.info("ML Model state (River) restored")
 
             # 7. Restore VictoriaMetrics
             vm_success = BackupManager._restore_victoriametrics(temp_extract_dir)
