@@ -48,6 +48,21 @@ Da der Server in Deutschland steht und Datenschutz oberste Priorität hat:
     *   API nur über HTTPS mit Authentifizierung (Token).
     *   Strikte Firewall-Regeln (UFW).
 
+### Modellschutz (DRM / Encryption)
+
+Damit die wertvollen "Community Models" nicht einfach kopiert und weiterverkauft werden können, sind sie geschützt:
+
+1.  **Verschlüsselung**: Das Modell wird auf dem Server verschlüsselt (`.enc`).
+2.  **Decryption**: Der `ml_service` im Client enthält den Schlüssel, um das Modell im Arbeitsspeicher zu nutzen.
+3.  **Backup-Ausschluss**: Die verschlüsselten Modelldateien werden explizit vom Benutzer-Backup ausgeschlossen, damit sie nicht ungewollt verbreitet werden.
+
+## Rechtliches & Eigentum
+
+Der Nutzer stimmt im Setup explizit zu:
+*   Die gesendeten, anonymisierten Daten gehen in das Eigentum des Tool-Betreibers über.
+*   Der Betreiber darf diese Daten kommerziell nutzen (z.B. Verkauf von Enterprise-Lösungen, Training proprietärer Modelle).
+*   Dies sichert die Finanzierung der Infrastruktur und Weiterentwicklung.
+
 ## Ausblick: Monatliche Updates
 
 Der Server kann so konfiguriert werden, dass am 1. jeden Monats ein Trainings-Skript läuft:

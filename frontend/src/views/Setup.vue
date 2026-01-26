@@ -73,11 +73,14 @@
                         <div class="flex items-start gap-3 p-3 bg-purple-900/20 border border-purple-700/50 rounded-md">
                              <Checkbox v-model="form.share_data" :binary="true" inputId="shareData" />
                              <div class="flex flex-col gap-1">
-                                <label for="shareData" class="font-bold cursor-pointer">Anonyme Daten teilen</label>
-                                <p class="text-sm text-gray-300">
-                                    Hilf uns, die Fehleranalyse zu verbessern! Wenn aktiviert, senden wir anonymisierte Sensordaten und den Maschinentyp an unsere Server.
-                                    Dadurch können wir die KI-Modelle trainieren und in zukünftigen Updates bessere Fehlererkennung für alle bereitstellen.
-                                    Es werden keine persönlichen Daten (IP, Passwörter, Standort) übertragen.
+                                <label for="shareData" class="font-bold cursor-pointer">Daten teilen & Zustimmung</label>
+                                <p class="text-sm text-gray-300 text-justify">
+                                    Ich stimme zu, dass anonymisierte Sensordaten meiner Wärmepumpe an den Betreiber dieses Tools gesendet werden.
+                                    Die Daten enthalten <strong>keine persönlichen Informationen</strong> (wie IP-Adresse, Standort oder Passwörter), sondern lediglich eine zufällige Installations-ID und technische Messwerte.
+                                </p>
+                                <p class="text-sm text-gray-300 mt-1 text-justify">
+                                    Ich bestätige, dass die gesendeten Daten in das Eigentum des Tool-Betreibers übergehen. Dieser ist berechtigt, die Daten uneingeschränkt zu nutzen, zu analysieren, für das Training von KI-Modellen zu verwenden und diese (auch kommerziell) zu verwerten oder zu verkaufen.
+                                    Im Gegenzug profitiere ich von verbesserten KI-Modellen zur Fehlererkennung, die auf diesen Gemeinschaftsdaten basieren.
                                 </p>
                              </div>
                         </div>

@@ -11,12 +11,24 @@ def export_model(input_file, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # In a real scenario, this might convert the model to ONNX or just copy the pickle
-    # For River models, pickle is the standard way.
+    # Encrypt the model before exporting to prevent unauthorized use
+    from cryptography.fernet import Fernet
 
-    dest = os.path.join(output_dir, "model.pkl")
-    shutil.copy2(input_file, dest)
-    print(f"Model exported to {dest}")
+    # Same key as in idm_logger/utils/crypto.py
+    COMMUNITY_KEY = b'gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA='
+
+    f = Fernet(COMMUNITY_KEY)
+
+    with open(input_file, "rb") as file:
+        file_data = file.read()
+
+    encrypted_data = f.encrypt(file_data)
+
+    dest = os.path.join(output_dir, "model.enc")
+    with open(dest, "wb") as file:
+        file.write(encrypted_data)
+
+    print(f"Model encrypted and exported to {dest}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

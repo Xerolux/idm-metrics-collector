@@ -266,9 +266,10 @@
                                 <div class="flex items-start gap-3 p-3 bg-purple-900/20 border border-purple-700/50 rounded-md">
                                      <Checkbox v-model="config.share_data" :binary="true" inputId="shareDataConf" />
                                      <div class="flex flex-col gap-1">
-                                        <label for="shareDataConf" class="font-bold cursor-pointer">Anonyme Daten teilen</label>
-                                        <p class="text-sm text-gray-300">
-                                            Wenn aktiviert, werden anonymisierte Sensordaten an die Community-Server gesendet, um die KI-Modelle zu verbessern.
+                                        <label for="shareDataConf" class="font-bold cursor-pointer">Daten teilen & Zustimmung</label>
+                                        <p class="text-sm text-gray-300 text-justify">
+                                            Hiermit stimme ich zu, dass anonymisierte Daten (unter Ausschluss persönlicher Informationen) an den Betreiber gesendet werden.
+                                            Die Daten gehen in das Eigentum des Betreibers über, der diese zu Trainingszwecken nutzen und kommerziell verwerten darf.
                                         </p>
                                      </div>
                                 </div>

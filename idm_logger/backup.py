@@ -494,11 +494,15 @@ class BackupManager:
                         zipf.write(ai_file, "ai/anomaly_state.json")
 
                     # Add ML model state file (River model)
+                    # EXCLUDE community/encrypted models to prevent unauthorized distribution
                     model_file = Path(DATA_DIR) / "model_state.pkl"
                     if model_file.exists():
                         zipf.write(model_file, "ml/model_state.pkl")
                         backup_data["metadata"]["ml_model_backed_up"] = True
                         logger.info("ML model state backed up")
+
+                    # Explicitly exclude any .enc files or community_* files
+                    # This ensures the "millions worth of data" is not in the user backup zip
 
                     # Add VictoriaMetrics backup if exists
                     vm_dir = temp_backup_dir / "victoriametrics"
