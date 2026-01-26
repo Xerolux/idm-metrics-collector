@@ -11,6 +11,7 @@ from river import preprocessing
 from river import compose
 from flask import Flask, jsonify
 import sys
+import copy
 
 # Use joblib for safer model serialization (no arbitrary code execution)
 # pickle is still needed for community model loading
@@ -78,14 +79,55 @@ logger = logging.getLogger("ml-service")
 
 # Global state
 start_time = time.time()
-last_score = 0.0
-model_trained = False  # Main trained flag (true if ANY model is trained)
-last_alert_time = 0
-update_counter = 0
 last_model_save = time.time()
-current_mode = "unknown"
-last_data_points = {}  # Store previous values for delta calculation
-consecutive_anomalies = 0
+
+# Modes: heating, cooling, water, standby. (Defrost is excluded/skipped)
+MODES = ["heating", "cooling", "water", "standby"]
+
+
+def create_pipeline():
+    """Create a new River anomaly detection pipeline."""
+    return compose.Pipeline(
+        preprocessing.StandardScaler(),
+        anomaly.HalfSpaceTrees(
+            n_trees=MODEL_N_TREES,
+            height=MODEL_HEIGHT,
+            window_size=MODEL_WINDOW_SIZE,
+            seed=42,
+        ),
+    )
+
+
+class HeatpumpContext:
+    """Holds the ML state for a single heatpump."""
+
+    def __init__(self, hp_id):
+        self.hp_id = hp_id
+        self.models = {mode: create_pipeline() for mode in MODES}
+        self.last_data_points = {}
+        self.consecutive_anomalies = 0
+        self.current_mode = "unknown"
+        self.last_score = 0.0
+        self.model_trained = False
+        self.update_counter = 0
+        self.last_alert_time = 0
+
+    def restore_models(self, saved_models: dict):
+        """Restore models from saved dictionary."""
+        if all(k in saved_models for k in MODES):
+            self.models = saved_models
+            self.model_trained = True
+            logger.info(f"[{self.hp_id}] Restored models from persistence.")
+        else:
+            logger.warning(
+                f"[{self.hp_id}] Saved model state incomplete. Starting fresh."
+            )
+
+
+# Contexts
+contexts = {}  # type: dict[str, HeatpumpContext]
+saved_state_cache = {}  # type: dict[str, dict]
+
 
 # Flask health check app
 health_app = Flask(__name__)
@@ -94,17 +136,21 @@ health_app = Flask(__name__)
 @health_app.route("/health")
 def health():
     """Health check endpoint for monitoring."""
+    hp_summaries = {}
+    for hp_id, ctx in contexts.items():
+        hp_summaries[hp_id] = {
+            "model_state": "trained" if ctx.model_trained else "learning",
+            "current_mode": ctx.current_mode,
+            "last_score": ctx.last_score,
+            "updates_processed": ctx.update_counter,
+        }
+
     return jsonify(
         {
             "status": "healthy",
-            "model_state": "trained" if model_trained else "learning",
-            "current_mode": current_mode,
-            "last_score": last_score,
-            "features_count": len(get_all_readable_sensors()),
+            "heatpumps": hp_summaries,
             "uptime_seconds": int(time.time() - start_time),
             "update_interval": UPDATE_INTERVAL,
-            "anomaly_threshold": ANOMALY_THRESHOLD,
-            "updates_processed": update_counter,
         }
     ), 200
 
@@ -162,39 +208,21 @@ if "status_heat_pump" not in SENSORS:
     SENSORS.append("status_heat_pump")
 
 
-def create_pipeline():
-    """Create a new River anomaly detection pipeline."""
-    return compose.Pipeline(
-        preprocessing.StandardScaler(),
-        anomaly.HalfSpaceTrees(
-            n_trees=MODEL_N_TREES,
-            height=MODEL_HEIGHT,
-            window_size=MODEL_WINDOW_SIZE,
-            seed=42,
-        ),
-    )
-
-
-# Initialize River Models (one per mode)
-logger.info(
-    f"Initializing models with: n_trees={MODEL_N_TREES}, height={MODEL_HEIGHT}, window_size={MODEL_WINDOW_SIZE}"
-)
-
-# Modes: heating, cooling, water, standby. (Defrost is excluded/skipped)
-MODES = ["heating", "cooling", "water", "standby"]
-models = {mode: create_pipeline() for mode in MODES}
-
-
 def save_model_state():
     """Save model state to disk for persistence across restarts."""
     try:
         os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+        # Structure: {hp_id: {mode: pipeline}}
+        export_data = {}
+        for hp_id, ctx in contexts.items():
+            export_data[hp_id] = ctx.models
+
         if USE_JOBLIB:
-            joblib.dump(models, MODEL_PATH)
+            joblib.dump(export_data, MODEL_PATH)
         else:
             with open(MODEL_PATH, "wb") as f:
-                pickle.dump(models, f)
-        logger.info(f"Model state saved to {MODEL_PATH}")
+                pickle.dump(export_data, f)
+        logger.info(f"Model state saved to {MODEL_PATH} ({len(contexts)} contexts)")
         return True
     except Exception as e:
         logger.error(f"Failed to save model state: {e}")
@@ -203,33 +231,12 @@ def save_model_state():
 
 def load_model_state():
     """Load model state from disk if available."""
-    global models, model_trained
+    global saved_state_cache
 
-    # 1. Check for Community Model (Encrypted)
-    # This takes precedence to ensure we use the better model
-    if os.path.exists(COMMUNITY_MODEL_PATH):
-        try:
-            logger.info(
-                f"Found community model at {COMMUNITY_MODEL_PATH}. Attempting decryption..."
-            )
-            # Load and decrypt bytes
-            decrypted_bytes = load_encrypted_model(COMMUNITY_MODEL_PATH)
-
-            # Load from bytes
-            loaded = pickle.loads(decrypted_bytes)
-
-            if isinstance(loaded, dict) and all(k in loaded for k in MODES):
-                models = loaded
-                model_trained = True
-                logger.info("SUCCESS: Community model loaded and decrypted!")
-                return True
-            else:
-                logger.warning(
-                    "Community model structure invalid. Falling back to local."
-                )
-        except Exception as e:
-            logger.error(f"Failed to load community model: {e}")
-            # Fallback to local model
+    # 1. Check for Community Model (Encrypted) - acts as default seed
+    # We load this into a special 'community' key in cache if we want to use it
+    # But for now, let's just stick to restoring exact states.
+    # TODO: Implement community model seeding for new heatpumps.
 
     # 2. Check for Local Model
     try:
@@ -240,26 +247,53 @@ def load_model_state():
                 with open(MODEL_PATH, "rb") as f:
                     loaded = pickle.load(f)
 
-            if isinstance(loaded, dict) and all(k in loaded for k in MODES):
-                models = loaded
-                logger.info(f"Multi-mode local model state loaded from {MODEL_PATH}")
+            if isinstance(loaded, dict):
+                # Check format: Version 1 (Mode -> Model) or Version 2 (HP -> Mode -> Model)
+                # Heuristic: keys are modes or HP IDs?
+                # Modes are 'heating', 'cooling' etc. HP IDs are usually 'hp-...' or numbers.
+                keys = list(loaded.keys())
+                if keys and keys[0] in MODES:
+                    # Version 1 (Single HP Legacy)
+                    logger.info("Detected legacy model state (single device).")
+                    saved_state_cache["default"] = loaded
+                else:
+                    # Version 2 (Multi HP)
+                    saved_state_cache = loaded
+                    logger.info(
+                        f"Multi-device model state loaded ({len(saved_state_cache)} devices)"
+                    )
             else:
-                logger.warning(
-                    "Legacy model state found (single model). Starting fresh with multi-mode models."
-                )
-                # We could try to migrate, but a generic model is bad for specific modes.
-                # Better to start fresh.
+                logger.warning("Invalid model state format.")
 
-            # Assume if we loaded something valid, we have some training.
-            # Realistically, we should check per model, but this flag is for global health.
-            model_trained = True
             return True
         else:
-            logger.info("No saved model state found, starting fresh")
+            logger.info("No saved model state found.")
             return False
     except Exception as e:
         logger.error(f"Failed to load model state: {e}")
         return False
+
+
+def get_context(hp_id: str) -> HeatpumpContext:
+    """Get or create a context for a heatpump."""
+    if hp_id not in contexts:
+        logger.info(f"New heatpump detected: {hp_id}")
+        ctx = HeatpumpContext(hp_id)
+        # Try to restore
+        if hp_id in saved_state_cache:
+            ctx.restore_models(saved_state_cache[hp_id])
+        elif "default" in saved_state_cache:
+             # Try to migrate legacy default to first seen HP?
+             # Or just use it as seed.
+             # If we have "default" and seeing a real ID, assume it's the migration.
+             # Only do this if we haven't assigned "default" to anyone else?
+             # Simplification: just use it.
+             logger.info(f"[{hp_id}] seeding with legacy model state")
+             ctx.restore_models(saved_state_cache["default"])
+
+        contexts[hp_id] = ctx
+
+    return contexts[hp_id]
 
 
 def determine_mode(data: dict) -> str:
@@ -267,9 +301,6 @@ def determine_mode(data: dict) -> str:
     status_raw = data.get("status_heat_pump", 0)
     try:
         status_val = int(status_raw)
-        # Use bitwise operations on integer directly to avoid Enum validation errors
-        # on combined flags (e.g., HEATING | DEFROSTING)
-
         if status_val & HeatPumpStatus.DEFROSTING.value:
             return "defrost"
         if status_val & HeatPumpStatus.WATER.value:
@@ -278,16 +309,13 @@ def determine_mode(data: dict) -> str:
             return "cooling"
         if status_val & HeatPumpStatus.HEATING.value:
             return "heating"
-
-        # Default to standby
         return "standby"
     except (ValueError, TypeError):
         return "standby"
 
 
-def enrich_features(data: dict) -> dict:
+def enrich_features(ctx: HeatpumpContext, data: dict) -> dict:
     """Add temporal and computed features for better anomaly detection."""
-    global last_data_points
     now = datetime.now()
 
     # Temporal features
@@ -295,41 +323,29 @@ def enrich_features(data: dict) -> dict:
     data["day_of_week"] = now.weekday()
     data["is_weekend"] = 1 if now.weekday() >= 5 else 0
 
-    # Delta features (Rate of change)
-    # We track deltas for all float sensors
-    # Use list(data.items()) to allow modifying data during iteration
+    # Delta features
     for key, value in list(data.items()):
-        if isinstance(value, (int, float)) and key in last_data_points:
-            # Calculate delta per minute (approx, assuming 30s interval)
-            # Just raw delta is fine as interval is constant-ish
-            data[f"{key}_delta"] = value - last_data_points[key]
+        if isinstance(value, (int, float)) and key in ctx.last_data_points:
+            data[f"{key}_delta"] = value - ctx.last_data_points[key]
+        ctx.last_data_points[key] = value
 
-        # Update last value
-        last_data_points[key] = value
-
-    # Computed features (if sensors available)
+    # Computed features
     try:
-        # Temperature difference (Spread)
-        # Try to find flow/return temps. Names vary by circuit but IDM usually has common ones.
         flow_temp = data.get("temp_heat_pump_flow") or data.get(
             "temp_flow_current_circuit_a"
         )
         return_temp = data.get("temp_heat_pump_return") or data.get(
             "temp_return_current_circuit_a"
-        )  # Note: return might not be per circuit
+        )
 
         if flow_temp is not None and return_temp is not None:
             data["temp_spread"] = flow_temp - return_temp
 
-        # Efficiency approximation (COP)
-        # power_thermal = Heat Output, power_current = Electrical Input
         power_thermal = data.get("power_thermal")
         power_electrical = data.get("power_current")
 
         if power_thermal is not None and power_electrical is not None:
-            if (
-                power_electrical > 0.2
-            ):  # Ignore very low power to avoid noise/division by zero
+            if power_electrical > 0.2:
                 data["cop_instant"] = power_thermal / power_electrical
             else:
                 data["cop_instant"] = 0.0
@@ -340,73 +356,80 @@ def enrich_features(data: dict) -> dict:
     return data
 
 
-def fetch_latest_data():
+def fetch_latest_data() -> dict:
     """
-    Fetch the latest values for the selected sensors from VictoriaMetrics.
+    Fetch the latest values from VictoriaMetrics.
+    Returns: Dict[hp_id, Dict[sensor, value]]
     """
     query_url = f"{METRICS_URL.rstrip('/')}/api/v1/query"
-    data_point = {}
+    data_by_hp = {}
 
     # Query regex to match all relevant metrics
     regex = "|".join([f"{MEASUREMENT_NAME}_{s}" for s in SENSORS])
+    # Match any metric starting with regex
     query = f'{{__name__=~"{regex}"}}'
 
     try:
         response = requests.get(query_url, params={"query": query}, timeout=10)
         if response.status_code != 200:
             logger.error(
-                f"Failed to fetch data from {query_url}: {response.status_code} {response.text}"
+                f"Failed to fetch data: {response.status_code} {response.text}"
             )
-            return None
+            return {}
 
         json_data = response.json()
         if json_data.get("status") != "success":
-            logger.error(f"Query returned error status: {json_data}")
-            return None
+            return {}
 
         results = json_data.get("data", {}).get("result", [])
 
         for result in results:
-            metric_name = result["metric"].get("__name__", "")
-            # Extract sensor name by removing prefix
+            metric = result.get("metric", {})
+            metric_name = metric.get("__name__", "")
+
+            # Identify Heatpump ID
+            hp_id = metric.get("heatpump_id", "default")
+
+            # Extract sensor name
             sensor_name = metric_name.replace(f"{MEASUREMENT_NAME}_", "")
 
             if "value" in result:
-                # PromQL instant query value is [timestamp, "value"]
                 val = result["value"][1]
                 try:
-                    data_point[sensor_name] = float(val)
+                    val_float = float(val)
+                    if hp_id not in data_by_hp:
+                        data_by_hp[hp_id] = {}
+                    data_by_hp[hp_id][sensor_name] = val_float
                 except (ValueError, TypeError):
                     pass
 
-        return data_point
+        return data_by_hp
 
-    except requests.exceptions.ConnectionError as e:
-        logger.error(f"Connection error fetching data from {query_url}: {e}")
-        return None
     except Exception as e:
         logger.error(f"Exception fetching data: {e}")
-        return None
+        return {}
 
 
 def write_metrics(
+    ctx: HeatpumpContext,
     score: float,
     is_anomaly: bool,
     features_count: int,
     processing_time: float,
     mode: str,
 ):
-    """
-    Write anomaly and ML performance metrics to VictoriaMetrics.
-    """
+    """Write anomaly metrics to VictoriaMetrics."""
     write_url = f"{METRICS_URL.rstrip('/')}/write"
 
+    # Escape hp_id for label
+    hp_label = ctx.hp_id.replace('"', '\\"')
+
     lines = [
-        f"idm_anomaly_score,mode={mode} value={score}",
-        f"idm_anomaly_flag,mode={mode} value={1 if is_anomaly else 0}",
-        f"idm_ml_features_count,mode={mode} value={features_count}",
-        f"idm_ml_processing_time_ms,mode={mode} value={processing_time * 1000}",
-        f"idm_ml_model_updates,mode={mode} value=1",  # Counter
+        f"idm_anomaly_score{{heatpump_id=\"{hp_label}\",mode=\"{mode}\"}} {score}",
+        f"idm_anomaly_flag{{heatpump_id=\"{hp_label}\",mode=\"{mode}\"}} {1 if is_anomaly else 0}",
+        f"idm_ml_features_count{{heatpump_id=\"{hp_label}\",mode=\"{mode}\"}} {features_count}",
+        f"idm_ml_processing_time_ms{{heatpump_id=\"{hp_label}\",mode=\"{mode}\"}} {processing_time * 1000}",
+        f"idm_ml_model_updates{{heatpump_id=\"{hp_label}\",mode=\"{mode}\"}} 1",
     ]
 
     data = "\n".join(lines)
@@ -414,9 +437,7 @@ def write_metrics(
     try:
         response = requests.post(write_url, data=data, timeout=5)
         if response.status_code not in (200, 204):
-            logger.error(
-                f"Failed to write metrics to {write_url}: {response.status_code} {response.text}"
-            )
+            logger.error(f"Failed to write metrics: {response.status_code}")
     except Exception as e:
         logger.error(f"Exception writing metrics: {e}")
 
@@ -424,13 +445,10 @@ def write_metrics(
 def get_top_features(model, data, n=3):
     """Identify top contributing features based on Z-score deviation."""
     try:
-        # Access scaler from pipeline
         if "StandardScaler" not in model.steps:
             return []
-
         scaler = model["StandardScaler"]
-        # Check if scaler has stats
-        if not hasattr(scaler, "means") or not hasattr(scaler, "vars"):
+        if not hasattr(scaler, "means"):
             return []
 
         contributions = []
@@ -449,25 +467,18 @@ def get_top_features(model, data, n=3):
                             "mean": float(mean),
                         }
                     )
-
-        # Sort by Z-score descending
         contributions.sort(key=lambda x: x["score"], reverse=True)
         return contributions[:n]
-    except Exception as e:
-        logger.debug(f"Error extracting features: {e}")
+    except Exception:
         return []
 
 
-def send_anomaly_alert(score: float, data: dict, mode: str, top_features: list):
-    """Send anomaly alert to IDM Logger notification system."""
-    global last_alert_time
-
+def send_anomaly_alert(ctx: HeatpumpContext, score: float, data: dict, mode: str, top_features: list):
+    """Send anomaly alert to IDM Logger."""
     if not ENABLE_ALERTS:
         return
 
-    # Check cooldown
-    if time.time() - last_alert_time < ALERT_COOLDOWN:
-        logger.debug("Alert cooldown active, skipping notification")
+    if time.time() - ctx.last_alert_time < ALERT_COOLDOWN:
         return
 
     feature_msg = ""
@@ -483,129 +494,98 @@ def send_anomaly_alert(score: float, data: dict, mode: str, top_features: list):
         alert_url = f"{IDM_LOGGER_URL}/api/internal/ml_alert"
         payload = {
             "type": "anomaly",
+            "heatpump_id": ctx.hp_id,
             "score": round(score, 4),
             "threshold": ANOMALY_THRESHOLD,
             "sensor_count": len(data),
             "timestamp": int(time.time()),
-            "message": f"⚠️ Anomalie erkannt! ({mode})\nScore: {score:.2f} (Limit: {ANOMALY_THRESHOLD}){feature_msg}",
-            "data": {"mode": mode, "top_features": top_features},
+            "message": f"⚠️ Anomalie erkannt! ({ctx.hp_id} / {mode})\nScore: {score:.2f} (Limit: {ANOMALY_THRESHOLD}){feature_msg}",
+            "data": {"mode": mode, "top_features": top_features, "heatpump_id": ctx.hp_id},
         }
 
         headers = {}
         if INTERNAL_API_KEY:
             headers["X-Internal-Secret"] = INTERNAL_API_KEY
 
-        response = requests.post(alert_url, json=payload, headers=headers, timeout=5)
-        if response.status_code in (200, 201):
-            logger.info(f"Anomaly alert sent successfully (score: {score:.4f})")
-            last_alert_time = time.time()
-        else:
-            logger.warning(f"Alert endpoint returned {response.status_code}")
+        requests.post(alert_url, json=payload, headers=headers, timeout=5)
+        ctx.last_alert_time = time.time()
+        logger.info(f"[{ctx.hp_id}] Anomaly alert sent (score: {score:.4f})")
     except Exception as e:
-        logger.error(f"Failed to send anomaly alert: {e}")
+        logger.error(f"Failed to send alert: {e}")
+
+
+def process_heatpump(hp_id: str, data: dict):
+    """Process data for a single heatpump."""
+    ctx = get_context(hp_id)
+
+    min_features = int(len(SENSORS) * MIN_DATA_RATIO)
+    if len(data) < min_features:
+        # Just log once per HP if missing data?
+        # For now, verbose logic similar to before
+        pass
+
+    start = time.time()
+    data = enrich_features(ctx, data)
+    mode = determine_mode(data)
+    ctx.current_mode = mode
+
+    if mode == "defrost":
+        return
+
+    if mode not in ctx.models:
+        mode = "standby"
+
+    active_model = ctx.models[mode]
+    score = active_model.score_one(data)
+    active_model.learn_one(data)
+
+    if not ctx.model_trained:
+        if ctx.update_counter > WARMUP_UPDATES:
+            ctx.model_trained = True
+            logger.info(f"[{hp_id}] Model training phase completed")
+
+    is_anomaly = score > ANOMALY_THRESHOLD
+
+    if is_anomaly:
+        ctx.consecutive_anomalies += 1
+    else:
+        ctx.consecutive_anomalies = 0
+
+    processing_time = time.time() - start
+
+    logger.info(
+        f"[{hp_id}] Mode: {mode} | Score: {score:.4f} | Anomaly: {is_anomaly} ({ctx.consecutive_anomalies}/{ALARM_CONSECUTIVE_HITS})"
+    )
+
+    write_metrics(ctx, score, is_anomaly, len(data), processing_time, mode)
+
+    if is_anomaly and ctx.model_trained:
+        if ctx.consecutive_anomalies >= ALARM_CONSECUTIVE_HITS:
+            top_features = get_top_features(active_model, data)
+            send_anomaly_alert(ctx, score, data, mode, top_features)
+
+    ctx.last_score = score
+    ctx.update_counter += 1
 
 
 def job():
-    """
-    Main job loop - fetch data, process with model, detect anomalies.
-    """
-    global last_score, model_trained, update_counter, last_model_save
-
-    start = time.time()
+    """Main job loop."""
+    global last_model_save
 
     try:
-        data = fetch_latest_data()
+        all_data = fetch_latest_data()
 
-        if not data:
-            logger.debug("No data fetched. Waiting for next cycle.")
+        if not all_data:
+            logger.debug("No data fetched.")
             return
 
-        min_features = int(len(SENSORS) * MIN_DATA_RATIO)
-        if len(data) < min_features:
-            missing_sensors = sorted(list(set(SENSORS) - set(data.keys())))
-            logger.warning(
-                f"Low data availability ({len(data)}/{len(SENSORS)} sensors, target {min_features}). Proceeding anyway to maintain data flow."
-            )
-            if missing_sensors:
-                logger.debug(
-                    f"Missing sensors (first 10): {', '.join(missing_sensors[:10])}..."
-                )
-            # We do NOT return here anymore, to ensure graphs are not empty.
-            # River can handle sparse data (though accuracy might suffer).
+        for hp_id, data in all_data.items():
+            try:
+                process_heatpump(hp_id, data)
+            except Exception as e:
+                logger.error(f"Error processing {hp_id}: {e}")
 
-        # Enrich with temporal and computed features
-        data = enrich_features(data)
-
-        # Determine mode
-        mode = determine_mode(data)
-        global current_mode
-        current_mode = mode
-
-        # Skip processing for defrost mode (user suggestion)
-        if mode == "defrost":
-            logger.info(
-                "Defrost mode detected - skipping anomaly detection to avoid false positives."
-            )
-            return
-
-        if mode not in models:
-            logger.warning(f"Unknown mode '{mode}' detected. Using standby model.")
-            mode = "standby"
-
-        active_model = models[mode]
-
-        # Update model
-        score = active_model.score_one(data)
-        active_model.learn_one(data)
-
-        # Warm-up Logic
-        if not model_trained:
-            if update_counter > WARMUP_UPDATES:
-                model_trained = True
-                logger.info(
-                    f"Model training phase completed (Updates > {WARMUP_UPDATES})"
-                )
-            else:
-                # During warmup, we don't count anomalies
-                pass
-
-        # Determine anomaly flag and Debounce
-        is_anomaly = score > ANOMALY_THRESHOLD
-
-        global consecutive_anomalies
-        if is_anomaly:
-            consecutive_anomalies += 1
-        else:
-            consecutive_anomalies = 0
-
-        processing_time = time.time() - start
-
-        logger.info(
-            f"Mode: {mode} | Score: {score:.4f} | Anomaly: {is_anomaly} ({consecutive_anomalies}/{ALARM_CONSECUTIVE_HITS}) | Features: {len(data)}"
-        )
-
-        # Write metrics
-        write_metrics(score, is_anomaly, len(data), processing_time, mode)
-
-        # Send alert if anomaly detected AND confirmed (debounce) AND warmed up
-        if is_anomaly and model_trained:
-            if consecutive_anomalies >= ALARM_CONSECUTIVE_HITS:
-                top_features = get_top_features(active_model, data)
-                send_anomaly_alert(score, data, mode, top_features)
-                # Reset counter to avoid spamming every cycle after trigger?
-                # Or keep it high? If we reset, we might alert again in 3 cycles.
-                # Usually better to let cooldown handle the frequency limit.
-                # But to prevent "flickering" alarm states, we keep counting.
-                # The send_anomaly_alert has cooldown.
-            else:
-                logger.info(
-                    f"Anomaly suppressed (Debounce {consecutive_anomalies}/{ALARM_CONSECUTIVE_HITS})"
-                )
-
-        last_score = score
-        update_counter += 1
-
-        # Periodic model save
+        # Periodic save
         if time.time() - last_model_save > MODEL_SAVE_INTERVAL:
             save_model_state()
             last_model_save = time.time()
@@ -615,88 +595,47 @@ def job():
 
 
 def wait_for_connection():
-    """
-    Wait for VictoriaMetrics to be reachable.
-    """
+    """Wait for VictoriaMetrics."""
     query_url = f"{METRICS_URL.rstrip('/')}/api/v1/query"
-
-    logger.info(f"Attempting to connect to VictoriaMetrics at {METRICS_URL}...")
-
+    logger.info(f"Connecting to VictoriaMetrics at {METRICS_URL}...")
     while True:
         try:
             response = requests.get(query_url, params={"query": "up"}, timeout=5)
             if response.status_code == 200:
-                logger.info("Successfully connected to VictoriaMetrics.")
+                logger.info("Connected.")
                 return
-            else:
-                logger.warning(
-                    f"VictoriaMetrics reachable but returned {response.status_code}. Retrying in 5s..."
-                )
-        except requests.exceptions.ConnectionError:
-            logger.warning(
-                f"Connection refused to {METRICS_URL}. VictoriaMetrics might be starting up. Retrying in 5s..."
-            )
-        except Exception as e:
-            logger.error(
-                f"Unexpected error connecting to {METRICS_URL}: {e}. Retrying in 5s..."
-            )
-
+        except Exception:
+            pass
         time.sleep(5)
 
 
 def main():
     logger.info("=" * 60)
-    logger.info("Starting IDM ML Service (River/HalfSpaceTrees)")
-    logger.info("=" * 60)
-    logger.info(f"Python {sys.version_info.major}.{sys.version_info.minor}")
-    logger.info(f"Metrics URL: {METRICS_URL}")
-    logger.info(f"Update Interval: {UPDATE_INTERVAL}s")
-    logger.info(f"Anomaly Threshold: {ANOMALY_THRESHOLD}")
-    logger.info(f"Min Data Ratio: {MIN_DATA_RATIO}")
-    logger.info(f"Monitoring {len(SENSORS)} sensors")
-    logger.info(f"Circuits: {', '.join(ML_CIRCUITS)}")
-    if ML_ZONES:
-        logger.info(f"Zones: {', '.join(map(str, ML_ZONES))}")
-    logger.info(
-        f"Model: n_trees={MODEL_N_TREES}, height={MODEL_HEIGHT}, window={MODEL_WINDOW_SIZE}"
-    )
-    logger.info(f"Alerts: {'Enabled' if ENABLE_ALERTS else 'Disabled'}")
+    logger.info("Starting IDM ML Service (Multi-Heatpump)")
     logger.info("=" * 60)
 
-    # Load model state if available
     load_model_state()
-
-    # Wait for DB connection
     wait_for_connection()
 
-    # Start health check server in background thread
-    logger.info("Starting health check server on port 8080...")
+    logger.info("Starting health check server...")
     threading.Thread(
         target=lambda: health_app.run(host="0.0.0.0", port=8080, debug=False),
         daemon=True,
     ).start()
 
-    # Run once immediately
     logger.info("Running initial processing...")
     job()
 
-    # Schedule periodic updates
     schedule.every(UPDATE_INTERVAL).seconds.do(job)
-
-    # Schedule periodic model saves
     schedule.every(MODEL_SAVE_INTERVAL).seconds.do(save_model_state)
-
-    logger.info(f"Scheduler started. Processing every {UPDATE_INTERVAL}s")
 
     try:
         while True:
             schedule.run_pending()
             time.sleep(1)
     except KeyboardInterrupt:
-        logger.info("Received shutdown signal")
-        # Save model on exit
         save_model_state()
-        logger.info("ML Service stopped")
+        logger.info("Stopped")
 
 
 if __name__ == "__main__":

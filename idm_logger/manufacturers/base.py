@@ -37,12 +37,14 @@ class SensorCategory(Enum):
     TIME = "time"
     COUNTER = "counter"
     SETPOINT = "setpoint"
+    CONTROL = "control"
 
 
 class DataType(Enum):
     """Modbus data types."""
     BOOL = "BOOL"           # 1 register, boolean
     UCHAR = "UCHAR"         # 1 register, unsigned 8-bit
+    UINT8 = "UINT8"         # 1 register, unsigned 8-bit (Alias)
     INT8 = "INT8"           # 1 register, signed 8-bit
     UINT16 = "UINT16"       # 1 register, unsigned 16-bit
     INT16 = "INT16"         # 1 register, signed 16-bit

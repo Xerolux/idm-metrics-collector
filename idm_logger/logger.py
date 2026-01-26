@@ -4,8 +4,9 @@ import logging
 import threading
 import signal
 import sys
+import asyncio
 from .config import config
-from .modbus import ModbusClient
+from .heatpump_manager import heatpump_manager
 from .metrics import MetricsWriter
 from .web import run_web, update_current_data, set_metrics_writer
 from .scheduler import Scheduler
@@ -21,6 +22,7 @@ from .alerts import alert_manager
 from .backup import backup_manager
 from .telemetry import telemetry_manager
 from .model_updater import model_updater
+from .migrations import get_default_heatpump_id
 
 # Get logger instance (configure in main())
 logger = logging.getLogger("idm_logger")
@@ -31,6 +33,16 @@ stop_event = threading.Event()
 def signal_handler(sig, frame):
     logger.info("Stopping...")
     stop_event.set()
+
+
+def run_async(coro):
+    """Run an async coroutine from sync context."""
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
 
 
 def main():
@@ -64,7 +76,6 @@ def main():
         logger.error(f"Failed to set log level from config: {e}")
 
     # Initialize these as None first
-    modbus = None
     scheduler = None
     metrics = None
     mqtt = None
@@ -74,7 +85,7 @@ def main():
         web_enabled = config.get("web.enabled")
         if web_enabled:
             web_thread = threading.Thread(
-                target=run_web, args=(None, None), daemon=True
+                target=run_web, args=(heatpump_manager, None), daemon=True
             )
             web_thread.start()
             logger.info("Web UI started")
@@ -161,13 +172,10 @@ def main():
 
     # Now initialize the backend components
     try:
-        # Modbus Client
-        modbus = ModbusClient(host=config.get("idm.host"), port=config.get("idm.port"))
-        logger.info(
-            f"Modbus client initialized for {config.get('idm.host')}:{config.get('idm.port')}"
-        )
+        # Initialize HeatpumpManager
+        run_async(heatpump_manager.initialize())
     except Exception as e:
-        logger.error(f"Failed to initialize Modbus client: {e}", exc_info=True)
+        logger.error(f"Failed to initialize HeatpumpManager: {e}", exc_info=True)
 
     # Metrics Writer
     try:
@@ -180,34 +188,29 @@ def main():
     # MQTT Publisher
     try:
         if config.get("mqtt.enabled", False):
-            # Pass sensors and write callback to MQTT publisher
-            if modbus:
-                mqtt_publisher.set_sensors(modbus.sensors, modbus.binary_sensors)
-                if config.get("web.write_enabled"):
-                    mqtt_publisher.set_write_callback(modbus.write_sensor)
-
+            mqtt_publisher.set_heatpump_manager(heatpump_manager)
             mqtt_publisher.start()
             mqtt = mqtt_publisher
             logger.info("MQTT publisher initialized")
     except Exception as e:
         logger.error(f"Failed to initialize MQTT publisher: {e}", exc_info=True)
 
-    # Scheduler (only if we have a working modbus client)
-    if modbus:
-        scheduler = Scheduler(modbus)
+    # Scheduler
+    try:
+        scheduler = Scheduler(heatpump_manager)
         if config.get("web.write_enabled"):
             scheduler.start()
             logger.info("Scheduler started")
         else:
             logger.info("Scheduler disabled (write_enabled is False)")
-    else:
-        logger.warning("Scheduler not started (Modbus client unavailable)")
+    except Exception as e:
+        logger.error(f"Failed to initialize Scheduler: {e}", exc_info=True)
 
     # Update web.py with the actual instances
     if config.get("web.enabled"):
         import idm_logger.web as web_module
 
-        web_module.modbus_client_instance = modbus
+        web_module.heatpump_manager_instance = heatpump_manager
         web_module.scheduler_instance = scheduler
 
     # Start Telemetry Manager
@@ -235,14 +238,29 @@ def main():
             # In realtime mode, use minimum interval (1 second)
             effective_interval = 1 if realtime_mode else interval
 
-            # Read only if modbus is available
-            if modbus:
-                logger.debug("Reading sensors...")
-                data = modbus.read_sensors()
+            # Read all heatpumps
+            logger.debug("Reading sensors...")
+            try:
+                data = run_async(heatpump_manager.read_all())
 
                 if data:
+                    # Flatten data for Web UI/WebSocket broadcasting
+                    # Format: "hp_id.sensor_name": value
+                    # Plus legacy support: "sensor_name": value (for default HP)
+                    flat_data = {}
+                    default_hp_id = get_default_heatpump_id()
+
+                    for hp_id, measurements in data.items():
+                        for sensor, value in measurements.items():
+                            # New format
+                            flat_data[f"{hp_id}.{sensor}"] = value
+
+                            # Legacy format (Default HP only)
+                            if hp_id == default_hp_id:
+                                flat_data[sensor] = value
+
                     # Update Web UI
-                    update_current_data(data)
+                    update_current_data(flat_data)
 
                     # Send Telemetry
                     telemetry_manager.submit_data(data)
@@ -252,17 +270,21 @@ def main():
 
                     # Write to Metrics
                     if metrics:
-                        logger.debug(f"Writing {len(data)} points to Metrics")
-                        metrics.write(data)
+                        logger.debug(f"Writing metrics for {len(data)} heatpumps")
+                        metrics.write_all_heatpumps(
+                            data, heatpump_manager.get_all_configs()
+                        )
 
                     # Publish to MQTT
                     if mqtt and mqtt.connected:
-                        logger.debug(f"Publishing {len(data)} points to MQTT")
+                        logger.debug(f"Publishing to MQTT")
                         mqtt.publish_data(data)
                 else:
-                    logger.warning("No data read from Modbus")
-            else:
-                logger.debug("Modbus client not available, skipping sensor read")
+                    # Log only if we expected data but got none
+                    if heatpump_manager.connected_count > 0:
+                        logger.warning("No data read from any heatpump")
+            except Exception as e:
+                logger.error(f"Error reading sensors: {e}", exc_info=True)
 
             # Sleep
             elapsed = time.time() - start_time
@@ -283,8 +305,8 @@ def main():
             scheduler.stop()
         if mqtt:
             mqtt.stop()
-        if modbus:
-            modbus.close()
+
+        run_async(heatpump_manager.close())
         logger.info("Stopped")
 
 

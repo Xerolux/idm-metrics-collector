@@ -16,9 +16,15 @@
         <!-- Top Bar -->
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0">
             <div class="flex flex-wrap items-center gap-2 flex-grow w-full sm:w-auto">
+                <!-- Heatpump Selector -->
+                <HeatpumpSelector
+                    v-model:show-setup="showHeatpumpSetup"
+                    @added="onHeatpumpAdded"
+                />
+
                 <Select
                     v-model="currentDashboardId"
-                    :options="dashboards"
+                    :options="filteredDashboards"
                     optionLabel="name"
                     optionValue="id"
                     class="w-full sm:w-64"
@@ -242,6 +248,9 @@
             :style="{ width: '90vw', maxWidth: '600px' }"
         >
             <div class="space-y-4">
+                <div v-if="activeHeatpumpId" class="bg-blue-50 p-2 rounded text-sm text-blue-700">
+                    Chart wird für Wärmepumpe <strong>{{ activeHeatpumpId }}</strong> erstellt.
+                </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Chart-Typ</label>
                     <Select
@@ -313,6 +322,11 @@
         </Dialog>
 
         <ChartTemplateDialog v-model="showTemplateDialog" @apply="applyTemplate" />
+
+        <HeatpumpSetup
+            v-model="showHeatpumpSetup"
+            @added="onHeatpumpAdded"
+        />
 
         <ExportDialog
             v-model="showExportDialog"
@@ -418,6 +432,7 @@ import axios from 'axios';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 import draggable from 'vuedraggable';
+import { useHeatpumpsStore } from '@/stores/heatpumps';
 import { getSupportedChartTypes } from '../utils/chartTypes';
 import ChartCard from './ChartCard.vue';
 import BarCard from './BarCard.vue';
@@ -428,6 +443,8 @@ import TableCard from './TableCard.vue';
 import StateTimelineCard from './StateTimelineCard.vue';
 import SensorValues from './SensorValues.vue';
 import OverviewHeader from './OverviewHeader.vue';
+import HeatpumpSelector from './heatpump/HeatpumpSelector.vue';
+import HeatpumpSetup from './heatpump/HeatpumpSetup.vue';
 import Select from 'primevue/select';
 // import MultiSelect from 'primevue/multiselect';
 import Button from 'primevue/button';
@@ -445,11 +462,13 @@ import { sanitizeCss } from '@/utils/cssSanitizer';
 
 const confirm = useConfirm();
 const toast = useToast();
+const hpStore = useHeatpumpsStore();
 
 const dashboards = ref([]);
 const currentDashboardId = ref('');
 const editMode = ref(false);
 const showAddChartDialog = ref(false);
+const showHeatpumpSetup = ref(false);
 const showTemplateDialog = ref(false);
 const showExportDialog = ref(false);
 const showAnnotationsDialog = ref(false);
@@ -499,9 +518,31 @@ const chartTypeOptions = computed(() => {
     }));
 });
 
+const activeHeatpumpId = computed(() => hpStore.activeHeatpumpId);
+
+// Filter dashboards by heatpump
+const filteredDashboards = computed(() => {
+    if (!activeHeatpumpId.value) return dashboards.value;
+    return dashboards.value.filter(d =>
+        !d.heatpump_id || d.heatpump_id === activeHeatpumpId.value
+    );
+});
+
 const currentDashboard = computed(() => {
     return dashboards.value.find(d => d.id === currentDashboardId.value);
 });
+
+// Watch active heatpump to switch dashboard
+watch(activeHeatpumpId, (newId) => {
+    if (newId) {
+        loadDashboards();
+    }
+});
+
+const onHeatpumpAdded = () => {
+    showHeatpumpSetup.value = false;
+    hpStore.fetchHeatpumps();
+};
 
 // Sanitize custom CSS to prevent XSS/CSS injection attacks
 const sanitizedCustomCss = computed(() => {
@@ -553,19 +594,43 @@ watch(currentCharts, (newCharts) => {
 
 const loadDashboards = async () => {
     try {
-        const res = await axios.get('/api/dashboards');
-        dashboards.value = res.data;
-        if (dashboards.value.length > 0 && !currentDashboardId.value) {
-            currentDashboardId.value = dashboards.value[0].id;
+        const params = {};
+        if (activeHeatpumpId.value) {
+            params.heatpump_id = activeHeatpumpId.value;
+        }
+        const res = await axios.get('/api/dashboards/heatpump/' + (activeHeatpumpId.value || 'default'));
+
+        let data = res.data;
+        if (!Array.isArray(data)) {
+             // Try general endpoint if heatpump specific failed
+             const res2 = await axios.get('/api/dashboards');
+             data = res2.data;
+        }
+
+        dashboards.value = data;
+
+        // Select first if current invalid
+        if (!dashboards.value.find(d => d.id === currentDashboardId.value)) {
+            if (dashboards.value.length > 0) {
+                currentDashboardId.value = dashboards.value[0].id;
+            } else {
+                currentDashboardId.value = '';
+            }
         }
     } catch (error) {
         console.error(error);
-        toast.add({
-            severity: 'error',
-            summary: 'Fehler',
-            detail: 'Dashboards konnten nicht geladen werden',
-            life: 5000
-        });
+        // Fallback to generic load
+        try {
+             const res = await axios.get('/api/dashboards');
+             dashboards.value = res.data;
+        } catch (e) {
+             toast.add({
+                severity: 'error',
+                summary: 'Fehler',
+                detail: 'Dashboards konnten nicht geladen werden',
+                life: 5000
+            });
+        }
     }
 };
 
@@ -611,7 +676,11 @@ const createDashboard = async () => {
     if (!name) return;
 
     try {
-        const res = await axios.post('/api/dashboards', { name });
+        const payload = {
+            name,
+            heatpump_id: activeHeatpumpId.value
+        };
+        const res = await axios.post('/api/dashboards', payload);
         dashboards.value.push(res.data);
         currentDashboardId.value = res.data.id;
         toast.add({
@@ -842,7 +911,8 @@ const onGlobalDragEnd = () => {
     isDraggingSensor.value = false;
 };
 
-onMounted(() => {
+onMounted(async () => {
+    await hpStore.fetchHeatpumps();
     loadDashboards();
     loadVariables();
     document.addEventListener('dragend', onGlobalDragEnd);

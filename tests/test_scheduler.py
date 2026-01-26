@@ -1,22 +1,30 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 import datetime
 from idm_logger.scheduler import Scheduler
 
 
 class TestScheduler(unittest.TestCase):
     def setUp(self):
-        self.modbus_mock = MagicMock()
+        self.hp_manager_mock = MagicMock()
+        self.hp_manager_mock.write_value = AsyncMock()
+
         # Patch db.db used in scheduler
         self.db_patcher = patch("idm_logger.scheduler.db")
         self.mock_db = self.db_patcher.start()
 
-        self.scheduler = Scheduler(self.modbus_mock)
+        # Patch migration default id
+        self.migration_patcher = patch("idm_logger.scheduler.get_default_heatpump_id")
+        self.mock_get_default_id = self.migration_patcher.start()
+        self.mock_get_default_id.return_value = "hp-legacy"
+
+        self.scheduler = Scheduler(self.hp_manager_mock)
         # Clear jobs loaded from mock db
         self.scheduler.jobs = []
 
     def tearDown(self):
         self.db_patcher.stop()
+        self.migration_patcher.stop()
 
     def test_process_jobs_batching(self):
         current_time = datetime.datetime.now().strftime("%H:%M")
@@ -32,6 +40,7 @@ class TestScheduler(unittest.TestCase):
                 "days": [current_day],
                 "enabled": True,
                 "last_run": 0,
+                "heatpump_id": "hp-1"
             }
             self.scheduler.jobs.append(job)
 
@@ -51,7 +60,7 @@ class TestScheduler(unittest.TestCase):
         self.scheduler.process_jobs()
 
         # Verify modbus writes
-        self.assertEqual(self.modbus_mock.write_sensor.call_count, 3)
+        self.assertEqual(self.hp_manager_mock.write_value.call_count, 3)
 
         # Verify db.update_jobs_last_run was called once with 3 updates
         self.mock_db.update_jobs_last_run.assert_called_once()

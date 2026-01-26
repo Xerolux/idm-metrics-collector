@@ -43,6 +43,7 @@ class AlertManager:
                 "enabled": alert_data.get("enabled", True),
                 "interval_seconds": int(alert_data.get("interval_seconds", 0)),
                 "last_triggered": 0,
+                "heatpump_id": alert_data.get("heatpump_id"),
             }
             db.add_alert(alert)
             self.alerts.append(alert)
@@ -99,10 +100,28 @@ class AlertManager:
                         condition = alert.get("condition")
                         threshold_str = str(alert.get("threshold"))
 
-                        if sensor not in current_data:
+                        # Resolve heatpump data
+                        hp_id = alert.get("heatpump_id")
+                        if not hp_id:
+                            # Fallback to default/legacy heatpump
+                            from .migrations import get_default_heatpump_id
+
+                            hp_id = get_default_heatpump_id()
+
+                        # Determine data source (nested vs flat)
+                        current_hp_data = None
+                        if hp_id and hp_id in current_data:
+                            current_hp_data = current_data[hp_id]
+                        elif sensor in current_data and not isinstance(
+                            current_data[sensor], dict
+                        ):
+                            # Handle flat data structure (legacy fallback)
+                            current_hp_data = current_data
+
+                        if not current_hp_data or sensor not in current_hp_data:
                             continue
 
-                        current_val = current_data[sensor]
+                        current_val = current_hp_data[sensor]
                         trigger_value = current_val
 
                         val_f = _to_float(current_val)

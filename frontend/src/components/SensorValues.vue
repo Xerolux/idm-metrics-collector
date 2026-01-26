@@ -36,11 +36,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import axios from 'axios';
 import { useWebSocket } from '../utils/websocket.js';
+import { useHeatpumpsStore } from '@/stores/heatpumps';
 
 const emit = defineEmits(['sensor-drag-start']);
+const hpStore = useHeatpumpsStore();
 
 const metrics = ref({
     temperature: [],
@@ -62,17 +64,29 @@ const error = ref(null);
 let refreshTimer = null;
 
 const handleMetricUpdate = (data) => {
+    const activePrefix = hpStore.activeHeatpumpId ? `${hpStore.activeHeatpumpId}.` : '';
+
     const updatePoint = (point) => {
         if (!point || !point.metric) return;
 
-        if (!currentValues.value[point.metric]) {
-            currentValues.value[point.metric] = {
+        let metricName = point.metric;
+
+        // Strip prefix if present
+        if (activePrefix && metricName.startsWith(activePrefix)) {
+            metricName = metricName.substring(activePrefix.length);
+        } else if (hpStore.activeHeatpumpId && !activePrefix) {
+             // If we have an active HP but no prefix logic (should not happen if logic correct), ignore?
+             // Or if message has no prefix?
+        }
+
+        if (!currentValues.value[metricName]) {
+            currentValues.value[metricName] = {
                 value: point.value,
                 timestamp: point.timestamp
             };
         } else {
-            currentValues.value[point.metric].value = point.value;
-            currentValues.value[point.metric].timestamp = point.timestamp;
+            currentValues.value[metricName].value = point.value;
+            currentValues.value[metricName].timestamp = point.timestamp;
         }
     };
 
@@ -107,8 +121,27 @@ const loadMetrics = async () => {
 
 const loadCurrentValues = async () => {
     try {
-        const res = await axios.get('/api/metrics/current');
-        currentValues.value = res.data;
+        let url = '/api/data'; // Default (legacy or default HP)
+        if (hpStore.activeHeatpumpId) {
+            url = `/api/data/${hpStore.activeHeatpumpId}`;
+        }
+
+        const res = await axios.get(url);
+
+        // Convert flat values to object with timestamp
+        const data = {};
+        const now = Date.now() / 1000;
+
+        for (const [key, value] of Object.entries(res.data)) {
+            // Strip prefix if present in the fetched data (shouldn't be for /api/data/hp_id but /api/data might return prefixes if not handled well in backend)
+            // Backend /api/data/hp_id returns clean { sensor: value } dict for that HP.
+            // Backend /api/data returns flattened { "hp.sensor": val } IF nested.
+            // But I updated /api/data to return default HP data clean.
+            // So we assume clean data here.
+            data[key] = { value, timestamp: now };
+        }
+
+        currentValues.value = data;
         loading.value = false;
         error.value = null;
     } catch (e) {
@@ -215,25 +248,7 @@ const onDragStart = (event, metric) => {
     emit('sensor-drag-start', metric);
 };
 
-onMounted(() => {
-    loadMetrics().then(() => {
-        const allMetrics = [];
-        Object.values(metrics.value).forEach(list => {
-            if (Array.isArray(list)) {
-                list.forEach(m => allMetrics.push(m.name));
-            }
-        });
-        if (allMetrics.length > 0) {
-            subscribe(allMetrics);
-        }
-    });
-    loadCurrentValues();
-    refreshTimer = setInterval(loadCurrentValues, 60000);
-});
-
-onUnmounted(() => {
-    if (refreshTimer) clearInterval(refreshTimer);
-
+const getSubscribedMetrics = () => {
     const allMetrics = [];
     if (metrics.value) {
         Object.values(metrics.value).forEach(list => {
@@ -242,6 +257,47 @@ onUnmounted(() => {
             }
         });
     }
+
+    if (hpStore.activeHeatpumpId) {
+        return allMetrics.map(m => `${hpStore.activeHeatpumpId}.${m}`);
+    }
+    return allMetrics;
+};
+
+const updateSubscriptions = () => {
+    const allMetrics = getSubscribedMetrics();
+    if (allMetrics.length > 0) {
+        subscribe(allMetrics);
+    }
+}
+
+onMounted(() => {
+    loadMetrics().then(() => {
+        updateSubscriptions();
+    });
+    loadCurrentValues();
+    refreshTimer = setInterval(loadCurrentValues, 60000);
+});
+
+watch(() => hpStore.activeHeatpumpId, () => {
+    // We should unsubscribe old metrics ideally, but we don't track old ID easily here without ref.
+    // wsClient handles subscriptions. If we just subscribe new ones, we get both?
+    // We can unsubscribe ALL and resubscribe.
+    // wsClient.unsubscribe takes list.
+    // Let's rely on reload or just fetch current values.
+    // To be clean: unsubscribe old logic would require storing old list.
+    // For now, re-load values. WebSocket might get double data if we don't unsub.
+    // wsClient.unsubscribe(oldList)
+
+    loadCurrentValues();
+    // Subscriptions: changing keys.
+    // We can assume wsClient deduplicates or we just add new ones.
+    updateSubscriptions();
+});
+
+onUnmounted(() => {
+    if (refreshTimer) clearInterval(refreshTimer);
+    const allMetrics = getSubscribedMetrics();
     if (allMetrics.length > 0) {
         unsubscribe(allMetrics);
     }

@@ -4,7 +4,9 @@ import time
 import logging
 import json
 import datetime
+import asyncio
 from .db import db
+from .migrations import get_default_heatpump_id
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +68,8 @@ class MutableRow:
 
 
 class Scheduler:
-    def __init__(self, modbus_client):
-        self.modbus_client = modbus_client
+    def __init__(self, heatpump_manager):
+        self.heatpump_manager = heatpump_manager
         self.jobs = []
         self.lock = threading.Lock()
         self.running = False
@@ -153,14 +155,22 @@ class Scheduler:
                             f"Executing scheduled job: {job.get('sensor')} = {job.get('value')}"
                         )
                         try:
-                            self.modbus_client.write_sensor(
-                                job.get("sensor"), job.get("value")
-                            )
-                            # Update last run in Memory
-                            now_ts = time.time()
-                            job["last_run"] = now_ts
-                            # Collect for batch DB update
-                            updates.append((job["id"], now_ts))
+                            hp_id = job.get("heatpump_id") or get_default_heatpump_id()
+                            if hp_id:
+                                # Run async write in sync thread
+                                asyncio.run(
+                                    self.heatpump_manager.write_value(
+                                        hp_id, job.get("sensor"), job.get("value")
+                                    )
+                                )
+                                # Update last run in Memory
+                                now_ts = time.time()
+                                job["last_run"] = now_ts
+                                # Collect for batch DB update
+                                updates.append((job["id"], now_ts))
+                            else:
+                                logger.error("Scheduled job failed: No heatpump ID found")
+
                         except Exception as e:
                             logger.error(f"Scheduled job failed: {e}")
 
