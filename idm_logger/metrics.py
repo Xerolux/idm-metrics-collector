@@ -1,14 +1,28 @@
 # SPDX-License-Identifier: MIT
+"""
+Metrics writer for VictoriaMetrics time-series database.
+
+Supports multi-heatpump labeling with heatpump_id, manufacturer, and model tags.
+
+Metric format:
+    idm_heatpump_<sensor_name>{heatpump_id="hp-001",manufacturer="idm",model="navigator_2_0"} <value>
+
+For backwards compatibility, metrics without labels are also supported.
+"""
 import logging
 import requests
 import os
 import queue
 import threading
 import time
-from typing import List, Union, Dict
+import re
+from typing import Any, Dict, List, Optional, Union
 from .config import config
 
 logger = logging.getLogger(__name__)
+
+# Valid characters for metric names and labels
+METRIC_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
 
 class MetricsWriter:
@@ -95,6 +109,75 @@ class MetricsWriter:
             except Exception as e:
                 logger.error(f"Error flushing metrics on exit: {e}")
 
+    def write_heatpump(
+        self,
+        heatpump_id: str,
+        manufacturer: str,
+        model: str,
+        measurements: Dict[str, Any],
+        heatpump_name: Optional[str] = None
+    ) -> bool:
+        """
+        Write metrics for a specific heatpump with labels.
+
+        Args:
+            heatpump_id: Unique heatpump identifier
+            manufacturer: Manufacturer ID (e.g., "idm")
+            model: Model ID (e.g., "navigator_2_0")
+            measurements: Dict of sensor_id -> value
+            heatpump_name: Optional display name
+
+        Returns:
+            True if queued successfully
+        """
+        if not measurements:
+            return True
+
+        # Wrap measurements with metadata
+        labeled_data = {
+            "_heatpump_id": heatpump_id,
+            "_manufacturer": manufacturer,
+            "_model": model,
+            "_name": heatpump_name or heatpump_id,
+            **measurements
+        }
+
+        try:
+            self.queue.put_nowait(labeled_data)
+            return True
+        except queue.Full:
+            logger.warning(f"Metrics queue full for {heatpump_id}, dropping data")
+            return False
+
+    def write_all_heatpumps(
+        self,
+        all_values: Dict[str, Dict[str, Any]],
+        configs: Dict[str, dict]
+    ) -> bool:
+        """
+        Write metrics for all heatpumps at once.
+
+        Args:
+            all_values: Dict mapping heatpump_id to sensor values
+            configs: Dict mapping heatpump_id to config
+
+        Returns:
+            True if all queued successfully
+        """
+        success = True
+        for hp_id, values in all_values.items():
+            hp_config = configs.get(hp_id, {})
+            result = self.write_heatpump(
+                heatpump_id=hp_id,
+                manufacturer=hp_config.get("manufacturer", "unknown"),
+                model=hp_config.get("model", "unknown"),
+                measurements=values,
+                heatpump_name=hp_config.get("name")
+            )
+            if not result:
+                success = False
+        return success
+
     def _send_data(self, data: Union[Dict, List[Dict]]) -> bool:
         """Internal method to send data to VictoriaMetrics (executed in worker thread)."""
         # data can be a single dict (legacy call) or a list of dicts (batch)
@@ -103,24 +186,43 @@ class MetricsWriter:
         lines = []
 
         for measurements in items:
-            measurement_name = "idm_heatpump"
-            fields = []
+            # Check for heatpump metadata (new format)
+            heatpump_id = measurements.pop("_heatpump_id", None)
+            manufacturer = measurements.pop("_manufacturer", None)
+            model = measurements.pop("_model", None)
+            hp_name = measurements.pop("_name", None)
+
+            # Build labels if we have metadata
+            if heatpump_id:
+                labels = self._build_labels(heatpump_id, manufacturer, model, hp_name)
+            else:
+                labels = ""
 
             for key, value in measurements.items():
                 # Skip string representation fields
                 if key.endswith("_str"):
                     continue
+
+                # Handle dict values (enum with value/text)
+                if isinstance(value, dict):
+                    value = value.get("value", 0)
+
                 # Convert booleans to int
                 if isinstance(value, bool):
                     value = int(value)
+
                 # Only write numeric values
                 if isinstance(value, (int, float)):
-                    fields.append(f"{key}={value}")
+                    # Sanitize metric name
+                    metric_name = self._sanitize_metric_name(key)
+                    full_name = f"idm_heatpump_{metric_name}"
 
-            if fields:
-                field_str = ",".join(fields)
-                # Timestamp is handled by VictoriaMetrics on ingestion
-                lines.append(f"{measurement_name} {field_str}")
+                    # InfluxDB line protocol format: name{labels} value [timestamp]
+                    if labels:
+                        lines.append(f"{full_name}{labels} {value}")
+                    else:
+                        # Legacy format without labels
+                        lines.append(f"idm_heatpump {key}={value}")
 
         if not lines:
             return False
@@ -140,6 +242,38 @@ class MetricsWriter:
         except Exception as e:
             logger.error(f"Exception writing metrics: {e}")
             return False
+
+    def _build_labels(
+        self,
+        heatpump_id: str,
+        manufacturer: Optional[str],
+        model: Optional[str],
+        name: Optional[str]
+    ) -> str:
+        """Build label string for metrics."""
+        labels = [f'heatpump_id="{self._escape_label(heatpump_id)}"']
+
+        if manufacturer:
+            labels.append(f'manufacturer="{self._escape_label(manufacturer)}"')
+        if model:
+            labels.append(f'model="{self._escape_label(model)}"')
+        if name:
+            labels.append(f'name="{self._escape_label(name)}"')
+
+        return "{" + ",".join(labels) + "}"
+
+    def _sanitize_metric_name(self, name: str) -> str:
+        """Sanitize a metric name to be valid."""
+        # Replace invalid characters with underscores
+        sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', name)
+        # Ensure starts with letter or underscore
+        if sanitized and sanitized[0].isdigit():
+            sanitized = "_" + sanitized
+        return sanitized
+
+    def _escape_label(self, value: str) -> str:
+        """Escape special characters in label values."""
+        return value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
 
     def get_status(self) -> dict:
         return {
