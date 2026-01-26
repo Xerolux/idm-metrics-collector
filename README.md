@@ -60,6 +60,18 @@ Die integrierte Grafana-Lösung ist Vergangenheit. **Version 1.0.1** bringt ein 
 
 ---
 
+## 📋 Unterstützte Modelle
+
+Der IDM Metrics Collector unterstützt nativ die folgenden IDM Wärmepumpen-Serien (Navigator 2.0):
+
+- **AERO ALM**: 2-8, 4-12, 6-15, 10-24, 10-50 MAX
+- **AERO SLM / ILM**
+- **TERRA**: SW, ML, SW Max
+- **iPump**: A, T, T7, T7 ONE, N5
+- **Andere**: Generische Unterstützung für weitere Navigator 2.0 Modelle
+
+---
+
 ## 📖 Dokumentation
 
 Wir legen Wert auf erstklassige Dokumentation:
@@ -76,6 +88,7 @@ Wir legen Wert auf erstklassige Dokumentation:
 
 - Docker & Docker Compose
 - Netzwerkverbindung zur IDM Wärmepumpe (Navigator 2.0)
+- Unterstützte Architekturen: amd64, arm64 (Raspberry Pi 4/5)
 
 ### Installation & Start
 
@@ -94,8 +107,9 @@ docker compose up -d
 ### Ersteinrichtung
 
 1. **IP der Wärmepumpe** eingeben
-2. **Sicheres Passwort** vergeben (min. 6 Zeichen)
-3. **Fertig!** Das Dashboard ist sofort live
+2. **Modell auswählen** (z.B. iPump T7, AERO ALM)
+3. **Sicheres Passwort** vergeben (min. 6 Zeichen)
+4. **Fertig!** Das Dashboard ist sofort live
 
 ---
 
@@ -193,6 +207,14 @@ Systeminformationen auf einen Blick.
 
 ## 🆕 Was ist neu in v1.0.1?
 
+### Neue Features
+
+- 🏗️ **Multi-Wärmepumpen Support**: Verwalte mehrere Anlagen zentral in einem Dashboard.
+- 🧙‍♂️ **Setup Wizard**: Einfache geführte Ersteinrichtung für IP, Modell und Sicherheit.
+- 🍓 **ARM64 Support**: Volle Unterstützung für Raspberry Pi (4/5) und andere ARM-Plattformen.
+- 📡 **Community Telemetry**: Optionales Teilen anonymer Sensordaten zur Verbesserung der KI-Modelle.
+- 🔒 **Verbesserte Sicherheit**: Striktes Auth-Handling und Fail-Closed Prinzip.
+
 ### Dashboard Revolution
 
 | Feature | v0.6.0 | v1.0.1 |
@@ -278,6 +300,7 @@ Warum wir das integrierte Dashboard dem externen Grafana vorziehen:
 - Multi-stage build
 - Alpine-based images
 - Automatic restart policies
+- **Multi-Arch**: amd64, arm64
 
 ### Performance
 
