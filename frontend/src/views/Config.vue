@@ -308,6 +308,12 @@
                                              <span class="font-mono">{{ aiStatus.service || 'Unbekannt' }}</span>
                                          </div>
                                          <div class="flex justify-between border-b border-gray-700 py-2">
+                                             <span class="text-gray-400">Modell-Quelle:</span>
+                                             <span class="font-bold font-mono" :class="aiStatus.source.includes('Community') ? 'text-purple-400' : 'text-blue-400'">
+                                                 {{ aiStatus.source || 'Local' }}
+                                             </span>
+                                         </div>
+                                         <div class="flex justify-between border-b border-gray-700 py-2">
                                              <span class="text-gray-400">Status:</span>
                                              <span class="font-bold" :class="aiStatus.online ? 'text-green-400' : 'text-red-400'">
                                                  {{ aiStatus.online ? 'Online' : 'Offline / Keine Daten' }}

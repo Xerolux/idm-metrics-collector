@@ -20,6 +20,7 @@ from .update_manager import (
 from .alerts import alert_manager
 from .backup import backup_manager
 from .telemetry import telemetry_manager
+from .model_updater import model_updater
 
 # Get logger instance (configure in main())
 logger = logging.getLogger("idm_logger")
@@ -215,6 +216,12 @@ def main():
     except Exception as e:
         logger.error(f"Failed to start Telemetry Manager: {e}")
 
+    # Start Model Updater
+    try:
+        model_updater.start()
+    except Exception as e:
+        logger.error(f"Failed to start Model Updater: {e}")
+
     logger.info("Entering main loop...")
 
     try:
@@ -270,6 +277,7 @@ def main():
     except Exception as e:
         logger.error(f"Main loop error: {e}")
     finally:
+        model_updater.stop()
         telemetry_manager.stop()
         if scheduler and config.get("web.write_enabled"):
             scheduler.stop()
