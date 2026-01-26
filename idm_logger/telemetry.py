@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 # Default telemetry endpoint
 DEFAULT_ENDPOINT = "https://collector.xerolux.de/api/v1/submit"
 
+
 class TelemetryManager:
     def __init__(self, config_instance):
         self.config = config_instance
@@ -62,7 +63,7 @@ class TelemetryManager:
 
             if not self.config.get("share_data", True):
                 with self._lock:
-                    self._buffer.clear() # Clear buffer if sharing is disabled
+                    self._buffer.clear()  # Clear buffer if sharing is disabled
                 continue
 
             now = time.time()
@@ -81,7 +82,7 @@ class TelemetryManager:
                 "installation_id": self.config.get("installation_id"),
                 "heatpump_model": self.config.get("heatpump_model"),
                 "version": get_current_version(),
-                "data": data_to_send
+                "data": data_to_send,
             }
 
             # Use a short timeout to not block anything
@@ -90,7 +91,9 @@ class TelemetryManager:
 
             # Check for legacy dummy endpoint to avoid spamming
             if "example.com" in self.endpoint:
-                 logger.debug(f"Telemetry (Simulation): Would send {len(data_to_send)} records to {self.endpoint}")
+                logger.debug(
+                    f"Telemetry (Simulation): Would send {len(data_to_send)} records to {self.endpoint}"
+                )
             else:
                 # Add Authorization Header if token is configured
                 headers = {}
@@ -98,10 +101,14 @@ class TelemetryManager:
                 if token:
                     headers["Authorization"] = f"Bearer {token}"
 
-                response = requests.post(self.endpoint, json=payload, headers=headers, timeout=10)
+                response = requests.post(
+                    self.endpoint, json=payload, headers=headers, timeout=10
+                )
 
                 if response.status_code == 200:
-                    logger.debug(f"Telemetry sent successfully: {len(data_to_send)} records")
+                    logger.debug(
+                        f"Telemetry sent successfully: {len(data_to_send)} records"
+                    )
                 else:
                     logger.warning(f"Telemetry send failed: {response.status_code}")
 
@@ -109,6 +116,7 @@ class TelemetryManager:
 
         except Exception as e:
             logger.error(f"Error sending telemetry: {e}")
+
 
 # Global instance
 telemetry_manager = TelemetryManager(config)

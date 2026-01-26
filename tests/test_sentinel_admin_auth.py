@@ -1,5 +1,4 @@
 import os
-import pytest
 from unittest.mock import patch, MagicMock
 import sys
 
@@ -9,13 +8,13 @@ mock_db_instance = MagicMock()
 # Configure get_setting to return None by default so _load_data returns defaults
 mock_db_instance.get_setting.return_value = None
 mock_db_module.db = mock_db_instance
-sys.modules['idm_logger.db'] = mock_db_module
+sys.modules["idm_logger.db"] = mock_db_module
 
 # Now we can safely import Config
-from idm_logger.config import Config
+from idm_logger.config import Config  # noqa: E402
+
 
 class TestSentinelAdminAuth:
-
     def setup_method(self):
         # Reset environment variables before each test
         if "ADMIN_PASSWORD" in os.environ:
@@ -63,7 +62,7 @@ class TestSentinelAdminAuth:
         hashed = generate_password_hash(existing_pass)
 
         # We patch _load_data to simulate reading from DB/file
-        with patch.object(Config, '_load_data') as mock_load:
+        with patch.object(Config, "_load_data") as mock_load:
             # Create a mock data structure mimicking what _load_data returns
             # We must provide all keys that __init__ might access or merge
             mock_data = {
@@ -74,9 +73,20 @@ class TestSentinelAdminAuth:
                     "port": 5000,
                     "write_enabled": False,
                 },
-                "idm": {}, "metrics": {}, "network_security": {}, "logging": {},
-                "mqtt": {}, "signal": {}, "telegram": {}, "discord": {}, "email": {},
-                "webdav": {}, "ai": {}, "updates": {}, "backup": {}, "internal_api_key": None
+                "idm": {},
+                "metrics": {},
+                "network_security": {},
+                "logging": {},
+                "mqtt": {},
+                "signal": {},
+                "telegram": {},
+                "discord": {},
+                "email": {},
+                "webdav": {},
+                "ai": {},
+                "updates": {},
+                "backup": {},
+                "internal_api_key": None,
             }
             mock_load.return_value = mock_data
 

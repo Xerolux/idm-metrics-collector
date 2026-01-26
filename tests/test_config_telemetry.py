@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: MIT
 import unittest
 import os
-import json
 import uuid
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from idm_logger.config import Config
 from idm_logger.telemetry import TelemetryManager
+
 
 class TestConfigTelemetry(unittest.TestCase):
     def setUp(self):
@@ -15,7 +15,7 @@ class TestConfigTelemetry(unittest.TestCase):
 
         # Patch db.get_setting/set_setting to use a dict instead of real DB
         self.settings_db = {}
-        self.db_patcher = patch('idm_logger.config.db')
+        self.db_patcher = patch("idm_logger.config.db")
         self.mock_db = self.db_patcher.start()
 
         def get_setting(key):
@@ -66,7 +66,7 @@ class TestConfigTelemetry(unittest.TestCase):
         original_uuid = self.config.get("installation_id")
         self.assertEqual(new_config.get("installation_id"), original_uuid)
 
-    @patch('idm_logger.telemetry.requests.post')
+    @patch("idm_logger.telemetry.requests.post")
     def test_telemetry_submission(self, mock_post):
         """Test that telemetry sends data when enabled."""
         tm = TelemetryManager(self.config)
@@ -86,15 +86,15 @@ class TestConfigTelemetry(unittest.TestCase):
         # Verify request
         mock_post.assert_called_once()
         args, kwargs = mock_post.call_args
-        payload = kwargs['json']
-        self.assertEqual(payload['heatpump_model'], "TEST_MODEL")
-        self.assertEqual(payload['data'][0]['temp'], 10)
+        payload = kwargs["json"]
+        self.assertEqual(payload["heatpump_model"], "TEST_MODEL")
+        self.assertEqual(payload["data"][0]["temp"], 10)
 
         # Verify Auth Header
         # By default no token in test setup
-        self.assertNotIn("Authorization", kwargs.get('headers', {}))
+        self.assertNotIn("Authorization", kwargs.get("headers", {}))
 
-    @patch('idm_logger.telemetry.requests.post')
+    @patch("idm_logger.telemetry.requests.post")
     def test_telemetry_disabled(self, mock_post):
         """Test that telemetry does NOT send data when disabled."""
         tm = TelemetryManager(self.config)
@@ -106,7 +106,7 @@ class TestConfigTelemetry(unittest.TestCase):
 
         mock_post.assert_not_called()
 
-    @patch('idm_logger.telemetry.requests.post')
+    @patch("idm_logger.telemetry.requests.post")
     def test_telemetry_no_model(self, mock_post):
         """Test that telemetry does NOT send data when model is missing."""
         tm = TelemetryManager(self.config)
@@ -118,5 +118,6 @@ class TestConfigTelemetry(unittest.TestCase):
 
         mock_post.assert_not_called()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

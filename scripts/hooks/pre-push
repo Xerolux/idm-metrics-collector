@@ -1,0 +1,68 @@
+#!/bin/bash
+# Pre-push hook: Run linting checks before allowing push
+# This ensures CI linting checks will pass before code is pushed
+#
+# Note: Tests are run in CI with full dependencies. Local test runs
+# may fail due to missing dependencies - this is expected.
+#
+# Install: Run `./scripts/setup-hooks.sh` from repository root
+# To skip this hook: git push --no-verify
+
+set -e
+
+echo "Running pre-push checks..."
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to print status
+print_status() {
+    if [ $1 -eq 0 ]; then
+        echo -e "${GREEN}[PASS]${NC} $2"
+    else
+        echo -e "${RED}[FAIL]${NC} $2"
+        exit 1
+    fi
+}
+
+echo ""
+echo "========================================="
+echo "  Pre-Push Quality Checks"
+echo "========================================="
+echo ""
+
+# 1. Check Python syntax errors in main code
+echo "Checking Python syntax..."
+find idm_logger ml_service -name "*.py" -exec python -m py_compile {} + 2>&1
+print_status $? "Python syntax"
+
+# 2. Check if ruff is installed
+if ! command -v ruff &> /dev/null; then
+    echo -e "${YELLOW}[WARN]${NC} ruff not installed, skipping linting checks"
+    echo -e "${YELLOW}[INFO]${NC} Install with: pip install ruff"
+else
+    # Run Ruff linting
+    echo "Checking code style with ruff..."
+    ruff check . --quiet
+    print_status $? "Ruff linting"
+
+    # Run Ruff formatting check
+    echo "Checking code formatting..."
+    ruff format --check . --quiet
+    print_status $? "Ruff formatting"
+fi
+
+# 3. Tests are optional locally (CI has all dependencies)
+echo ""
+echo -e "${YELLOW}[INFO]${NC} Tests will run in CI with full dependencies"
+echo -e "${YELLOW}[INFO]${NC} To run tests locally: pytest tests/"
+
+echo ""
+echo -e "${GREEN}All pre-push checks passed!${NC}"
+echo "========================================="
+echo ""
+
+exit 0

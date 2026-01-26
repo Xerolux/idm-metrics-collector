@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 import json
 import sys
 import os
-import importlib
 
 # Add repo root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -30,7 +29,7 @@ class TestMLAlertAnnotation(unittest.TestCase):
 
         # Import config with json.loads patched to avoid db error
         with patch("json.loads", return_value={}):
-            import idm_logger.config
+            pass
 
         # Patch config instance
         self.config_patcher = patch("idm_logger.config.config")

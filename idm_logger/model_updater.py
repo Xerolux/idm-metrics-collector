@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 DATA_DIR = os.environ.get("DATA_DIR", ".")
 MODEL_PATH = os.path.join(DATA_DIR, "community_model.enc")
 
+
 class ModelUpdater:
     def __init__(self, config_instance):
         self.config = config_instance
@@ -91,7 +92,12 @@ class ModelUpdater:
             if token:
                 headers["Authorization"] = f"Bearer {token}"
 
-            response = requests.get(check_url, params={"installation_id": installation_id}, headers=headers, timeout=10)
+            response = requests.get(
+                check_url,
+                params={"installation_id": installation_id},
+                headers=headers,
+                timeout=10,
+            )
 
             if response.status_code == 200:
                 data = response.json()
@@ -100,10 +106,12 @@ class ModelUpdater:
                     # TODO: In future, check version/hash to avoid redownloading same file
                     self._download_model(base_url, headers)
                 else:
-                    logger.info("Not eligible for community model updates yet (need more data contribution).")
+                    logger.info(
+                        "Not eligible for community model updates yet (need more data contribution)."
+                    )
             elif response.status_code == 404:
-                 # Endpoint might not exist on dummy server
-                 pass
+                # Endpoint might not exist on dummy server
+                pass
             else:
                 logger.warning(f"Model check returned {response.status_code}")
 
@@ -117,9 +125,11 @@ class ModelUpdater:
 
         logger.info(f"Downloading community model from {download_url}...")
         try:
-            with requests.get(download_url, headers=headers, stream=True, timeout=60) as r:
+            with requests.get(
+                download_url, headers=headers, stream=True, timeout=60
+            ) as r:
                 r.raise_for_status()
-                with open(temp_path, 'wb') as f:
+                with open(temp_path, "wb") as f:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
 
@@ -134,6 +144,7 @@ class ModelUpdater:
             logger.error(f"Failed to download model: {e}")
             if temp_path.exists():
                 os.remove(temp_path)
+
 
 # Global instance
 model_updater = ModelUpdater(config)

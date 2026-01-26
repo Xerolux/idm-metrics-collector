@@ -1,6 +1,7 @@
 import time
 from playwright.sync_api import sync_playwright, expect
 
+
 def test_setup_wizard():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -38,6 +39,7 @@ def test_setup_wizard():
         print("Screenshot saved to verification/setup_wizard.png")
 
         browser.close()
+
 
 if __name__ == "__main__":
     test_setup_wizard()

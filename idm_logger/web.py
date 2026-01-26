@@ -255,7 +255,7 @@ def _update_ai_status_once():
             "is_anomaly": False,
             "last_update": None,
             "error": None,
-            "source": "local" # Default
+            "source": "local",  # Default
         }
 
         if response.status_code == 200:
@@ -273,12 +273,15 @@ def _update_ai_status_once():
                         new_status["online"] = True
                     elif "idm_anomaly_flag" in name:
                         new_status["is_anomaly"] = float(val) > 0.5
+        else:
+            new_status["error"] = f"VictoriaMetrics error: {response.status_code}"
 
         # Check model source file existence (indirect check)
         # Ideally ML service would report this via metrics, but we can check file system if shared
         # Or add it to health check.
         # For now, let's assume if file exists in DATA_DIR, it's used (since ML service prefers it)
         import os
+
         DATA_DIR = os.environ.get("DATA_DIR", ".")
         model_path = os.path.join(DATA_DIR, "community_model.enc")
         if os.path.exists(model_path):
@@ -286,9 +289,6 @@ def _update_ai_status_once():
             new_status["model_date"] = os.path.getmtime(model_path)
         else:
             new_status["source"] = "Local Training"
-
-        else:
-            new_status["error"] = f"VictoriaMetrics error: {response.status_code}"
 
         with _ai_status_lock:
             _ai_status_cache.update(new_status)
@@ -923,7 +923,9 @@ def trigger_ai_update():
     """
     try:
         model_updater.trigger_check()
-        return jsonify({"success": True, "message": "Suche nach Updates im Hintergrund gestartet."})
+        return jsonify(
+            {"success": True, "message": "Suche nach Updates im Hintergrund gestartet."}
+        )
     except Exception as e:
         logger.error(f"Failed to trigger model update: {e}")
         return jsonify({"error": str(e)}), 500

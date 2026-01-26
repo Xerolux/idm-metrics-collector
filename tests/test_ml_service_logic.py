@@ -99,7 +99,7 @@ class TestMLServiceLogic(unittest.TestCase):
     def test_debounce_logic(self):
         with (
             patch.object(self.main, "fetch_latest_data") as mock_fetch,
-            patch.object(self.main, "write_metrics") as mock_write,
+            patch.object(self.main, "write_metrics"),
             patch.object(self.main, "send_anomaly_alert") as mock_alert,
             patch.object(self.main, "get_top_features", return_value=[]),
         ):
@@ -172,7 +172,7 @@ class TestMLServiceLogic(unittest.TestCase):
         # Force USE_JOBLIB to False using string patch, which is safer for module globals
         with patch("ml_service.main.USE_JOBLIB", False):
             with (
-                patch("builtins.open", mock_open()) as m,
+                patch("builtins.open", mock_open()),
                 patch("pickle.dump") as mock_dump,
                 patch("os.makedirs"),
             ):

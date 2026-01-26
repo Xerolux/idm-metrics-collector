@@ -1,6 +1,7 @@
 from playwright.sync_api import sync_playwright, expect
 import time
 
+
 def test_consent_text():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -26,6 +27,7 @@ def test_consent_text():
         page.screenshot(path="verification/setup_consent.png")
         print("Screenshot saved to verification/setup_consent.png")
         browser.close()
+
 
 if __name__ == "__main__":
     test_consent_text()

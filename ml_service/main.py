@@ -13,13 +13,14 @@ from flask import Flask, jsonify
 import sys
 
 # Use joblib for safer model serialization (no arbitrary code execution)
+# pickle is still needed for community model loading
+import pickle
+
 try:
     import joblib
 
     USE_JOBLIB = True
 except ImportError:
-    import pickle
-
     USE_JOBLIB = False
     logging.warning("joblib not available, falling back to pickle (less secure)")
 
@@ -51,6 +52,9 @@ MODEL_SAVE_INTERVAL = int(
     os.environ.get("MODEL_SAVE_INTERVAL", "300")
 )  # Save every 5 minutes
 MODEL_PATH = os.environ.get("MODEL_PATH", "/app/data/model_state.pkl")
+COMMUNITY_MODEL_PATH = os.environ.get(
+    "COMMUNITY_MODEL_PATH", "/app/data/community_model.enc"
+)
 ENABLE_ALERTS = os.environ.get("ENABLE_ALERTS", "true").lower() == "true"
 ALERT_COOLDOWN = int(os.environ.get("ALERT_COOLDOWN", "3600"))  # 1 hour between alerts
 WARMUP_UPDATES = int(
@@ -205,7 +209,9 @@ def load_model_state():
     # This takes precedence to ensure we use the better model
     if os.path.exists(COMMUNITY_MODEL_PATH):
         try:
-            logger.info(f"Found community model at {COMMUNITY_MODEL_PATH}. Attempting decryption...")
+            logger.info(
+                f"Found community model at {COMMUNITY_MODEL_PATH}. Attempting decryption..."
+            )
             # Load and decrypt bytes
             decrypted_bytes = load_encrypted_model(COMMUNITY_MODEL_PATH)
 
@@ -218,7 +224,9 @@ def load_model_state():
                 logger.info("SUCCESS: Community model loaded and decrypted!")
                 return True
             else:
-                logger.warning("Community model structure invalid. Falling back to local.")
+                logger.warning(
+                    "Community model structure invalid. Falling back to local."
+                )
         except Exception as e:
             logger.error(f"Failed to load community model: {e}")
             # Fallback to local model
