@@ -1,6 +1,8 @@
 # Multi-Heatpump Implementation Progress
 
-> **Status**: Phase 1 Complete - Core Architecture Implemented
+> **Status**: Phase 1+2 Complete - Core Architecture + API Implemented
+>
+> Last Updated: 2026-01-26
 
 This document tracks the implementation progress of multi-heatpump support.
 
@@ -228,36 +230,65 @@ metrics.write_all_heatpumps(all_values, configs)
 
 ---
 
-## Pending Components
+## Completed: API Endpoints
 
-### 7. API Endpoints (TODO)
+### 7. API Endpoints (DONE)
 
-New endpoints needed:
+**File:** `idm_logger/web.py`
+
+Implemented endpoints:
 
 ```python
 # Heatpump management
-GET    /api/heatpumps           # List all
-POST   /api/heatpumps           # Add new
-GET    /api/heatpumps/<id>      # Get details
-PUT    /api/heatpumps/<id>      # Update
-DELETE /api/heatpumps/<id>      # Remove
-POST   /api/heatpumps/<id>/test # Test connection
+GET    /api/heatpumps              # List all with status
+POST   /api/heatpumps              # Add new heatpump
+GET    /api/heatpumps/<id>         # Get details + capabilities
+PUT    /api/heatpumps/<id>         # Update config
+DELETE /api/heatpumps/<id>         # Remove heatpump
+POST   /api/heatpumps/<id>/test    # Test Modbus connection
+POST   /api/heatpumps/<id>/enable  # Enable/disable
 
 # Manufacturers
-GET    /api/manufacturers       # List supported
-GET    /api/manufacturers/<m>/models/<m>/setup  # Setup instructions
+GET    /api/manufacturers                          # List supported
+GET    /api/manufacturers/<m>/models/<m>/setup     # Setup instructions
 
 # Multi-device data
-GET    /api/data                # All heatpumps (add ?heatpump_id filter)
-GET    /api/data/<id>           # Specific heatpump
-POST   /api/control/<id>        # Write to specific heatpump
+GET    /api/data/all       # Read all heatpumps
+GET    /api/data/<id>      # Read specific heatpump
+POST   /api/control/<id>   # Write to specific heatpump
 
 # Dashboards
-GET    /api/dashboards          # All (add ?heatpump_id filter)
-POST   /api/dashboards          # Create
-PUT    /api/dashboards/<id>     # Update
-DELETE /api/dashboards/<id>     # Delete
+GET    /api/dashboards/heatpump/<id>  # Get dashboards for device
 ```
+
+**Usage Example:**
+```bash
+# List all heatpumps
+curl http://localhost:5000/api/heatpumps
+
+# Add a new heatpump
+curl -X POST http://localhost:5000/api/heatpumps \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Building A",
+    "manufacturer": "idm",
+    "model": "navigator_2_0",
+    "connection": {"host": "192.168.1.100", "port": 502},
+    "config": {"circuits": ["A", "B"]}
+  }'
+
+# Read data from specific heatpump
+curl http://localhost:5000/api/data/hp-001
+
+# Write a value
+curl -X POST http://localhost:5000/api/control/hp-001 \
+  -H "Content-Type: application/json" \
+  -d '{"sensor": "temp_water_target", "value": 50}'
+```
+
+---
+
+## Pending Components
 
 ### 8. Frontend Changes (TODO)
 
@@ -302,7 +333,7 @@ idm_logger/
 ├── migrations.py                # Migration logic (done)
 ├── db.py                        # Extended (done)
 ├── metrics.py                   # Extended (done)
-├── web.py                       # TODO: New endpoints
+├── web.py                       # API endpoints (done)
 └── logger.py                    # TODO: Integration
 ```
 
