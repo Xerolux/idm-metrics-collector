@@ -13,6 +13,12 @@ const routes = [
     component: () => import('../views/Setup.vue')
   },
   {
+    path: '/shared/:token',
+    name: 'SharedDashboard',
+    component: () => import('../views/SharedDashboard.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/',
     component: () => import('../components/Layout.vue'),
     meta: { requiresAuth: true },

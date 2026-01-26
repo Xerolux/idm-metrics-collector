@@ -337,10 +337,14 @@ class MQTTPublisher:
                 topic_prefix = f"{base_topic_prefix}/{hp_id}"
 
                 # If this is the default HP, also publish to base prefix (legacy)
-                is_default = (hp_id == default_hp_id)
+                is_default = hp_id == default_hp_id
 
                 # Get connection for unit info
-                conn = self.heatpump_manager.get_connection(hp_id) if self.heatpump_manager else None
+                conn = (
+                    self.heatpump_manager.get_connection(hp_id)
+                    if self.heatpump_manager
+                    else None
+                )
 
                 for sensor_name, value in data.items():
                     if sensor_name.endswith("_str"):
@@ -348,7 +352,9 @@ class MQTTPublisher:
 
                     unit = ""
                     if conn:
-                        sensor_def = next((s for s in conn.sensors if s.id == sensor_name), None)
+                        sensor_def = next(
+                            (s for s in conn.sensors if s.id == sensor_name), None
+                        )
                         if sensor_def:
                             unit = sensor_def.unit or ""
 
@@ -362,7 +368,7 @@ class MQTTPublisher:
                         f"{topic_prefix}/{sensor_name}",
                         json.dumps(payload),
                         qos=qos,
-                        retain=False
+                        retain=False,
                     )
 
                     # Publish to idm/heatpump/sensor (legacy)
@@ -371,13 +377,20 @@ class MQTTPublisher:
                             f"{base_topic_prefix}/{sensor_name}",
                             json.dumps(payload),
                             qos=qos,
-                            retain=False
+                            retain=False,
                         )
 
                 # Publish state
-                self.client.publish(f"{topic_prefix}/state", json.dumps(data), qos=qos, retain=True)
+                self.client.publish(
+                    f"{topic_prefix}/state", json.dumps(data), qos=qos, retain=True
+                )
                 if is_default:
-                    self.client.publish(f"{base_topic_prefix}/state", json.dumps(data), qos=qos, retain=True)
+                    self.client.publish(
+                        f"{base_topic_prefix}/state",
+                        json.dumps(data),
+                        qos=qos,
+                        retain=True,
+                    )
 
             self.last_publish_time = now
 

@@ -378,6 +378,27 @@ def login_required(view):
     return wrapped_view
 
 
+def auth_or_token_required(view):
+    """Allow access if logged in OR if valid share token provided."""
+
+    @functools.wraps(view)
+    def wrapped_view(**kwargs):
+        # 1. Check Session
+        if session.get("logged_in"):
+            return view(**kwargs)
+
+        # 2. Check Share Token
+        token_id = request.headers.get("X-Share-Token")
+        if token_id:
+            password = request.headers.get("X-Share-Password")
+            if sharing_manager.validate_token(token_id, password):
+                return view(**kwargs)
+
+        return jsonify({"error": "Unauthorized"}), 401
+
+    return wrapped_view
+
+
 @app.before_request
 def check_ip_whitelist():
     """Check if the request IP is allowed based on whitelist/blacklist."""
@@ -948,7 +969,7 @@ def trigger_ai_update():
 
 
 @app.route("/api/metrics/query_range", methods=["GET"])
-@login_required
+@auth_or_token_required
 def query_metrics_range():
     """
     Proxy request to VictoriaMetrics /api/v1/query_range
@@ -1203,7 +1224,7 @@ def export_metrics_data():
 
 
 @app.route("/api/query/evaluate", methods=["POST"])
-@login_required
+@auth_or_token_required
 def evaluate_expression():
     """
     Evaluate a mathematical expression on query results.
@@ -2254,7 +2275,7 @@ def delete_database():
 
 
 @app.route("/api/annotations", methods=["GET"])
-@login_required
+@auth_or_token_required
 def get_annotations():
     """Get all annotations or filter by dashboard and time range"""
     try:
@@ -2658,8 +2679,47 @@ def view_shared_dashboard(token_id):
         return "Error loading shared dashboard", 500
 
 
+@app.route("/api/sharing/dashboard/<token_id>", methods=["GET"])
+def get_shared_dashboard_data(token_id):
+    """Get dashboard configuration via share token."""
+    try:
+        # Get password from header
+        password = request.headers.get("X-Share-Password")
+
+        # Validate token
+        if not sharing_manager.validate_token(token_id, password):
+            # Check if it's just missing password for a protected token
+            token = sharing_manager.get_token(token_id)
+            if (
+                token
+                and not token.is_expired()
+                and token.password_hash
+                and not password
+            ):
+                return jsonify(
+                    {"error": "Password required", "require_password": True}
+                ), 401
+            return jsonify({"error": "Invalid or expired token"}), 403
+
+        token = sharing_manager.get_token(token_id)
+
+        # Get dashboard
+        dashboard = dashboard_manager.get_dashboard(token.dashboard_id)
+        if not dashboard:
+            return jsonify({"error": "Dashboard not found"}), 404
+
+        # Record access
+        sharing_manager.record_access(token_id)
+
+        return jsonify(dashboard)
+    except Exception as e:
+        logger.error(f"Failed to get shared dashboard data: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 # ==================== Multi-Heatpump API ====================
 # These endpoints support managing multiple heat pumps
+
 
 def _run_async(coro):
     """Run an async coroutine from sync Flask context."""
@@ -2692,11 +2752,13 @@ def list_heatpumps():
         status_map = {s["id"]: s for s in heatpump_manager_instance.get_status()}
         for hp in heatpumps:
             if hp["id"] in status_map:
-                hp.update({
-                    "connected": status_map[hp["id"]].get("connected", False),
-                    "error_count": status_map[hp["id"]].get("error_count", 0),
-                    "last_error": status_map[hp["id"]].get("last_error"),
-                })
+                hp.update(
+                    {
+                        "connected": status_map[hp["id"]].get("connected", False),
+                        "error_count": status_map[hp["id"]].get("error_count", 0),
+                        "last_error": status_map[hp["id"]].get("last_error"),
+                    }
+                )
             else:
                 hp["connected"] = False
 
@@ -2757,9 +2819,9 @@ def add_heatpump():
 
     # Validate manufacturer/model
     if not ManufacturerRegistry.is_supported(data["manufacturer"], data["model"]):
-        return jsonify({
-            "error": f"Nicht unterstützt: {data['manufacturer']}/{data['model']}"
-        }), 400
+        return jsonify(
+            {"error": f"Nicht unterstützt: {data['manufacturer']}/{data['model']}"}
+        ), 400
 
     try:
         if heatpump_manager_instance:
@@ -2767,14 +2829,17 @@ def add_heatpump():
         else:
             # Fallback to direct DB insert
             from .db import db
-            hp_id = db.add_heatpump({
-                "name": data["name"],
-                "manufacturer": data["manufacturer"],
-                "model": data["model"],
-                "connection_config": data.get("connection", {}),
-                "device_config": data.get("config", {}),
-                "enabled": data.get("enabled", True),
-            })
+
+            hp_id = db.add_heatpump(
+                {
+                    "name": data["name"],
+                    "manufacturer": data["manufacturer"],
+                    "model": data["model"],
+                    "connection_config": data.get("connection", {}),
+                    "device_config": data.get("config", {}),
+                    "enabled": data.get("enabled", True),
+                }
+            )
 
         return jsonify({"id": hp_id, "message": "Wärmepumpe hinzugefügt"}), 201
 
@@ -2865,7 +2930,9 @@ def update_heatpump(hp_id):
         db.update_heatpump(hp_id, update_fields)
 
         # Reconnect if connection changed
-        if heatpump_manager_instance and ("connection_config" in update_fields or "device_config" in update_fields):
+        if heatpump_manager_instance and (
+            "connection_config" in update_fields or "device_config" in update_fields
+        ):
             _run_async(heatpump_manager_instance.reconnect(hp_id))
 
         return jsonify({"message": "Aktualisiert"})
@@ -2889,6 +2956,7 @@ def delete_heatpump(hp_id):
             _run_async(heatpump_manager_instance.remove_heatpump(hp_id))
         else:
             from .db import db
+
             db.delete_heatpump(hp_id)
 
         return jsonify({"message": "Wärmepumpe entfernt"})
@@ -2931,26 +2999,26 @@ def test_heatpump_connection(hp_id):
             client.close()
 
             if result.isError():
-                return jsonify({
-                    "success": False,
-                    "message": f"Verbunden, aber Lesefehler: {result}"
-                })
+                return jsonify(
+                    {
+                        "success": False,
+                        "message": f"Verbunden, aber Lesefehler: {result}",
+                    }
+                )
 
-            return jsonify({
-                "success": True,
-                "message": f"Erfolgreich verbunden mit {host}:{port}"
-            })
+            return jsonify(
+                {"success": True, "message": f"Erfolgreich verbunden mit {host}:{port}"}
+            )
         else:
-            return jsonify({
-                "success": False,
-                "message": f"Verbindung zu {host}:{port} fehlgeschlagen"
-            })
+            return jsonify(
+                {
+                    "success": False,
+                    "message": f"Verbindung zu {host}:{port} fehlgeschlagen",
+                }
+            )
 
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": f"Verbindungsfehler: {str(e)}"
-        })
+        return jsonify({"success": False, "message": f"Verbindungsfehler: {str(e)}"})
 
 
 @app.route("/api/heatpumps/<hp_id>/enable", methods=["POST"])
@@ -2970,6 +3038,7 @@ def enable_heatpump(hp_id):
             _run_async(heatpump_manager_instance.enable_heatpump(hp_id, enabled))
         else:
             from .db import db
+
             db.update_heatpump(hp_id, {"enabled": enabled})
 
         status = "aktiviert" if enabled else "deaktiviert"
@@ -2981,6 +3050,7 @@ def enable_heatpump(hp_id):
 
 
 # ==================== Manufacturer API ====================
+
 
 @app.route("/api/manufacturers", methods=["GET"])
 def list_manufacturers():
@@ -3008,19 +3078,22 @@ def get_model_setup(mfr, model):
     if not driver:
         return jsonify({"error": "Nicht gefunden"}), 404
 
-    return jsonify({
-        "manufacturer": mfr,
-        "model": model,
-        "display_name": driver.DISPLAY_NAME,
-        "protocol": driver.PROTOCOL,
-        "default_port": driver.DEFAULT_PORT,
-        "capabilities": driver.get_capabilities().to_dict(),
-        "instructions": driver.get_setup_instructions(),
-        "dashboard_template": driver.get_dashboard_template(),
-    })
+    return jsonify(
+        {
+            "manufacturer": mfr,
+            "model": model,
+            "display_name": driver.DISPLAY_NAME,
+            "protocol": driver.PROTOCOL,
+            "default_port": driver.DEFAULT_PORT,
+            "capabilities": driver.get_capabilities().to_dict(),
+            "instructions": driver.get_setup_instructions(),
+            "dashboard_template": driver.get_dashboard_template(),
+        }
+    )
 
 
 # ==================== Multi-Device Data API ====================
+
 
 @app.route("/api/data/all", methods=["GET"])
 def get_all_heatpump_data():
@@ -3108,6 +3181,7 @@ def control_heatpump(hp_id):
 
 # ==================== Multi-Device Dashboard API ====================
 
+
 @app.route("/api/dashboards/heatpump/<hp_id>", methods=["GET"])
 def get_heatpump_dashboards(hp_id):
     """
@@ -3117,6 +3191,7 @@ def get_heatpump_dashboards(hp_id):
       - Dashboards
     """
     from .db import db
+
     dashboards = db.get_dashboards(heatpump_id=hp_id)
     return jsonify(dashboards)
 

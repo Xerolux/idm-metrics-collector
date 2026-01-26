@@ -169,7 +169,9 @@ class Scheduler:
                                 # Collect for batch DB update
                                 updates.append((job["id"], now_ts))
                             else:
-                                logger.error("Scheduled job failed: No heatpump ID found")
+                                logger.error(
+                                    "Scheduled job failed: No heatpump ID found"
+                                )
 
                         except Exception as e:
                             logger.error(f"Scheduled job failed: {e}")

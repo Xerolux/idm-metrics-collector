@@ -152,6 +152,7 @@ def migrate_single_to_multi() -> Optional[str]:
     # Create default dashboard for the legacy heatpump
     try:
         from .manufacturers import ManufacturerRegistry
+
         driver = ManufacturerRegistry.get_driver("idm", "navigator_2_0")
         if driver:
             template = driver.get_dashboard_template()
