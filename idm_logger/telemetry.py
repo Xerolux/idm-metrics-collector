@@ -6,6 +6,7 @@ import time
 import os
 from .config import config
 from .update_manager import get_current_version
+from .heatpump_manager import heatpump_manager
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +47,10 @@ class TelemetryManager:
         if not self.config.get("share_data", True):
             return
 
-        # Basic filtering or processing could go here
-        # We only want to send if we have a model selected
-        if not self.config.get("heatpump_model"):
+        # We allow sending if at least one heatpump is configured
+        if not heatpump_manager.connection_count and not self.config.get(
+            "heatpump_model"
+        ):
             return
 
         with self._lock:
@@ -78,11 +80,55 @@ class TelemetryManager:
             self._buffer.clear()
 
         try:
+            # Prepare v2 payload
+            # We transform the buffer of nested data into the v2 structure
+            # data_to_send is a list of { hp1: {...}, hp2: {...}, timestamp: ... }
+
+            # We need to restructure this to match server expectation or v2 spec
+            # v2 spec: data is list of snapshots?
+            # Let's send a list of snapshots, where each snapshot contains per-hp data
+
+            # Get configs for metadata
+            configs = heatpump_manager.get_all_configs()
+
+            processed_data = []
+            for snapshot in data_to_send:
+                timestamp = snapshot.get("timestamp", time.time())
+
+                # Check if this is nested data (Multi-HP) or flat (Legacy)
+                is_nested = any(isinstance(v, dict) for k, v in snapshot.items() if k != "timestamp")
+
+                if is_nested:
+                    heatpumps_data = []
+                    for hp_id, values in snapshot.items():
+                        if hp_id == "timestamp":
+                            continue
+                        if not isinstance(values, dict):
+                            continue # Skip non-dict items if any
+
+                        hp_config = configs.get(hp_id, {})
+                        heatpumps_data.append({
+                            "id": hp_id,
+                            "manufacturer": hp_config.get("manufacturer", "unknown"),
+                            "model": hp_config.get("model", "unknown"),
+                            "values": values
+                        })
+
+                    processed_data.append({
+                        "timestamp": timestamp,
+                        "heatpumps": heatpumps_data
+                    })
+                else:
+                    # Legacy flat data
+                    processed_data.append(snapshot)
+
             payload = {
                 "installation_id": self.config.get("installation_id"),
+                # Global model might be deprecated but kept for legacy
                 "heatpump_model": self.config.get("heatpump_model"),
                 "version": get_current_version(),
-                "data": data_to_send,
+                "data_version": "2.0", # Signal new format
+                "data": processed_data,
             }
 
             # Use a short timeout to not block anything

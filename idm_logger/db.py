@@ -282,7 +282,7 @@ class Database:
             with self._get_locked_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "INSERT INTO jobs (id, sensor, value, time, days, enabled, last_run) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO jobs (id, sensor, value, time, days, enabled, last_run, heatpump_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         job["id"],
                         job["sensor"],
@@ -291,6 +291,7 @@ class Database:
                         json.dumps(job["days"]),
                         int(job["enabled"]),
                         job.get("last_run", 0),
+                        job.get("heatpump_id"),
                     ),
                 )
             logger.info(f"Job {job['id']} added successfully")
@@ -384,8 +385,8 @@ class Database:
                 cursor = conn.cursor()
                 cursor.execute(
                     """INSERT INTO alerts
-                       (id, name, type, sensor, condition, threshold, message, enabled, interval_seconds, last_triggered)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       (id, name, type, sensor, condition, threshold, message, enabled, interval_seconds, last_triggered, heatpump_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         alert["id"],
                         alert["name"],
@@ -397,6 +398,7 @@ class Database:
                         int(alert["enabled"]),
                         alert.get("interval_seconds", 0),
                         alert.get("last_triggered", 0),
+                        alert.get("heatpump_id"),
                     ),
                 )
             logger.info(f"Alert {alert['id']} added successfully")

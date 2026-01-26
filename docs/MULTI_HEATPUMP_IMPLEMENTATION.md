@@ -1,6 +1,6 @@
 # Multi-Heatpump Implementation Progress
 
-> **Status**: Phase 1+2 Complete - Core Architecture + API Implemented
+> **Status**: Phase 1+2 Complete - Core Architecture + API Implemented + Frontend
 >
 > Last Updated: 2026-01-26
 
@@ -288,28 +288,34 @@ curl -X POST http://localhost:5000/api/control/hp-001 \
 
 ---
 
-## Pending Components
+## Completed: Frontend
 
-### 8. Frontend Changes (TODO)
+### 8. Frontend Components (DONE)
 
-- Heatpump selector component
-- Setup wizard for new heatpumps
-- Per-device dashboard views
-- Comparison views
+- `HeatpumpSelector.vue`: Dropdown to switch active heatpump context
+- `HeatpumpSetup.vue`: Wizard for adding new devices
+- `DashboardManager.vue`: Updated to support multi-dashboard and heatpump selection
+- `heatpumps.js` (Pinia Store): Manages list of devices and active context
 
-### 9. Logger Integration (TODO)
+---
 
-Update `logger.py` main loop to:
+## Integration
+
+### 9. Logger Integration (DONE)
+
+Updated `logger.py` main loop to:
 - Use `HeatpumpManager` instead of `ModbusClient`
 - Call `heatpump_manager.read_all()`
 - Use `metrics.write_all_heatpumps()`
 - Run migration at startup
 
-### 10. Additional Drivers (TODO)
+### 10. Additional Drivers (PENDING)
 
 - NIBE S-Series (`manufacturers/nibe/s_series.py`)
 - Daikin Altherma (`manufacturers/daikin/altherma.py`)
 - Luxtronik 2.1 (`manufacturers/luxtronik/luxtronik_2_1.py`)
+
+These will be added in future phases.
 
 ---
 
@@ -334,7 +340,7 @@ idm_logger/
 ├── db.py                        # Extended (done)
 ├── metrics.py                   # Extended (done)
 ├── web.py                       # API endpoints (done)
-└── logger.py                    # TODO: Integration
+└── logger.py                    # Integration (done)
 ```
 
 ---
@@ -368,35 +374,13 @@ if needs_migration():
 
 ---
 
-## Next Steps
-
-1. **Integrate with main loop** (`logger.py`)
-   - Replace direct ModbusClient usage with HeatpumpManager
-   - Run migration at startup
-   - Use new metrics format
-
-2. **Add API endpoints** (`web.py`)
-   - Heatpump CRUD endpoints
-   - Update existing endpoints for multi-device
-
-3. **Frontend updates**
-   - Heatpump selector
-   - Setup wizard
-   - Multi-dashboard support
-
-4. **Additional drivers**
-   - NIBE S-Series
-   - Others based on demand
-
----
-
 ## Backwards Compatibility
 
 The system maintains backwards compatibility:
 
-1. **Legacy Config**: `config.idm.host` is migrated to `heatpumps` table
-2. **Legacy Metrics**: Old format still works (no labels)
-3. **Legacy API**: Endpoints work with default heatpump if no ID specified
-4. **Legacy Dashboard**: Settings-based dashboards still loaded
+1.  **Legacy Config**: `config.idm.host` is migrated to `heatpumps` table via `run_migration()`.
+2.  **Legacy Metrics**: Metrics for the default heatpump are still published without labels (if needed), or consumers can use `heatpump_id` labels.
+3.  **Legacy API**: `get_data()` returns default heatpump data if no ID specified.
+4.  **Legacy Dashboard**: Settings-based dashboards are migrated to DB.
 
 Migration is automatic and idempotent.

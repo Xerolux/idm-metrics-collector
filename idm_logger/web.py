@@ -204,9 +204,10 @@ sharing_manager = SharingManager(config)
 # Shared state
 current_data = {}
 data_lock = threading.Lock()
-modbus_client_instance = None
 scheduler_instance = None
 metrics_writer_instance = None
+# Global heatpump_manager instance (set by run_web)
+heatpump_manager_instance = None
 
 # Cache for network security objects to avoid re-parsing on every request
 _net_sec_cache = {
@@ -674,6 +675,18 @@ def get_data():
         description: Current sensor readings
     """
     with data_lock:
+        # Check if we have nested data (Multi-HP)
+        if any(isinstance(v, dict) for v in current_data.values()):
+            # Legacy Endpoint: Return default/legacy heatpump data flattened
+            hp_id = get_default_heatpump_id()
+            if hp_id and hp_id in current_data:
+                return jsonify(current_data[hp_id])
+            # Fallback: Return first available heatpump data
+            if current_data:
+                first_key = next(iter(current_data))
+                return jsonify(current_data[first_key])
+            return jsonify({})
+
         return jsonify(current_data)
 
 
@@ -1840,13 +1853,20 @@ def signal_status():
     )
 
 
-def validate_write(sensor_name, value):
-    if not modbus_client_instance:
-        return False, "Modbus-Client nicht verfügbar"
+def validate_write(sensor_name, value, hp_id=None):
+    if not heatpump_manager_instance:
+        return False, "HeatpumpManager nicht verfügbar"
 
-    sensor = modbus_client_instance.sensors.get(
-        sensor_name
-    ) or modbus_client_instance.binary_sensors.get(sensor_name)
+    if not hp_id:
+        hp_id = get_default_heatpump_id()
+
+    conn = heatpump_manager_instance.get_connection(hp_id)
+    if not conn:
+        return False, "Wärmepumpe nicht gefunden oder nicht verbunden"
+
+    # Find sensor in connection sensors
+    sensor = next((s for s in conn.sensors if s.id == sensor_name), None)
+
     if not sensor:
         return False, "Sensor nicht gefunden"
 
@@ -1897,14 +1917,17 @@ def control_page():
         data = request.get_json()
         sensor_name = data.get("sensor")
         value = data.get("value")
+        hp_id = data.get("heatpump_id") or get_default_heatpump_id()
 
-        valid, msg = validate_write(sensor_name, value)
+        valid, msg = validate_write(sensor_name, value, hp_id)
         if not valid:
             return jsonify({"error": msg}), 400
 
         try:
-            if modbus_client_instance:
-                modbus_client_instance.write_sensor(sensor_name, value)
+            if heatpump_manager_instance:
+                _run_async(
+                    heatpump_manager_instance.write_value(hp_id, sensor_name, value)
+                )
                 return jsonify(
                     {
                         "success": True,
@@ -1912,36 +1935,31 @@ def control_page():
                     }
                 )
             else:
-                return jsonify({"error": "Modbus-Client nicht verfügbar"}), 503
+                return jsonify({"error": "HeatpumpManager nicht verfügbar"}), 503
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    # Get writable sensors for default HP (Legacy support)
+    # New frontend should use /api/heatpumps/<hp_id> to get sensors
     writable_sensors = []
-    if modbus_client_instance:
-        all_sensors = {
-            **modbus_client_instance.sensors,
-            **modbus_client_instance.binary_sensors,
-        }
-        for name, sensor in all_sensors.items():
-            if sensor.supported_features != SensorFeatures.NONE:
-                s_info = {
-                    "name": sensor.name,
-                    "unit": getattr(sensor, "unit", ""),
-                    "description": getattr(sensor, "description", ""),
-                    "features": sensor.supported_features.name
-                    if hasattr(sensor.supported_features, "name")
-                    else sensor.supported_features,
-                    "min": getattr(sensor, "min_value", None),
-                    "max": getattr(sensor, "max_value", None),
-                    "enum": [{"name": m.name, "value": m.value} for m in sensor.enum]
-                    if hasattr(sensor, "enum") and sensor.enum
-                    else None,
-                    "eeprom_sensitive": getattr(sensor, "eeprom_sensitive", False),
-                    "cyclic_change_required": getattr(
-                        sensor, "cyclic_change_required", False
-                    ),
-                }
-                writable_sensors.append(s_info)
+    if heatpump_manager_instance:
+        hp_id = get_default_heatpump_id()
+        conn = heatpump_manager_instance.get_connection(hp_id)
+        if conn:
+            for sensor in conn.sensors:
+                if sensor.is_writable:
+                    s_info = {
+                        "name": sensor.name,
+                        "unit": sensor.unit,
+                        "description": "",
+                        "features": "WRITE",  # Simplified
+                        "min": sensor.min_value,
+                        "max": sensor.max_value,
+                        "enum": list(sensor.enum_values.items())
+                        if sensor.enum_values
+                        else None,
+                    }
+                    writable_sensors.append(s_info)
 
     writable_sensors.sort(key=lambda s: s["name"])
     return jsonify(writable_sensors)
@@ -1998,9 +2016,14 @@ def schedule_page():
                 job = next(
                     (j for j in scheduler_instance.jobs if j["id"] == job_id), None
                 )
-                if job and modbus_client_instance:
+                if job and heatpump_manager_instance:
                     try:
-                        modbus_client_instance.write_sensor(job["sensor"], job["value"])
+                        hp_id = job.get("heatpump_id") or get_default_heatpump_id()
+                        _run_async(
+                            heatpump_manager_instance.write_value(
+                                hp_id, job["sensor"], job["value"]
+                            )
+                        )
                         return jsonify(
                             {
                                 "success": True,
@@ -2019,28 +2042,21 @@ def schedule_page():
     jobs = scheduler_instance.jobs if scheduler_instance else []
 
     writable_sensors = []
-    if modbus_client_instance:
+    if heatpump_manager_instance:
         try:
-            all_sensors = {
-                **modbus_client_instance.sensors,
-                **modbus_client_instance.binary_sensors,
-            }
-            for name, sensor in all_sensors.items():
-                if sensor.supported_features != SensorFeatures.NONE:
-                    s_info = {
-                        "name": sensor.name,
-                        "unit": getattr(sensor, "unit", ""),
-                        "enum": [
-                            {"name": m.name, "value": m.value} for m in sensor.enum
-                        ]
-                        if hasattr(sensor, "enum") and sensor.enum
-                        else None,
-                        "eeprom_sensitive": getattr(sensor, "eeprom_sensitive", False),
-                        "cyclic_change_required": getattr(
-                            sensor, "cyclic_change_required", False
-                        ),
-                    }
-                    writable_sensors.append(s_info)
+            hp_id = get_default_heatpump_id()
+            conn = heatpump_manager_instance.get_connection(hp_id)
+            if conn:
+                for sensor in conn.sensors:
+                    if sensor.is_writable:
+                        s_info = {
+                            "name": sensor.name,
+                            "unit": sensor.unit,
+                            "enum": list(sensor.enum_values.items())
+                            if sensor.enum_values
+                            else None,
+                        }
+                        writable_sensors.append(s_info)
         except Exception as e:
             logger.error(f"Error loading sensors for schedule: {e}")
 
@@ -2645,10 +2661,6 @@ def view_shared_dashboard(token_id):
 # ==================== Multi-Heatpump API ====================
 # These endpoints support managing multiple heat pumps
 
-# Global heatpump_manager instance (set by run_web)
-heatpump_manager_instance = None
-
-
 def _run_async(coro):
     """Run an async coroutine from sync Flask context."""
     try:
@@ -3112,9 +3124,8 @@ def get_heatpump_dashboards(hp_id):
 # ==================== End Multi-Heatpump API ====================
 
 
-def run_web(modbus_client, scheduler, heatpump_manager=None):
-    global modbus_client_instance, scheduler_instance, heatpump_manager_instance
-    modbus_client_instance = modbus_client
+def run_web(heatpump_manager, scheduler):
+    global scheduler_instance, heatpump_manager_instance
     scheduler_instance = scheduler
     heatpump_manager_instance = heatpump_manager
 

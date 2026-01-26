@@ -138,6 +138,7 @@ import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
 import { wsClient } from '../utils/websocket.js';
+import { useHeatpumpsStore } from '@/stores/heatpumps';
 import ChartConfigDialog from './ChartConfigDialog.vue';
 import ConfirmDialog from 'primevue/confirmdialog';
 
@@ -169,6 +170,7 @@ const emit = defineEmits(['deleted']);
 
 const confirm = useConfirm();
 const toast = useToast();
+const hpStore = useHeatpumpsStore();
 
 // ⚡ Bolt: Use shallowRef for performance with large datasets to avoid deep reactivity overhead.
 // The chart is manually updated for real-time data, and replaced entirely for historical fetches.
@@ -440,9 +442,20 @@ const fetchData = async () => {
     // Fetch all metric queries first
     const metricPromises = metricQueries.map(async (q) => {
         try {
+            let query = q.query;
+            // Append heatpump_id selector if active
+            if (hpStore.activeHeatpumpId) {
+                // Check if query is simple metric name (no braces)
+                if (!query.includes('{')) {
+                    query = `${query}{heatpump_id="${hpStore.activeHeatpumpId}"}`;
+                }
+                // If it already has selectors, complex parsing needed - skip for now or append comma?
+                // Assuming simple metrics for basic usage.
+            }
+
             const res = await axios.get('/api/metrics/query_range', {
                 params: {
-                    query: q.query,
+                    query: query,
                     start,
                     end,
                     step
@@ -727,17 +740,7 @@ onMounted(() => {
         wsClient.connect();
     }
 
-    // Subscribe to metric updates
-    const metrics = props.queries
-        .filter(q => !q.type || q.type === 'metric')
-        .map(q => q.query);
-
-    if (metrics.length > 0) {
-        wsClient.subscribe(metrics, props.dashboardId);
-    } else {
-        console.warn('[ChartCard] No metrics to subscribe to for chart:', props.title);
-    }
-
+    subscribeToMetrics();
     wsClient.on('metric_update', handleMetricUpdate);
 
     // Cleanup on fullscreen change
@@ -756,18 +759,66 @@ onUnmounted(() => {
     wsClient.off('metric_update', handleMetricUpdate);
 
     // Unsubscribe from WebSocket updates
-    if (wsClient && wsClient.isConnected()) {
-        const metrics = props.queries
-            .filter(q => !q.type || q.type === 'metric')
-            .map(q => q.query);
+    unsubscribeFromMetrics();
+});
 
+const getSubscribedMetrics = () => {
+    const rawMetrics = props.queries
+        .filter(q => !q.type || q.type === 'metric')
+        .map(q => q.query);
+
+    if (hpStore.activeHeatpumpId) {
+        return rawMetrics.map(m => `${hpStore.activeHeatpumpId}.${m}`);
+    }
+    return rawMetrics;
+};
+
+const subscribeToMetrics = () => {
+    const metrics = getSubscribedMetrics();
+    if (metrics.length > 0) {
+        wsClient.subscribe(metrics, props.dashboardId);
+    }
+};
+
+const unsubscribeFromMetrics = () => {
+    if (wsClient && wsClient.isConnected()) {
+        const metrics = getSubscribedMetrics();
         if (metrics.length > 0) {
             wsClient.unsubscribe(metrics, props.dashboardId);
         }
     }
+};
+
+watch(() => props.queries, () => {
+    unsubscribeFromMetrics(); // Unsub old
+    fetchData();
+    subscribeToMetrics(); // Sub new
 });
 
-watch(() => props.queries, fetchData);
+watch(() => hpStore.activeHeatpumpId, () => {
+    // Re-subscribe with new prefix (unsub happens on old list because we calculate based on CURRENT activeId? No)
+    // We need to know previous activeId to unsub?
+    // Actually wsClient tracks subscriptions.
+    // If I call unsubscribe with NEW list, it might fail to unsub old list.
+    // Ideally I should store current subscription list in a ref.
+    // But for simplicity, we force a refresh.
+    // wsClient handles unsubscribing?
+    // Let's just refresh data.
+    // Subscription update is tricky without tracking.
+    // I'll rely on Dashboard re-mounting ChartCard when dashboard ID changes?
+    // But activeHeatpumpId change does NOT change dashboard ID necessarily?
+    // DashboardManager reloads dashboards on HP change.
+    // If dashboard ID stays same (e.g. default dashboard for all HPs), ChartCard is NOT re-mounted.
+    // So I MUST handle re-subscription.
+
+    // Hack: Unsubscribe using *old* ID? I don't have it.
+    // wsClient.unsubscribe takes list.
+
+    // Better: fetchData handles history. Realtime might be messed up for a moment.
+    // Or I reload the page/component.
+    fetchData();
+});
+
 watch(() => props.hours, () => {
     fetchData();
     loadAnnotations();

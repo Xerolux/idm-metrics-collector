@@ -9,10 +9,12 @@ import json
 import os
 import time
 import ssl
+import asyncio
 from threading import Event
 import paho.mqtt.client as mqtt
 from .config import config
 from .sensor_addresses import SensorFeatures, IdmBinarySensorAddress
+from .migrations import get_default_heatpump_id
 
 logger = logging.getLogger(__name__)
 
@@ -26,20 +28,13 @@ class MQTTPublisher:
         self.running = False
         self.stop_event = Event()
         self.last_publish_time = 0
-        self.sensors = {}
-        self.binary_sensors = {}
-        self.write_callback = None
+        self.heatpump_manager = None
         # Don't setup client during import, wait for explicit start()
         # self._setup_client()
 
-    def set_sensors(self, sensors, binary_sensors=None):
-        """Set available sensors for discovery."""
-        self.sensors = sensors
-        self.binary_sensors = binary_sensors or {}
-
-    def set_write_callback(self, callback):
-        """Set callback for handling write commands."""
-        self.write_callback = callback
+    def set_heatpump_manager(self, manager):
+        """Set heatpump manager for discovery and control."""
+        self.heatpump_manager = manager
 
     def _setup_client(self):
         """Setup MQTT client with authentication and TLS."""
@@ -104,11 +99,16 @@ class MQTTPublisher:
             broker = config.get("mqtt.broker", "")
             logger.info(f"Connected to MQTT broker: {broker}")
 
-            # Subscribe to write commands if discovery is enabled (or just always if we support writes)
-            # Standard topic for writes: [prefix]/[sensor]/set
+            # Subscribe to write commands
+            # Topics:
+            # - Legacy: [prefix]/[sensor]/set
+            # - Multi:  [prefix]/[hp_id]/[sensor]/set
             topic_prefix = config.get("mqtt.topic_prefix", "idm/heatpump")
             client.subscribe(f"{topic_prefix}/+/set")
-            logger.info(f"Subscribed to control topics: {topic_prefix}/+/set")
+            client.subscribe(f"{topic_prefix}/+/+/set")
+            logger.info(
+                f"Subscribed to control topics: {topic_prefix}/+/set, {topic_prefix}/+/+/set"
+            )
 
             # Publish HA Discovery if enabled
             if config.get("mqtt.ha_discovery_enabled", False):
@@ -147,23 +147,46 @@ class MQTTPublisher:
             payload = msg.payload.decode("utf-8")
             logger.info(f"Received MQTT message on {topic}: {payload}")
 
-            if not self.write_callback:
-                logger.warning("No write callback registered, ignoring message")
+            if not self.heatpump_manager:
+                logger.warning("Heatpump manager not set, ignoring message")
                 return
 
-            # Extract sensor name from topic: prefix/sensor_name/set
             topic_prefix = config.get("mqtt.topic_prefix", "idm/heatpump")
             if not topic.startswith(topic_prefix) or not topic.endswith("/set"):
                 return
 
-            # Remove prefix and /set suffix
-            sensor_name = topic[len(topic_prefix) + 1 : -4]
+            # Strip prefix and suffix
+            # Path: [prefix]/.../set
+            path = topic[len(topic_prefix) : -4].strip("/")
+            parts = path.split("/")
+
+            hp_id = None
+            sensor_name = None
+
+            if len(parts) == 1:
+                # Legacy: idm/heatpump/sensor/set
+                sensor_name = parts[0]
+                hp_id = get_default_heatpump_id()
+            elif len(parts) == 2:
+                # Multi: idm/heatpump/hp_id/sensor/set
+                hp_id = parts[0]
+                sensor_name = parts[1]
+            else:
+                logger.warning(f"Invalid topic structure: {topic}")
+                return
+
+            if not hp_id or not sensor_name:
+                return
 
             try:
-                self.write_callback(sensor_name, payload)
-                logger.info(f"Successfully processed write command for {sensor_name}")
+                asyncio.run(
+                    self.heatpump_manager.write_value(hp_id, sensor_name, payload)
+                )
+                logger.info(
+                    f"Successfully processed write command for {hp_id}/{sensor_name}"
+                )
             except Exception as e:
-                logger.error(f"Failed to write sensor {sensor_name}: {e}")
+                logger.error(f"Failed to write sensor {hp_id}/{sensor_name}: {e}")
 
         except Exception as e:
             logger.error(f"Error processing MQTT message: {e}")
@@ -199,181 +222,164 @@ class MQTTPublisher:
 
     def _publish_ha_discovery(self):
         """Publish Home Assistant Auto Discovery configs."""
-        if not self.sensors and not self.binary_sensors:
-            logger.warning("No sensors available for HA Discovery")
+        if not self.heatpump_manager:
+            logger.warning("No HeatpumpManager available for HA Discovery")
             return
 
         ha_prefix = config.get("mqtt.ha_discovery_prefix", "homeassistant")
-        topic_prefix = config.get("mqtt.topic_prefix", "idm/heatpump")
-        node_id = "idm_heatpump"
+        base_topic_prefix = config.get("mqtt.topic_prefix", "idm/heatpump")
 
-        device_info = {
-            "identifiers": [node_id],
-            "name": "IDM Heat Pump",
-            "manufacturer": "IDM",
-            "model": "Navigator 2.0",
-        }
+        status_list = self.heatpump_manager.get_status()
 
         logger.info(f"Publishing HA Discovery messages (prefix: {ha_prefix})...")
 
-        # Combine sensors
-        all_sensors = {**self.sensors, **self.binary_sensors}
+        for hp_status in status_list:
+            hp_id = hp_status["id"]
+            conn = self.heatpump_manager.get_connection(hp_id)
+            if not conn or not conn.enabled:
+                continue
 
-        for name, sensor in all_sensors.items():
-            # Determine component type and features
-            component = "sensor"
+            node_id = f"idm_heatpump_{hp_id.replace('-', '_')}"
+            topic_prefix = f"{base_topic_prefix}/{hp_id}"
 
-            # Base config payload
-            payload = {
-                "name": name.replace("_", " ").title(),
-                "unique_id": f"{node_id}_{name}",
-                "state_topic": f"{topic_prefix}/{name}",
-                "device": device_info,
-                "value_template": "{{ value_json.value }}",
-                "availability_topic": f"{topic_prefix}/state",
-                "availability_template": "{{ 'online' if value_json else 'offline' }}",  # Simple check
+            device_info = {
+                "identifiers": [node_id],
+                "name": conn.name,
+                "manufacturer": conn.manufacturer,
+                "model": conn.model,
             }
 
-            # Add unit if available
-            if hasattr(sensor, "unit") and sensor.unit:
-                payload["unit_of_measurement"] = sensor.unit
-                # Infer device class from unit
-                if sensor.unit == "°C":
-                    payload["device_class"] = "temperature"
-                elif sensor.unit == "kW":
-                    payload["device_class"] = "power"
-                elif sensor.unit == "kWh":
-                    payload["device_class"] = "energy"
-                    payload["state_class"] = "total_increasing"
-                elif sensor.unit == "%":
-                    # Heuristic for humidity vs battery vs other
-                    if "humidity" in name:
-                        payload["device_class"] = "humidity"
-                    elif "battery" in name or "charge" in name:
-                        payload["device_class"] = "battery"
-                    else:
-                        payload["device_class"] = "power_factor"  # generic percent
+            for sensor in conn.sensors:
+                name = sensor.id
+                component = "sensor"
 
-            # Binary Sensors
-            if isinstance(sensor, IdmBinarySensorAddress):
-                component = "binary_sensor"
-                payload["payload_on"] = True
-                payload["payload_off"] = False
-                payload["value_template"] = "{{ value_json.value }}"
-                if "failure" in name or "alarm" in name:
-                    payload["device_class"] = "problem"
+                # Base config payload
+                payload = {
+                    "name": sensor.name,
+                    "unique_id": f"{node_id}_{name}",
+                    "state_topic": f"{topic_prefix}/{name}",
+                    "device": device_info,
+                    "value_template": "{{ value_json.value }}",
+                    "availability_topic": f"{topic_prefix}/state",
+                    "availability_template": "{{ 'online' if value_json else 'offline' }}",
+                }
 
-            # Writable Entities (Controls)
-            if (
-                hasattr(sensor, "supported_features")
-                and sensor.supported_features != SensorFeatures.NONE
-            ):
-                # Decide component based on features/type
+                # Add unit if available
+                if hasattr(sensor, "unit") and sensor.unit:
+                    payload["unit_of_measurement"] = sensor.unit
+                    # Infer device class
+                    if sensor.unit == "°C":
+                        payload["device_class"] = "temperature"
+                    elif sensor.unit == "kW":
+                        payload["device_class"] = "power"
+                    elif sensor.unit == "kWh":
+                        payload["device_class"] = "energy"
+                        payload["state_class"] = "total_increasing"
 
-                # Enums -> Select
-                if hasattr(sensor, "enum") and sensor.enum:
-                    component = "select"
-                    payload["command_topic"] = f"{topic_prefix}/{name}/set"
-                    payload["options"] = [m.name for m in sensor.enum]
-                    payload["value_template"] = (
-                        "{{ value_json.value_str }}"  # Use string representation for select
-                    )
-                    pass
+                # Binary Sensors
+                if sensor.category.value == "binary" or sensor.datatype == "BOOL":
+                    component = "binary_sensor"
+                    payload["payload_on"] = True
+                    payload["payload_off"] = False
 
-                # Numerical -> Number
-                elif (
-                    (sensor.supported_features & SensorFeatures.SET_TEMPERATURE)
-                    or (sensor.supported_features & SensorFeatures.SET_POWER)
-                    or (sensor.supported_features & SensorFeatures.SET_BATTERY)
-                    or (sensor.supported_features & SensorFeatures.SET_HUMIDITY)
-                ):
-                    component = "number"
-                    payload["command_topic"] = f"{topic_prefix}/{name}/set"
-                    if hasattr(sensor, "min_value") and sensor.min_value is not None:
-                        payload["min"] = sensor.min_value
-                    if hasattr(sensor, "max_value") and sensor.max_value is not None:
-                        payload["max"] = sensor.max_value
+                # Writable Entities
+                if sensor.is_writable:
+                    # Enums -> Select
+                    if hasattr(sensor, "enum_values") and sensor.enum_values:
+                        component = "select"
+                        payload["command_topic"] = f"{topic_prefix}/{name}/set"
+                        payload["options"] = list(sensor.enum_values.values())
+                        payload["value_template"] = "{{ value_json.value_str }}"
 
-                    # If sensor is write-only or not readable, set optimistic mode
-                    if not sensor.read_supported:
-                        payload["optimistic"] = True
+                    # Numerical -> Number
+                    elif sensor.datatype in ("FLOAT", "INT16", "UINT16"):
+                        component = "number"
+                        payload["command_topic"] = f"{topic_prefix}/{name}/set"
+                        if sensor.min_value is not None:
+                            payload["min"] = sensor.min_value
+                        if sensor.max_value is not None:
+                            payload["max"] = sensor.max_value
 
-                # Binary -> Switch
-                elif sensor.supported_features & SensorFeatures.SET_BINARY:
-                    component = "switch"
-                    payload["command_topic"] = f"{topic_prefix}/{name}/set"
-                    payload["state_on"] = True
-                    payload["state_off"] = False
-                    payload["payload_on"] = "true"
-                    payload["payload_off"] = "false"
+                    # Binary -> Switch
+                    elif sensor.datatype == "BOOL":
+                        component = "switch"
+                        payload["command_topic"] = f"{topic_prefix}/{name}/set"
+                        payload["state_on"] = True
+                        payload["state_off"] = False
+                        payload["payload_on"] = "true"
+                        payload["payload_off"] = "false"
 
-            # Publish config
-            discovery_topic = f"{ha_prefix}/{component}/{node_id}/{name}/config"
-            self.client.publish(discovery_topic, json.dumps(payload), retain=True)
+                # Publish config
+                discovery_topic = f"{ha_prefix}/{component}/{node_id}/{name}/config"
+                self.client.publish(discovery_topic, json.dumps(payload), retain=True)
 
-        logger.info(f"Published HA Discovery for {len(all_sensors)} entities")
-
-    def publish_data(self, data):
+    def publish_data(self, all_data):
         """
         Publish sensor data to MQTT.
 
         Args:
-            data: Flat dictionary of sensor data from modbus.read_sensors(),
-                  where keys are sensor names and values are readings.
-                  Can include optional keys with "_str" suffix for string representations.
+            all_data: Nested dictionary { hp_id: { sensor: value } }
         """
         if not config.get("mqtt.enabled", False):
             return
 
         if not self.connected:
-            logger.debug("Not connected to MQTT broker, skipping publish")
             return
 
-        topic_prefix = config.get("mqtt.topic_prefix", "idm/heatpump")
+        base_topic_prefix = config.get("mqtt.topic_prefix", "idm/heatpump")
         qos = config.get("mqtt.qos", 1)
+        now = int(time.time())
 
         try:
-            # Publish each sensor value to its own topic
-            for sensor_name, value in data.items():
-                # Skip the string-representation variants of enums
-                if sensor_name.endswith("_str"):
-                    continue
+            default_hp_id = get_default_heatpump_id()
 
-                # Handle legacy nested dictionary format if present
-                if isinstance(value, dict) and "value" in value:
-                    value = value["value"]
+            for hp_id, data in all_data.items():
+                topic_prefix = f"{base_topic_prefix}/{hp_id}"
 
-                # Find the sensor definition to get the unit
-                unit = ""
-                sensor_def = self.sensors.get(sensor_name) or self.binary_sensors.get(
-                    sensor_name
-                )
-                if sensor_def:
-                    unit = getattr(sensor_def, "unit", "")
+                # If this is the default HP, also publish to base prefix (legacy)
+                is_default = (hp_id == default_hp_id)
 
-                # Prepare payload for individual sensor topic
-                payload = {"value": value, "unit": unit, "timestamp": int(time.time())}
+                # Get connection for unit info
+                conn = self.heatpump_manager.get_connection(hp_id) if self.heatpump_manager else None
 
-                # For enums, add the string representation if it exists
-                if f"{sensor_name}_str" in data:
-                    payload["value_str"] = data[f"{sensor_name}_str"]
+                for sensor_name, value in data.items():
+                    if sensor_name.endswith("_str"):
+                        continue
 
-                # Publish to individual topic
-                topic = f"{topic_prefix}/{sensor_name}"
-                result = self.client.publish(
-                    topic, json.dumps(payload), qos=qos, retain=False
-                )
-                if result.rc != mqtt.MQTT_ERR_SUCCESS:
-                    logger.warning(
-                        f"Failed to publish {sensor_name}: {mqtt.error_string(result.rc)}"
+                    unit = ""
+                    if conn:
+                        sensor_def = next((s for s in conn.sensors if s.id == sensor_name), None)
+                        if sensor_def:
+                            unit = sensor_def.unit or ""
+
+                    payload = {"value": value, "unit": unit, "timestamp": now}
+
+                    if f"{sensor_name}_str" in data:
+                        payload["value_str"] = data[f"{sensor_name}_str"]
+
+                    # Publish to idm/heatpump/hp_id/sensor
+                    self.client.publish(
+                        f"{topic_prefix}/{sensor_name}",
+                        json.dumps(payload),
+                        qos=qos,
+                        retain=False
                     )
 
-            # Publish the complete data set to a single 'state' topic
-            state_topic = f"{topic_prefix}/state"
-            self.client.publish(state_topic, json.dumps(data), qos=qos, retain=True)
+                    # Publish to idm/heatpump/sensor (legacy)
+                    if is_default:
+                        self.client.publish(
+                            f"{base_topic_prefix}/{sensor_name}",
+                            json.dumps(payload),
+                            qos=qos,
+                            retain=False
+                        )
 
-            self.last_publish_time = time.time()
-            logger.debug(f"Published {len(data)} values to MQTT")
+                # Publish state
+                self.client.publish(f"{topic_prefix}/state", json.dumps(data), qos=qos, retain=True)
+                if is_default:
+                    self.client.publish(f"{base_topic_prefix}/state", json.dumps(data), qos=qos, retain=True)
+
+            self.last_publish_time = now
 
         except Exception as e:
             logger.error(f"Error publishing to MQTT: {e}", exc_info=True)
