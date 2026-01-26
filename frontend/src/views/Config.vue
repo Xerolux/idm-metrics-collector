@@ -255,6 +255,33 @@
 
                 <TabPanel header="KI-Analyse">
                      <div class="flex flex-col gap-6">
+                        <Fieldset legend="Community Daten & Modell" :toggleable="true">
+                            <div class="flex flex-col gap-4">
+                                <div class="flex flex-col gap-2">
+                                    <label>Wärmepumpen Modell</label>
+                                    <Dropdown v-model="config.heatpump_model" :options="heatpumpModels" placeholder="Maschine auswählen" class="w-full md:w-1/2" />
+                                    <small class="text-gray-400">Notwendig für die korrekte Einordnung der Daten.</small>
+                                </div>
+
+                                <div class="flex items-start gap-3 p-3 bg-purple-900/20 border border-purple-700/50 rounded-md">
+                                     <Checkbox v-model="config.share_data" :binary="true" inputId="shareDataConf" />
+                                     <div class="flex flex-col gap-1">
+                                        <label for="shareDataConf" class="font-bold cursor-pointer">Daten teilen & Zustimmung</label>
+                                        <p class="text-sm text-gray-300 text-justify">
+                                            Hiermit stimme ich zu, dass anonymisierte Daten (unter Ausschluss persönlicher Informationen) an den Betreiber gesendet werden.
+                                            Die Daten gehen in das Eigentum des Betreibers über, der diese zu Trainingszwecken nutzen und kommerziell verwerten darf.
+                                        </p>
+                                     </div>
+                                </div>
+
+                                <div class="flex flex-col gap-2 mt-2">
+                                    <label>Telemetry Authentifizierungs-Token (Optional)</label>
+                                    <InputText v-model="config.telemetry_auth_token" type="password" placeholder="Nur erforderlich für private Server" class="w-full" />
+                                    <small class="text-gray-400">Wird benötigt, wenn der Telemetry-Server eine Authentifizierung erfordert.</small>
+                                </div>
+                            </div>
+                        </Fieldset>
+
                         <Fieldset legend="KI & Anomalieerkennung" :toggleable="true">
                             <template #legend>
                                 <div class="flex items-center gap-2">
@@ -281,6 +308,18 @@
                                              <span class="font-mono">{{ aiStatus.service || 'Unbekannt' }}</span>
                                          </div>
                                          <div class="flex justify-between border-b border-gray-700 py-2">
+                                             <span class="text-gray-400">Modell-Quelle:</span>
+                                             <span class="font-bold font-mono" :class="aiStatus.source.includes('Community') ? 'text-purple-400' : 'text-blue-400'">
+                                                 {{ aiStatus.source || 'Local' }}
+                                             </span>
+                                         </div>
+                                         <div v-if="aiStatus.model_date" class="flex justify-between border-b border-gray-700 py-2">
+                                             <span class="text-gray-400">Modell-Datum:</span>
+                                             <span class="font-mono text-purple-300">
+                                                 {{ new Date(aiStatus.model_date * 1000).toLocaleString() }}
+                                             </span>
+                                         </div>
+                                         <div class="flex justify-between border-b border-gray-700 py-2">
                                              <span class="text-gray-400">Status:</span>
                                              <span class="font-bold" :class="aiStatus.online ? 'text-green-400' : 'text-red-400'">
                                                  {{ aiStatus.online ? 'Online' : 'Offline / Keine Daten' }}
@@ -304,6 +343,10 @@
                                      <div v-else class="text-center py-4 text-gray-500">
                                          <i class="pi pi-spin pi-spinner mr-2"></i> Lade Status...
                                      </div>
+                                 </div>
+
+                                 <div class="flex justify-end">
+                                     <Button label="Jetzt nach Modell-Updates suchen" icon="pi pi-cloud-download" severity="secondary" size="small" @click="triggerModelUpdate" :loading="modelUpdateLoading" />
                                  </div>
                              </div>
                         </Fieldset>
@@ -611,6 +654,7 @@ import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import Dialog from 'primevue/dialog';
 import SelectButton from 'primevue/selectbutton';
+import Dropdown from 'primevue/dropdown';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 
@@ -629,8 +673,29 @@ const config = ref({
     webdav: { enabled: false, url: '', username: '' },
     ai: { enabled: false, sensitivity: 3.0, model: 'rolling' },
     updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all', channel: 'latest' },
-    backup: { enabled: false, interval: 24, retention: 10, auto_upload: false }
+    backup: { enabled: false, interval: 24, retention: 10, auto_upload: false },
+    heatpump_model: '',
+    share_data: true
 });
+
+const heatpumpModels = [
+    'AERO ALM 2-8',
+    'AERO ALM 4-12',
+    'AERO ALM 6-15',
+    'AERO ALM 10-24',
+    'AERO ALM 10-50 MAX',
+    'AERO SLM',
+    'AERO ILM',
+    'TERRA SW',
+    'TERRA ML',
+    'TERRA SW Max',
+    'iPump A',
+    'iPump T',
+    'iPump T7',
+    'iPump T7 ONE',
+    'iPump N5',
+    'Andere / Unbekannt'
+];
 const showPasswordDialog = ref(false);
 const newPassword = ref('');
 const confirmPassword = ref('');
@@ -647,6 +712,7 @@ const signalStatus = ref({});
 const aiStatus = ref(null);
 const statusLoading = ref(false);
 const checkingUpdates = ref(false);
+const modelUpdateLoading = ref(false);
 const currentClientIP = ref('');
 const loading = ref(true);
 const saving = ref(false);
@@ -821,6 +887,18 @@ const loadAiStatus = async () => {
     }
 };
 
+const triggerModelUpdate = async () => {
+    modelUpdateLoading.value = true;
+    try {
+        const res = await axios.post('/api/ai/update_now');
+        toast.add({ severity: 'success', summary: 'Gestartet', detail: res.data.message, life: 3000 });
+    } catch (e) {
+        toast.add({ severity: 'error', summary: 'Fehler', detail: 'Update-Suche konnte nicht gestartet werden', life: 3000 });
+    } finally {
+        modelUpdateLoading.value = false;
+    }
+};
+
 const saveConfig = async () => {
     saving.value = true;
     try {
@@ -871,6 +949,9 @@ const saveConfig = async () => {
             ai_enabled: config.value.ai?.enabled || false,
             ai_sensitivity: config.value.ai?.sensitivity || 3.0,
             ai_model: config.value.ai?.model || 'rolling',
+            heatpump_model: config.value.heatpump_model || '',
+            share_data: config.value.share_data || false,
+            telemetry_auth_token: config.value.telemetry_auth_token || '',
             updates_enabled: config.value.updates?.enabled || false,
             updates_interval_hours: config.value.updates?.interval_hours || 12,
             updates_mode: config.value.updates?.mode || 'apply',

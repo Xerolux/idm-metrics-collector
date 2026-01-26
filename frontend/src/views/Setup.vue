@@ -19,6 +19,11 @@
                             </div>
 
                             <div class="flex flex-col gap-2">
+                                <label>Modell</label>
+                                <Dropdown v-model="form.heatpump_model" :options="heatpumpModels" placeholder="Maschine auswählen" class="w-full" />
+                            </div>
+
+                            <div class="flex flex-col gap-2">
                                 <label class="font-bold">Aktivierte Features</label>
                                 <div class="flex flex-col gap-2 p-2 border border-gray-700 rounded bg-gray-900/50">
                                     <div class="flex items-center gap-2">
@@ -63,6 +68,24 @@
                         </div>
                     </div>
 
+                    <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
+                        <label class="font-bold text-purple-400">Community Daten</label>
+                        <div class="flex items-start gap-3 p-3 bg-purple-900/20 border border-purple-700/50 rounded-md">
+                             <Checkbox v-model="form.share_data" :binary="true" inputId="shareData" />
+                             <div class="flex flex-col gap-1">
+                                <label for="shareData" class="font-bold cursor-pointer">Daten teilen & Zustimmung</label>
+                                <p class="text-sm text-gray-300 text-justify">
+                                    Ich stimme zu, dass anonymisierte Sensordaten meiner Wärmepumpe an den Betreiber dieses Tools gesendet werden.
+                                    Die Daten enthalten <strong>keine persönlichen Informationen</strong> (wie IP-Adresse, Standort oder Passwörter), sondern lediglich eine zufällige Installations-ID und technische Messwerte.
+                                </p>
+                                <p class="text-sm text-gray-300 mt-1 text-justify">
+                                    Ich bestätige, dass die gesendeten Daten in das Eigentum des Tool-Betreibers übergehen. Dieser ist berechtigt, die Daten uneingeschränkt zu nutzen, zu analysieren, für das Training von KI-Modellen zu verwenden und diese (auch kommerziell) zu verwerten oder zu verkaufen.
+                                    Im Gegenzug profitiere ich von verbesserten KI-Modellen zur Fehlererkennung, die auf diesen Gemeinschaftsdaten basieren.
+                                </p>
+                             </div>
+                        </div>
+                    </div>
+
                     <div class="flex justify-end pt-4">
                         <Button label="Einrichtung abschließen" icon="pi pi-check" @click="submitSetup" :loading="loading" />
                     </div>
@@ -85,6 +108,7 @@ import Button from 'primevue/button';
 import Message from 'primevue/message';
 import Toast from 'primevue/toast';
 import Checkbox from 'primevue/checkbox';
+import Dropdown from 'primevue/dropdown';
 import { useToast } from 'primevue/usetoast';
 import AppFooter from '../components/AppFooter.vue';
 
@@ -98,12 +122,38 @@ const form = ref({
     circuits: ['A'],
     zones: [],
     metrics_url: 'http://victoriametrics:8428/write',
-    password: ''
+    password: '',
+    heatpump_model: '',
+    share_data: true
 });
+
+const heatpumpModels = [
+    'AERO ALM 2-8',
+    'AERO ALM 4-12',
+    'AERO ALM 6-15',
+    'AERO ALM 10-24',
+    'AERO ALM 10-50 MAX',
+    'AERO SLM',
+    'AERO ILM',
+    'TERRA SW',
+    'TERRA ML',
+    'TERRA SW Max',
+    'iPump A',
+    'iPump T',
+    'iPump T7',
+    'iPump T7 ONE',
+    'iPump N5',
+    'Andere / Unbekannt'
+];
 
 const submitSetup = async () => {
     if (form.value.password.length < 6) {
         toast.add({ severity: 'warn', summary: 'Ungültig', detail: 'Passwort muss mindestens 6 Zeichen lang sein', life: 3000 });
+        return;
+    }
+
+    if (!form.value.heatpump_model) {
+        toast.add({ severity: 'warn', summary: 'Fehlend', detail: 'Bitte wähle ein Wärmepumpen-Modell aus.', life: 3000 });
         return;
     }
 

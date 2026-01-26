@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import uuid
 from cryptography.fernet import Fernet, InvalidToken
 from werkzeug.security import generate_password_hash, check_password_hash
 from .db import db
@@ -329,6 +330,10 @@ class Config:
             },
             "internal_api_key": None,
             "setup_completed": False,
+            "heatpump_model": "",
+            "share_data": True,
+            "installation_id": str(uuid.uuid4()),
+            "telemetry_auth_token": "",  # Token for the telemetry server
         }
 
         # Auto-complete setup in Docker environment

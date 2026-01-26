@@ -21,6 +21,9 @@ const updateAvailable = ref(false);
 const updateInfo = ref(null);
 const showUpdateBanner = ref(true);
 
+// Migration/Telemetry Warning
+const showMigrationWarning = ref(false);
+
 const editModeIcon = computed(() => (ui.editMode ? 'pi pi-lock-open' : 'pi pi-lock'));
 const editModeSeverity = computed(() => (ui.editMode ? 'success' : 'secondary'));
 
@@ -102,16 +105,24 @@ const logout = async () => {
     router.push('/login');
 }
 
-// Check for updates
-const checkForUpdates = async () => {
+// Check for updates and config state
+const checkSystemState = async () => {
     try {
-        const res = await axios.get('/api/check-update');
-        if (res.data.update_available) {
+        // Check updates
+        const updateRes = await axios.get('/api/check-update');
+        if (updateRes.data.update_available) {
             updateAvailable.value = true;
-            updateInfo.value = res.data;
+            updateInfo.value = updateRes.data;
         }
+
+        // Check Config for Migration (Telemetry active but no model selected)
+        const configRes = await axios.get('/api/config');
+        if (configRes.data.share_data && !configRes.data.heatpump_model) {
+            showMigrationWarning.value = true;
+        }
+
     } catch (e) {
-        console.error('Update check failed:', e);
+        console.error('System state check failed:', e);
     }
 };
 
@@ -149,7 +160,7 @@ onMounted(() => {
     resetTimer();
 
     // Check for updates on app load
-    checkForUpdates();
+    checkSystemState();
 });
 
 onUnmounted(() => {
@@ -185,6 +196,25 @@ onUnmounted(() => {
             <button @click.stop="dismissUpdateBanner" class="p-1 hover:bg-blue-500 rounded transition-colors" title="Ausblenden">
                 <i class="pi pi-times"></i>
             </button>
+        </div>
+
+        <!-- Migration Warning Banner -->
+        <div v-if="showMigrationWarning"
+             class="bg-gradient-to-r from-orange-600 to-orange-700 text-white px-4 py-2 flex items-center justify-between cursor-pointer hover:from-orange-500 hover:to-orange-600 transition-all"
+             @click="router.push('/config')">
+            <div class="flex items-center gap-3">
+                <i class="pi pi-exclamation-triangle text-lg"></i>
+                <span class="font-medium">
+                    Bitte Wärmepumpen-Modell konfigurieren!
+                </span>
+                <span class="text-orange-200 text-sm hidden sm:inline">
+                    Notwendig für KI-Verbesserungen.
+                </span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-bold underline">Einstellungen</span>
+                <i class="pi pi-arrow-right"></i>
+            </div>
         </div>
 
         <Menubar :model="items" breakpoint="1280px" class="rounded-none border-0 border-b !border-gray-700 !bg-gray-800">

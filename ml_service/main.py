@@ -34,6 +34,7 @@ from idm_logger.sensor_addresses import (
     HeatingCircuit,
 )
 from idm_logger.const import HeatPumpStatus
+from .utils.crypto import load_encrypted_model
 
 # Configuration
 METRICS_URL = os.environ.get("METRICS_URL", "http://victoriametrics:8428")
@@ -199,6 +200,30 @@ def save_model_state():
 def load_model_state():
     """Load model state from disk if available."""
     global models, model_trained
+
+    # 1. Check for Community Model (Encrypted)
+    # This takes precedence to ensure we use the better model
+    if os.path.exists(COMMUNITY_MODEL_PATH):
+        try:
+            logger.info(f"Found community model at {COMMUNITY_MODEL_PATH}. Attempting decryption...")
+            # Load and decrypt bytes
+            decrypted_bytes = load_encrypted_model(COMMUNITY_MODEL_PATH)
+
+            # Load from bytes
+            loaded = pickle.loads(decrypted_bytes)
+
+            if isinstance(loaded, dict) and all(k in loaded for k in MODES):
+                models = loaded
+                model_trained = True
+                logger.info("SUCCESS: Community model loaded and decrypted!")
+                return True
+            else:
+                logger.warning("Community model structure invalid. Falling back to local.")
+        except Exception as e:
+            logger.error(f"Failed to load community model: {e}")
+            # Fallback to local model
+
+    # 2. Check for Local Model
     try:
         if os.path.exists(MODEL_PATH):
             if USE_JOBLIB:
@@ -209,7 +234,7 @@ def load_model_state():
 
             if isinstance(loaded, dict) and all(k in loaded for k in MODES):
                 models = loaded
-                logger.info(f"Multi-mode model state loaded from {MODEL_PATH}")
+                logger.info(f"Multi-mode local model state loaded from {MODEL_PATH}")
             else:
                 logger.warning(
                     "Legacy model state found (single model). Starting fresh with multi-mode models."

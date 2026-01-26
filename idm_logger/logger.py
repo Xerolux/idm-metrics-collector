@@ -19,6 +19,8 @@ from .update_manager import (
 )
 from .alerts import alert_manager
 from .backup import backup_manager
+from .telemetry import telemetry_manager
+from .model_updater import model_updater
 
 # Get logger instance (configure in main())
 logger = logging.getLogger("idm_logger")
@@ -208,6 +210,18 @@ def main():
         web_module.modbus_client_instance = modbus
         web_module.scheduler_instance = scheduler
 
+    # Start Telemetry Manager
+    try:
+        telemetry_manager.start()
+    except Exception as e:
+        logger.error(f"Failed to start Telemetry Manager: {e}")
+
+    # Start Model Updater
+    try:
+        model_updater.start()
+    except Exception as e:
+        logger.error(f"Failed to start Model Updater: {e}")
+
     logger.info("Entering main loop...")
 
     try:
@@ -229,6 +243,9 @@ def main():
                 if data:
                     # Update Web UI
                     update_current_data(data)
+
+                    # Send Telemetry
+                    telemetry_manager.submit_data(data)
 
                     # Check Alerts
                     alert_manager.check_alerts(data)
@@ -260,6 +277,8 @@ def main():
     except Exception as e:
         logger.error(f"Main loop error: {e}")
     finally:
+        model_updater.stop()
+        telemetry_manager.stop()
         if scheduler and config.get("web.write_enabled"):
             scheduler.stop()
         if mqtt:

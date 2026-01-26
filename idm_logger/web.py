@@ -38,6 +38,7 @@ from .variables import VariableManager
 from .expression_parser import ExpressionParser
 from .websocket_handler import websocket_handler
 from .sharing import SharingManager
+from .model_updater import model_updater
 from shutil import which
 import threading
 import logging
@@ -254,6 +255,7 @@ def _update_ai_status_once():
             "is_anomaly": False,
             "last_update": None,
             "error": None,
+            "source": "local" # Default
         }
 
         if response.status_code == 200:
@@ -271,6 +273,20 @@ def _update_ai_status_once():
                         new_status["online"] = True
                     elif "idm_anomaly_flag" in name:
                         new_status["is_anomaly"] = float(val) > 0.5
+
+        # Check model source file existence (indirect check)
+        # Ideally ML service would report this via metrics, but we can check file system if shared
+        # Or add it to health check.
+        # For now, let's assume if file exists in DATA_DIR, it's used (since ML service prefers it)
+        import os
+        DATA_DIR = os.environ.get("DATA_DIR", ".")
+        model_path = os.path.join(DATA_DIR, "community_model.enc")
+        if os.path.exists(model_path):
+            new_status["source"] = "Community Model (Encrypted)"
+            new_status["model_date"] = os.path.getmtime(model_path)
+        else:
+            new_status["source"] = "Local Training"
+
         else:
             new_status["error"] = f"VictoriaMetrics error: {response.status_code}"
 
@@ -478,6 +494,7 @@ _SENSITIVE_CONFIG_KEYS = frozenset(
         "bot_token",
         "webhook_url",
         "internal_api_key",
+        "telemetry_auth_token",
     }
 )
 
@@ -547,6 +564,15 @@ def setup():
         if "metrics" not in config.data:
             config.data["metrics"] = {}
         config.data["metrics"]["url"] = data.get("metrics_url")
+
+        if "heatpump_model" in data:
+            config.data["heatpump_model"] = data.get("heatpump_model")
+
+        if "share_data" in data:
+            config.data["share_data"] = bool(data.get("share_data"))
+
+        if "telemetry_auth_token" in data:
+            config.data["telemetry_auth_token"] = data.get("telemetry_auth_token")
 
         password = data.get("password")
         if not password or len(password) < 6:
@@ -881,6 +907,20 @@ def get_ai_status():
     with _ai_status_lock:
         status = _ai_status_cache.copy()
     return jsonify(status)
+
+
+@app.route("/api/ai/update_now", methods=["POST"])
+@login_required
+def trigger_ai_update():
+    """
+    Manually trigger a check for community model updates.
+    """
+    try:
+        model_updater.trigger_check()
+        return jsonify({"success": True, "message": "Suche nach Updates im Hintergrund gestartet."})
+    except Exception as e:
+        logger.error(f"Failed to trigger model update: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/metrics/query_range", methods=["GET"])
@@ -1645,6 +1685,14 @@ def config_page():
                             {"error": f"Ungültiger Blacklist-Eintrag: {entry}"}
                         ), 400
                 config.data["network_security"]["blacklist"] = validated_blacklist
+
+            # Data Sharing
+            if "heatpump_model" in data:
+                config.data["heatpump_model"] = data["heatpump_model"]
+            if "share_data" in data:
+                config.data["share_data"] = bool(data["share_data"])
+            if "telemetry_auth_token" in data:
+                config.data["telemetry_auth_token"] = data["telemetry_auth_token"]
 
             new_pass = data.get("new_password")
             if new_pass:
