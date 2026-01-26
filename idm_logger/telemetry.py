@@ -23,7 +23,8 @@ class TelemetryManager:
         self._buffer = []
         self._lock = threading.Lock()
         self._last_send = 0
-        self._send_interval = 300  # Send every 5 minutes to avoid spamming
+        self._send_interval = 86400  # Send every 24 hours (daily)
+        self._max_buffer_size = 2000  # Force send if buffer gets too big
         self._worker_thread = None
         self._running = False
 
@@ -69,7 +70,20 @@ class TelemetryManager:
                 continue
 
             now = time.time()
+            should_send = False
+
+            with self._lock:
+                buffer_size = len(self._buffer)
+
             if now - self._last_send >= self._send_interval:
+                should_send = True
+            elif buffer_size >= self._max_buffer_size:
+                logger.info(
+                    f"Telemetry buffer full ({buffer_size} items), forcing flush"
+                )
+                should_send = True
+
+            if should_send:
                 self._flush_buffer()
 
     def _flush_buffer(self):

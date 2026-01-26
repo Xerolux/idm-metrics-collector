@@ -52,7 +52,7 @@ Das IDM Metrics Collector Projekt hat nun die **vollständige Feature-Parität z
 
 **Files**:
 - `frontend/src/components/BarCard.vue` - Component ✅
-- `frontend/src/utils/chartTypes.js` - Chart Type Registry (TODO)
+- `frontend/src/utils/chartTypes.js` - Chart Type Registry ✅
 
 ---
 
@@ -209,7 +209,7 @@ Das IDM Metrics Collector Projekt hat nun die **vollständige Feature-Parität z
 **Files**:
 - `idm_logger/sharing.py` - Share Tokens ✅
 - `idm_logger/web.py` - Share Endpoints ✅
-- `frontend/src/views/SharedDashboard.vue` - View Mode (TODO)
+- `frontend/src/views/SharedDashboard.vue` - View Mode ✅
 
 ---
 
