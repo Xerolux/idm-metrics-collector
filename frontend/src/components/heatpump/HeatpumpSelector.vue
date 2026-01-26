@@ -1,6 +1,6 @@
 <template>
     <div class="flex items-center gap-2">
-        <Dropdown v-model="selectedId" :options="heatpumps" optionLabel="name" optionValue="id"
+        <Select v-model="selectedId" :options="heatpumps" optionLabel="name" optionValue="id"
                   placeholder="Wärmepumpe wählen" class="w-48 md:w-64"
                   @change="onChange">
             <template #value="slotProps">
@@ -17,7 +17,7 @@
                     <span v-else class="text-green-400 text-xs ml-2">●</span>
                 </div>
             </template>
-        </Dropdown>
+        </Select>
         <Button icon="pi pi-plus" text rounded @click="$emit('add')" />
     </div>
 </template>
@@ -25,7 +25,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useHeatpumpsStore } from '@/stores/heatpumps'
-import Dropdown from 'primevue/dropdown'
+import Select from 'primevue/select'
 import Button from 'primevue/button'
 
 const store = useHeatpumpsStore()

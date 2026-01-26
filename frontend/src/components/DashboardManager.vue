@@ -16,9 +16,15 @@
         <!-- Top Bar -->
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0">
             <div class="flex flex-wrap items-center gap-2 flex-grow w-full sm:w-auto">
+                <!-- Heatpump Selector -->
+                <HeatpumpSelector
+                    v-model:show-setup="showHeatpumpSetup"
+                    @added="onHeatpumpAdded"
+                />
+
                 <Select
                     v-model="currentDashboardId"
-                    :options="dashboards"
+                    :options="filteredDashboards"
                     optionLabel="name"
                     optionValue="id"
                     class="w-full sm:w-64"
@@ -242,6 +248,9 @@
             :style="{ width: '90vw', maxWidth: '600px' }"
         >
             <div class="space-y-4">
+                <div v-if="activeHeatpumpId" class="bg-blue-50 p-2 rounded text-sm text-blue-700">
+                    Chart wird für Wärmepumpe <strong>{{ activeHeatpumpId }}</strong> erstellt.
+                </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Chart-Typ</label>
                     <Select
@@ -313,6 +322,11 @@
         </Dialog>
 
         <ChartTemplateDialog v-model="showTemplateDialog" @apply="applyTemplate" />
+
+        <HeatpumpSetup
+            v-model="showHeatpumpSetup"
+            @added="onHeatpumpAdded"
+        />
 
         <ExportDialog
             v-model="showExportDialog"

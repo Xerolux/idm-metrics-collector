@@ -688,9 +688,17 @@ const handleMetricUpdate = (data) => {
     const processPoint = (point) => {
         if (!point || !point.metric) return;
 
-        const metric = point.metric;
+        let metric = point.metric;
         const value = point.value;
         const timestamp = point.timestamp * 1000; // Convert to milliseconds
+
+        // Strip heatpump prefix if active
+        if (hpStore.activeHeatpumpId) {
+            const prefix = `${hpStore.activeHeatpumpId}.`;
+            if (metric.startsWith(prefix)) {
+                metric = metric.substring(prefix.length);
+            }
+        }
 
         // Find dataset that corresponds to this metric
         const dataset = chartData.value.datasets.find(ds => ds._query === metric);
