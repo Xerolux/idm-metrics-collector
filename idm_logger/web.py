@@ -39,7 +39,10 @@ from .expression_parser import ExpressionParser
 from .websocket_handler import websocket_handler
 from .sharing import SharingManager
 from .model_updater import model_updater
+from .manufacturers import ManufacturerRegistry
+from .migrations import run_migration, get_default_heatpump_id
 from shutil import which
+import asyncio
 import threading
 import logging
 import requests
@@ -2639,10 +2642,484 @@ def view_shared_dashboard(token_id):
         return "Error loading shared dashboard", 500
 
 
-def run_web(modbus_client, scheduler):
-    global modbus_client_instance, scheduler_instance
+# ==================== Multi-Heatpump API ====================
+# These endpoints support managing multiple heat pumps
+
+# Global heatpump_manager instance (set by run_web)
+heatpump_manager_instance = None
+
+
+def _run_async(coro):
+    """Run an async coroutine from sync Flask context."""
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop.run_until_complete(coro)
+
+
+@app.route("/api/heatpumps", methods=["GET"])
+@login_required
+def list_heatpumps():
+    """
+    List all configured heat pumps.
+    ---
+    tags:
+      - Heatpumps
+    responses:
+      200:
+        description: List of heat pumps with status
+    """
+    from .db import db
+
+    heatpumps = db.get_heatpumps()
+
+    # Add connection status if manager is available
+    if heatpump_manager_instance:
+        status_map = {s["id"]: s for s in heatpump_manager_instance.get_status()}
+        for hp in heatpumps:
+            if hp["id"] in status_map:
+                hp.update({
+                    "connected": status_map[hp["id"]].get("connected", False),
+                    "error_count": status_map[hp["id"]].get("error_count", 0),
+                    "last_error": status_map[hp["id"]].get("last_error"),
+                })
+            else:
+                hp["connected"] = False
+
+    return jsonify(heatpumps)
+
+
+@app.route("/api/heatpumps", methods=["POST"])
+@login_required
+def add_heatpump():
+    """
+    Add a new heat pump.
+    ---
+    tags:
+      - Heatpumps
+    parameters:
+      - in: body
+        name: body
+        schema:
+          type: object
+          required:
+            - name
+            - manufacturer
+            - model
+            - connection
+          properties:
+            name:
+              type: string
+            manufacturer:
+              type: string
+            model:
+              type: string
+            connection:
+              type: object
+            config:
+              type: object
+    responses:
+      201:
+        description: Heat pump created
+      400:
+        description: Invalid request
+    """
+    data = request.get_json()
+
+    # Validate required fields
+    required = ["name", "manufacturer", "model", "connection"]
+    missing = [f for f in required if f not in data]
+    if missing:
+        return jsonify({"error": f"Fehlende Felder: {', '.join(missing)}"}), 400
+
+    # Validate connection
+    conn = data.get("connection", {})
+    if not conn.get("host"):
+        return jsonify({"error": "Host ist erforderlich"}), 400
+
+    valid, err = _validate_host(conn["host"])
+    if not valid:
+        return jsonify({"error": err}), 400
+
+    # Validate manufacturer/model
+    if not ManufacturerRegistry.is_supported(data["manufacturer"], data["model"]):
+        return jsonify({
+            "error": f"Nicht unterstützt: {data['manufacturer']}/{data['model']}"
+        }), 400
+
+    try:
+        if heatpump_manager_instance:
+            hp_id = _run_async(heatpump_manager_instance.add_heatpump(data))
+        else:
+            # Fallback to direct DB insert
+            from .db import db
+            hp_id = db.add_heatpump({
+                "name": data["name"],
+                "manufacturer": data["manufacturer"],
+                "model": data["model"],
+                "connection_config": data.get("connection", {}),
+                "device_config": data.get("config", {}),
+                "enabled": data.get("enabled", True),
+            })
+
+        return jsonify({"id": hp_id, "message": "Wärmepumpe hinzugefügt"}), 201
+
+    except Exception as e:
+        logger.error(f"Failed to add heatpump: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/heatpumps/<hp_id>", methods=["GET"])
+@login_required
+def get_heatpump(hp_id):
+    """
+    Get details of a specific heat pump.
+    ---
+    tags:
+      - Heatpumps
+    parameters:
+      - name: hp_id
+        in: path
+        type: string
+        required: true
+    responses:
+      200:
+        description: Heat pump details
+      404:
+        description: Not found
+    """
+    from .db import db
+
+    hp = db.get_heatpump(hp_id)
+    if not hp:
+        return jsonify({"error": "Nicht gefunden"}), 404
+
+    # Add capabilities
+    driver = ManufacturerRegistry.get_driver(hp["manufacturer"], hp["model"])
+    if driver:
+        hp["capabilities"] = driver.get_capabilities().to_dict()
+        hp["setup_instructions"] = driver.get_setup_instructions()
+
+    # Add connection status
+    if heatpump_manager_instance:
+        info = heatpump_manager_instance.get_heatpump_info(hp_id)
+        if info:
+            hp["connected"] = info.get("connected", False)
+            hp["sensors"] = info.get("sensors", [])
+            hp["last_values"] = info.get("last_values", {})
+
+    return jsonify(hp)
+
+
+@app.route("/api/heatpumps/<hp_id>", methods=["PUT"])
+@login_required
+def update_heatpump(hp_id):
+    """
+    Update a heat pump configuration.
+    ---
+    tags:
+      - Heatpumps
+    """
+    from .db import db
+
+    data = request.get_json()
+
+    # Validate connection if provided
+    if "connection" in data or "connection_config" in data:
+        conn = data.get("connection") or data.get("connection_config", {})
+        if conn.get("host"):
+            valid, err = _validate_host(conn["host"])
+            if not valid:
+                return jsonify({"error": err}), 400
+
+    try:
+        # Normalize field names
+        update_fields = {}
+        if "name" in data:
+            update_fields["name"] = data["name"]
+        if "connection" in data:
+            update_fields["connection_config"] = data["connection"]
+        if "connection_config" in data:
+            update_fields["connection_config"] = data["connection_config"]
+        if "config" in data:
+            update_fields["device_config"] = data["config"]
+        if "device_config" in data:
+            update_fields["device_config"] = data["device_config"]
+        if "enabled" in data:
+            update_fields["enabled"] = data["enabled"]
+
+        db.update_heatpump(hp_id, update_fields)
+
+        # Reconnect if connection changed
+        if heatpump_manager_instance and ("connection_config" in update_fields or "device_config" in update_fields):
+            _run_async(heatpump_manager_instance.reconnect(hp_id))
+
+        return jsonify({"message": "Aktualisiert"})
+
+    except Exception as e:
+        logger.error(f"Failed to update heatpump {hp_id}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/heatpumps/<hp_id>", methods=["DELETE"])
+@login_required
+def delete_heatpump(hp_id):
+    """
+    Delete a heat pump.
+    ---
+    tags:
+      - Heatpumps
+    """
+    try:
+        if heatpump_manager_instance:
+            _run_async(heatpump_manager_instance.remove_heatpump(hp_id))
+        else:
+            from .db import db
+            db.delete_heatpump(hp_id)
+
+        return jsonify({"message": "Wärmepumpe entfernt"})
+
+    except Exception as e:
+        logger.error(f"Failed to delete heatpump {hp_id}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/heatpumps/<hp_id>/test", methods=["POST"])
+@login_required
+def test_heatpump_connection(hp_id):
+    """
+    Test connection to a heat pump.
+    ---
+    tags:
+      - Heatpumps
+    """
+    from .db import db
+    from pymodbus.client import ModbusTcpClient
+
+    hp = db.get_heatpump(hp_id)
+    if not hp:
+        return jsonify({"error": "Nicht gefunden"}), 404
+
+    conn = hp.get("connection_config", {})
+    host = conn.get("host")
+    port = conn.get("port", 502)
+
+    if not host:
+        return jsonify({"success": False, "message": "Kein Host konfiguriert"})
+
+    try:
+        client = ModbusTcpClient(host=host, port=port, timeout=5)
+        connected = client.connect()
+
+        if connected:
+            # Try to read a test register
+            result = client.read_holding_registers(1000, count=2, slave=1)
+            client.close()
+
+            if result.isError():
+                return jsonify({
+                    "success": False,
+                    "message": f"Verbunden, aber Lesefehler: {result}"
+                })
+
+            return jsonify({
+                "success": True,
+                "message": f"Erfolgreich verbunden mit {host}:{port}"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"Verbindung zu {host}:{port} fehlgeschlagen"
+            })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Verbindungsfehler: {str(e)}"
+        })
+
+
+@app.route("/api/heatpumps/<hp_id>/enable", methods=["POST"])
+@login_required
+def enable_heatpump(hp_id):
+    """
+    Enable or disable a heat pump.
+    ---
+    tags:
+      - Heatpumps
+    """
+    data = request.get_json() or {}
+    enabled = data.get("enabled", True)
+
+    try:
+        if heatpump_manager_instance:
+            _run_async(heatpump_manager_instance.enable_heatpump(hp_id, enabled))
+        else:
+            from .db import db
+            db.update_heatpump(hp_id, {"enabled": enabled})
+
+        status = "aktiviert" if enabled else "deaktiviert"
+        return jsonify({"message": f"Wärmepumpe {status}"})
+
+    except Exception as e:
+        logger.error(f"Failed to enable/disable heatpump {hp_id}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ==================== Manufacturer API ====================
+
+@app.route("/api/manufacturers", methods=["GET"])
+def list_manufacturers():
+    """
+    List all supported manufacturers and models.
+    ---
+    tags:
+      - Manufacturers
+    responses:
+      200:
+        description: List of manufacturers with their models
+    """
+    return jsonify(ManufacturerRegistry.list_manufacturers())
+
+
+@app.route("/api/manufacturers/<mfr>/models/<model>/setup", methods=["GET"])
+def get_model_setup(mfr, model):
+    """
+    Get setup instructions for a specific model.
+    ---
+    tags:
+      - Manufacturers
+    """
+    driver = ManufacturerRegistry.get_driver(mfr, model)
+    if not driver:
+        return jsonify({"error": "Nicht gefunden"}), 404
+
+    return jsonify({
+        "manufacturer": mfr,
+        "model": model,
+        "display_name": driver.DISPLAY_NAME,
+        "protocol": driver.PROTOCOL,
+        "default_port": driver.DEFAULT_PORT,
+        "capabilities": driver.get_capabilities().to_dict(),
+        "instructions": driver.get_setup_instructions(),
+        "dashboard_template": driver.get_dashboard_template(),
+    })
+
+
+# ==================== Multi-Device Data API ====================
+
+@app.route("/api/data/all", methods=["GET"])
+def get_all_heatpump_data():
+    """
+    Get current data from all heat pumps.
+    ---
+    tags:
+      - Data
+    responses:
+      200:
+        description: Data from all heat pumps
+    """
+    if not heatpump_manager_instance:
+        return jsonify({"error": "HeatpumpManager nicht initialisiert"}), 503
+
+    try:
+        data = _run_async(heatpump_manager_instance.read_all())
+        return jsonify(data)
+    except Exception as e:
+        logger.error(f"Failed to read all heatpumps: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/data/<hp_id>", methods=["GET"])
+def get_heatpump_data(hp_id):
+    """
+    Get current data from a specific heat pump.
+    ---
+    tags:
+      - Data
+    """
+    if not heatpump_manager_instance:
+        return jsonify({"error": "HeatpumpManager nicht initialisiert"}), 503
+
+    try:
+        data = _run_async(heatpump_manager_instance.read_heatpump(hp_id))
+        return jsonify(data)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logger.error(f"Failed to read heatpump {hp_id}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/control/<hp_id>", methods=["POST"])
+@login_required
+def control_heatpump(hp_id):
+    """
+    Write a value to a heat pump sensor.
+    ---
+    tags:
+      - Control
+    """
+    if not config.get("web.write_enabled", False):
+        return jsonify({"error": "Schreibzugriff ist deaktiviert"}), 403
+
+    data = request.get_json()
+    sensor = data.get("sensor")
+    value = data.get("value")
+
+    if not sensor:
+        return jsonify({"error": "Sensor fehlt"}), 400
+
+    if value is None:
+        return jsonify({"error": "Wert fehlt"}), 400
+
+    try:
+        if heatpump_manager_instance:
+            success = _run_async(
+                heatpump_manager_instance.write_value(hp_id, sensor, value)
+            )
+            if success:
+                return jsonify({"message": f"{sensor} auf {value} gesetzt"})
+            else:
+                return jsonify({"error": "Schreibfehler"}), 500
+        else:
+            return jsonify({"error": "HeatpumpManager nicht initialisiert"}), 503
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Failed to write to {hp_id}/{sensor}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ==================== Multi-Device Dashboard API ====================
+
+@app.route("/api/dashboards/heatpump/<hp_id>", methods=["GET"])
+def get_heatpump_dashboards(hp_id):
+    """
+    Get all dashboards for a specific heat pump.
+    ---
+    tags:
+      - Dashboards
+    """
+    from .db import db
+    dashboards = db.get_dashboards(heatpump_id=hp_id)
+    return jsonify(dashboards)
+
+
+# ==================== End Multi-Heatpump API ====================
+
+
+def run_web(modbus_client, scheduler, heatpump_manager=None):
+    global modbus_client_instance, scheduler_instance, heatpump_manager_instance
     modbus_client_instance = modbus_client
     scheduler_instance = scheduler
+    heatpump_manager_instance = heatpump_manager
+
+    # Run migration on startup
+    run_migration()
 
     # Start background tasks
     _start_ai_status_thread()
