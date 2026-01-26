@@ -42,6 +42,7 @@ import asyncio
 import logging
 import time
 import uuid
+import threading
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
@@ -89,6 +90,7 @@ class HeatpumpConnection:
     error_count: int = 0
     last_error: Optional[str] = None
     _read_groups: Optional[List[ReadGroup]] = field(default=None, repr=False)
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     @property
     def is_connected(self) -> bool:
@@ -116,7 +118,6 @@ class HeatpumpManager:
 
     def __init__(self):
         self._connections: Dict[str, HeatpumpConnection] = {}
-        self._lock = asyncio.Lock()
         self._initialized = False
         self._config_cache: Dict[str, dict] = {}
 
@@ -307,7 +308,7 @@ class HeatpumpManager:
             try:
                 # Read registers for this group
                 raw_registers = await self._read_registers(
-                    conn.client,
+                    conn,
                     group.start_address,
                     group.count
                 )
@@ -331,7 +332,7 @@ class HeatpumpManager:
                 for sensor in group.sensors:
                     try:
                         raw = await self._read_registers(
-                            conn.client,
+                            conn,
                             sensor.address,
                             sensor.size
                         )
@@ -346,7 +347,7 @@ class HeatpumpManager:
 
     async def _read_registers(
         self,
-        client: ModbusTcpClient,
+        conn: HeatpumpConnection,
         address: int,
         count: int
     ) -> Optional[List[int]]:
@@ -354,7 +355,7 @@ class HeatpumpManager:
         Read Modbus registers asynchronously.
 
         Args:
-            client: Modbus client
+            conn: Heatpump connection object
             address: Start address
             count: Number of registers
 
@@ -364,10 +365,11 @@ class HeatpumpManager:
         loop = asyncio.get_event_loop()
 
         def _do_read():
-            result = client.read_holding_registers(address, count=count, slave=1)
-            if result.isError():
-                return None
-            return result.registers
+            with conn._lock:
+                result = conn.client.read_holding_registers(address, count=count, slave=1)
+                if result.isError():
+                    return None
+                return result.registers
 
         try:
             return await loop.run_in_executor(_executor, _do_read)
@@ -436,8 +438,9 @@ class HeatpumpManager:
         loop = asyncio.get_event_loop()
 
         def _do_write():
-            result = conn.client.write_registers(sensor.address, registers, slave=1)
-            return not result.isError()
+            with conn._lock:
+                result = conn.client.write_registers(sensor.address, registers, slave=1)
+                return not result.isError()
 
         try:
             success = await loop.run_in_executor(_executor, _do_write)
