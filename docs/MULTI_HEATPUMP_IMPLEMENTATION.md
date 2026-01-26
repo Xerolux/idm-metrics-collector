@@ -1,6 +1,6 @@
 # Multi-Heatpump Implementation Progress
 
-> **Status**: Phase 1+2 Complete - Core Architecture + API Implemented + Frontend
+> **Status**: Phase 1-5 Complete - Core Architecture + API + Frontend + ML Service
 >
 > Last Updated: 2026-01-26
 
@@ -299,9 +299,25 @@ curl -X POST http://localhost:5000/api/control/hp-001 \
 
 ---
 
+## Completed: ML Service
+
+### 9. ML Service Extensions (DONE)
+
+**File:** `ml_service/main.py`
+
+**Features:**
+- **Multi-Context Architecture:** Maintains separate River anomaly detection models for each heatpump.
+- **Grouped Data Fetching:** Queries VictoriaMetrics for all heatpumps and groups results by `heatpump_id`.
+- **Per-Device Training:** Models learn and score independently for each device.
+- **Labeled Metrics:** ML metrics (score, anomaly flag) are written back with `heatpump_id` labels.
+- **Alert Context:** Anomaly alerts include `heatpump_id` to identify the source.
+- **Persistence:** Model state is saved/loaded preserving the heatpump context mapping.
+
+---
+
 ## Integration
 
-### 9. Logger Integration (DONE)
+### 10. Logger Integration (DONE)
 
 Updated `logger.py` main loop to:
 - Use `HeatpumpManager` instead of `ModbusClient`
@@ -309,7 +325,7 @@ Updated `logger.py` main loop to:
 - Use `metrics.write_all_heatpumps()`
 - Run migration at startup
 
-### 10. Additional Drivers (PENDING)
+### 11. Additional Drivers (PENDING)
 
 - NIBE S-Series (`manufacturers/nibe/s_series.py`)
 - Daikin Altherma (`manufacturers/daikin/altherma.py`)
@@ -341,6 +357,8 @@ idm_logger/
 ├── metrics.py                   # Extended (done)
 ├── web.py                       # API endpoints (done)
 └── logger.py                    # Integration (done)
+ml_service/
+└── main.py                      # Multi-device support (done)
 ```
 
 ---
@@ -382,5 +400,6 @@ The system maintains backwards compatibility:
 2.  **Legacy Metrics**: Metrics for the default heatpump are still published without labels (if needed), or consumers can use `heatpump_id` labels.
 3.  **Legacy API**: `get_data()` returns default heatpump data if no ID specified.
 4.  **Legacy Dashboard**: Settings-based dashboards are migrated to DB.
+5.  **ML Service**: Automatically migrates legacy single-device model state to the first detected heatpump (or 'default').
 
 Migration is automatic and idempotent.
