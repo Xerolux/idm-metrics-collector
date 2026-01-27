@@ -22,7 +22,7 @@ from .alerts import alert_manager
 from .backup import backup_manager
 from .telemetry import telemetry_manager
 from .model_updater import model_updater
-from .migrations import get_default_heatpump_id
+from .migrations import get_default_heatpump_id, run_migration
 
 # Get logger instance (configure in main())
 logger = logging.getLogger("idm_logger")
@@ -169,6 +169,14 @@ def main():
 
     backup_thread = threading.Thread(target=backup_worker, daemon=True)
     backup_thread.start()
+
+    # Run database migrations if needed
+    try:
+        migrated_hp = run_migration()
+        if migrated_hp:
+            logger.info(f"Migration completed, created heatpump: {migrated_hp}")
+    except Exception as e:
+        logger.error(f"Failed to run migrations: {e}", exc_info=True)
 
     # Now initialize the backend components
     try:

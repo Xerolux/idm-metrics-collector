@@ -429,9 +429,20 @@ class MQTTPublisher:
             logger.info("MQTT publishing disabled")
             return
 
+        # Check if broker is configured before attempting to start
+        broker = config.get("mqtt.broker", "")
+        if not broker:
+            logger.warning("MQTT is enabled but no broker configured - not starting")
+            return
+
         # Setup client if not already done
         if not self.client:
             self._setup_client()
+
+        # If client setup failed (e.g., no broker), don't continue
+        if not self.client:
+            logger.warning("MQTT client not initialized - not starting")
+            return
 
         self.running = True
         self.stop_event.clear()
@@ -440,6 +451,7 @@ class MQTTPublisher:
         if self.connect():
             logger.info("MQTT publisher started")
         else:
+            self.running = False
             logger.error("Failed to start MQTT publisher")
 
     def stop(self):

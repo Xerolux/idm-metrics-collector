@@ -1906,6 +1906,21 @@ def config_page():
                 config.set_admin_password(new_pass)
 
             config.save()
+
+            # If IDM host was configured and no heatpumps exist, run migration
+            # to create a heatpump entry from the config
+            if "idm_host" in data and data["idm_host"]:
+                from .db import db as db_instance
+                from .migrations import MIGRATION_KEY
+
+                heatpumps = db_instance.get_heatpumps()
+                if not heatpumps:
+                    # Reset migration flag and run migration
+                    db_instance.set_setting(MIGRATION_KEY, "false")
+                    migrated = run_migration()
+                    if migrated:
+                        logger.info(f"Created heatpump from config: {migrated}")
+
             return jsonify(
                 {
                     "success": True,
