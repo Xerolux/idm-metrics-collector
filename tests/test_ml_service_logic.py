@@ -72,7 +72,7 @@ class TestMLServiceLogic(unittest.TestCase):
 
     def test_job_flow(self):
         # Import HeatpumpContext
-        from ml_service.main import HeatpumpContext, get_context
+        from ml_service.main import HeatpumpContext
 
         with (
             patch.object(self.main, "fetch_latest_data") as mock_fetch,
