@@ -327,11 +327,6 @@
 
         <ChartTemplateDialog v-model="showTemplateDialog" @apply="applyTemplate" />
 
-        <HeatpumpSetup
-            v-model="showHeatpumpSetup"
-            @added="onHeatpumpAdded"
-        />
-
         <ExportDialog
             v-model="showExportDialog"
             :dashboard-name="currentDashboard?.name || 'Dashboard'"
@@ -449,7 +444,6 @@ import TelemetryStatusCard from './TelemetryStatusCard.vue';
 import SensorValues from './SensorValues.vue';
 import OverviewHeader from './OverviewHeader.vue';
 import HeatpumpSelector from './heatpump/HeatpumpSelector.vue';
-import HeatpumpSetup from './heatpump/HeatpumpSetup.vue';
 import Select from 'primevue/select';
 // import MultiSelect from 'primevue/multiselect';
 import Button from 'primevue/button';
@@ -473,7 +467,6 @@ const dashboards = ref([]);
 const currentDashboardId = ref('');
 const editMode = ref(false);
 const showAddChartDialog = ref(false);
-const showHeatpumpSetup = ref(false);
 const showTemplateDialog = ref(false);
 const showExportDialog = ref(false);
 const showAnnotationsDialog = ref(false);
@@ -545,7 +538,6 @@ watch(activeHeatpumpId, (newId) => {
 });
 
 const onHeatpumpAdded = () => {
-    showHeatpumpSetup.value = false;
     hpStore.fetchHeatpumps();
 };
 

@@ -45,7 +45,8 @@ from .websocket_handler import websocket_handler
 from .sharing import SharingManager
 from .model_updater import model_updater
 from .manufacturers import ManufacturerRegistry
-from .migrations import run_migration, get_default_heatpump_id
+from .migrations import run_migration, get_default_heatpump_id, get_legacy_heatpump_id
+from .db import db
 from shutil import which
 import asyncio
 import threading
@@ -1589,6 +1590,44 @@ def config_page():
                         ), 400
                 except ValueError:
                     return jsonify({"error": "Ungültige Portnummer"}), 400
+
+            if "idm_unit_id" in data:
+                try:
+                    uid = int(data["idm_unit_id"])
+                    if 1 <= uid <= 255:
+                        config.data["idm"]["unit_id"] = uid
+                    else:
+                        return jsonify(
+                            {"error": "Unit ID muss zwischen 1 und 255 sein"}
+                        ), 400
+                except ValueError:
+                    return jsonify({"error": "Ungültige Unit ID"}), 400
+
+            # Sync with legacy heatpump in database
+            legacy_hp_id = get_legacy_heatpump_id()
+            if legacy_hp_id:
+                hp = db.get_heatpump(legacy_hp_id)
+                if hp:
+                    conn_config = hp.get("connection_config", {})
+                    updated = False
+                    if "idm_host" in data:
+                        conn_config["host"] = config.data["idm"]["host"]
+                        updated = True
+                    if "idm_port" in data:
+                        conn_config["port"] = config.data["idm"]["port"]
+                        updated = True
+                    if "idm_unit_id" in data:
+                        conn_config["unit_id"] = config.data["idm"].get("unit_id", 1)
+                        updated = True
+
+                    if updated:
+                        db.update_heatpump(
+                            legacy_hp_id, {"connection_config": conn_config}
+                        )
+                        if heatpump_manager_instance:
+                            _run_async(
+                                heatpump_manager_instance.reconnect(legacy_hp_id)
+                            )
 
             if "circuits" in data:
                 config.data["idm"]["circuits"] = data["circuits"]
