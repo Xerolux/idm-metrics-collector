@@ -100,19 +100,6 @@
 
 ### Priorität: HOCH
 
-#### 1. Model-Training Pipeline automatisieren
-**Datei:** `telemetry_server/scripts/train_model.py`
-
-Aktuell muss das Training manuell ausgeführt werden:
-```bash
-python train_model.py --model "AERO_SLM" --output model.pkl
-```
-
-**TODO:**
-- [ ] Cron-Job oder Scheduled Task für automatisches Training
-- [ ] GitHub Action für nächtliches Training wenn genug Daten
-- [ ] Benachrichtigung an Admin wenn neues Model verfügbar
-
 ---
 
 ### Priorität: MITTEL
@@ -227,11 +214,6 @@ idm_logger/manufacturers/
 **Datei:** `idm_logger/telemetry.py`
 - Bei Netzwerkfehlern gehen Daten verloren
 - TODO: Lokale Persistenz für fehlgeschlagene Sends
-
-### 2. Fehlende Input-Validierung
-**Datei:** `telemetry_server/app.py`
-- `installation_id` wird nicht auf gültiges UUID-Format geprüft (Behoben)
-- `model` Parameter könnte Path-Traversal-Angriffe ermöglichen (Behoben)
 
 ---
 
