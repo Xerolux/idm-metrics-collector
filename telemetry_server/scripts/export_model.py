@@ -32,7 +32,7 @@ def export_model(input_file, output_dir):
     encrypted_data = f.encrypt(file_data)
 
     # Prepare payload
-    payload_b64 = base64.b64encode(encrypted_data).decode('utf-8')
+    payload_b64 = base64.b64encode(encrypted_data).decode("utf-8")
 
     # Create metadata
     metadata = {
@@ -42,16 +42,12 @@ def export_model(input_file, output_dir):
     }
 
     # Create structure for signing
-    envelope = {
-        "version": "2.0",
-        "metadata": metadata,
-        "payload": payload_b64
-    }
+    envelope = {"version": "2.0", "metadata": metadata, "payload": payload_b64}
 
     # Sign payload AND metadata
     # Format: payload_b64 + "." + canonical_json(metadata)
     metadata_json = json.dumps(metadata, sort_keys=True)
-    msg = f"{payload_b64}.{metadata_json}".encode('utf-8')
+    msg = f"{payload_b64}.{metadata_json}".encode("utf-8")
 
     signature = hmac.new(key, msg, hashlib.sha256).hexdigest()
 

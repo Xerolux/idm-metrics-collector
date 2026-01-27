@@ -1,7 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
-import json
-import time
+from unittest.mock import patch
 
 # Mock config before importing web
 with patch("idm_logger.config.Config") as MockConfig:

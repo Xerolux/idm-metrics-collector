@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 import json
 import sys
 import os
-import time
 
 # Add repo root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -12,8 +11,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 class TestAnnotations(unittest.TestCase):
     def setUp(self):
         # Ensure cryptography is loaded
-        import cryptography
-        import cryptography.fernet
 
         # Clean up modules
         for mod in list(sys.modules.keys()):
@@ -36,7 +33,7 @@ class TestAnnotations(unittest.TestCase):
 
         # Import config with json.loads patched
         with patch("json.loads", return_value={}):
-            import idm_logger.config
+            pass
 
         # Patch config instance
         self.config_patcher = patch("idm_logger.config.config")
@@ -80,7 +77,7 @@ class TestAnnotations(unittest.TestCase):
             text="Test Annotation",
             tags=["tag1", "tag2"],
             color="#000000",
-            dashboard_id="dash1"
+            dashboard_id="dash1",
         )
 
         self.assertEqual(ann.time, 1234567890)
@@ -98,7 +95,7 @@ class TestAnnotations(unittest.TestCase):
         self.mock_config.data["annotations"] = [
             {"id": "1", "time": 100, "text": "A1", "dashboard_id": "d1"},
             {"id": "2", "time": 200, "text": "A2", "dashboard_id": "d2"},
-            {"id": "3", "time": 300, "text": "A3", "dashboard_id": None}  # Global
+            {"id": "3", "time": 300, "text": "A3", "dashboard_id": None},  # Global
         ]
 
         # Test get all
@@ -107,7 +104,7 @@ class TestAnnotations(unittest.TestCase):
 
         # Test filter by dashboard
         d1_anns = self.annotation_manager.get_annotations_for_dashboard("d1")
-        self.assertEqual(len(d1_anns), 2) # A1 + A3 (global)
+        self.assertEqual(len(d1_anns), 2)  # A1 + A3 (global)
         ids = [a.id for a in d1_anns]
         self.assertIn("1", ids)
         self.assertIn("3", ids)
@@ -155,13 +152,13 @@ class TestAnnotations(unittest.TestCase):
             "text": "API Test",
             "tags": ["api"],
             "color": "#fff",
-            "dashboard_id": "d1"
+            "dashboard_id": "d1",
         }
 
         response = self.client.post(
             "/api/annotations",
             data=json.dumps(payload),
-            content_type="application/json"
+            content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 201)
@@ -183,7 +180,7 @@ class TestAnnotations(unittest.TestCase):
     def test_api_get_annotations_filtered(self):
         self.mock_config.data["annotations"] = [
             {"id": "1", "time": 100, "text": "A1", "dashboard_id": "d1"},
-            {"id": "2", "time": 200, "text": "A2", "dashboard_id": "d2"}
+            {"id": "2", "time": 200, "text": "A2", "dashboard_id": "d2"},
         ]
 
         response = self.client.get("/api/annotations?dashboard_id=d1")
@@ -193,14 +190,12 @@ class TestAnnotations(unittest.TestCase):
         self.assertEqual(data[0]["id"], "1")
 
     def test_api_update_annotation(self):
-        self.mock_config.data["annotations"] = [
-            {"id": "1", "time": 100, "text": "Old"}
-        ]
+        self.mock_config.data["annotations"] = [{"id": "1", "time": 100, "text": "Old"}]
 
         response = self.client.put(
             "/api/annotations/1",
             data=json.dumps({"text": "New"}),
-            content_type="application/json"
+            content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 200)
@@ -214,6 +209,7 @@ class TestAnnotations(unittest.TestCase):
         response = self.client.delete("/api/annotations/1")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(self.mock_config.data["annotations"]), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

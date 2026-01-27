@@ -59,6 +59,7 @@ class TestWebSocketHandler:
             # But we are using a plain Flask app here.
             # We can set attribute on request?
             from flask import request
+
             request.sid = "test_sid"
 
             # Call the handler

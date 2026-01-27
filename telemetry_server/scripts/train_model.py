@@ -17,7 +17,7 @@ import logging
 import argparse
 import sys
 from datetime import datetime, timedelta
-from typing import Generator, Dict, Any, Optional
+from typing import Generator, Dict, Any
 
 import requests
 from river import anomaly
@@ -48,8 +48,7 @@ TRAINING_FEATURES = [
 ]
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("train_model")
 
@@ -72,28 +71,34 @@ def fetch_data_stats(model_name: str) -> Dict[str, Any]:
         response = requests.get(
             VM_QUERY_URL.replace("query_range", "query"),
             params={"query": query},
-            timeout=10
+            timeout=10,
         )
 
         if response.status_code == 200:
             data = response.json()
             if data.get("status") == "success" and data["data"]["result"]:
-                stats["total_points"] = int(float(data["data"]["result"][0]["value"][1]))
+                stats["total_points"] = int(
+                    float(data["data"]["result"][0]["value"][1])
+                )
 
         # Count installations
         query = f'count(count by (installation_id) (heatpump_metrics{{model="{safe_model}"}}))'
         response = requests.get(
             VM_QUERY_URL.replace("query_range", "query"),
             params={"query": query},
-            timeout=10
+            timeout=10,
         )
 
         if response.status_code == 200:
             data = response.json()
             if data.get("status") == "success" and data["data"]["result"]:
-                stats["installations"] = int(float(data["data"]["result"][0]["value"][1]))
+                stats["installations"] = int(
+                    float(data["data"]["result"][0]["value"][1])
+                )
 
-        logger.info(f"Data stats for {model_name}: {stats['total_points']} points from {stats['installations']} installations")
+        logger.info(
+            f"Data stats for {model_name}: {stats['total_points']} points from {stats['installations']} installations"
+        )
 
     except Exception as e:
         logger.error(f"Error fetching data stats: {e}")
@@ -102,8 +107,7 @@ def fetch_data_stats(model_name: str) -> Dict[str, Any]:
 
 
 def stream_training_data(
-    model_name: str,
-    lookback_days: int = 30
+    model_name: str, lookback_days: int = 30
 ) -> Generator[Dict[str, float], None, None]:
     """
     Stream training data from VictoriaMetrics.
@@ -142,7 +146,9 @@ def stream_training_data(
                 timestamps = series.get("timestamps", [])
 
                 # Extract field name from metric
-                field_name = metric_info.get("__name__", "").replace("heatpump_metrics_", "")
+                field_name = metric_info.get("__name__", "").replace(
+                    "heatpump_metrics_", ""
+                )
 
                 # Skip if not a training feature
                 if field_name not in TRAINING_FEATURES:
@@ -155,7 +161,9 @@ def stream_training_data(
                             "field": field_name,
                             "value": float(val),
                             "timestamp": ts,
-                            "installation_id": metric_info.get("installation_id", "unknown"),
+                            "installation_id": metric_info.get(
+                                "installation_id", "unknown"
+                            ),
                         }
 
             except json.JSONDecodeError:
@@ -166,8 +174,7 @@ def stream_training_data(
 
 
 def aggregate_to_samples(
-    data_stream: Generator[Dict[str, Any], None, None],
-    window_seconds: int = 60
+    data_stream: Generator[Dict[str, Any], None, None], window_seconds: int = 60
 ) -> Generator[Dict[str, float], None, None]:
     """
     Aggregate streaming data points into feature vectors.
@@ -234,12 +241,7 @@ def train_model(
     # HalfSpaceTrees is good for anomaly detection in streaming data
     model = compose.Pipeline(
         preprocessing.MinMaxScaler(),
-        anomaly.HalfSpaceTrees(
-            n_trees=50,
-            height=6,
-            window_size=250,
-            seed=42
-        ),
+        anomaly.HalfSpaceTrees(n_trees=50, height=6, window_size=250, seed=42),
     )
 
     # Training loop
@@ -268,7 +270,9 @@ def train_model(
             if errors <= 10:
                 logger.warning(f"Error processing sample: {e}")
 
-    logger.info(f"Training complete. Processed {samples_processed} samples with {errors} errors.")
+    logger.info(
+        f"Training complete. Processed {samples_processed} samples with {errors} errors."
+    )
 
     if samples_processed < 100:
         logger.error("Too few samples processed. Model may be unreliable.")
@@ -305,37 +309,37 @@ def main():
         "--model",
         type=str,
         required=True,
-        help="Heat pump model name (e.g., 'AERO_SLM', 'Navigator_2.0')"
+        help="Heat pump model name (e.g., 'AERO_SLM', 'Navigator_2.0')",
     )
     parser.add_argument(
         "--output",
         type=str,
         default="model.pkl",
-        help="Output file path (default: model.pkl)"
+        help="Output file path (default: model.pkl)",
     )
     parser.add_argument(
         "--min-points",
         type=int,
         default=DEFAULT_MIN_POINTS,
-        help=f"Minimum data points required (default: {DEFAULT_MIN_POINTS})"
+        help=f"Minimum data points required (default: {DEFAULT_MIN_POINTS})",
     )
     parser.add_argument(
         "--min-installations",
         type=int,
         default=DEFAULT_MIN_INSTALLATIONS,
-        help=f"Minimum installations required (default: {DEFAULT_MIN_INSTALLATIONS})"
+        help=f"Minimum installations required (default: {DEFAULT_MIN_INSTALLATIONS})",
     )
     parser.add_argument(
         "--lookback-days",
         type=int,
         default=30,
-        help="Days of data to use for training (default: 30)"
+        help="Days of data to use for training (default: 30)",
     )
     parser.add_argument(
         "--vm-url",
         type=str,
         default="http://localhost:8428",
-        help="VictoriaMetrics base URL"
+        help="VictoriaMetrics base URL",
     )
 
     args = parser.parse_args()

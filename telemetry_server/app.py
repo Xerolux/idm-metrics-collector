@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Header, Depends, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, validator
 from typing import List, Optional, Dict, Any
 import os
@@ -76,7 +76,10 @@ def validate_installation_id(installation_id: str) -> str:
         uuid.UUID(installation_id)
         return installation_id
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid installation_id format (must be UUID)")
+        raise HTTPException(
+            status_code=400, detail="Invalid installation_id format (must be UUID)"
+        )
+
 
 def validate_model_name(model_name: Optional[str]) -> Optional[str]:
     """Validate model name contains only safe characters."""
@@ -104,20 +107,28 @@ def get_data_pool_stats() -> Dict[str, Any]:
 
     try:
         # Count unique installations (last 30 days)
-        query_installations = 'count(count_over_time(heatpump_metrics{installation_id!=""}[30d]))'
-        response = requests.get(VM_QUERY_URL, params={"query": query_installations}, timeout=5)
+        query_installations = (
+            'count(count_over_time(heatpump_metrics{installation_id!=""}[30d]))'
+        )
+        response = requests.get(
+            VM_QUERY_URL, params={"query": query_installations}, timeout=5
+        )
         if response.status_code == 200:
             data = response.json()
             if data.get("status") == "success" and data["data"]["result"]:
-                stats["total_installations"] = int(data["data"]["result"][0]["value"][1])
+                stats["total_installations"] = int(
+                    data["data"]["result"][0]["value"][1]
+                )
 
         # Count total data points (last 30 days)
-        query_points = 'sum(count_over_time(heatpump_metrics{}[30d]))'
+        query_points = "sum(count_over_time(heatpump_metrics{}[30d]))"
         response = requests.get(VM_QUERY_URL, params={"query": query_points}, timeout=5)
         if response.status_code == 200:
             data = response.json()
             if data.get("status") == "success" and data["data"]["result"]:
-                stats["total_data_points"] = int(float(data["data"]["result"][0]["value"][1]))
+                stats["total_data_points"] = int(
+                    float(data["data"]["result"][0]["value"][1])
+                )
 
         # Check which models are available
         model_dir = Path(MODEL_DIR)
@@ -135,10 +146,16 @@ def get_data_pool_stats() -> Dict[str, Any]:
         # Generate user-friendly messages
         if stats["data_sufficient"]:
             stats["message"] = "Data pool is ready. Community models are available."
-            stats["message_de"] = "Datenpool ist bereit. Community-Modelle sind verfügbar."
+            stats["message_de"] = (
+                "Datenpool ist bereit. Community-Modelle sind verfügbar."
+            )
         else:
-            needed_installations = max(0, MIN_INSTALLATIONS_FOR_MODEL - stats["total_installations"])
-            needed_points = max(0, MIN_DATA_POINTS_FOR_MODEL - stats["total_data_points"])
+            needed_installations = max(
+                0, MIN_INSTALLATIONS_FOR_MODEL - stats["total_installations"]
+            )
+            needed_points = max(
+                0, MIN_DATA_POINTS_FOR_MODEL - stats["total_data_points"]
+            )
             stats["message"] = (
                 f"Building data pool. Need {needed_installations} more installations "
                 f"and ~{needed_points:,} more data points. Data is being collected - thank you for contributing!"
@@ -185,7 +202,7 @@ class TelemetryPayload(BaseModel):
     @validator("heatpump_model")
     def validate_model(cls, v):
         if not re.match(r"^[a-zA-Z0-9_\-\. \(\)]+$", v):
-             raise ValueError("heatpump_model contains invalid characters")
+            raise ValueError("heatpump_model contains invalid characters")
         return v
 
 
@@ -214,7 +231,9 @@ async def submit_telemetry(
     # Rate limiting
     if not check_rate_limit(raw_ip):
         logger.warning(f"Rate limit exceeded for {client_ip}")
-        raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
+        raise HTTPException(
+            status_code=429, detail="Too many requests. Please try again later."
+        )
     try:
         lines = []
 
@@ -515,11 +534,10 @@ async def list_available_models(auth: None = Depends(verify_token)):
         "model_dir": str(model_dir),
     }
 
+
 @app.get("/api/v1/community/averages")
 async def community_averages(
-    model: str,
-    metrics: Optional[str] = None,
-    auth: None = Depends(verify_token)
+    model: str, metrics: Optional[str] = None, auth: None = Depends(verify_token)
 ):
     """
     Get aggregated community statistics.

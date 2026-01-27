@@ -1,5 +1,6 @@
-from playwright.sync_api import sync_playwright, expect
+from playwright.sync_api import sync_playwright
 import json
+
 
 def verify_i18n(page):
     # Log console messages
@@ -23,50 +24,66 @@ def verify_i18n(page):
         "backup": {"enabled": False},
         "heatpump_model": "",
         "share_data": True,
-        "telemetry_auth_token": ""
+        "telemetry_auth_token": "",
     }
 
     # Mock API responses
-    page.route("**/api/auth/check", lambda route: route.fulfill(
-        status=200,
-        content_type="application/json",
-        body='{"authenticated": true}'
-    ))
-    page.route("**/api/config", lambda route: route.fulfill(
-        status=200,
-        content_type="application/json",
-        body=json.dumps(full_config)
-    ))
-    page.route("**/api/health", lambda route: route.fulfill(
-        status=200,
-        content_type="application/json",
-        body='{"client_ip": "127.0.0.1", "status": "ok"}'
-    ))
-    page.route("**/api/backup/list", lambda route: route.fulfill(
-        status=200,
-        content_type="application/json",
-        body='{"backups": []}'
-    ))
-    page.route("**/api/check-update**", lambda route: route.fulfill(
-        status=200,
-        content_type="application/json",
-        body='{"update_available": false}'
-    ))
-    page.route("**/api/signal/status", lambda route: route.fulfill(
-        status=200,
-        content_type="application/json",
-        body='{}'
-    ))
-    page.route("**/api/ai/status", lambda route: route.fulfill(
-        status=200,
-        content_type="application/json",
-        body='{"online": true, "service": "mock", "source": "Local"}'
-    ))
-    page.route("**/api/telemetry/pool-status", lambda route: route.fulfill(
-        status=200,
-        content_type="application/json",
-        body='{"data_sufficient": true, "total_installations": 42, "total_data_points": 100000, "models_available": ["AERO_SLM"], "message": "Ready"}'
-    ))
+    page.route(
+        "**/api/auth/check",
+        lambda route: route.fulfill(
+            status=200, content_type="application/json", body='{"authenticated": true}'
+        ),
+    )
+    page.route(
+        "**/api/config",
+        lambda route: route.fulfill(
+            status=200, content_type="application/json", body=json.dumps(full_config)
+        ),
+    )
+    page.route(
+        "**/api/health",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body='{"client_ip": "127.0.0.1", "status": "ok"}',
+        ),
+    )
+    page.route(
+        "**/api/backup/list",
+        lambda route: route.fulfill(
+            status=200, content_type="application/json", body='{"backups": []}'
+        ),
+    )
+    page.route(
+        "**/api/check-update**",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body='{"update_available": false}',
+        ),
+    )
+    page.route(
+        "**/api/signal/status",
+        lambda route: route.fulfill(
+            status=200, content_type="application/json", body="{}"
+        ),
+    )
+    page.route(
+        "**/api/ai/status",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body='{"online": true, "service": "mock", "source": "Local"}',
+        ),
+    )
+    page.route(
+        "**/api/telemetry/pool-status",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body='{"data_sufficient": true, "total_installations": 42, "total_data_points": 100000, "models_available": ["AERO_SLM"], "message": "Ready"}',
+        ),
+    )
 
     # Navigate to Config page (hash router) with base
     page.goto("http://localhost:5173/static/#/config")
@@ -83,6 +100,7 @@ def verify_i18n(page):
     # Take screenshot
     page.screenshot(path="verification/verification.png", full_page=True)
     print("Screenshot taken.")
+
 
 if __name__ == "__main__":
     with sync_playwright() as p:

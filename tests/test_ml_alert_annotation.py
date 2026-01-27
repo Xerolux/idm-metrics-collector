@@ -29,7 +29,7 @@ class TestMLAlertAnnotation(unittest.TestCase):
 
         # Import config with json.loads patched to avoid db error
         with patch("json.loads", return_value={}):
-            import idm_logger.config
+            pass
 
         # Patch config instance
         self.config_patcher = patch("idm_logger.config.config")

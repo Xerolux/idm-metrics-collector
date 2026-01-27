@@ -3,8 +3,6 @@ import os
 import sys
 import pickle
 import json
-import shutil
-from pathlib import Path
 
 # Add root to path to import ml_service
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
@@ -12,11 +10,13 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 from ml_service.utils.crypto import load_encrypted_model
 from telemetry_server.scripts.export_model import export_model
 
+
 @pytest.fixture
 def temp_dir(tmp_path):
     d = tmp_path / "model_test"
     d.mkdir()
     return d
+
 
 def test_roundtrip_encryption(temp_dir):
     # 1. Create a dummy model
@@ -47,6 +47,7 @@ def test_roundtrip_encryption(temp_dir):
     assert loaded_data is not None
     assert loaded_data == original_data
 
+
 def test_tampered_signature(temp_dir):
     # 1. Create model
     input_file = temp_dir / "test_model.pkl"
@@ -70,6 +71,7 @@ def test_tampered_signature(temp_dir):
     # 4. Try to load
     loaded_data = load_encrypted_model(str(exported_file))
     assert loaded_data is None
+
 
 def test_tampered_payload(temp_dir):
     # 1. Create model
@@ -97,6 +99,7 @@ def test_tampered_payload(temp_dir):
     # 4. Try to load
     loaded_data = load_encrypted_model(str(exported_file))
     assert loaded_data is None
+
 
 def test_tampered_metadata(temp_dir):
     # 1. Create model

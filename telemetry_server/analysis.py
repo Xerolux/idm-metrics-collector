@@ -1,13 +1,18 @@
 import os
 import logging
 import requests
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 logger = logging.getLogger("telemetry-analysis")
 
-VM_QUERY_URL = os.environ.get("VM_QUERY_URL", "http://victoriametrics:8428/api/v1/query")
+VM_QUERY_URL = os.environ.get(
+    "VM_QUERY_URL", "http://victoriametrics:8428/api/v1/query"
+)
 
-def get_community_averages(model_name: str, metrics: List[str], window: str = "24h") -> Dict[str, Any]:
+
+def get_community_averages(
+    model_name: str, metrics: List[str], window: str = "24h"
+) -> Dict[str, Any]:
     """
     Fetch aggregated community statistics for a specific heat pump model.
 
@@ -20,12 +25,7 @@ def get_community_averages(model_name: str, metrics: List[str], window: str = "2
         Dict containing averages, min, max, and sample size.
     """
     safe_model = model_name.replace(" ", "_")
-    results = {
-        "model": model_name,
-        "window": window,
-        "metrics": {},
-        "sample_size": 0
-    }
+    results = {"model": model_name, "window": window, "metrics": {}, "sample_size": 0}
 
     try:
         # 1. Get sample size (approximate number of active installations for this model in window)
@@ -44,7 +44,11 @@ def get_community_averages(model_name: str, metrics: List[str], window: str = "2
 
         # 2. Get stats for each metric
         for metric in metrics:
-            metric_name = f"heatpump_metrics_{metric}" if not metric.startswith("heatpump_metrics_") else metric
+            metric_name = (
+                f"heatpump_metrics_{metric}"
+                if not metric.startswith("heatpump_metrics_")
+                else metric
+            )
             clean_name = metric.replace("heatpump_metrics_", "")
 
             # Construct queries for Avg, Min, Max
@@ -59,7 +63,7 @@ def get_community_averages(model_name: str, metrics: List[str], window: str = "2
             queries = {
                 "avg": f'avg(avg_over_time({metric_name}{{model="{safe_model}"}}[{window}]))',
                 "min": f'min(min_over_time({metric_name}{{model="{safe_model}"}}[{window}]))',
-                "max": f'max(max_over_time({metric_name}{{model="{safe_model}"}}[{window}]))'
+                "max": f'max(max_over_time({metric_name}{{model="{safe_model}"}}[{window}]))',
             }
 
             metric_stats = {}

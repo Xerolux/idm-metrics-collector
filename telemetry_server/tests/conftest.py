@@ -12,6 +12,7 @@ os.environ["TELEMETRY_ENCRYPTION_KEY"] = "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVf
 
 from app import app
 
+
 @pytest.fixture
 def client():
     return TestClient(app)

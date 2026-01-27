@@ -2,7 +2,6 @@ import schedule
 import time
 import logging
 import os
-import sys
 from scripts.train_model import train_model
 
 # Setup Logging
@@ -15,6 +14,7 @@ logger = logging.getLogger("telemetry-trainer")
 MODEL_DIR = os.environ.get("MODEL_DIR", "/app/models")
 TARGET_MODELS = os.environ.get("TARGET_MODELS", "AERO_SLM").split(",")
 TRAINING_TIME = os.environ.get("TRAINING_TIME", "03:00")  # 3 AM default
+
 
 def run_training_job():
     logger.info("Starting scheduled model training...")
@@ -30,10 +30,7 @@ def run_training_job():
         output_file = os.path.join(MODEL_DIR, f"{safe_model_name}.pkl")
 
         try:
-            success = train_model(
-                model_name=model_name,
-                output_file=output_file
-            )
+            success = train_model(model_name=model_name, output_file=output_file)
 
             if success:
                 logger.info(f"Successfully trained {model_name}")
@@ -44,6 +41,7 @@ def run_training_job():
                 # Importing is better.
                 try:
                     from scripts.export_model import export_model
+
                     export_model(output_file, MODEL_DIR)
                     # Clean up raw pickle
                     if os.path.exists(output_file):
@@ -57,6 +55,7 @@ def run_training_job():
             logger.error(f"Exception during training {model_name}: {e}")
 
     logger.info("Training job finished.")
+
 
 def main():
     logger.info("Telemetry Training Scheduler started")
@@ -74,6 +73,7 @@ def main():
     while True:
         schedule.run_pending()
         time.sleep(60)
+
 
 if __name__ == "__main__":
     main()

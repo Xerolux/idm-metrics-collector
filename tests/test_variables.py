@@ -11,8 +11,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 class TestVariables(unittest.TestCase):
     def setUp(self):
         # Ensure cryptography is loaded
-        import cryptography
-        import cryptography.fernet
 
         # Clean up modules
         for mod in list(sys.modules.keys()):
@@ -35,7 +33,7 @@ class TestVariables(unittest.TestCase):
 
         # Import config with json.loads patched
         with patch("json.loads", return_value={}):
-            import idm_logger.config
+            pass
 
         # Patch config instance
         self.config_patcher = patch("idm_logger.config.config")
@@ -77,7 +75,7 @@ class TestVariables(unittest.TestCase):
             name="Heatpump",
             var_type="query",
             query="label_values(idm_heatpump_status, heatpump_id)",
-            default="1"
+            default="1",
         )
 
         self.assertEqual(var.id, "hp_id")
@@ -147,13 +145,11 @@ class TestVariables(unittest.TestCase):
             "name": "Var 1",
             "type": "custom",
             "values": ["1", "2"],
-            "default": "1"
+            "default": "1",
         }
 
         response = self.client.post(
-            "/api/variables",
-            data=json.dumps(payload),
-            content_type="application/json"
+            "/api/variables", data=json.dumps(payload), content_type="application/json"
         )
 
         self.assertEqual(response.status_code, 201)
@@ -162,20 +158,18 @@ class TestVariables(unittest.TestCase):
         self.assertEqual(len(self.mock_config.data["variables"]), 1)
 
     def test_api_substitute(self):
-        payload = {
-            "query": "test_$var",
-            "variables": {"var": "success"}
-        }
+        payload = {"query": "test_$var", "variables": {"var": "success"}}
 
         response = self.client.post(
             "/api/variables/substitute",
             data=json.dumps(payload),
-            content_type="application/json"
+            content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.data)
         self.assertEqual(data["result"], "test_success")
+
 
 if __name__ == "__main__":
     unittest.main()

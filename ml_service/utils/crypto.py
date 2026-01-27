@@ -67,7 +67,11 @@ def load_encrypted_model(input_path, key=None):
         # Peak to see if it starts with {
         if raw_data.strip().startswith(b"{"):
             envelope = json.loads(raw_data)
-            if isinstance(envelope, dict) and "payload" in envelope and "signature" in envelope:
+            if (
+                isinstance(envelope, dict)
+                and "payload" in envelope
+                and "signature" in envelope
+            ):
                 # Verify signature
                 payload_b64 = envelope["payload"]
                 signature_expected = envelope["signature"]
@@ -75,7 +79,7 @@ def load_encrypted_model(input_path, key=None):
 
                 # Reconstruct signed message: payload + "." + sorted_json(metadata)
                 metadata_json = json.dumps(metadata, sort_keys=True)
-                msg = f"{payload_b64}.{metadata_json}".encode('utf-8')
+                msg = f"{payload_b64}.{metadata_json}".encode("utf-8")
 
                 signature_calculated = hmac.new(key, msg, hashlib.sha256).hexdigest()
 
@@ -87,11 +91,13 @@ def load_encrypted_model(input_path, key=None):
                 # Since I am updating both ends in same PR, I will enforce new format.
 
                 if not hmac.compare_digest(signature_calculated, signature_expected):
-                     # Try legacy payload-only signature (for dev transition)
-                    msg_legacy = payload_b64.encode('utf-8')
+                    # Try legacy payload-only signature (for dev transition)
+                    msg_legacy = payload_b64.encode("utf-8")
                     sig_legacy = hmac.new(key, msg_legacy, hashlib.sha256).hexdigest()
                     if hmac.compare_digest(sig_legacy, signature_expected):
-                         logger.warning("Loaded community model with legacy signature (payload only).")
+                        logger.warning(
+                            "Loaded community model with legacy signature (payload only)."
+                        )
                     else:
                         logger.error("Model signature verification failed!")
                         return None
@@ -99,8 +105,10 @@ def load_encrypted_model(input_path, key=None):
                 encrypted_data = base64.b64decode(payload_b64)
                 f = Fernet(key)
                 decrypted_bytes = f.decrypt(encrypted_data)
-                logger.info(f"Loaded signed community model v{envelope.get('version', 'unknown')}")
-    except Exception as e:
+                logger.info(
+                    f"Loaded signed community model v{envelope.get('version', 'unknown')}"
+                )
+    except Exception:
         # Not JSON or invalid JSON, ignore and try legacy
         pass
 

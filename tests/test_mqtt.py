@@ -59,6 +59,7 @@ def test_publish_data_flat_dict(publisher, mock_mqtt_client):
 
     # Use default ID for legacy topic verification
     from idm_logger.migrations import get_default_heatpump_id
+
     hp_id = get_default_heatpump_id()
     data = {hp_id: flat_data}
 
@@ -136,22 +137,3 @@ def test_publish_data_legacy_nested_dict(publisher, mock_mqtt_client):
     # Skipping or adapting to new format if needed, but since we fixed the main test,
     # we can just mark this as skipped or remove it.
     pytest.skip("Legacy nested dict format not supported by MQTTPublisher")
-
-    # Helper to find call by topic
-    def get_payload(topic_suffix):
-        topic = f"idm/heatpump/{topic_suffix}"
-        for call in calls:
-            if call.args[0] == topic:
-                return json.loads(call.args[1])
-        return None
-
-    # Check temp_outside
-    payload = get_payload("temp_outside")
-    assert payload is not None
-    assert payload["value"] == 15.0
-    assert payload["unit"] == "°C"
-
-    # Check op_mode
-    payload = get_payload("op_mode")
-    assert payload is not None
-    assert payload["value"] == 2
