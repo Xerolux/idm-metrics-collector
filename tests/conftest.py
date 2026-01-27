@@ -62,7 +62,20 @@ def create_mock_config():
     """Create a properly configured mock config object."""
     config = MagicMock()
     config.get_flask_secret_key.return_value = b"test-secret-key-for-testing-123"
-    config.get.return_value = None
+
+    # Make get() actually look up values in the data dictionary
+    def mock_get(path, default=None):
+        keys = path.split(".")
+        val = config.data
+        for key in keys:
+            if isinstance(val, dict) and key in val:
+                val = val[key]
+            else:
+                return default
+        return val
+
+    config.get.side_effect = mock_get
+
     config.data = {
         "idm": {"host": "192.168.1.1", "port": 502, "circuits": ["A"], "zones": []},
         "metrics": {"url": "http://localhost:8428/write"},

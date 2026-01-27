@@ -26,7 +26,8 @@ class TestMlRatio(unittest.TestCase):
         ml_main.SENSORS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10"]
 
         # Case 1: 3 sensors (30%) -> Should NO LONGER skip, but proceed with warning
-        mock_fetch.return_value = {"s1": 1.0, "s2": 1.0, "s3": 1.0}
+        # New architecture: fetch returns {hp_id: {sensor: value}}
+        mock_fetch.return_value = {"default": {"s1": 1.0, "s2": 1.0, "s3": 1.0}}
 
         original_ratio = ml_main.MIN_DATA_RATIO
         ml_main.MIN_DATA_RATIO = 0.4
@@ -61,7 +62,8 @@ class TestMlRatio(unittest.TestCase):
         ml_main.MIN_DATA_RATIO = 0.4
 
         # Case 2: 4 sensors (40%) -> Should proceed (since ratio is 0.4)
-        mock_fetch.return_value = {"s1": 1.0, "s2": 1.0, "s3": 1.0, "s4": 1.0}
+        # New architecture: fetch returns {hp_id: {sensor: value}}
+        mock_fetch.return_value = {"default": {"s1": 1.0, "s2": 1.0, "s3": 1.0, "s4": 1.0}}
 
         ml_main.job()
 

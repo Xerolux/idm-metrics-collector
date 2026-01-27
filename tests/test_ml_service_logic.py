@@ -30,17 +30,9 @@ class TestMLServiceLogic(unittest.TestCase):
         self.main = main
 
         self.main.SENSORS = ["sensor1", "sensor2", "status_heat_pump"]
-        # Mock models
-        self.main.models = {
-            "heating": MagicMock(),
-            "cooling": MagicMock(),
-            "water": MagicMock(),
-            "standby": MagicMock(),
-        }
+        # Initialize contexts dict for new multi-heatpump architecture
+        self.main.contexts = {}
         self.main.logger = MagicMock()
-        self.main.last_data_points = {}
-        self.main.consecutive_anomalies = 0
-        self.main.update_counter = 0
 
     def tearDown(self):
         self.env_patcher.stop()
@@ -66,69 +58,97 @@ class TestMLServiceLogic(unittest.TestCase):
         self.assertEqual(self.main.determine_mode(data), "standby")
 
     def test_feature_engineering_delta(self):
+        # Create a mock context for enrich_features
+        from ml_service.main import HeatpumpContext
+        ctx = HeatpumpContext("test-hp")
+
         data1 = {"sensor1": 10.0, "status_heat_pump": 0}
-        res1 = self.main.enrich_features(data1)
+        res1 = self.main.enrich_features(ctx, data1)
         self.assertNotIn("sensor1_delta", res1)
 
         data2 = {"sensor1": 15.0, "status_heat_pump": 0}
-        res2 = self.main.enrich_features(data2)
+        res2 = self.main.enrich_features(ctx, data2)
         self.assertEqual(res2["sensor1_delta"], 5.0)
 
     def test_job_flow(self):
+        # Import HeatpumpContext
+        from ml_service.main import HeatpumpContext, get_context
+
         with (
             patch.object(self.main, "fetch_latest_data") as mock_fetch,
             patch.object(self.main, "write_metrics") as mock_write,
             patch.object(self.main, "send_anomaly_alert") as mock_alert,
         ):
             # 1. Normal run, heating mode
+            # New architecture: fetch returns {hp_id: {sensor: value}}
             mock_fetch.return_value = {
-                "sensor1": 10.0,
-                "status_heat_pump": HeatPumpStatus.HEATING.value,
+                "test-hp": {
+                    "sensor1": 10.0,
+                    "status_heat_pump": HeatPumpStatus.HEATING.value,
+                }
             }
-            self.main.models["heating"].score_one.return_value = 0.1  # Low score
-            self.main.models["heating"].steps = {}
+
+            # Create a context for the test heatpump
+            ctx = HeatpumpContext("test-hp")
+            ctx.models["heating"].score_one.return_value = 0.1  # Low score
+            ctx.models["heating"].steps = {}
+            self.main.contexts["test-hp"] = ctx
 
             self.main.job()
 
-            self.main.models["heating"].learn_one.assert_called()
+            self.main.contexts["test-hp"].models["heating"].learn_one.assert_called()
             mock_write.assert_called()
             args, _ = mock_write.call_args
-            self.assertEqual(args[4], "heating")  # Check mode arg
+            # Check the context argument (first arg) and mode argument (5th arg)
+            self.assertEqual(args[0], ctx)  # Context arg
+            self.assertEqual(args[5], "heating")  # Mode arg
             mock_alert.assert_not_called()
 
     def test_debounce_logic(self):
+        # Import HeatpumpContext
+        from ml_service.main import HeatpumpContext
+
         with (
             patch.object(self.main, "fetch_latest_data") as mock_fetch,
             patch.object(self.main, "write_metrics"),
             patch.object(self.main, "send_anomaly_alert") as mock_alert,
             patch.object(self.main, "get_top_features", return_value=[]),
         ):
+            # New architecture: fetch returns {hp_id: {sensor: value}}
             mock_fetch.return_value = {
-                "sensor1": 10.0,
-                "status_heat_pump": HeatPumpStatus.HEATING.value,
+                "test-hp": {
+                    "sensor1": 10.0,
+                    "status_heat_pump": HeatPumpStatus.HEATING.value,
+                }
             }
-            self.main.models[
-                "heating"
-            ].score_one.return_value = 0.9  # High score (Anomaly)
-            self.main.models["heating"].steps = {}
-            self.main.model_trained = True  # Force trained
+
+            # Create a context for the test heatpump
+            ctx = HeatpumpContext("test-hp")
+            ctx.models["heating"].score_one.return_value = 0.9  # High score (Anomaly)
+            ctx.models["heating"].steps = {}
+            ctx.model_trained = True  # Force trained
+            ctx.consecutive_anomalies = 0  # Start at 0
+            self.main.contexts["test-hp"] = ctx
 
             # Hit 1
             self.main.job()
             mock_alert.assert_not_called()
-            self.assertEqual(self.main.consecutive_anomalies, 1)
+            self.assertEqual(ctx.consecutive_anomalies, 1)
 
             # Hit 2
             self.main.job()
             mock_alert.assert_not_called()
-            self.assertEqual(self.main.consecutive_anomalies, 2)
+            self.assertEqual(ctx.consecutive_anomalies, 2)
 
             # Hit 3 (Threshold is 3)
             self.main.job()
             mock_alert.assert_called()
-            self.assertEqual(self.main.consecutive_anomalies, 3)
+            self.assertEqual(ctx.consecutive_anomalies, 3)
 
     def test_warmup_logic(self):
+        # Import HeatpumpContext
+        from ml_service.main import HeatpumpContext
+
         # We need to force update_counter to match what we expect.
         # job() increments it at the end.
 
@@ -136,8 +156,13 @@ class TestMLServiceLogic(unittest.TestCase):
             patch.object(self.main, "fetch_latest_data") as mock_fetch,
             patch.object(self.main, "write_metrics"),
         ):
-            mock_fetch.return_value = {"sensor1": 10.0}
-            self.main.models["standby"].score_one.return_value = 0.0
+            # New architecture: fetch returns {hp_id: {sensor: value}}
+            mock_fetch.return_value = {"test-hp": {"sensor1": 10.0}}
+
+            # Create a context for the test heatpump
+            ctx = HeatpumpContext("test-hp")
+            ctx.models["standby"].score_one.return_value = 0.0
+            self.main.contexts["test-hp"] = ctx
 
             # Run enough times to exceed WARMUP_UPDATES=5
             # We need update_counter > 5.
@@ -162,12 +187,21 @@ class TestMLServiceLogic(unittest.TestCase):
             for _ in range(7):
                 self.main.job()
 
-            self.assertTrue(self.main.model_trained)
+            self.assertTrue(ctx.model_trained)
 
     def test_persistence(self):
+        # Import HeatpumpContext
+        from ml_service.main import HeatpumpContext
+
         # Inject pickle if missing (because joblib was preferred)
         if not hasattr(self.main, "pickle"):
             self.main.pickle = pickle
+
+        # Add a test context with models
+        ctx = HeatpumpContext("test-hp")
+        ctx.models["heating"] = MagicMock()
+        ctx.models["cooling"] = MagicMock()
+        self.main.contexts["test-hp"] = ctx
 
         # Force USE_JOBLIB to False using string patch, which is safer for module globals
         with patch("ml_service.main.USE_JOBLIB", False):
@@ -185,7 +219,9 @@ class TestMLServiceLogic(unittest.TestCase):
 
                 mock_dump.assert_called()
                 args, _ = mock_dump.call_args
-                self.assertEqual(args[0], self.main.models)
+                # New format: {hp_id: {mode: model}}
+                self.assertIn("test-hp", args[0])
+                self.assertEqual(args[0]["test-hp"], ctx.models)
 
 
 if __name__ == "__main__":

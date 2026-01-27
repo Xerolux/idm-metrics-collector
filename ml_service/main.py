@@ -532,9 +532,10 @@ def process_heatpump(hp_id: str, data: dict):
 
     min_features = int(len(SENSORS) * MIN_DATA_RATIO)
     if len(data) < min_features:
-        # Just log once per HP if missing data?
-        # For now, verbose logic similar to before
-        pass
+        logger.warning(
+            f"[{hp_id}] Low data availability: {len(data)}/{len(SENSORS)} sensors ({len(data)/len(SENSORS)*100:.1f}%). "
+            f"Minimum required: {MIN_DATA_RATIO*100:.0f}%. Proceeding anyway."
+        )
 
     start = time.time()
     data = enrich_features(ctx, data)
