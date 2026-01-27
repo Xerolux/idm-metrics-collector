@@ -1,11 +1,6 @@
-name: Build and publish ML Service Docker image
+name: Build and publish ML Service Docker image (ARM)
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       version:
@@ -52,13 +47,11 @@ jobs:
             ghcr.io/${{ github.repository }}-ml
             ${{ secrets.DOCKER_USERNAME }}/idm-metrics-collector-ml
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && github.event_name != 'workflow_dispatch' }}
-            type=ref,event=tag
-            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=raw,value=${{ inputs.version }}
           labels: |
-            org.opencontainers.image.description=ML Service for IDM Metrics Collector - Anomaly detection and predictive analytics.
+            org.opencontainers.image.description=ML Service for IDM Metrics Collector - Anomaly detection and predictive analytics. (ARM Build)
           annotations: |
-            org.opencontainers.image.description=ML Service for IDM Metrics Collector - Anomaly detection and predictive analytics.
+            org.opencontainers.image.description=ML Service for IDM Metrics Collector - Anomaly detection and predictive analytics. (ARM Build)
 
       - name: Get short SHA
         id: vars
@@ -67,9 +60,7 @@ jobs:
       - name: Determine Version
         id: version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "app_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.version }}" != "latest" ]]; then
+          if [[ "${{ inputs.version }}" != "latest" ]]; then
             VERSION_INPUT="${{ inputs.version }}"
             echo "app_version=${VERSION_INPUT#v}" >> $GITHUB_OUTPUT
           else
@@ -87,4 +78,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
-          platforms: linux/amd64
+          platforms: linux/arm64,linux/arm/v7
