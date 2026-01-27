@@ -527,6 +527,23 @@
                                      <Button label="Jetzt prüfen" icon="pi pi-search" size="small" severity="secondary" @click="checkUpdates" :loading="checkingUpdates" />
                                  </div>
                              </div>
+
+                             <!-- Update Channel Settings -->
+                             <div class="bg-gray-900/50 p-3 rounded mt-2">
+                                 <div class="flex items-center gap-2 mb-2">
+                                     <i class="pi pi-cog text-gray-400"></i>
+                                     <span class="text-sm font-bold text-gray-400">Update-Einstellungen</span>
+                                 </div>
+                                 <div class="flex flex-col gap-2">
+                                     <label class="text-xs text-gray-400">Update-Kanal</label>
+                                     <Dropdown v-model="config.updates.channel" :options="updateChannelOptions" optionLabel="label" optionValue="value" class="w-full" />
+                                     <small class="text-gray-500 text-xs">
+                                         <span v-if="config.updates.channel === 'latest'">Neueste stabile Version (empfohlen)</span>
+                                         <span v-else-if="config.updates.channel === 'beta'">Beta-Versionen mit neuen Features</span>
+                                         <span v-else-if="config.updates.channel === 'release'">Nur finale Releases</span>
+                                     </small>
+                                 </div>
+                             </div>
                         </div>
 
                         <!-- Backup Actions -->
@@ -767,6 +784,12 @@ const heatpumpModels = [
     'Andere / Unbekannt'
 ];
 
+const updateChannelOptions = [
+    { label: 'Latest (Empfohlen)', value: 'latest' },
+    { label: 'Beta', value: 'beta' },
+    { label: 'Release', value: 'release' }
+];
+
 const showPasswordDialog = ref(false);
 const newPassword = ref('');
 const confirmPassword = ref('');
@@ -823,7 +846,40 @@ const showUpdateHelpDialog = ref(false);
 onMounted(async () => {
     try {
         const res = await axios.get('/api/config');
-        config.value = res.data;
+        // Deep merge server data with defaults to preserve structure
+        const serverData = res.data;
+        const defaults = {
+            idm: { host: '', port: 502, circuits: ['A'], zones: [] },
+            metrics: { url: '' },
+            web: { write_enabled: false },
+            logging: { interval: 60, realtime_mode: false },
+            mqtt: { enabled: false, broker: '', port: 1883, username: '', topic_prefix: 'idm/heatpump', qos: 0, use_tls: false, tls_ca_cert: '', publish_interval: 60, ha_discovery_enabled: false, ha_discovery_prefix: 'homeassistant' },
+            network_security: { enabled: false, whitelist: [], blacklist: [] },
+            signal: { enabled: false, cli_path: 'signal-cli', sender: '', recipients: [] },
+            telegram: { enabled: false, bot_token: '', chat_ids: [] },
+            discord: { enabled: false, webhook_url: '' },
+            email: { enabled: false, smtp_server: '', smtp_port: 587, username: '', sender: '', recipients: [] },
+            webdav: { enabled: false, url: '', username: '' },
+            ai: { enabled: false, sensitivity: 3.0, model: 'rolling' },
+            updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all', channel: 'latest' },
+            backup: { enabled: false, interval: 24, retention: 10, auto_upload: false },
+            heatpump_model: '',
+            share_data: true
+        };
+        // Merge each nested object
+        for (const key in defaults) {
+            if (typeof defaults[key] === 'object' && defaults[key] !== null && !Array.isArray(defaults[key])) {
+                config.value[key] = { ...defaults[key], ...(serverData[key] || {}) };
+            } else {
+                config.value[key] = serverData[key] !== undefined ? serverData[key] : defaults[key];
+            }
+        }
+        // Copy any additional fields from server that aren't in defaults
+        for (const key in serverData) {
+            if (!(key in defaults)) {
+                config.value[key] = serverData[key];
+            }
+        }
 
         // Convert whitelist/blacklist arrays to text
         if (config.value.network_security) {

@@ -1570,12 +1570,14 @@ def config_page():
     if request.method == "POST":
         data = request.get_json()
         try:
-            # IDM Host - validate hostname/IP
+            # IDM Host - validate hostname/IP (allow empty for initial setup)
             if "idm_host" in data:
-                valid, err = _validate_host(data["idm_host"])
-                if not valid:
-                    return jsonify({"error": f"IDM Host: {err}"}), 400
-                config.data["idm"]["host"] = data["idm_host"]
+                host_value = data["idm_host"]
+                if host_value:  # Only validate if not empty
+                    valid, err = _validate_host(host_value)
+                    if not valid:
+                        return jsonify({"error": f"IDM Host: {err}"}), 400
+                config.data["idm"]["host"] = host_value
             if "idm_port" in data:
                 try:
                     port = int(data["idm_port"])
@@ -1619,23 +1621,15 @@ def config_page():
             if "mqtt_enabled" in data:
                 config.data["mqtt"]["enabled"] = bool(data["mqtt_enabled"])
             if "mqtt_broker" in data:
-                # Only validate broker if MQTT is enabled or broker is not empty
-                mqtt_enabled = data.get("mqtt_enabled", config.data.get("mqtt", {}).get("enabled", False))
                 broker_value = data["mqtt_broker"]
-                if mqtt_enabled and broker_value:
-                    # MQTT enabled and broker provided - validate it
+                # Only validate broker if it's not empty
+                if broker_value:
                     valid, err = _validate_host(broker_value)
                     if not valid:
                         return jsonify({"error": f"MQTT Broker: {err}"}), 400
-                elif mqtt_enabled and not broker_value:
-                    # MQTT enabled but no broker - error
-                    return jsonify({"error": "MQTT Broker: Host darf nicht leer sein wenn MQTT aktiviert ist"}), 400
-                elif broker_value:
-                    # MQTT disabled but broker provided - validate it
-                    valid, err = _validate_host(broker_value)
-                    if not valid:
-                        return jsonify({"error": f"MQTT Broker: {err}"}), 400
-                # If MQTT disabled and broker empty - that's fine, just save it
+                else:
+                    # If broker is empty, automatically disable MQTT
+                    config.data["mqtt"]["enabled"] = False
                 config.data["mqtt"]["broker"] = broker_value
             if "mqtt_port" in data:
                 try:
@@ -1725,7 +1719,9 @@ def config_page():
             if "telegram_enabled" in data:
                 config.data["telegram"]["enabled"] = bool(data["telegram_enabled"])
             if "telegram_bot_token" in data:
-                config.data["telegram"]["bot_token"] = data["telegram_bot_token"]
+                # Skip if masked value "***" is sent back
+                if data["telegram_bot_token"] and data["telegram_bot_token"] != "***":
+                    config.data["telegram"]["bot_token"] = data["telegram_bot_token"]
             if "telegram_chat_ids" in data:
                 chat_ids = data["telegram_chat_ids"]
                 if isinstance(chat_ids, str):
@@ -1736,7 +1732,9 @@ def config_page():
             if "discord_enabled" in data:
                 config.data["discord"]["enabled"] = bool(data["discord_enabled"])
             if "discord_webhook_url" in data:
-                config.data["discord"]["webhook_url"] = data["discord_webhook_url"]
+                # Skip if masked value "***" is sent back
+                if data["discord_webhook_url"] and data["discord_webhook_url"] != "***":
+                    config.data["discord"]["webhook_url"] = data["discord_webhook_url"]
 
             # Email
             if "email_enabled" in data:
@@ -1806,23 +1804,23 @@ def config_page():
                 except ValueError:
                     return jsonify({"error": "Ungültiger Update-Intervallwert"}), 400
             if "updates_mode" in data:
-                if data["updates_mode"] not in ["check", "apply"]:
-                    return jsonify(
-                        {"error": "Update-Modus muss 'check' oder 'apply' sein"}
-                    ), 400
-                config.data["updates"]["mode"] = data["updates_mode"]
+                mode = data["updates_mode"]
+                # Default to "apply" if invalid value
+                if mode not in ["check", "apply"]:
+                    mode = "apply"
+                config.data["updates"]["mode"] = mode
             if "updates_target" in data:
-                if data["updates_target"] not in ["all", "major", "minor", "patch"]:
-                    return jsonify(
-                        {"error": "Update-Ziel muss all, major, minor oder patch sein"}
-                    ), 400
-                config.data["updates"]["target"] = data["updates_target"]
+                target = data["updates_target"]
+                # Default to "all" if invalid value
+                if target not in ["all", "major", "minor", "patch"]:
+                    target = "all"
+                config.data["updates"]["target"] = target
             if "updates_channel" in data:
-                if data["updates_channel"] not in ["latest", "beta", "release"]:
-                    return jsonify(
-                        {"error": "Update-Kanal muss latest, beta oder release sein"}
-                    ), 400
-                config.data["updates"]["channel"] = data["updates_channel"]
+                channel = data["updates_channel"]
+                # Default to "latest" if invalid/empty value
+                if channel not in ["latest", "beta", "release"]:
+                    channel = "latest"
+                config.data["updates"]["channel"] = channel
 
             # Backup
             if "backup_enabled" in data:
@@ -1897,7 +1895,9 @@ def config_page():
             if "share_data" in data:
                 config.data["share_data"] = bool(data["share_data"])
             if "telemetry_auth_token" in data:
-                config.data["telemetry_auth_token"] = data["telemetry_auth_token"]
+                # Skip if masked value "***" is sent back
+                if data["telemetry_auth_token"] and data["telemetry_auth_token"] != "***":
+                    config.data["telemetry_auth_token"] = data["telemetry_auth_token"]
 
             new_pass = data.get("new_password")
             if new_pass:
