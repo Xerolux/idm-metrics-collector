@@ -10,8 +10,10 @@ from flask import (
 )
 from flask_socketio import SocketIO
 from waitress import serve
+
 try:
     from flasgger import Swagger
+
     HAS_FLASGGER = True
 except ImportError:
     HAS_FLASGGER = False
