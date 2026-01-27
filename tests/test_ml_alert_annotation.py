@@ -29,7 +29,7 @@ class TestMLAlertAnnotation(unittest.TestCase):
 
         # Import config with json.loads patched to avoid db error
         with patch("json.loads", return_value={}):
-            pass
+            import idm_logger.config
 
         # Patch config instance
         self.config_patcher = patch("idm_logger.config.config")
@@ -56,6 +56,10 @@ class TestMLAlertAnnotation(unittest.TestCase):
     def tearDown(self):
         self.config_patcher.stop()
         self.modules_patcher.stop()
+        # Clean up modules
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
 
     def test_alert_creates_annotation(self):
         payload = {

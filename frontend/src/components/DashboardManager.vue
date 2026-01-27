@@ -735,7 +735,6 @@ const deleteDashboard = async () => {
 };
 
 const onTimeRangeChange = () => {
-    // console.log('Time range changed to:', timeRange.value);
 };
 
 // Variables management

@@ -6,6 +6,7 @@ import os
 # Add the project directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from flask import Flask
 from idm_logger.websocket_handler import WebSocketHandler
 
 
@@ -28,34 +29,40 @@ class TestWebSocketHandler:
         return mock
 
     @pytest.fixture
-    def mock_app(self):
-        return MagicMock()
+    def app(self):
+        return Flask(__name__)
 
     @pytest.fixture
-    def handler(self, mock_app, mock_socketio):
-        # We need to mock join_room AND request context
-        # We pass new=MagicMock() to avoid patching mechanism inspecting the original request object which triggers context error
-        mock_req = MagicMock()
-        mock_req.sid = "test_sid"
-
+    def handler(self, app, mock_socketio):
+        # We need to mock join_room
         with (
             patch("idm_logger.websocket_handler.join_room") as mock_join_room,
             patch("idm_logger.websocket_handler.emit"),
-            patch("idm_logger.websocket_handler.request", new=mock_req),
         ):
-            handler = WebSocketHandler(mock_app, mock_socketio)
+            handler = WebSocketHandler(app, mock_socketio)
             handler.mock_join_room = mock_join_room
-            handler.mock_request = mock_req
             yield handler
 
-    def test_subscribe_joins_room(self, handler, mock_socketio):
+    def test_subscribe_joins_room(self, handler, mock_socketio, app):
         # Access the subscribe handler captured by our mock decorator
         subscribe_handler = mock_socketio.handlers["subscribe"]
 
         data = {"metrics": ["metric1", "metric2"]}
 
-        # Call the handler
-        subscribe_handler(data)
+        # Run with request context
+        with app.test_request_context():
+            # Inject sid into request context if needed, but Flask-SocketIO might use request.sid which is special
+            # Flask's test request doesn't have .sid by default.
+            # We must patch request.sid or use a custom context?
+            # Or assume request.sid exists?
+            # In Flask-SocketIO, request.sid is available.
+            # But we are using a plain Flask app here.
+            # We can set attribute on request?
+            from flask import request
+            request.sid = "test_sid"
+
+            # Call the handler
+            subscribe_handler(data)
 
         # Verify join_room was called for each metric
         handler.mock_join_room.assert_any_call("metric1")

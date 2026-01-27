@@ -408,7 +408,6 @@ const calculateStats = (datasets) => {
 };
 
 const fetchData = async () => {
-    console.log('[ChartCard] fetchData called for:', props.title, 'with', props.queries?.length || 0, 'queries');
     isLoading.value = true;
 
     const end = Math.floor(Date.now() / 1000);
@@ -477,11 +476,6 @@ const fetchData = async () => {
     for (const { q, res } of metricResults) {
         if (res && res.data && res.data.status === 'success') {
             const result = res.data.data.result;
-
-            console.log(`[ChartCard] Data for ${q.label}:`, {
-                resultCount: result.length,
-                hasValues: result.length > 0 && result[0].values
-            });
 
             if (result.length > 0) {
                 const values = result[0].values; // [[timestamp, "value"], ...]
@@ -559,8 +553,6 @@ const fetchData = async () => {
     };
     calculateStats(datasets);
     isLoading.value = false;
-
-    console.log('[ChartCard] fetchData complete for:', props.title, 'with', datasets.length, 'datasets');
 };
 
 const toggleFullscreen = () => {
@@ -729,16 +721,6 @@ const handleMetricUpdate = (data) => {
 };
 
 onMounted(() => {
-    // Debug: Log props
-    console.log('[ChartCard] Mounted with props:', {
-        title: props.title,
-        queriesCount: props.queries?.length || 0,
-        queries: props.queries,
-        hours: props.hours,
-        chartId: props.chartId,
-        dashboardId: props.dashboardId
-    });
-
     fetchData();
     loadAnnotations();
     interval = setInterval(fetchData, 60000);
@@ -770,13 +752,13 @@ onUnmounted(() => {
     unsubscribeFromMetrics();
 });
 
-const getSubscribedMetrics = () => {
+const getSubscribedMetrics = (hpId = hpStore.activeHeatpumpId) => {
     const rawMetrics = props.queries
         .filter(q => !q.type || q.type === 'metric')
         .map(q => q.query);
 
-    if (hpStore.activeHeatpumpId) {
-        return rawMetrics.map(m => `${hpStore.activeHeatpumpId}.${m}`);
+    if (hpId) {
+        return rawMetrics.map(m => `${hpId}.${m}`);
     }
     return rawMetrics;
 };
@@ -788,43 +770,34 @@ const subscribeToMetrics = () => {
     }
 };
 
-const unsubscribeFromMetrics = () => {
+const unsubscribeFromMetrics = (hpId = hpStore.activeHeatpumpId) => {
     if (wsClient && wsClient.isConnected()) {
-        const metrics = getSubscribedMetrics();
+        const metrics = getSubscribedMetrics(hpId);
         if (metrics.length > 0) {
             wsClient.unsubscribe(metrics, props.dashboardId);
         }
     }
 };
 
-watch(() => props.queries, () => {
-    unsubscribeFromMetrics(); // Unsub old
+watch(() => props.queries, (newVal, oldVal) => {
+    // Note: oldVal might be same object if mutated, but props usually change ref
+    // For queries array, we might need deep watch or assume replacement
+    unsubscribeFromMetrics(); // Unsub old metrics (using current ID)
     fetchData();
-    subscribeToMetrics(); // Sub new
+    subscribeToMetrics(); // Sub new metrics
 });
 
-watch(() => hpStore.activeHeatpumpId, () => {
-    // Re-subscribe with new prefix (unsub happens on old list because we calculate based on CURRENT activeId? No)
-    // We need to know previous activeId to unsub?
-    // Actually wsClient tracks subscriptions.
-    // If I call unsubscribe with NEW list, it might fail to unsub old list.
-    // Ideally I should store current subscription list in a ref.
-    // But for simplicity, we force a refresh.
-    // wsClient handles unsubscribing?
-    // Let's just refresh data.
-    // Subscription update is tricky without tracking.
-    // I'll rely on Dashboard re-mounting ChartCard when dashboard ID changes?
-    // But activeHeatpumpId change does NOT change dashboard ID necessarily?
-    // DashboardManager reloads dashboards on HP change.
-    // If dashboard ID stays same (e.g. default dashboard for all HPs), ChartCard is NOT re-mounted.
-    // So I MUST handle re-subscription.
+watch(() => hpStore.activeHeatpumpId, (newId, oldId) => {
+    // Unsubscribe using the OLD heatpump ID to ensure clean removal
+    if (oldId) {
+        unsubscribeFromMetrics(oldId);
+    }
 
-    // Hack: Unsubscribe using *old* ID? I don't have it.
-    // wsClient.unsubscribe takes list.
-
-    // Better: fetchData handles history. Realtime might be messed up for a moment.
-    // Or I reload the page/component.
+    // Fetch new historical data
     fetchData();
+
+    // Subscribe using the NEW heatpump ID
+    subscribeToMetrics();
 });
 
 watch(() => props.hours, () => {

@@ -30,53 +30,56 @@ class TestScheduler(unittest.TestCase):
         current_time = datetime.datetime.now().strftime("%H:%M")
         current_day = datetime.datetime.now().strftime("%a")
 
-        # Add 3 jobs that should run
-        for i in range(3):
-            job = {
-                "id": f"job_{i}",
-                "sensor": f"sensor_{i}",
-                "value": i,
-                "time": current_time,
+        # Patch asyncio.run to avoid event loop issues and verify calls
+        with patch("asyncio.run") as mock_asyncio_run:
+            # Add 3 jobs that should run
+            for i in range(3):
+                job = {
+                    "id": f"job_{i}",
+                    "sensor": f"sensor_{i}",
+                    "value": i,
+                    "time": current_time,
+                    "days": [current_day],
+                    "enabled": True,
+                    "last_run": 0,
+                    "heatpump_id": "hp-1",
+                }
+                self.scheduler.jobs.append(job)
+
+            # Add a job that should NOT run (wrong time)
+            wrong_time_job = {
+                "id": "job_skip",
+                "sensor": "sensor_skip",
+                "value": 1,
+                "time": "25:00",  # Invalid time, won't match
                 "days": [current_day],
                 "enabled": True,
                 "last_run": 0,
-                "heatpump_id": "hp-1",
             }
-            self.scheduler.jobs.append(job)
+            self.scheduler.jobs.append(wrong_time_job)
 
-        # Add a job that should NOT run (wrong time)
-        wrong_time_job = {
-            "id": "job_skip",
-            "sensor": "sensor_skip",
-            "value": 1,
-            "time": "25:00",  # Invalid time, won't match
-            "days": [current_day],
-            "enabled": True,
-            "last_run": 0,
-        }
-        self.scheduler.jobs.append(wrong_time_job)
+            # Run process_jobs
+            self.scheduler.process_jobs()
 
-        # Run process_jobs
-        self.scheduler.process_jobs()
+            # Verify asyncio.run was called (which calls write_value)
+            self.assertEqual(mock_asyncio_run.call_count, 3)
 
-        # Verify modbus writes
-        self.assertEqual(self.hp_manager_mock.write_value.call_count, 3)
+            # Verify db.update_jobs_last_run was called once with 3 updates
+            self.mock_db.update_jobs_last_run.assert_called_once()
 
-        # Verify db.update_jobs_last_run was called once with 3 updates
-        self.mock_db.update_jobs_last_run.assert_called_once()
-        args, _ = self.mock_db.update_jobs_last_run.call_args
-        updates = args[0]
-        self.assertEqual(len(updates), 3)
+            args, _ = self.mock_db.update_jobs_last_run.call_args
+            updates = args[0]
+            self.assertEqual(len(updates), 3)
 
-        # Check job IDs in updates
-        updated_ids = {u[0] for u in updates}
-        self.assertEqual(updated_ids, {"job_0", "job_1", "job_2"})
+            # Check job IDs in updates
+            updated_ids = {u[0] for u in updates}
+            self.assertEqual(updated_ids, {"job_0", "job_1", "job_2"})
 
-        # Check that jobs in memory were updated
-        for i in range(3):
-            self.assertTrue(self.scheduler.jobs[i]["last_run"] > 0)
+            # Check that jobs in memory were updated
+            for i in range(3):
+                self.assertTrue(self.scheduler.jobs[i]["last_run"] > 0)
 
-        self.assertEqual(self.scheduler.jobs[3]["last_run"], 0)
+            self.assertEqual(self.scheduler.jobs[3]["last_run"], 0)
 
     def test_process_jobs_no_updates(self):
         # No jobs
