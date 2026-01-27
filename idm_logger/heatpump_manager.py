@@ -90,6 +90,7 @@ class HeatpumpConnection:
     client: ModbusTcpClient
     sensors: List[SensorDefinition]
     enabled: bool = True
+    unit_id: int = 1
     last_read: float = 0
     last_values: Dict[str, Any] = field(default_factory=dict)
     error_count: int = 0
@@ -189,6 +190,7 @@ class HeatpumpManager:
         conn_config = hp_config.get("connection_config", {})
         host = conn_config.get("host", "")
         port = conn_config.get("port", 502)
+        unit_id = conn_config.get("unit_id", 1)
         timeout = conn_config.get("timeout", 10)
 
         if not host:
@@ -215,6 +217,7 @@ class HeatpumpManager:
             client=client,
             sensors=sensors,
             enabled=hp_config.get("enabled", True),
+            unit_id=unit_id,
         )
 
         self._connections[hp_id] = connection
@@ -360,7 +363,7 @@ class HeatpumpManager:
         def _do_read():
             with conn._lock:
                 result = conn.client.read_holding_registers(
-                    address, count=count, slave=1
+                    address, count=count, slave=conn.unit_id
                 )
                 if result.isError():
                     return None
@@ -429,7 +432,9 @@ class HeatpumpManager:
 
         def _do_write():
             with conn._lock:
-                result = conn.client.write_registers(sensor.address, registers, slave=1)
+                result = conn.client.write_registers(
+                    sensor.address, registers, slave=conn.unit_id
+                )
                 return not result.isError()
 
         try:
