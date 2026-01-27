@@ -283,11 +283,11 @@
                                 <!-- Data Pool Status Widget -->
                                 <div class="mt-4 bg-gray-800 p-4 rounded border border-gray-700">
                                     <h4 class="font-bold text-lg mb-3 flex items-center gap-2">
-                                        <i class="pi pi-database"></i> Community Datenpool Status
+                                        <i class="pi pi-database"></i> {{ t('telemetry.poolStatus') }}
                                     </h4>
 
                                     <div v-if="dataPoolLoading" class="text-center py-4 text-gray-400">
-                                        <i class="pi pi-spin pi-spinner mr-2"></i> Lade Status...
+                                        <i class="pi pi-spin pi-spinner mr-2"></i> {{ t('loading') }}
                                     </div>
 
                                     <div v-else-if="dataPoolStatus" class="flex flex-col gap-4">
@@ -298,7 +298,7 @@
                                                :class="dataPoolStatus.data_sufficient ? 'pi pi-check-circle text-green-400' : 'pi pi-clock text-yellow-400'"></i>
                                             <div>
                                                 <span class="font-bold" :class="dataPoolStatus.data_sufficient ? 'text-green-300' : 'text-yellow-300'">
-                                                    {{ dataPoolStatus.data_sufficient ? 'Datenpool bereit' : 'Datenpool wird aufgebaut' }}
+                                                    {{ dataPoolStatus.data_sufficient ? t('telemetry.ready') : t('telemetry.building') }}
                                                 </span>
                                                 <p class="text-sm text-gray-300 mt-1">{{ dataPoolStatus.message_de || dataPoolStatus.message }}</p>
                                             </div>
@@ -308,21 +308,21 @@
                                         <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                                             <div class="bg-gray-900/50 p-3 rounded text-center">
                                                 <div class="text-2xl font-bold text-purple-400">{{ dataPoolStatus.total_installations || 0 }}</div>
-                                                <div class="text-xs text-gray-400 mt-1">Installationen</div>
+                                                <div class="text-xs text-gray-400 mt-1">{{ t('telemetry.installations') }}</div>
                                             </div>
                                             <div class="bg-gray-900/50 p-3 rounded text-center">
                                                 <div class="text-2xl font-bold text-blue-400">{{ formatNumber(dataPoolStatus.total_data_points || 0) }}</div>
-                                                <div class="text-xs text-gray-400 mt-1">Datenpunkte</div>
+                                                <div class="text-xs text-gray-400 mt-1">{{ t('telemetry.dataPoints') }}</div>
                                             </div>
                                             <div class="bg-gray-900/50 p-3 rounded text-center">
                                                 <div class="text-2xl font-bold text-green-400">{{ (dataPoolStatus.models_available || []).length }}</div>
-                                                <div class="text-xs text-gray-400 mt-1">Modelle verfügbar</div>
+                                                <div class="text-xs text-gray-400 mt-1">{{ t('telemetry.modelsAvailable') }}</div>
                                             </div>
                                         </div>
 
                                         <!-- Available Models -->
                                         <div v-if="dataPoolStatus.models_available && dataPoolStatus.models_available.length > 0" class="mt-2">
-                                            <label class="text-sm text-gray-400">Verfügbare Community-Modelle:</label>
+                                            <label class="text-sm text-gray-400">{{ t('telemetry.modelsAvailable') }}:</label>
                                             <div class="flex flex-wrap gap-2 mt-2">
                                                 <span v-for="model in dataPoolStatus.models_available" :key="model"
                                                       class="px-2 py-1 bg-purple-900/40 border border-purple-600/50 rounded text-sm text-purple-300">
@@ -704,6 +704,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import Fieldset from 'primevue/fieldset';
 import InputText from 'primevue/inputtext';
@@ -792,6 +793,7 @@ const loading = ref(true);
 const saving = ref(false);
 const toast = useToast();
 const confirm = useConfirm();
+const { t } = useI18n();
 
 let aiStatusInterval = null;
 

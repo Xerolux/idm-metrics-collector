@@ -3,13 +3,13 @@
         <div class="flex items-center justify-between mb-3">
             <h3 class="text-gray-900 font-bold text-sm flex items-center gap-2">
                 <i class="pi pi-cloud text-purple-500"></i>
-                Community Status
+                {{ t('telemetry.communityStatus') }}
             </h3>
             <button
                 @click="refreshStatus"
                 class="text-gray-400 hover:text-gray-600 p-1"
                 :class="{ 'animate-spin': loading }"
-                title="Aktualisieren"
+                :title="t('status')"
             >
                 <i class="pi pi-refresh text-xs"></i>
             </button>
@@ -31,10 +31,10 @@
                 ></i>
                 <div>
                     <div class="text-sm font-medium" :class="sharingEnabled ? 'text-green-700' : 'text-gray-600'">
-                        {{ sharingEnabled ? 'Daten werden geteilt' : 'Teilen deaktiviert' }}
+                        {{ sharingEnabled ? t('telemetry.sharingEnabled') : t('telemetry.sharingDisabled') }}
                     </div>
                     <div class="text-xs text-gray-500">
-                        {{ sharingEnabled ? 'Sie tragen zur Community bei' : 'Aktivieren Sie das Teilen in den Einstellungen' }}
+                        {{ sharingEnabled ? t('telemetry.contributing') : t('telemetry.enableSharing') }}
                     </div>
                 </div>
             </div>
@@ -43,11 +43,11 @@
             <div class="grid grid-cols-2 gap-2">
                 <div class="text-center p-2 bg-gray-50 rounded">
                     <div class="text-lg font-bold text-purple-600">{{ status.total_installations || 0 }}</div>
-                    <div class="text-xs text-gray-500">Nutzer</div>
+                    <div class="text-xs text-gray-500">{{ t('telemetry.users') }}</div>
                 </div>
                 <div class="text-center p-2 bg-gray-50 rounded">
                     <div class="text-lg font-bold text-blue-600">{{ formatNumber(status.total_data_points || 0) }}</div>
-                    <div class="text-xs text-gray-500">Datenpunkte</div>
+                    <div class="text-xs text-gray-500">{{ t('telemetry.dataPoints') }}</div>
                 </div>
             </div>
 
@@ -60,14 +60,14 @@
                     class="mr-1"
                     :class="status.data_sufficient ? 'pi pi-check' : 'pi pi-clock'"
                 ></i>
-                {{ status.data_sufficient ? 'Community-Modell verfügbar' : 'Modell wird trainiert...' }}
+                {{ status.data_sufficient ? t('telemetry.modelAvailable') : t('telemetry.modelTraining') }}
             </div>
         </div>
 
         <div v-else class="flex-grow flex items-center justify-center text-gray-400 text-sm">
             <div class="text-center">
                 <i class="pi pi-exclamation-circle text-xl mb-2"></i>
-                <p>Status nicht verfügbar</p>
+                <p>{{ t('telemetry.statusUnavailable') }}</p>
             </div>
         </div>
     </div>

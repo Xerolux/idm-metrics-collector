@@ -35,5 +35,22 @@
   "error": "Fehler",
   "success": "Erfolg",
   "toggle_theme": "Design umschalten",
-  "language": "Sprache"
+  "language": "Sprache",
+  "telemetry": {
+    "poolStatus": "Community Datenpool Status",
+    "building": "Datenpool wird aufgebaut",
+    "ready": "Datenpool bereit",
+    "sharingEnabled": "Datenfreigabe aktiviert",
+    "sharingDisabled": "Datenfreigabe deaktiviert",
+    "installations": "Installationen",
+    "dataPoints": "Datenpunkte",
+    "modelsAvailable": "Verfügbare Modelle",
+    "contributing": "Sie tragen zur Community bei",
+    "enableSharing": "Aktivieren Sie das Teilen in den Einstellungen",
+    "modelAvailable": "Community-Modell verfügbar",
+    "modelTraining": "Modell wird trainiert...",
+    "statusUnavailable": "Status nicht verfügbar",
+    "communityStatus": "Community Status",
+    "users": "Nutzer"
+  }
 }

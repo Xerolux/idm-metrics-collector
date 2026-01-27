@@ -35,5 +35,22 @@
   "error": "Error",
   "success": "Success",
   "toggle_theme": "Toggle Theme",
-  "language": "Language"
+  "language": "Language",
+  "telemetry": {
+    "poolStatus": "Community Data Pool Status",
+    "building": "Building data pool",
+    "ready": "Data pool ready",
+    "sharingEnabled": "Data sharing enabled",
+    "sharingDisabled": "Data sharing disabled",
+    "installations": "Installations",
+    "dataPoints": "Data points",
+    "modelsAvailable": "Models available",
+    "contributing": "You are contributing to the community",
+    "enableSharing": "Enable sharing in settings",
+    "modelAvailable": "Community model available",
+    "modelTraining": "Model is training...",
+    "statusUnavailable": "Status unavailable",
+    "communityStatus": "Community Status",
+    "users": "Users"
+  }
 }
