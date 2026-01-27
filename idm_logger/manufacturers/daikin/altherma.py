@@ -4,7 +4,7 @@ Daikin Altherma Heat Pump Driver.
 Requires Daikin Home Hub (EKRHH) in Modbus TCP mode.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from ..base import (
     HeatpumpDriver,

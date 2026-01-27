@@ -16,7 +16,6 @@ from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
 from .technician_auth import calculate_codes
 from .config import config
-from .sensor_addresses import SensorFeatures
 from .log_handler import memory_handler
 from .backup import backup_manager, BACKUP_DIR
 from .mqtt import mqtt_publisher
@@ -982,52 +981,57 @@ def get_telemetry_pool_status():
         )
 
         # Request pool status from telemetry server (public endpoint, no auth needed)
-        response = requests.get(
-            f"{telemetry_endpoint}/api/v1/pool/status",
-            timeout=10
-        )
+        response = requests.get(f"{telemetry_endpoint}/api/v1/pool/status", timeout=10)
 
         if response.status_code == 200:
             return jsonify(response.json())
         else:
             logger.warning(f"Telemetry pool status failed: {response.status_code}")
-            return jsonify({
+            return jsonify(
+                {
+                    "data_sufficient": False,
+                    "total_installations": 0,
+                    "total_data_points": 0,
+                    "models_available": [],
+                    "message": "Telemetry server returned an error.",
+                    "message_de": "Telemetry-Server hat einen Fehler zurückgegeben.",
+                }
+            )
+
+    except requests.exceptions.Timeout:
+        logger.warning("Telemetry pool status request timed out")
+        return jsonify(
+            {
                 "data_sufficient": False,
                 "total_installations": 0,
                 "total_data_points": 0,
                 "models_available": [],
-                "message": "Telemetry server returned an error.",
-                "message_de": "Telemetry-Server hat einen Fehler zurückgegeben."
-            })
-
-    except requests.exceptions.Timeout:
-        logger.warning("Telemetry pool status request timed out")
-        return jsonify({
-            "data_sufficient": False,
-            "total_installations": 0,
-            "total_data_points": 0,
-            "models_available": [],
-            "message": "Telemetry server request timed out.",
-            "message_de": "Telemetry-Server Anfrage hat das Zeitlimit überschritten."
-        })
+                "message": "Telemetry server request timed out.",
+                "message_de": "Telemetry-Server Anfrage hat das Zeitlimit überschritten.",
+            }
+        )
     except requests.exceptions.ConnectionError:
         logger.warning("Could not connect to telemetry server")
-        return jsonify({
-            "data_sufficient": False,
-            "total_installations": 0,
-            "total_data_points": 0,
-            "models_available": [],
-            "message": "Could not connect to telemetry server. Data is collected locally.",
-            "message_de": "Keine Verbindung zum Telemetry-Server. Daten werden lokal gesammelt."
-        })
+        return jsonify(
+            {
+                "data_sufficient": False,
+                "total_installations": 0,
+                "total_data_points": 0,
+                "models_available": [],
+                "message": "Could not connect to telemetry server. Data is collected locally.",
+                "message_de": "Keine Verbindung zum Telemetry-Server. Daten werden lokal gesammelt.",
+            }
+        )
     except Exception as e:
         logger.error(f"Telemetry pool status failed: {e}")
-        return jsonify({
-            "data_sufficient": False,
-            "error": str(e),
-            "message": "An error occurred while checking data pool status.",
-            "message_de": "Fehler beim Abrufen des Datenpool-Status."
-        }), 500
+        return jsonify(
+            {
+                "data_sufficient": False,
+                "error": str(e),
+                "message": "An error occurred while checking data pool status.",
+                "message_de": "Fehler beim Abrufen des Datenpool-Status.",
+            }
+        ), 500
 
 
 @app.route("/api/telemetry/community/averages", methods=["GET"])
@@ -1051,14 +1055,16 @@ def get_community_averages():
 
         auth_token = config.data.get("telemetry_auth_token")
         if not auth_token:
-             # Try environment variable
+            # Try environment variable
             auth_token = os.environ.get("TELEMETRY_AUTH_TOKEN")
 
         if not auth_token:
-            return jsonify({
-                "error": "Telemetry auth token not configured",
-                "message": "Please configure telemetry token in settings."
-            }), 401
+            return jsonify(
+                {
+                    "error": "Telemetry auth token not configured",
+                    "message": "Please configure telemetry token in settings.",
+                }
+            ), 401
 
         headers = {"Authorization": f"Bearer {auth_token}"}
         params = {"model": model}
@@ -1069,16 +1075,20 @@ def get_community_averages():
             f"{telemetry_endpoint}/api/v1/community/averages",
             params=params,
             headers=headers,
-            timeout=10
+            timeout=10,
         )
 
         if response.status_code == 200:
             return jsonify(response.json())
         elif response.status_code == 401:
-             return jsonify({"error": "Invalid telemetry token"}), 401
+            return jsonify({"error": "Invalid telemetry token"}), 401
         else:
-            logger.warning(f"Community averages failed: {response.status_code} - {response.text}")
-            return jsonify({"error": f"Telemetry server error: {response.status_code}"}), 502
+            logger.warning(
+                f"Community averages failed: {response.status_code} - {response.text}"
+            )
+            return jsonify(
+                {"error": f"Telemetry server error: {response.status_code}"}
+            ), 502
 
     except Exception as e:
         logger.error(f"Community averages proxy failed: {e}")
@@ -1479,13 +1489,19 @@ def status_check():
 
     mqtt_status = mqtt_publisher.get_status() if mqtt_publisher else None
 
+    # Check if any heat pump is connected
+    modbus_connected = False
+    if heatpump_manager_instance:
+        status_list = heatpump_manager_instance.get_status()
+        modbus_connected = any(hp.get("connected", False) for hp in status_list)
+
     return jsonify(
         {
             "status": "running",
             "setup_completed": config.is_setup(),
             "metrics": metrics_status,
             "mqtt": mqtt_status,
-            "modbus_connected": modbus_client_instance is not None,
+            "modbus_connected": modbus_connected,
             "scheduler_running": scheduler_instance is not None
             and config.get("web.write_enabled"),
         }

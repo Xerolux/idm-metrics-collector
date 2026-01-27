@@ -41,10 +41,9 @@ Usage:
 import asyncio
 import logging
 import time
-import uuid
 import threading
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
 
 from pymodbus.client import ModbusTcpClient
@@ -190,7 +189,6 @@ class HeatpumpManager:
         conn_config = hp_config.get("connection_config", {})
         host = conn_config.get("host", "")
         port = conn_config.get("port", 502)
-        unit_id = conn_config.get("unit_id", 1)
         timeout = conn_config.get("timeout", 10)
 
         if not host:

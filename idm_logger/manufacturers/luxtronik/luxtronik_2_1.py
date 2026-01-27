@@ -4,9 +4,7 @@ Luxtronik 2.1 Heat Pump Driver (TCP).
 Used by Bosch, Alpha Innotec, Novelan, etc.
 """
 
-from typing import List, Dict, Any, Optional
-import struct
-import socket
+from typing import List, Dict, Any
 
 from ..base import (
     HeatpumpDriver,
@@ -15,7 +13,6 @@ from ..base import (
     DataType,
     AccessMode,
     HeatpumpCapabilities,
-    ReadGroup,
 )
 from .. import ManufacturerRegistry
 

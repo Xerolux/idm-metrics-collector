@@ -277,7 +277,7 @@ def main():
 
                     # Publish to MQTT
                     if mqtt and mqtt.connected:
-                        logger.debug(f"Publishing to MQTT")
+                        logger.debug("Publishing to MQTT")
                         mqtt.publish_data(data)
                 else:
                     # Log only if we expected data but got none

@@ -13,7 +13,6 @@ import asyncio
 from threading import Event
 import paho.mqtt.client as mqtt
 from .config import config
-from .sensor_addresses import SensorFeatures, IdmBinarySensorAddress
 from .migrations import get_default_heatpump_id
 
 logger = logging.getLogger(__name__)

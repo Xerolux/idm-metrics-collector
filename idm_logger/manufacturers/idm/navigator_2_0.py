@@ -27,7 +27,6 @@ from ..base import (
     DataType,
     AccessMode,
     HeatpumpCapabilities,
-    ReadGroup,
 )
 from .. import ManufacturerRegistry
 
@@ -40,9 +39,6 @@ from ...sensor_addresses import (
     HeatingCircuit,
     BaseSensorAddress,
     IdmBinarySensorAddress,
-    _FloatSensorAddress,
-    _UCharSensorAddress,
-    _WordSensorAddress,
     _EnumSensorAddress,
     _BitFieldSensorAddress,
     SensorFeatures,

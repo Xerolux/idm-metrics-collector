@@ -14,7 +14,6 @@ Migration flow:
 
 import json
 import logging
-import time
 from typing import Optional
 
 from .db import db

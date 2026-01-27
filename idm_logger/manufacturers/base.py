@@ -16,7 +16,7 @@ Architecture:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
 import struct
 import logging

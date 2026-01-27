@@ -5,8 +5,7 @@ NIBE S-Series Heat Pump Driver (Modbus TCP).
 Supports NIBE S1155, S1255, S2125, etc.
 """
 
-import struct
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from ..base import (
     HeatpumpDriver,
@@ -15,7 +14,6 @@ from ..base import (
     DataType,
     AccessMode,
     HeatpumpCapabilities,
-    ReadGroup,
 )
 from .. import ManufacturerRegistry
 
