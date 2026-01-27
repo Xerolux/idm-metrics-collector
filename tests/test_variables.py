@@ -66,6 +66,10 @@ class TestVariables(unittest.TestCase):
     def tearDown(self):
         self.config_patcher.stop()
         self.modules_patcher.stop()
+        # Clean up modules again to prevent pollution
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
 
     def test_manager_add_variable(self):
         var = self.variable_manager.add_variable(
