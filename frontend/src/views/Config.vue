@@ -7,23 +7,29 @@
         </div>
 
         <div v-else>
-            <TabView :scrollable="true">
-                <TabPanel header="Verbindung">
-                     <div class="flex flex-col gap-6">
-                        <Fieldset legend="IDM Wärmepumpe" :toggleable="true">
-                             <div class="flex flex-col gap-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div class="flex flex-col gap-2">
-                                        <label>Host / IP</label>
-                                        <InputText v-model="config.idm.host" class="w-full" />
+            <div class="w-full overflow-hidden max-w-[100vw]">
+                <TabView :scrollable="true">
+                    <TabPanel header="Verbindung">
+                        <div class="flex flex-col gap-6">
+                            <Fieldset legend="IDM Wärmepumpe" :toggleable="true">
+                                <div class="flex flex-col gap-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div class="flex flex-col gap-2">
+                                            <label>Host / IP</label>
+                                            <InputText v-model="config.idm.host" class="w-full" />
+                                        </div>
+                                        <div class="flex flex-col gap-2">
+                                            <label>Port</label>
+                                            <InputNumber v-model="config.idm.port" :useGrouping="false" class="w-full" />
+                                        </div>
+                                        <div class="flex flex-col gap-2">
+                                            <label>Modbus Unit ID</label>
+                                            <InputNumber v-model="config.idm.unit_id" :min="1" :max="255" :useGrouping="false" class="w-full" />
+                                            <small class="text-gray-400">Standard: 1</small>
+                                        </div>
                                     </div>
-                                    <div class="flex flex-col gap-2">
-                                        <label>Port</label>
-                                        <InputNumber v-model="config.idm.port" :useGrouping="false" class="w-full" />
-                                    </div>
-                                </div>
 
-                                <div class="flex flex-col gap-2">
+                                    <div class="flex flex-col gap-2">
                                     <label class="font-bold">Aktivierte Heizkreise</label>
                                     <div class="flex flex-wrap gap-4 p-3 border border-gray-700 rounded bg-gray-900/50">
                                         <div class="flex items-center gap-2">
@@ -627,7 +633,8 @@
                     </div>
                 </TabPanel>
 
-            </TabView>
+                </TabView>
+            </div>
         </div>
 
         <div class="flex gap-4 mt-4 justify-end border-t border-gray-700 pt-4 sticky bottom-0 bg-gray-900/90 backdrop-blur p-4 z-10">
@@ -747,7 +754,7 @@ const formatNumber = (num) => {
 };
 
 const config = ref({
-    idm: { host: '', port: 502, circuits: ['A'], zones: [] },
+    idm: { host: '', port: 502, unit_id: 1, circuits: ['A'], zones: [] },
     metrics: { url: '' },
     web: { write_enabled: false },
     logging: { interval: 60, realtime_mode: false },
@@ -849,7 +856,7 @@ onMounted(async () => {
         // Deep merge server data with defaults to preserve structure
         const serverData = res.data;
         const defaults = {
-            idm: { host: '', port: 502, circuits: ['A'], zones: [] },
+            idm: { host: '', port: 502, unit_id: 1, circuits: ['A'], zones: [] },
             metrics: { url: '' },
             web: { write_enabled: false },
             logging: { interval: 60, realtime_mode: false },
@@ -1058,6 +1065,7 @@ const saveConfig = async () => {
         const payload = {
             idm_host: config.value.idm.host,
             idm_port: config.value.idm.port,
+            idm_unit_id: config.value.idm.unit_id,
             circuits: config.value.idm.circuits,
             zones: config.value.idm.zones,
             metrics_url: config.value.metrics.url,
