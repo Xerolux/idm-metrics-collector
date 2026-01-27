@@ -4,6 +4,7 @@ import requests
 import threading
 import time
 import os
+import hashlib
 from pathlib import Path
 from .config import config
 
@@ -63,6 +64,21 @@ class ModelUpdater:
         """Manually trigger an update check."""
         threading.Thread(target=self._check_and_download, daemon=True).start()
 
+    def _get_file_hash(self, filepath):
+        """Calculate SHA256 hash of a file."""
+        if not os.path.exists(filepath):
+            return None
+        sha256_hash = hashlib.sha256()
+        try:
+            with open(filepath, "rb") as f:
+                # Read and update hash string value in blocks of 4K
+                for byte_block in iter(lambda: f.read(4096), b""):
+                    sha256_hash.update(byte_block)
+            return sha256_hash.hexdigest()
+        except Exception as e:
+            logger.error(f"Error calculating hash for {filepath}: {e}")
+            return None
+
     def _check_and_download(self):
         # Determine endpoint (production or dummy)
         # Using the same logic as TelemetryManager implicitly via config if we wanted,
@@ -81,6 +97,7 @@ class ModelUpdater:
             base_url = os.environ.get("TELEMETRY_ENDPOINT").rsplit("/api/", 1)[0]
 
         installation_id = self.config.get("installation_id")
+        local_hash = self._get_file_hash(MODEL_PATH)
 
         # 1. Check Eligibility
         check_url = f"{base_url}/api/v1/model/check"
@@ -92,9 +109,13 @@ class ModelUpdater:
             if token:
                 headers["Authorization"] = f"Bearer {token}"
 
+            params = {"installation_id": installation_id}
+            if local_hash:
+                params["current_hash"] = local_hash
+
             response = requests.get(
                 check_url,
-                params={"installation_id": installation_id},
+                params=params,
                 headers=headers,
                 timeout=10,
             )
@@ -102,8 +123,14 @@ class ModelUpdater:
             if response.status_code == 200:
                 data = response.json()
                 if data.get("eligible"):
-                    # 2. Download Model if eligible
-                    # TODO: In future, check version/hash to avoid redownloading same file
+                    # Check if remote hash matches local hash to avoid redundant download
+                    remote_hash = data.get("hash") or data.get("version_hash")
+
+                    if remote_hash and local_hash and remote_hash == local_hash:
+                        logger.info("Local model is up-to-date (hash match).")
+                        return
+
+                    # 2. Download Model if eligible and hash differs (or not provided)
                     self._download_model(base_url, headers)
                 else:
                     logger.info(
