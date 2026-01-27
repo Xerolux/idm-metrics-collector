@@ -968,6 +968,68 @@ def trigger_ai_update():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/telemetry/pool-status", methods=["GET"])
+@login_required
+def get_telemetry_pool_status():
+    """
+    Get the current status of the community data pool from telemetry server.
+    Proxies the request to the telemetry server's /api/v1/pool/status endpoint.
+    """
+    try:
+        # Get telemetry endpoint from config or environment
+        telemetry_endpoint = os.environ.get(
+            "TELEMETRY_ENDPOINT", "https://collector.xerolux.de"
+        )
+
+        # Request pool status from telemetry server (public endpoint, no auth needed)
+        response = requests.get(
+            f"{telemetry_endpoint}/api/v1/pool/status",
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            logger.warning(f"Telemetry pool status failed: {response.status_code}")
+            return jsonify({
+                "data_sufficient": False,
+                "total_installations": 0,
+                "total_data_points": 0,
+                "models_available": [],
+                "message": "Telemetry server returned an error.",
+                "message_de": "Telemetry-Server hat einen Fehler zurückgegeben."
+            })
+
+    except requests.exceptions.Timeout:
+        logger.warning("Telemetry pool status request timed out")
+        return jsonify({
+            "data_sufficient": False,
+            "total_installations": 0,
+            "total_data_points": 0,
+            "models_available": [],
+            "message": "Telemetry server request timed out.",
+            "message_de": "Telemetry-Server Anfrage hat das Zeitlimit überschritten."
+        })
+    except requests.exceptions.ConnectionError:
+        logger.warning("Could not connect to telemetry server")
+        return jsonify({
+            "data_sufficient": False,
+            "total_installations": 0,
+            "total_data_points": 0,
+            "models_available": [],
+            "message": "Could not connect to telemetry server. Data is collected locally.",
+            "message_de": "Keine Verbindung zum Telemetry-Server. Daten werden lokal gesammelt."
+        })
+    except Exception as e:
+        logger.error(f"Telemetry pool status failed: {e}")
+        return jsonify({
+            "data_sufficient": False,
+            "error": str(e),
+            "message": "An error occurred while checking data pool status.",
+            "message_de": "Fehler beim Abrufen des Datenpool-Status."
+        }), 500
+
+
 @app.route("/api/metrics/query_range", methods=["GET"])
 @auth_or_token_required
 def query_metrics_range():

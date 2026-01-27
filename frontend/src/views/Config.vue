@@ -279,6 +279,69 @@
                                     <InputText v-model="config.telemetry_auth_token" type="password" placeholder="Nur erforderlich für private Server" class="w-full" />
                                     <small class="text-gray-400">Wird benötigt, wenn der Telemetry-Server eine Authentifizierung erfordert.</small>
                                 </div>
+
+                                <!-- Data Pool Status Widget -->
+                                <div class="mt-4 bg-gray-800 p-4 rounded border border-gray-700">
+                                    <h4 class="font-bold text-lg mb-3 flex items-center gap-2">
+                                        <i class="pi pi-database"></i> Community Datenpool Status
+                                    </h4>
+
+                                    <div v-if="dataPoolLoading" class="text-center py-4 text-gray-400">
+                                        <i class="pi pi-spin pi-spinner mr-2"></i> Lade Status...
+                                    </div>
+
+                                    <div v-else-if="dataPoolStatus" class="flex flex-col gap-4">
+                                        <!-- Status Indicator -->
+                                        <div class="flex items-center gap-3 p-3 rounded"
+                                             :class="dataPoolStatus.data_sufficient ? 'bg-green-900/30 border border-green-700/50' : 'bg-yellow-900/30 border border-yellow-700/50'">
+                                            <i class="text-2xl"
+                                               :class="dataPoolStatus.data_sufficient ? 'pi pi-check-circle text-green-400' : 'pi pi-clock text-yellow-400'"></i>
+                                            <div>
+                                                <span class="font-bold" :class="dataPoolStatus.data_sufficient ? 'text-green-300' : 'text-yellow-300'">
+                                                    {{ dataPoolStatus.data_sufficient ? 'Datenpool bereit' : 'Datenpool wird aufgebaut' }}
+                                                </span>
+                                                <p class="text-sm text-gray-300 mt-1">{{ dataPoolStatus.message_de || dataPoolStatus.message }}</p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Statistics -->
+                                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                            <div class="bg-gray-900/50 p-3 rounded text-center">
+                                                <div class="text-2xl font-bold text-purple-400">{{ dataPoolStatus.total_installations || 0 }}</div>
+                                                <div class="text-xs text-gray-400 mt-1">Installationen</div>
+                                            </div>
+                                            <div class="bg-gray-900/50 p-3 rounded text-center">
+                                                <div class="text-2xl font-bold text-blue-400">{{ formatNumber(dataPoolStatus.total_data_points || 0) }}</div>
+                                                <div class="text-xs text-gray-400 mt-1">Datenpunkte</div>
+                                            </div>
+                                            <div class="bg-gray-900/50 p-3 rounded text-center">
+                                                <div class="text-2xl font-bold text-green-400">{{ (dataPoolStatus.models_available || []).length }}</div>
+                                                <div class="text-xs text-gray-400 mt-1">Modelle verfügbar</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Available Models -->
+                                        <div v-if="dataPoolStatus.models_available && dataPoolStatus.models_available.length > 0" class="mt-2">
+                                            <label class="text-sm text-gray-400">Verfügbare Community-Modelle:</label>
+                                            <div class="flex flex-wrap gap-2 mt-2">
+                                                <span v-for="model in dataPoolStatus.models_available" :key="model"
+                                                      class="px-2 py-1 bg-purple-900/40 border border-purple-600/50 rounded text-sm text-purple-300">
+                                                    {{ model }}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Refresh Button -->
+                                        <div class="flex justify-end mt-2">
+                                            <Button label="Status aktualisieren" icon="pi pi-refresh" severity="secondary" size="small"
+                                                    @click="fetchDataPoolStatus" :loading="dataPoolLoading" />
+                                        </div>
+                                    </div>
+
+                                    <div v-else class="text-center py-4 text-gray-500">
+                                        <i class="pi pi-exclamation-triangle mr-2"></i> Status nicht verfügbar
+                                    </div>
+                                </div>
                             </div>
                         </Fieldset>
 
@@ -658,6 +721,15 @@ import Dropdown from 'primevue/dropdown';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 
+// Helper function to format large numbers with K/M suffix
+const formatNumber = (num) => {
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+};
 
 const config = ref({
     idm: { host: '', port: 502, circuits: ['A'], zones: [] },
@@ -710,6 +782,8 @@ const emailRecipientsText = ref('');
 const updateStatus = ref({});
 const signalStatus = ref({});
 const aiStatus = ref(null);
+const dataPoolStatus = ref(null);
+const dataPoolLoading = ref(false);
 const statusLoading = ref(false);
 const checkingUpdates = ref(false);
 const modelUpdateLoading = ref(false);
@@ -780,6 +854,7 @@ onMounted(async () => {
         loadBackups();
         loadStatus(true);  // Show notification on initial load
         loadAiStatus();
+        fetchDataPoolStatus();
 
         // Refresh AI status periodically
         aiStatusInterval = setInterval(loadAiStatus, 10000);
@@ -884,6 +959,28 @@ const loadAiStatus = async () => {
         aiStatus.value = res.data;
     } catch (e) {
         console.error("Failed to load AI status", e);
+    }
+};
+
+const fetchDataPoolStatus = async () => {
+    dataPoolLoading.value = true;
+    try {
+        // Try to fetch from the telemetry server via our backend proxy
+        const res = await axios.get('/api/telemetry/pool-status');
+        dataPoolStatus.value = res.data;
+    } catch (e) {
+        // If not available, show a default message
+        dataPoolStatus.value = {
+            data_sufficient: false,
+            total_installations: 0,
+            total_data_points: 0,
+            models_available: [],
+            message_de: 'Telemetry-Server nicht erreichbar. Daten werden lokal gesammelt und bei nächster Verbindung gesendet.',
+            message: 'Telemetry server not reachable. Data is being collected locally.'
+        };
+        console.warn("Could not fetch data pool status", e);
+    } finally {
+        dataPoolLoading.value = false;
     }
 };
 
