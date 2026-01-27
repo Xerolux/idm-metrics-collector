@@ -1,6 +1,15 @@
 <template>
     <div class="p-4 flex flex-col gap-4">
-        <h1 class="text-2xl font-bold mb-4">Systemprotokolle</h1>
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold">Systemprotokolle</h1>
+            <Button
+                label="Protokoll herunterladen"
+                icon="pi pi-download"
+                @click="downloadLogs"
+                :disabled="logs.length === 0"
+                severity="secondary"
+            />
+        </div>
 
         <div v-if="loading && logs.length === 0" class="flex justify-center">
              <i class="pi pi-spin pi-spinner text-4xl"></i>
@@ -20,6 +29,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
+import Button from 'primevue/button';
 
 const logs = ref([]);
 const loading = ref(true);
@@ -59,6 +69,11 @@ const fetchLogs = async () => {
     } finally {
         loading.value = false;
     }
+};
+
+const downloadLogs = () => {
+    // Direct download link
+    window.location.href = '/api/logs/download';
 };
 
 const getLevelColor = (level) => {
