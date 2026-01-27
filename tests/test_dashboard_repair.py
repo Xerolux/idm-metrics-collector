@@ -1,22 +1,50 @@
+# SPDX-License-Identifier: MIT
+"""Tests for dashboard repair functionality."""
+
 import unittest
 from unittest.mock import MagicMock, patch
 import sys
 import os
 
-sys.path.append(os.getcwd())
+# Add repo root to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from idm_logger.dashboard_config import DashboardManager, get_default_dashboards
+# Import helpers from conftest
+from conftest import create_mock_db_module
 
 
 class TestDashboardRepair(unittest.TestCase):
     def setUp(self):
+        # Clean up modules
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
+
         self.mock_config = MagicMock()
         # Mock the config.data dictionary
         self.mock_config.data = {}
         self.mock_config.save = MagicMock()
 
-    @patch("idm_logger.dashboard_config.config", new_callable=MagicMock)
-    def test_repair_broken_dashboard(self, mock_config_module):
+        # Create mock db module
+        self.mock_db_module = create_mock_db_module()
+
+        # Patch db module before importing dashboard_config
+        self.modules_patcher = patch.dict(
+            sys.modules,
+            {
+                "idm_logger.db": self.mock_db_module,
+            },
+        )
+        self.modules_patcher.start()
+
+    def tearDown(self):
+        self.modules_patcher.stop()
+        # Clean up modules
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
+
+    def test_repair_broken_dashboard(self):
         # Setup broken dashboard data
         broken_dashboard = {
             "id": "default",
@@ -28,46 +56,51 @@ class TestDashboardRepair(unittest.TestCase):
         }
 
         # Configure the mock config to return this data
-        mock_config_module.data = {"dashboards": [broken_dashboard]}
-        mock_config_module.save = MagicMock()
+        mock_config = MagicMock()
+        mock_config.data = {"dashboards": [broken_dashboard]}
+        mock_config.save = MagicMock()
 
-        # Initialize manager - this triggers __init__ which calls _repair_broken_dashboards
-        _ = DashboardManager()
+        with patch("idm_logger.dashboard_config.config", mock_config):
+            from idm_logger.dashboard_config import DashboardManager
 
-        # Verify that save was called (implying a change was made)
-        mock_config_module.save.assert_called()
+            # Initialize manager - this triggers __init__ which calls _repair_broken_dashboards
+            _ = DashboardManager()
 
-        # Verify that the dashboard was replaced
-        dashboards = mock_config_module.data["dashboards"]
-        self.assertEqual(len(dashboards), 1)
-        self.assertEqual(dashboards[0]["name"], "Home Dashboard")  # Default name
+            # Verify that save was called (implying a change was made)
+            mock_config.save.assert_called()
 
-        # Check that broken titles are gone
-        titles = [c["title"] for c in dashboards[0]["charts"]]
-        self.assertNotIn("Underfloor Heating", titles)
-        self.assertIn("Wärmepumpe Temperaturen", titles)
+            # Verify that the dashboard was replaced
+            dashboards = mock_config.data["dashboards"]
+            self.assertEqual(len(dashboards), 1)
+            self.assertEqual(dashboards[0]["name"], "Home Dashboard")  # Default name
 
-    @patch("idm_logger.dashboard_config.config", new_callable=MagicMock)
-    def test_no_repair_needed(self, mock_config_module):
-        # Setup good dashboard data
-        good_dashboard = get_default_dashboards()[0]
+            # Check that broken titles are gone
+            titles = [c["title"] for c in dashboards[0]["charts"]]
+            self.assertNotIn("Underfloor Heating", titles)
+            self.assertIn("Wärmepumpe Temperaturen", titles)
 
-        mock_config_module.data = {"dashboards": [good_dashboard]}
-        mock_config_module.save = MagicMock()
+    def test_no_repair_needed(self):
+        with patch("idm_logger.dashboard_config.config") as mock_config:
+            from idm_logger.dashboard_config import (
+                get_default_dashboards,
+                DashboardManager,
+            )
 
-        _ = DashboardManager()
+            # Setup good dashboard data
+            good_dashboard = get_default_dashboards()[0]
 
-        # Verify that save was NOT called (implying no change needed)
-        # Wait, _ensure_dashboards_key calls save if key is missing, but here it is present.
-        # But _repair_broken_dashboards only calls save if repaired=True.
-        # However, verifying save not called might be tricky if other methods call it.
-        # Let's verify the data hasn't changed.
+            mock_config.data = {"dashboards": [good_dashboard]}
+            mock_config.save = MagicMock()
 
-        dashboards = mock_config_module.data["dashboards"]
-        self.assertEqual(dashboards[0]["id"], good_dashboard["id"])
-        self.assertEqual(
-            dashboards[0]["charts"][0]["title"], good_dashboard["charts"][0]["title"]
-        )
+            _ = DashboardManager()
+
+            # Verify the data hasn't changed
+            dashboards = mock_config.data["dashboards"]
+            self.assertEqual(dashboards[0]["id"], good_dashboard["id"])
+            self.assertEqual(
+                dashboards[0]["charts"][0]["title"],
+                good_dashboard["charts"][0]["title"],
+            )
 
 
 if __name__ == "__main__":

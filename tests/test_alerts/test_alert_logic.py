@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: MIT
+"""Tests for alert manager logic."""
+
 import unittest
 import time
 from unittest.mock import MagicMock, patch, ANY
@@ -6,36 +8,52 @@ import sys
 import os
 
 # Add repo root to path
-sys.path.append(os.getcwd())
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from idm_logger.alerts import AlertManager
+# Import helper from conftest
+from tests.conftest import create_mock_db_module
 
 
 class TestAlertManager(unittest.TestCase):
     def setUp(self):
-        # Mock database and configuration
-        self.mock_db = MagicMock()
-        self.mock_config = MagicMock()  # This is likely failing because `from .config import config` in alerts.py doesn't expose 'config' as an attribute of the module in the way patch expects if it was imported differently or if patch can't find it.
-        # Actually, in idm_logger/alerts.py we do `from .config import config`. So `idm_logger.alerts.config` should exist.
-        # But wait, I refactored alerts.py to use `idm_logger.notifications.notification_manager`.
+        # Clean up modules
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
 
-        # Patch db
-        self.db_patcher = patch("idm_logger.alerts.db", self.mock_db)
-        self.db_patcher.start()
-
+        # Create properly configured mock db module
+        self.mock_db_module = create_mock_db_module()
+        self.mock_db = self.mock_db_module.db
         self.mock_db.get_alerts.return_value = []
 
-        # We need to patch the notification_manager in alerts.py, not config or send_signal_message anymore.
+        # Patch modules before importing alerts
+        self.modules_patcher = patch.dict(
+            sys.modules,
+            {
+                "idm_logger.db": self.mock_db_module,
+            },
+        )
+        self.modules_patcher.start()
+
+        # We need to patch the notification_manager in alerts.py
         self.notification_manager_patcher = patch(
             "idm_logger.alerts.notification_manager"
         )
         self.mock_notification_manager = self.notification_manager_patcher.start()
 
+        # Now import AlertManager
+        from idm_logger.alerts import AlertManager
+
+        self.AlertManager = AlertManager
         self.alert_manager = AlertManager()
 
     def tearDown(self):
-        self.db_patcher.stop()
         self.notification_manager_patcher.stop()
+        self.modules_patcher.stop()
+        # Clean up modules
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
 
     def test_threshold_alert_gt(self):
         # Setup alert

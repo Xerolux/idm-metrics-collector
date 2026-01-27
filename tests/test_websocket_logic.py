@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+"""Tests for WebSocket handler logic."""
+
 import pytest
 from unittest.mock import MagicMock, patch
 import sys
@@ -7,10 +10,22 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from flask import Flask
-from idm_logger.websocket_handler import WebSocketHandler
 
 
 class TestWebSocketHandler:
+    @pytest.fixture(autouse=True)
+    def clean_modules(self):
+        """Clean up idm_logger modules before and after each test."""
+        # Clean before
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
+        yield
+        # Clean after
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
+
     @pytest.fixture
     def mock_socketio(self):
         mock = MagicMock()
@@ -34,6 +49,9 @@ class TestWebSocketHandler:
 
     @pytest.fixture
     def handler(self, app, mock_socketio):
+        # Import inside fixture to ensure clean modules
+        from idm_logger.websocket_handler import WebSocketHandler
+
         # We need to mock join_room
         with (
             patch("idm_logger.websocket_handler.join_room") as mock_join_room,

@@ -1,88 +1,153 @@
-import pytest
-from unittest.mock import patch
+# SPDX-License-Identifier: MIT
+"""Tests for dashboard sharing functionality."""
 
-# Mock config before importing web
-with patch("idm_logger.config.Config") as MockConfig:
-    mock_conf = MockConfig.return_value
-    mock_conf.get.return_value = {}
-    mock_conf.data = {"sharing": {"tokens": []}}
+import unittest
+import sys
+import os
+from unittest.mock import patch, MagicMock
 
-    from idm_logger.web import app, sharing_manager
-    from idm_logger.dashboard_config import dashboard_manager
+# Add repo root to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-
-@pytest.fixture
-def client():
-    app.config["TESTING"] = True
-    with app.test_client() as client:
-        yield client
+# Import helper from conftest
+from conftest import create_mock_db_module, create_mock_config
 
 
-def test_shared_dashboard_endpoint(client):
-    # 1. Create a dummy dashboard
-    with patch.object(dashboard_manager, "get_dashboard") as mock_get_dash:
-        mock_get_dash.return_value = {"id": "dash1", "name": "Test Dash", "charts": []}
+class TestSharing(unittest.TestCase):
+    """Test dashboard sharing functionality."""
 
-        # 2. Create a share token (public)
-        token = sharing_manager.create_share_token(
-            dashboard_id="dash1", created_by="test", is_public=True
+    def setUp(self):
+        """Set up test fixtures."""
+        # Clean up any existing idm_logger modules
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
+
+        # Create properly configured mocks
+        self.mock_db_module = create_mock_db_module()
+        self.mock_config = create_mock_config()
+        self.mock_config.data["sharing"] = {"tokens": []}
+
+        # Patch modules before importing web
+        self.modules_patcher = patch.dict(
+            sys.modules,
+            {
+                "idm_logger.db": self.mock_db_module,
+                "idm_logger.mqtt": MagicMock(),
+                "idm_logger.modbus": MagicMock(),
+            },
         )
+        self.modules_patcher.start()
 
-        # 3. Test access
-        resp = client.get(f"/api/sharing/dashboard/{token.token_id}")
-        assert resp.status_code == 200
-        assert resp.json["id"] == "dash1"
+        # Patch config
+        self.config_patcher = patch("idm_logger.config.config", self.mock_config)
+        self.config_patcher.start()
 
-        # 4. Create protected token
-        token_protected = sharing_manager.create_share_token(
-            dashboard_id="dash1", created_by="test", password="secret", is_public=False
-        )
+        # Now import the web module
+        from idm_logger.web import app
+        from idm_logger.sharing import SharingManager
+        from idm_logger.dashboard_config import dashboard_manager
 
-        # 5. Test access without password
-        resp = client.get(f"/api/sharing/dashboard/{token_protected.token_id}")
-        assert resp.status_code == 401
-        assert resp.json["require_password"] is True
+        self.app = app
+        self.app.config["TESTING"] = True
+        self.app.secret_key = b"test-secret"
+        self.client = self.app.test_client()
 
-        # 6. Test access with wrong password
-        resp = client.get(
-            f"/api/sharing/dashboard/{token_protected.token_id}",
-            headers={"X-Share-Password": "wrong"},
-        )
-        assert resp.status_code == 403
+        # Initialize sharing manager with mock config
+        self.sharing_manager = SharingManager(self.mock_config)
 
-        # 7. Test access with correct password
-        resp = client.get(
-            f"/api/sharing/dashboard/{token_protected.token_id}",
-            headers={"X-Share-Password": "secret"},
-        )
-        assert resp.status_code == 200
-        assert resp.json["id"] == "dash1"
+        # Import web module and set sharing_manager
+        import idm_logger.web as web_module
 
+        web_module.sharing_manager = self.sharing_manager
+        self.dashboard_manager = dashboard_manager
 
-def test_query_metrics_with_share_token(client):
-    # Mock sharing manager to validate token
-    with patch.object(sharing_manager, "validate_token") as mock_validate:
-        mock_validate.return_value = True
+    def tearDown(self):
+        """Clean up after tests."""
+        self.config_patcher.stop()
+        self.modules_patcher.stop()
 
-        # Mock requests.get to VictoriaMetrics
-        with patch("requests.get") as mock_requests_get:
-            mock_requests_get.return_value.status_code = 200
-            mock_requests_get.return_value.json.return_value = {
-                "status": "success",
-                "data": {},
+        # Clean up modules
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
+
+    def test_shared_dashboard_endpoint(self):
+        """Test accessing a shared dashboard."""
+        with patch.object(self.dashboard_manager, "get_dashboard") as mock_get_dash:
+            mock_get_dash.return_value = {
+                "id": "dash1",
+                "name": "Test Dash",
+                "charts": [],
             }
 
-            # Access protected endpoint with token
-            resp = client.get(
-                "/api/metrics/query_range?query=test",
-                headers={"X-Share-Token": "valid_token"},
+            # Create a share token (public)
+            token = self.sharing_manager.create_share_token(
+                dashboard_id="dash1", created_by="test", is_public=True
             )
 
-            assert resp.status_code == 200
-            mock_validate.assert_called_with("valid_token", None)
+            # Test access
+            resp = self.client.get(f"/api/sharing/dashboard/{token.token_id}")
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp.json["id"], "dash1")
+
+            # Create protected token
+            token_protected = self.sharing_manager.create_share_token(
+                dashboard_id="dash1",
+                created_by="test",
+                password="secret",
+                is_public=False,
+            )
+
+            # Test access without password
+            resp = self.client.get(f"/api/sharing/dashboard/{token_protected.token_id}")
+            self.assertEqual(resp.status_code, 401)
+            self.assertTrue(resp.json["require_password"])
+
+            # Test access with wrong password
+            resp = self.client.get(
+                f"/api/sharing/dashboard/{token_protected.token_id}",
+                headers={"X-Share-Password": "wrong"},
+            )
+            self.assertEqual(resp.status_code, 403)
+
+            # Test access with correct password
+            resp = self.client.get(
+                f"/api/sharing/dashboard/{token_protected.token_id}",
+                headers={"X-Share-Password": "secret"},
+            )
+            self.assertEqual(resp.status_code, 200)
+            self.assertEqual(resp.json["id"], "dash1")
+
+    def test_query_metrics_with_share_token(self):
+        """Test querying metrics with a share token."""
+        # Mock sharing manager to validate token
+        with patch.object(self.sharing_manager, "validate_token") as mock_validate:
+            mock_validate.return_value = True
+
+            # Mock requests.get to VictoriaMetrics
+            with patch("requests.get") as mock_requests_get:
+                mock_requests_get.return_value.status_code = 200
+                mock_requests_get.return_value.json.return_value = {
+                    "status": "success",
+                    "data": {},
+                }
+
+                # Access protected endpoint with token
+                resp = self.client.get(
+                    "/api/metrics/query_range?query=test",
+                    headers={"X-Share-Token": "valid_token"},
+                )
+
+                self.assertEqual(resp.status_code, 200)
+                mock_validate.assert_called_with("valid_token", None)
+
+    def test_query_metrics_unauthorized(self):
+        """Test unauthorized access to metrics endpoint."""
+        # Access without login or token
+        resp = self.client.get("/api/metrics/query_range?query=test")
+        self.assertEqual(resp.status_code, 401)
 
 
-def test_query_metrics_unauthorized(client):
-    # Access without login or token
-    resp = client.get("/api/metrics/query_range?query=test")
-    assert resp.status_code == 401
+if __name__ == "__main__":
+    unittest.main()

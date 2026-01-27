@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+"""Tests for variable functionality."""
+
 import unittest
 from unittest.mock import MagicMock, patch
 import json
@@ -7,43 +10,39 @@ import os
 # Add repo root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Import helper from conftest
+from conftest import create_mock_db_module, create_mock_config
+
 
 class TestVariables(unittest.TestCase):
     def setUp(self):
-        # Ensure cryptography is loaded
-
         # Clean up modules
         for mod in list(sys.modules.keys()):
             if mod.startswith("idm_logger"):
                 del sys.modules[mod]
 
+        # Create properly configured mocks
+        self.mock_db_module = create_mock_db_module()
+        self.mock_config = create_mock_config()
+
+        # Configure config for variables
+        self.mock_config.data["variables"] = []
+
         # Mock modules
         self.modules_patcher = patch.dict(
             sys.modules,
             {
-                "idm_logger.db": MagicMock(),
+                "idm_logger.db": self.mock_db_module,
                 "idm_logger.mqtt": MagicMock(),
                 "idm_logger.scheduler": MagicMock(),
                 "idm_logger.modbus": MagicMock(),
-                "pandas": MagicMock(),
-                "numpy": MagicMock(),
             },
         )
         self.modules_patcher.start()
 
-        # Import config with json.loads patched
-        with patch("json.loads", return_value={}):
-            pass
-
         # Patch config instance
-        self.config_patcher = patch("idm_logger.config.config")
-        self.mock_config = self.config_patcher.start()
-
-        # Configure config
-        self.mock_config.get_flask_secret_key.return_value = "secret"
-        self.mock_config.get.return_value = None
-        self.mock_config.data = {"variables": []}
-        self.mock_config.save = MagicMock()
+        self.config_patcher = patch("idm_logger.config.config", self.mock_config)
+        self.config_patcher.start()
 
         # Import web and variable manager
         import idm_logger.web as web
@@ -51,6 +50,8 @@ class TestVariables(unittest.TestCase):
 
         self.web = web
         self.app = web.app
+        self.app.config["TESTING"] = True
+        self.app.secret_key = b"test-secret"
         self.client = self.app.test_client()
 
         # Re-initialize variable manager

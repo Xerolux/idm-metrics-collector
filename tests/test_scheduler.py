@@ -1,30 +1,57 @@
+# SPDX-License-Identifier: MIT
+"""Tests for scheduler functionality."""
+
 import unittest
 from unittest.mock import MagicMock, patch, AsyncMock
 import datetime
-from idm_logger.scheduler import Scheduler
+import sys
+import os
+
+# Add repo root to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# Import helper from conftest
+from conftest import create_mock_db_module
 
 
 class TestScheduler(unittest.TestCase):
     def setUp(self):
+        # Clean up modules
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
+
         self.hp_manager_mock = MagicMock()
         self.hp_manager_mock.write_value = AsyncMock()
 
-        # Patch db.db used in scheduler
-        self.db_patcher = patch("idm_logger.scheduler.db")
-        self.mock_db = self.db_patcher.start()
+        # Create properly configured mock db module
+        self.mock_db_module = create_mock_db_module()
+        self.mock_db = self.mock_db_module.db
+        self.mock_db.get_jobs.return_value = []
 
-        # Patch migration default id
-        self.migration_patcher = patch("idm_logger.scheduler.get_default_heatpump_id")
-        self.mock_get_default_id = self.migration_patcher.start()
-        self.mock_get_default_id.return_value = "hp-legacy"
+        # Patch modules before importing scheduler
+        self.modules_patcher = patch.dict(
+            sys.modules,
+            {
+                "idm_logger.db": self.mock_db_module,
+            },
+        )
+        self.modules_patcher.start()
 
+        # Now import Scheduler
+        from idm_logger.scheduler import Scheduler
+
+        self.Scheduler = Scheduler
         self.scheduler = Scheduler(self.hp_manager_mock)
         # Clear jobs loaded from mock db
         self.scheduler.jobs = []
 
     def tearDown(self):
-        self.db_patcher.stop()
-        self.migration_patcher.stop()
+        self.modules_patcher.stop()
+        # Clean up modules
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
 
     def test_process_jobs_batching(self):
         current_time = datetime.datetime.now().strftime("%H:%M")

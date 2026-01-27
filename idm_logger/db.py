@@ -44,7 +44,13 @@ ALLOWED_HEATPUMP_COLUMNS = frozenset(
 
 # Use DATA_DIR environment variable or current directory for persistence
 DATA_DIR = os.environ.get("DATA_DIR", ".")
-DB_PATH = os.path.join(DATA_DIR, "idm_logger.db")
+
+# Support in-memory database for testing
+TESTING = os.environ.get("TESTING", "").lower() in ("1", "true", "yes")
+if TESTING:
+    DB_PATH = ":memory:"
+else:
+    DB_PATH = os.path.join(DATA_DIR, "idm_logger.db")
 
 
 class Database:

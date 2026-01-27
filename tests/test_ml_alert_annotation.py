@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+"""Tests for ML alert annotation functionality."""
+
 import unittest
 from unittest.mock import MagicMock, patch
 import json
@@ -7,6 +10,9 @@ import os
 # Add repo root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Import helpers from conftest
+from conftest import create_mock_db_module, create_mock_config
+
 
 class TestMLAlertAnnotation(unittest.TestCase):
     def setUp(self):
@@ -15,11 +21,20 @@ class TestMLAlertAnnotation(unittest.TestCase):
             if mod.startswith("idm_logger"):
                 del sys.modules[mod]
 
+        # Create properly configured mocks
+        self.mock_db_module = create_mock_db_module()
+        self.mock_config = create_mock_config()
+
+        # Configure config for internal API key
+        self.mock_config.get.side_effect = (
+            lambda k, d=None: "secret" if k == "internal_api_key" else d
+        )
+
         # Mock modules
         self.modules_patcher = patch.dict(
             sys.modules,
             {
-                "idm_logger.db": MagicMock(),
+                "idm_logger.db": self.mock_db_module,
                 "idm_logger.mqtt": MagicMock(),
                 "idm_logger.scheduler": MagicMock(),
                 "idm_logger.modbus": MagicMock(),
@@ -27,26 +42,17 @@ class TestMLAlertAnnotation(unittest.TestCase):
         )
         self.modules_patcher.start()
 
-        # Import config with json.loads patched to avoid db error
-        with patch("json.loads", return_value={}):
-            pass
-
         # Patch config instance
-        self.config_patcher = patch("idm_logger.config.config")
-        self.mock_config = self.config_patcher.start()
-
-        # Configure config
-        self.mock_config.get_flask_secret_key.return_value = "secret"
-        self.mock_config.get.side_effect = (
-            lambda k, d=None: "secret" if k == "internal_api_key" else d
-        )
-        self.mock_config.data = {}
+        self.config_patcher = patch("idm_logger.config.config", self.mock_config)
+        self.config_patcher.start()
 
         # Import web
         import idm_logger.web as web
 
         self.web = web
         self.app = web.app
+        self.app.config["TESTING"] = True
+        self.app.secret_key = b"test-secret"
         self.client = self.app.test_client()
 
         # Patch managers

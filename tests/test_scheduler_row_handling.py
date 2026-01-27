@@ -1,19 +1,54 @@
+# SPDX-License-Identifier: MIT
+"""Tests for scheduler row handling functionality."""
+
 import unittest
 from unittest.mock import MagicMock, patch
 import json
 import sqlite3
-from idm_logger.scheduler import Scheduler, MutableRow
+import sys
+import os
+
+# Add repo root to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# Import helper from conftest
+from conftest import create_mock_db_module
 
 
 class TestSchedulerRowHandling(unittest.TestCase):
     def setUp(self):
+        # Clean up modules
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
+
         self.modbus_mock = MagicMock()
-        # Patch db.db used in scheduler
-        self.db_patcher = patch("idm_logger.scheduler.db")
-        self.mock_db = self.db_patcher.start()
+
+        # Create properly configured mock db module
+        self.mock_db_module = create_mock_db_module()
+
+        # Patch db module before importing scheduler
+        self.modules_patcher = patch.dict(
+            sys.modules,
+            {
+                "idm_logger.db": self.mock_db_module,
+            },
+        )
+        self.modules_patcher.start()
+
+        # Now import scheduler
+        from idm_logger.scheduler import Scheduler, MutableRow
+
+        self.Scheduler = Scheduler
+        self.MutableRow = MutableRow
+        self.mock_db = self.mock_db_module.db
 
     def tearDown(self):
-        self.db_patcher.stop()
+        self.modules_patcher.stop()
+        # Clean up modules
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger"):
+                del sys.modules[mod]
 
     def test_load_handles_rows_and_mutability(self):
         # Create a real sqlite3.Row object to simulate DB return
@@ -21,13 +56,13 @@ class TestSchedulerRowHandling(unittest.TestCase):
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute(
-            "CREATE TABLE jobs (id TEXT, sensor TEXT, value TEXT, days TEXT, last_run REAL, enabled INTEGER, time TEXT)"
+            "CREATE TABLE jobs (id TEXT, sensor TEXT, value TEXT, days TEXT, last_run REAL, enabled INTEGER, time TEXT, heatpump_id TEXT)"
         )
 
         days_json = json.dumps(["Mon", "Fri"])
         cursor.execute(
-            "INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("job1", "sensor1", "20", days_json, 0, 1, "12:00"),
+            "INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("job1", "sensor1", "20", days_json, 0, 1, "12:00", None),
         )
 
         cursor.execute("SELECT * FROM jobs")
@@ -37,14 +72,14 @@ class TestSchedulerRowHandling(unittest.TestCase):
         self.mock_db.get_jobs.return_value = [row]
 
         # Init scheduler (calls load)
-        scheduler = Scheduler(self.modbus_mock)
+        scheduler = self.Scheduler(self.modbus_mock)
 
         # Verify jobs loaded
         self.assertEqual(len(scheduler.jobs), 1)
         job = scheduler.jobs[0]
 
         # Verify it is wrapped in MutableRow
-        self.assertIsInstance(job, MutableRow)
+        self.assertIsInstance(job, self.MutableRow)
 
         # Verify access
         self.assertEqual(job["id"], "job1")
@@ -68,11 +103,11 @@ class TestSchedulerRowHandling(unittest.TestCase):
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute(
-            "CREATE TABLE jobs (id TEXT, sensor TEXT, value TEXT, days TEXT, last_run REAL, enabled INTEGER, time TEXT)"
+            "CREATE TABLE jobs (id TEXT, sensor TEXT, value TEXT, days TEXT, last_run REAL, enabled INTEGER, time TEXT, heatpump_id TEXT)"
         )
         days_json = json.dumps(["Mon"])
         cursor.execute(
-            "INSERT INTO jobs VALUES ('db_job', 's1', '10', ?, 0, 1, '10:00')",
+            "INSERT INTO jobs VALUES ('db_job', 's1', '10', ?, 0, 1, '10:00', NULL)",
             (days_json,),
         )
         cursor.execute("SELECT * FROM jobs")
@@ -80,7 +115,7 @@ class TestSchedulerRowHandling(unittest.TestCase):
 
         self.mock_db.get_jobs.return_value = [row]
 
-        scheduler = Scheduler(self.modbus_mock)
+        scheduler = self.Scheduler(self.modbus_mock)
 
         # 2. Add API job (dict)
         api_job = {
@@ -104,7 +139,7 @@ class TestSchedulerRowHandling(unittest.TestCase):
         job1 = scheduler.jobs[0]  # From DB
         job2 = scheduler.jobs[1]  # From API
 
-        self.assertIsInstance(job1, MutableRow)
+        self.assertIsInstance(job1, self.MutableRow)
         self.assertIsInstance(job2, dict)
 
         # Verify uniform access
@@ -131,7 +166,7 @@ class TestSchedulerRowHandling(unittest.TestCase):
         cursor.execute("SELECT * FROM t")
         row = cursor.fetchone()
 
-        mr = MutableRow(row)
+        mr = self.MutableRow(row)
 
         # Test len
         self.assertEqual(len(mr), 2)
