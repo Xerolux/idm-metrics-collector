@@ -1541,6 +1541,39 @@ def logs_page():
     return jsonify(logs[:limit])
 
 
+@app.route("/api/logs/download")
+@login_required
+def download_logs():
+    """Download full logs as text file."""
+    try:
+        logs = memory_handler.get_logs()
+        # Format logs for text file
+        lines = []
+        for log in logs:
+            # log dict has: timestamp, level, message
+            line = f"[{log['timestamp']}] {log['level']}: {log['message']}"
+            lines.append(line)
+
+        content = "\n".join(lines)
+
+        # Create BytesIO buffer
+        buffer = io.BytesIO()
+        buffer.write(content.encode('utf-8'))
+        buffer.seek(0)
+
+        filename = f"system_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype="text/plain"
+        )
+    except Exception as e:
+        logger.error(f"Failed to download logs: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/tools/technician-code", methods=["GET"])
 @login_required
 def get_technician_code():

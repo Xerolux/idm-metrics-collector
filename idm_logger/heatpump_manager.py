@@ -306,6 +306,8 @@ class HeatpumpManager:
 
         values = {}
         read_groups = conn.get_read_groups()
+        success_count = 0
+        total_groups = len(read_groups)
 
         for group in read_groups:
             try:
@@ -315,7 +317,13 @@ class HeatpumpManager:
                 )
 
                 if raw_registers is None:
+                    # Log failed read for diagnostics if all fail
+                    logger.debug(
+                        f"Failed to read group at address {group.start_address} (count {group.count}) from {hp_id}"
+                    )
                     continue
+
+                success_count += 1
 
                 # Parse each sensor in the group
                 for sensor in group.sensors:
@@ -328,7 +336,9 @@ class HeatpumpManager:
                             values[sensor.id] = value
 
             except Exception as e:
-                logger.debug(f"Error reading group at {group.start_address}: {e}")
+                logger.warning(
+                    f"Error reading group at {group.start_address} for {hp_id}: {e}"
+                )
                 # Try individual reads as fallback
                 for sensor in group.sensors:
                     try:
@@ -339,8 +349,15 @@ class HeatpumpManager:
                             value = conn.driver.parse_value(sensor, raw)
                             if value is not None:
                                 values[sensor.id] = value
+                                success_count += 1 # Count individual success
                     except Exception:
                         pass
+
+        # If we tried to read but got nothing, maybe report error
+        if total_groups > 0 and success_count == 0:
+            logger.warning(
+                f"Failed to read any data from {hp_id} (tried {total_groups} groups). Check Unit ID and connection."
+            )
 
         return values
 
@@ -372,7 +389,7 @@ class HeatpumpManager:
         try:
             return await loop.run_in_executor(_executor, _do_read)
         except Exception as e:
-            logger.debug(f"Register read error at {address}: {e}")
+            logger.warning(f"Register read error at {address} (Unit ID {conn.unit_id}): {e}")
             return None
 
     async def read_heatpump(self, hp_id: str) -> Dict[str, Any]:
