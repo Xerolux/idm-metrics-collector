@@ -1619,10 +1619,24 @@ def config_page():
             if "mqtt_enabled" in data:
                 config.data["mqtt"]["enabled"] = bool(data["mqtt_enabled"])
             if "mqtt_broker" in data:
-                valid, err = _validate_host(data["mqtt_broker"])
-                if not valid:
-                    return jsonify({"error": f"MQTT Broker: {err}"}), 400
-                config.data["mqtt"]["broker"] = data["mqtt_broker"]
+                # Only validate broker if MQTT is enabled or broker is not empty
+                mqtt_enabled = data.get("mqtt_enabled", config.data.get("mqtt", {}).get("enabled", False))
+                broker_value = data["mqtt_broker"]
+                if mqtt_enabled and broker_value:
+                    # MQTT enabled and broker provided - validate it
+                    valid, err = _validate_host(broker_value)
+                    if not valid:
+                        return jsonify({"error": f"MQTT Broker: {err}"}), 400
+                elif mqtt_enabled and not broker_value:
+                    # MQTT enabled but no broker - error
+                    return jsonify({"error": "MQTT Broker: Host darf nicht leer sein wenn MQTT aktiviert ist"}), 400
+                elif broker_value:
+                    # MQTT disabled but broker provided - validate it
+                    valid, err = _validate_host(broker_value)
+                    if not valid:
+                        return jsonify({"error": f"MQTT Broker: {err}"}), 400
+                # If MQTT disabled and broker empty - that's fine, just save it
+                config.data["mqtt"]["broker"] = broker_value
             if "mqtt_port" in data:
                 try:
                     port = int(data["mqtt_port"])
