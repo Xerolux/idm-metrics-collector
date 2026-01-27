@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
+# ... existing tests ...
+
 def test_health(client):
     response = client.get("/health")
     assert response.status_code == 200
@@ -108,3 +110,24 @@ def test_check_eligibility_valid_model_with_parens(mock_get, client):
     response = client.get(f"/api/v1/model/check?installation_id={uuid_str}&model=AERO_SLM(v2)")
     assert response.status_code == 200
     assert response.json()["eligible"] is True
+
+@patch("app.get_community_averages")
+def test_community_averages_endpoint(mock_analysis, client):
+    mock_analysis.return_value = {
+        "model": "AERO_SLM",
+        "sample_size": 10,
+        "metrics": {"cop_current": {"avg": 4.5}}
+    }
+
+    headers = {"Authorization": "Bearer test-token"}
+    response = client.get("/api/v1/community/averages?model=AERO_SLM&metrics=cop_current", headers=headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["sample_size"] == 10
+    assert data["metrics"]["cop_current"]["avg"] == 4.5
+
+def test_community_averages_invalid_metric(client):
+    headers = {"Authorization": "Bearer test-token"}
+    response = client.get("/api/v1/community/averages?model=AERO_SLM&metrics=cop;drop", headers=headers)
+    assert response.status_code == 400

@@ -11,6 +11,7 @@ import re
 import uuid
 from pathlib import Path
 from collections import defaultdict
+from analysis import get_community_averages
 
 # Configuration
 # VictoriaMetrics Import Endpoint (Influx Line Protocol)
@@ -513,3 +514,33 @@ async def list_available_models(auth: None = Depends(verify_token)):
         "total": len(models),
         "model_dir": str(model_dir),
     }
+
+@app.get("/api/v1/community/averages")
+async def community_averages(
+    model: str,
+    metrics: Optional[str] = None,
+    auth: None = Depends(verify_token)
+):
+    """
+    Get aggregated community statistics.
+    Requires authentication (token).
+    """
+    # Validate Inputs
+    validate_model_name(model)
+
+    if not metrics:
+        # Default metrics
+        metric_list = ["cop_current", "temp_outdoor"]
+    else:
+        metric_list = [m.strip() for m in metrics.split(",") if m.strip()]
+        # Validate metric names to prevent injection (simple alphanumeric + underscore)
+        for m in metric_list:
+            if not re.match(r"^[a-zA-Z0-9_]+$", m):
+                raise HTTPException(status_code=400, detail=f"Invalid metric name: {m}")
+
+    result = get_community_averages(model, metric_list)
+
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    return result
