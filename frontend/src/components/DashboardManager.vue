@@ -222,6 +222,10 @@
                                 :edit-mode="editMode"
                                 @deleted="onChartDeleted"
                             />
+                            <TelemetryStatusCard
+                                v-else-if="chart.type === 'telemetry_status'"
+                                :sharing-enabled="chart.sharingEnabled !== false"
+                            />
                         </div>
                     </template>
                 </draggable>
@@ -441,6 +445,7 @@ import GaugeCard from './GaugeCard.vue';
 import HeatmapCard from './HeatmapCard.vue';
 import TableCard from './TableCard.vue';
 import StateTimelineCard from './StateTimelineCard.vue';
+import TelemetryStatusCard from './TelemetryStatusCard.vue';
 import SensorValues from './SensorValues.vue';
 import OverviewHeader from './OverviewHeader.vue';
 import HeatpumpSelector from './heatpump/HeatpumpSelector.vue';

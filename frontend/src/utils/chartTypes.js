@@ -12,6 +12,7 @@ export const ChartType = {
     HEATMAP: 'heatmap',
     TABLE: 'table',
     STATE_TIMELINE: 'state_timeline',
+    TELEMETRY_STATUS: 'telemetry_status',
 };
 
 export const ChartTypeConfig = {
@@ -62,6 +63,13 @@ export const ChartTypeConfig = {
         description: 'Status-Verläufe über Zeit',
         icon: 'pi pi-clock',
         component: () => import('../components/StateTimelineCard.vue'),
+        supported: true,
+    },
+    [ChartType.TELEMETRY_STATUS]: {
+        name: 'Community Status',
+        description: 'Zeigt den Community-Datenpool-Status und Beitragsstatus',
+        icon: 'pi pi-cloud',
+        component: () => import('../components/TelemetryStatusCard.vue'),
         supported: true,
     },
 };
