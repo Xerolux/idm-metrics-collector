@@ -1,10 +1,14 @@
 from fastapi import FastAPI, HTTPException, Header, Depends, Request
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import os
 import logging
 import requests
 import time
+import hashlib
+from pathlib import Path
+from collections import defaultdict
 
 # Configuration
 # VictoriaMetrics Import Endpoint (Influx Line Protocol)
@@ -14,13 +18,121 @@ VM_QUERY_URL = os.environ.get(
 )
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "change-me-to-something-secure")
 
+# Model storage directory
+MODEL_DIR = os.environ.get("MODEL_DIR", "/app/models")
+
+# Cold start configuration
+MIN_INSTALLATIONS_FOR_MODEL = int(os.environ.get("MIN_INSTALLATIONS", "5"))
+MIN_DATA_POINTS_FOR_MODEL = int(os.environ.get("MIN_DATA_POINTS", "10000"))
+
+# Simple in-memory rate limiting
+_rate_limit_store: Dict[str, List[float]] = defaultdict(list)
+RATE_LIMIT_REQUESTS = 100  # requests per window
+RATE_LIMIT_WINDOW = 60  # seconds
+
 # Setup Logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("telemetry-server")
 
-app = FastAPI(title="IDM Telemetry Server")
+app = FastAPI(title="IDM Telemetry Server", version="1.1.0")
+
+
+def check_rate_limit(client_ip: str) -> bool:
+    """Simple rate limiting check. Returns True if request is allowed."""
+    now = time.time()
+    # Clean old entries
+    _rate_limit_store[client_ip] = [
+        t for t in _rate_limit_store[client_ip] if now - t < RATE_LIMIT_WINDOW
+    ]
+    # Check limit
+    if len(_rate_limit_store[client_ip]) >= RATE_LIMIT_REQUESTS:
+        return False
+    _rate_limit_store[client_ip].append(now)
+    return True
+
+
+def get_file_hash(filepath: str) -> Optional[str]:
+    """Calculate SHA256 hash of a file."""
+    if not os.path.exists(filepath):
+        return None
+    sha256_hash = hashlib.sha256()
+    try:
+        with open(filepath, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
+    except Exception:
+        return None
+
+
+def get_data_pool_stats() -> Dict[str, Any]:
+    """
+    Get current data pool statistics from VictoriaMetrics.
+    Used for cold start feedback.
+    """
+    stats = {
+        "total_installations": 0,
+        "total_data_points": 0,
+        "models_available": [],
+        "data_sufficient": False,
+        "message": "",
+        "message_de": "",
+    }
+
+    try:
+        # Count unique installations (last 30 days)
+        query_installations = 'count(count_over_time(heatpump_metrics{installation_id!=""}[30d]))'
+        response = requests.get(VM_QUERY_URL, params={"query": query_installations}, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success" and data["data"]["result"]:
+                stats["total_installations"] = int(data["data"]["result"][0]["value"][1])
+
+        # Count total data points (last 30 days)
+        query_points = 'sum(count_over_time(heatpump_metrics{}[30d]))'
+        response = requests.get(VM_QUERY_URL, params={"query": query_points}, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success" and data["data"]["result"]:
+                stats["total_data_points"] = int(float(data["data"]["result"][0]["value"][1]))
+
+        # Check which models are available
+        model_dir = Path(MODEL_DIR)
+        if model_dir.exists():
+            for model_file in model_dir.glob("*.enc"):
+                model_name = model_file.stem.replace("_", " ")
+                stats["models_available"].append(model_name)
+
+        # Determine if data is sufficient
+        stats["data_sufficient"] = (
+            stats["total_installations"] >= MIN_INSTALLATIONS_FOR_MODEL
+            and stats["total_data_points"] >= MIN_DATA_POINTS_FOR_MODEL
+        )
+
+        # Generate user-friendly messages
+        if stats["data_sufficient"]:
+            stats["message"] = "Data pool is ready. Community models are available."
+            stats["message_de"] = "Datenpool ist bereit. Community-Modelle sind verfügbar."
+        else:
+            needed_installations = max(0, MIN_INSTALLATIONS_FOR_MODEL - stats["total_installations"])
+            needed_points = max(0, MIN_DATA_POINTS_FOR_MODEL - stats["total_data_points"])
+            stats["message"] = (
+                f"Building data pool. Need {needed_installations} more installations "
+                f"and ~{needed_points:,} more data points. Data is being collected - thank you for contributing!"
+            )
+            stats["message_de"] = (
+                f"Datenpool wird aufgebaut. Benötigt noch {needed_installations} Installationen "
+                f"und ~{needed_points:,} Datenpunkte. Daten werden gesammelt - vielen Dank für Ihre Beiträge!"
+            )
+
+    except Exception as e:
+        logger.error(f"Error getting data pool stats: {e}")
+        stats["message"] = "Data pool status temporarily unavailable."
+        stats["message_de"] = "Datenpool-Status vorübergehend nicht verfügbar."
+
+    return stats
 
 
 def mask_ip(ip: str) -> str:
@@ -61,7 +173,13 @@ async def submit_telemetry(
     """
     Ingest telemetry data and forward to VictoriaMetrics.
     """
-    client_ip = mask_ip(request.client.host)
+    raw_ip = request.client.host if request.client else "unknown"
+    client_ip = mask_ip(raw_ip)
+
+    # Rate limiting
+    if not check_rate_limit(raw_ip):
+        logger.warning(f"Rate limit exceeded for {client_ip}")
+        raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
     try:
         lines = []
 
@@ -145,15 +263,124 @@ async def server_status(auth: None = Depends(verify_token)):
 
 
 @app.get("/api/v1/model/check")
-async def check_eligibility(installation_id: str):
+async def check_eligibility(
+    installation_id: str,
+    model: Optional[str] = None,
+    current_hash: Optional[str] = None,
+):
     """
     Check if an installation ID is eligible for community models.
-    Concept: User must have submitted data in the last 30 days.
+    Returns eligibility status, model hash (if available), and data pool info.
+
+    Args:
+        installation_id: Unique installation identifier
+        model: Optional heat pump model name for model-specific checks
+        current_hash: Optional current model hash to check if update needed
     """
     try:
+        result = {
+            "eligible": False,
+            "reason": "",
+            "reason_de": "",
+            "model_hash": None,
+            "model_available": False,
+            "update_available": False,
+            "data_pool": get_data_pool_stats(),
+        }
+
+        # Check if data pool has enough data
+        if not result["data_pool"]["data_sufficient"]:
+            result["reason"] = (
+                "Community model not yet available - data pool is still growing. "
+                "Your data contributions help build the model. Please check back later."
+            )
+            result["reason_de"] = (
+                "Community-Modell noch nicht verfügbar - Datenpool wird noch aufgebaut. "
+                "Ihre Datenbeiträge helfen beim Aufbau des Modells. Bitte später erneut prüfen."
+            )
+            return result
+
         # Query: Check if this ID appears in the last 30 days
         query = f'last_over_time(heatpump_metrics{{installation_id="{installation_id}"}}[30d])'
-        response = requests.get(VM_QUERY_URL, params={"query": query})
+        response = requests.get(VM_QUERY_URL, params={"query": query}, timeout=5)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success" and data["data"]["result"]:
+                result["eligible"] = True
+
+        if not result["eligible"]:
+            result["reason"] = (
+                "No data contribution found in the last 30 days. "
+                "Enable data sharing to become eligible for community models."
+            )
+            result["reason_de"] = (
+                "Kein Datenbeitrag in den letzten 30 Tagen gefunden. "
+                "Aktivieren Sie die Datenfreigabe, um für Community-Modelle berechtigt zu werden."
+            )
+            return result
+
+        # Check for model availability and hash
+        model_dir = Path(MODEL_DIR)
+        model_file = None
+
+        if model:
+            # Look for model-specific file
+            safe_model_name = model.replace(" ", "_").replace("/", "_")
+            model_file = model_dir / f"{safe_model_name}.enc"
+            if not model_file.exists():
+                # Fall back to generic model
+                model_file = model_dir / "community_model.enc"
+        else:
+            model_file = model_dir / "community_model.enc"
+
+        if model_file and model_file.exists():
+            result["model_available"] = True
+            result["model_hash"] = get_file_hash(str(model_file))
+
+            # Check if update is needed
+            if current_hash and result["model_hash"]:
+                result["update_available"] = current_hash != result["model_hash"]
+            else:
+                result["update_available"] = True
+
+            result["reason"] = "Eligible for community model."
+            result["reason_de"] = "Berechtigt für Community-Modell."
+        else:
+            result["reason"] = (
+                "Eligible but no model available for your heat pump yet. "
+                "Models are created when enough data is collected."
+            )
+            result["reason_de"] = (
+                "Berechtigt, aber noch kein Modell für Ihre Wärmepumpe verfügbar. "
+                "Modelle werden erstellt, wenn genügend Daten gesammelt wurden."
+            )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Eligibility check failed for {installation_id}: {e}")
+        raise HTTPException(status_code=500, detail="Check failed")
+
+
+@app.get("/api/v1/model/download")
+async def download_model(
+    installation_id: str,
+    model: Optional[str] = None,
+    auth: None = Depends(verify_token),
+):
+    """
+    Download the community model file.
+    Only available to eligible installations (data contributors).
+
+    Args:
+        installation_id: Unique installation identifier (for eligibility check)
+        model: Optional heat pump model name for model-specific downloads
+    """
+    try:
+        # Verify eligibility first
+        query = f'last_over_time(heatpump_metrics{{installation_id="{installation_id}"}}[30d])'
+        response = requests.get(VM_QUERY_URL, params={"query": query}, timeout=5)
 
         eligible = False
         if response.status_code == 200:
@@ -161,7 +388,84 @@ async def check_eligibility(installation_id: str):
             if data.get("status") == "success" and data["data"]["result"]:
                 eligible = True
 
-        return {"eligible": eligible}
+        if not eligible:
+            raise HTTPException(
+                status_code=403,
+                detail="Not eligible. Contribute data for 30 days to access community models.",
+            )
+
+        # Find model file
+        model_dir = Path(MODEL_DIR)
+        model_file = None
+
+        if model:
+            safe_model_name = model.replace(" ", "_").replace("/", "_")
+            model_file = model_dir / f"{safe_model_name}.enc"
+            if not model_file.exists():
+                model_file = model_dir / "community_model.enc"
+        else:
+            model_file = model_dir / "community_model.enc"
+
+        if not model_file or not model_file.exists():
+            raise HTTPException(
+                status_code=404,
+                detail="No model available yet. The community model is still being trained.",
+            )
+
+        logger.info(f"Model download by {installation_id}: {model_file.name}")
+
+        return FileResponse(
+            path=str(model_file),
+            filename=model_file.name,
+            media_type="application/octet-stream",
+            headers={
+                "X-Model-Hash": get_file_hash(str(model_file)) or "",
+                "X-Model-Name": model_file.stem,
+            },
+        )
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Eligibility check failed for {installation_id}: {e}")
-        raise HTTPException(status_code=500, detail="Check failed")
+        logger.error(f"Model download failed for {installation_id}: {e}")
+        raise HTTPException(status_code=500, detail="Download failed")
+
+
+@app.get("/api/v1/pool/status")
+async def data_pool_status():
+    """
+    Get the current status of the data pool.
+    Public endpoint - no authentication required.
+    Useful for displaying cold start information to users.
+    """
+    stats = get_data_pool_stats()
+    stats["timestamp"] = time.time()
+    return stats
+
+
+@app.get("/api/v1/models")
+async def list_available_models(auth: None = Depends(verify_token)):
+    """
+    List all available community models.
+    Admin endpoint.
+    """
+    models = []
+    model_dir = Path(MODEL_DIR)
+
+    if model_dir.exists():
+        for model_file in model_dir.glob("*.enc"):
+            models.append(
+                {
+                    "name": model_file.stem.replace("_", " "),
+                    "filename": model_file.name,
+                    "size_bytes": model_file.stat().st_size,
+                    "hash": get_file_hash(str(model_file)),
+                    "modified": model_file.stat().st_mtime,
+                }
+            )
+
+    return {
+        "models": models,
+        "total": len(models),
+        "model_dir": str(model_dir),
+    }

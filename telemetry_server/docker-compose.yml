@@ -5,11 +5,23 @@ services:
       - "8000:8000"
     environment:
       - VM_WRITE_URL=http://victoriametrics:8428/write
+      - VM_QUERY_URL=http://victoriametrics:8428/api/v1/query
       - AUTH_TOKEN=change-me-to-something-secure
+      - MODEL_DIR=/app/models
+      - MIN_INSTALLATIONS=5
+      - MIN_DATA_POINTS=10000
+    volumes:
+      - model-data:/app/models
     depends_on:
       - victoriametrics
     restart: unless-stopped
     command: uvicorn app:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   victoriametrics:
     image: victoriametrics/victoria-metrics:v1.93.5
@@ -24,3 +36,4 @@ services:
 
 volumes:
   vmdata:
+  model-data:
