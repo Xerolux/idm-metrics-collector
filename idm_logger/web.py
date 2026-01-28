@@ -1319,7 +1319,7 @@ def logs_page():
 @app.route("/api/logs/share", methods=["POST"])
 @login_required
 def share_logs():
-    """Upload logs to PrivateBin and return share link."""
+    """Upload logs to paste service and return share link."""
     try:
         logs = memory_handler.get_logs()
         # Format logs for text file
@@ -1329,8 +1329,9 @@ def share_logs():
             lines.append(line)
         content = "\n".join(lines)
 
-        privatebin_url = config.get("privatebin.url", "https://paste.blueml.eu")
-        link = upload(content, url=privatebin_url)
+        paste_url = config.get("privatebin.url", "https://paste.blueml.eu")
+        service_type = config.get("privatebin.service_type", "privatebin")
+        link = upload(content, url=paste_url, service_type=service_type)
 
         return jsonify({"success": True, "link": link})
     except Exception as e:

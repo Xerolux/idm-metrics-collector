@@ -36,7 +36,7 @@ def b58encode(v):
     return (ALPHABET[0:1] * nPad) + output
 
 
-def upload(text, url="https://paste.blueml.eu"):
+def upload_privatebin(text, url):
     """
     Upload text to PrivateBin (v2) with client-side encryption.
     """
@@ -98,20 +98,70 @@ def upload(text, url="https://paste.blueml.eu"):
         "Content-Type": "application/json"
     }
 
-    try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-        if data.get("status") == 0:
-            # Construct URL
-            # If server returns 'url' field, use it.
-            # Otherwise construct from base url + '?' + id
-            base_url = data.get("url")
-            if not base_url:
-                base_url = f"{url}?{data.get('id')}"
+    resp = requests.post(url, json=payload, headers=headers, timeout=10)
+    resp.raise_for_status()
+    data = resp.json()
+    if data.get("status") == 0:
+        # Construct URL
+        # If server returns 'url' field, use it.
+        # Otherwise construct from base url + '?' + id
+        base_url = data.get("url")
+        if not base_url:
+            base_url = f"{url}?{data.get('id')}"
 
-            return f"{base_url}#{key_b58}"
+        return f"{base_url}#{key_b58}"
+    else:
+        raise Exception(f"PrivateBin Error: {data.get('message')}")
+
+
+def upload_microbin(text, url):
+    """
+    Upload text to MicroBin (simple API, no encryption).
+    """
+    # MicroBin API endpoint
+    api_url = f"{url.rstrip('/')}/api/v2/paste"
+
+    # Payload for MicroBin
+    payload = {
+        "content": text,
+        "title": "IDM Logger Protokoll",
+        "expires": "1week",
+        "privacy": "public"
+    }
+
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    resp = requests.post(api_url, json=payload, headers=headers, timeout=10)
+    resp.raise_for_status()
+    data = resp.json()
+
+    # MicroBin returns paste ID
+    paste_id = data.get("id") or data.get("paste_id")
+    if paste_id:
+        return f"{url.rstrip('/')}/{paste_id}"
+    else:
+        raise Exception(f"MicroBin Error: No paste ID returned")
+
+
+def upload(text, url="https://paste.blueml.eu", service_type="privatebin"):
+    """
+    Upload text to a paste service.
+
+    Args:
+        text: Content to upload
+        url: URL of the paste service
+        service_type: Either "privatebin" or "microbin"
+
+    Returns:
+        Share link URL
+    """
+    try:
+        if service_type.lower() == "microbin":
+            return upload_microbin(text, url)
         else:
-            raise Exception(f"PrivateBin Error: {data.get('message')}")
+            # Default to PrivateBin
+            return upload_privatebin(text, url)
     except Exception as e:
         raise Exception(f"Upload failed: {str(e)}")
