@@ -8,13 +8,13 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
 
 # Base58 Alphabet (Bitcoin)
-ALPHABET = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 
 def b58encode(v):
     """Base58 encode bytes."""
     if isinstance(v, bytes):
-        long_value = int.from_bytes(v, 'big')
+        long_value = int.from_bytes(v, "big")
 
         # Handle leading zeros
         nPad = 0
@@ -28,10 +28,10 @@ def b58encode(v):
         long_value = v
         nPad = 0
 
-    output = b''
+    output = b""
     while long_value:
         long_value, idx = divmod(long_value, 58)
-        output = ALPHABET[idx:idx+1] + output
+        output = ALPHABET[idx : idx + 1] + output
 
     return (ALPHABET[0:1] * nPad) + output
 
@@ -42,7 +42,7 @@ def upload(text, url="https://paste.blueml.eu"):
     """
     # 1. Generate Key (32 bytes)
     key = os.urandom(32)
-    key_b58 = b58encode(key).decode('utf-8')
+    key_b58 = b58encode(key).decode("utf-8")
 
     # 2. Parameters
     iv = os.urandom(12)  # 12 bytes for GCM
@@ -59,43 +59,43 @@ def upload(text, url="https://paste.blueml.eu"):
         iterations=iterations,
     )
     # The key in URL fragment is used as the password
-    derived_key = kdf.derive(key_b58.encode('utf-8'))
+    derived_key = kdf.derive(key_b58.encode("utf-8"))
 
     # 4. Prepare ADATA (Authenticated Data)
     # [iv, salt, iter, ks, ts, algo, mode, compression]
     # All bytes base64 encoded
     adata = [
-        base64.b64encode(iv).decode('utf-8'),
-        base64.b64encode(salt).decode('utf-8'),
+        base64.b64encode(iv).decode("utf-8"),
+        base64.b64encode(salt).decode("utf-8"),
         iterations,
         keysize,
         tagsize,
         "aes",
         "gcm",
-        "none"
+        "none",
     ]
 
     # JSON stringify adata parameters array
-    adata_json = json.dumps(adata, separators=(',', ':'))
+    adata_json = json.dumps(adata, separators=(",", ":"))
 
     # 5. Encrypt
     aesgcm = AESGCM(derived_key)
     # cryptography AESGCM.encrypt appends the tag to the ciphertext
-    ct_blob = aesgcm.encrypt(iv, text.encode('utf-8'), adata_json.encode('utf-8'))
-    ct_b64 = base64.b64encode(ct_blob).decode('utf-8')
+    ct_blob = aesgcm.encrypt(iv, text.encode("utf-8"), adata_json.encode("utf-8"))
+    ct_b64 = base64.b64encode(ct_blob).decode("utf-8")
 
     # 6. Payload
     payload = {
         "v": 2,
         "adata": [adata, "plaintext", 0, 0],
         "ct": ct_b64,
-        "meta": {"expire": "1week"}
+        "meta": {"expire": "1week"},
     }
 
     # 7. Post
     headers = {
         "X-Requested-With": "JSONHttpRequest",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     try:

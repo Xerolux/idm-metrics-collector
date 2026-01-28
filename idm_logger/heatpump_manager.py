@@ -349,7 +349,7 @@ class HeatpumpManager:
                             value = conn.driver.parse_value(sensor, raw)
                             if value is not None:
                                 values[sensor.id] = value
-                                success_count += 1 # Count individual success
+                                success_count += 1  # Count individual success
                     except Exception:
                         pass
 
@@ -389,7 +389,9 @@ class HeatpumpManager:
         try:
             return await loop.run_in_executor(_executor, _do_read)
         except Exception as e:
-            logger.warning(f"Register read error at {address} (Unit ID {conn.unit_id}): {e}")
+            logger.warning(
+                f"Register read error at {address} (Unit ID {conn.unit_id}): {e}"
+            )
             return None
 
     async def read_heatpump(self, hp_id: str) -> Dict[str, Any]:

@@ -1,11 +1,11 @@
-
 import unittest
 from unittest.mock import MagicMock, patch
 import asyncio
 from idm_logger.heatpump_manager import HeatpumpManager, HeatpumpConnection
 
+
 class TestHeatpumpManagerPatch(unittest.TestCase):
-    @patch('idm_logger.heatpump_manager.ModbusTcpClient')
+    @patch("idm_logger.heatpump_manager.ModbusTcpClient")
     def test_modbus_calls_use_device_id(self, mock_client_cls):
         # Setup
         mock_client = MagicMock()
@@ -32,7 +32,7 @@ class TestHeatpumpManagerPatch(unittest.TestCase):
             driver=MagicMock(),
             client=mock_client,
             sensors=[],
-            unit_id=42
+            unit_id=42,
         )
 
         manager = HeatpumpManager()
@@ -50,7 +50,9 @@ class TestHeatpumpManagerPatch(unittest.TestCase):
         loop.run_until_complete(manager._read_registers(conn, 100, 2))
 
         # Verify read call used device_id
-        mock_client.read_holding_registers.assert_called_with(100, count=2, device_id=42)
+        mock_client.read_holding_registers.assert_called_with(
+            100, count=2, device_id=42
+        )
 
         # Test Write
         # We need a dummy sensor
@@ -68,5 +70,6 @@ class TestHeatpumpManagerPatch(unittest.TestCase):
 
         loop.close()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

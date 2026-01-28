@@ -1559,16 +1559,13 @@ def download_logs():
 
         # Create BytesIO buffer
         buffer = io.BytesIO()
-        buffer.write(content.encode('utf-8'))
+        buffer.write(content.encode("utf-8"))
         buffer.seek(0)
 
         filename = f"system_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
 
         return send_file(
-            buffer,
-            as_attachment=True,
-            download_name=filename,
-            mimetype="text/plain"
+            buffer, as_attachment=True, download_name=filename, mimetype="text/plain"
         )
     except Exception as e:
         logger.error(f"Failed to download logs: {e}")
@@ -1991,7 +1988,10 @@ def config_page():
                 config.data["share_data"] = bool(data["share_data"])
             if "telemetry_auth_token" in data:
                 # Skip if masked value "***" is sent back
-                if data["telemetry_auth_token"] and data["telemetry_auth_token"] != "***":
+                if (
+                    data["telemetry_auth_token"]
+                    and data["telemetry_auth_token"] != "***"
+                ):
                     config.data["telemetry_auth_token"] = data["telemetry_auth_token"]
 
             new_pass = data.get("new_password")

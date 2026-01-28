@@ -4,14 +4,15 @@ import json
 import base64
 from idm_logger.privatebin import upload, b58encode
 
+
 class TestPrivateBin(unittest.TestCase):
     def test_b58encode(self):
         # 'hello' in hex is 68656c6c6f = 448378203247
         # 448378203247 in base58 is Cn8eVZg
-        self.assertEqual(b58encode(b'hello'), b'Cn8eVZg')
-        self.assertEqual(b58encode(b'\x00\x00hello'), b'11Cn8eVZg')
+        self.assertEqual(b58encode(b"hello"), b"Cn8eVZg")
+        self.assertEqual(b58encode(b"\x00\x00hello"), b"11Cn8eVZg")
 
-    @patch('requests.post')
+    @patch("requests.post")
     def test_upload(self, mock_post):
         # Setup mock
         mock_resp = MagicMock()
@@ -20,7 +21,7 @@ class TestPrivateBin(unittest.TestCase):
             "status": 0,
             "id": "123456",
             "url": "https://paste.blueml.eu?123456",
-            "deletetoken": "abc"
+            "deletetoken": "abc",
         }
         mock_post.return_value = mock_resp
 
@@ -34,17 +35,19 @@ class TestPrivateBin(unittest.TestCase):
 
         # Verify Payload
         args, kwargs = mock_post.call_args
-        payload = kwargs['json']
-        self.assertEqual(payload['v'], 2)
-        self.assertIn('adata', payload)
-        self.assertIn('ct', payload)
+        payload = kwargs["json"]
+        self.assertEqual(payload["v"], 2)
+        self.assertIn("adata", payload)
+        self.assertIn("ct", payload)
 
         # Verify ADATA structure
-        adata = payload['adata']
+        adata = payload["adata"]
         self.assertIsInstance(adata, list)
-        self.assertEqual(len(adata), 4) # [params, format, open, burn]
+        self.assertEqual(len(adata), 4)  # [params, format, open, burn]
         params = adata[0]
-        self.assertEqual(len(params), 8) # [iv, salt, iter, ks, ts, algo, mode, compression]
+        self.assertEqual(
+            len(params), 8
+        )  # [iv, salt, iter, ks, ts, algo, mode, compression]
 
         # Verify Encryption is reproducible (can decrypt)
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -57,7 +60,7 @@ class TestPrivateBin(unittest.TestCase):
 
         iv = base64.b64decode(iv_b64)
         salt = base64.b64decode(salt_b64)
-        ct_blob = base64.b64decode(payload['ct'])
+        ct_blob = base64.b64decode(payload["ct"])
 
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
@@ -65,10 +68,10 @@ class TestPrivateBin(unittest.TestCase):
             salt=salt,
             iterations=iter_count,
         )
-        derived_key = kdf.derive(key_part.encode('utf-8'))
+        derived_key = kdf.derive(key_part.encode("utf-8"))
 
         aesgcm = AESGCM(derived_key)
-        adata_json = json.dumps(params, separators=(',', ':'))
+        adata_json = json.dumps(params, separators=(",", ":"))
 
-        plaintext = aesgcm.decrypt(iv, ct_blob, adata_json.encode('utf-8'))
-        self.assertEqual(plaintext.decode('utf-8'), "This is a test log")
+        plaintext = aesgcm.decrypt(iv, ct_blob, adata_json.encode("utf-8"))
+        self.assertEqual(plaintext.decode("utf-8"), "This is a test log")
