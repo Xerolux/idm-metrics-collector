@@ -26,6 +26,7 @@ from .update_manager import (
     check_for_update,
     perform_update as run_update,
     get_current_version,
+    get_file_version,
     can_run_updates,
     can_run_docker_updates,
     check_docker_updates,
@@ -170,7 +171,7 @@ if os.environ.get("TRUST_PROXIES") or config.get("web.trust_proxies"):
 app.config["SWAGGER"] = {
     "title": "IDM Metrics Collector API",
     "uiversion": 3,
-    "version": "1.0.1",
+    "version": get_file_version() or "1.0.3",
     "description": "API for IDM Heat Pump Monitoring & Control",
 }
 swagger = Swagger(app)

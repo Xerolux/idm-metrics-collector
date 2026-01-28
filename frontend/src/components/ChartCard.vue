@@ -406,7 +406,6 @@ const calculateStats = (datasets) => {
 };
 
 const fetchData = async () => {
-    console.log('[ChartCard] fetchData called for:', props.title, 'with', props.queries?.length || 0, 'queries');
     isLoading.value = true;
 
     const end = Math.floor(Date.now() / 1000);
@@ -428,7 +427,6 @@ const fetchData = async () => {
 
     // Check if we have any queries
     if (!props.queries || props.queries.length === 0) {
-        console.warn('[ChartCard] No queries configured for chart:', props.title);
         isLoading.value = false;
         return;
     }
@@ -464,11 +462,6 @@ const fetchData = async () => {
     for (const { q, res } of metricResults) {
         if (res && res.data && res.data.status === 'success') {
             const result = res.data.data.result;
-
-            console.log(`[ChartCard] Data for ${q.label}:`, {
-                resultCount: result.length,
-                hasValues: result.length > 0 && result[0].values
-            });
 
             if (result.length > 0) {
                 const values = result[0].values; // [[timestamp, "value"], ...]
@@ -546,8 +539,6 @@ const fetchData = async () => {
     };
     calculateStats(datasets);
     isLoading.value = false;
-
-    console.log('[ChartCard] fetchData complete for:', props.title, 'with', datasets.length, 'datasets');
 };
 
 const toggleFullscreen = () => {
@@ -708,16 +699,6 @@ const handleMetricUpdate = (data) => {
 };
 
 onMounted(() => {
-    // Debug: Log props
-    console.log('[ChartCard] Mounted with props:', {
-        title: props.title,
-        queriesCount: props.queries?.length || 0,
-        queries: props.queries,
-        hours: props.hours,
-        chartId: props.chartId,
-        dashboardId: props.dashboardId
-    });
-
     fetchData();
     loadAnnotations();
     interval = setInterval(fetchData, 60000);
@@ -734,8 +715,6 @@ onMounted(() => {
 
     if (metrics.length > 0) {
         wsClient.subscribe(metrics, props.dashboardId);
-    } else {
-        console.warn('[ChartCard] No metrics to subscribe to for chart:', props.title);
     }
 
     wsClient.on('metric_update', handleMetricUpdate);

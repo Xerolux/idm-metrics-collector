@@ -4,12 +4,46 @@ Alle Änderungen, Features und Verbesserungen chronologisch dokumentiert.
 
 ---
 
-## [Unreleased] - Version 0.7.1 (Geplant)
+## [1.0.3] - 2026-01-28
 
-### Geplant
-- Bar Charts Implementierung
-- Math Queries (Expressions)
-- Variables System
+### 🔧 Code Quality & Maintenance Release
+
+Dieses Release fokussiert sich auf Code-Qualität, Refactoring und Stabilität.
+
+---
+
+### ✨ Verbesserungen
+
+#### Dynamische Versionsverwaltung
+- Swagger API-Version wird nun dynamisch aus der VERSION-Datei gelesen
+- Update-Manager verwendet lokale VERSION-Datei als primäre Quelle
+- Konsistente Versionierung über alle Komponenten hinweg
+
+#### Code-Cleanup
+- Entfernung von Debug console.log-Statements im Frontend
+- WebSocket-Client bereinigt von unnötigem Debug-Logging
+- ChartCard-Komponente optimiert und aufgeräumt
+
+#### Linter-Konformität
+- Python-Code entspricht jetzt vollständig Ruff-Standards
+- Frontend-Code entspricht ESLint-Standards
+- Entfernung ungenutzter Imports und Variablen
+- Formatierung aller Python-Dateien mit Ruff
+
+#### Stabilität
+- Verbesserte Modbus-Verbindungsstabilität
+- ML-Service-Verbindungen für Produktionseinsatz optimiert
+
+---
+
+### 📊 Statistiken
+
+**Geänderte Dateien:** 15+
+**Entfernte Debug-Statements:** 20+
+**Code-Qualität:** Ruff & ESLint konform
+
+*Stand: 2026-01-28*
+*Version: 1.0.3*
 
 ---
 

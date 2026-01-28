@@ -360,7 +360,9 @@ def fetch_latest_data():
                     time.sleep(delay)
                     delay = min(delay * RETRY_MULTIPLIER, RETRY_MAX_DELAY)
                     continue
-                logger.error(f"Failed to fetch data after {RETRY_MAX_ATTEMPTS} attempts: {last_error}")
+                logger.error(
+                    f"Failed to fetch data after {RETRY_MAX_ATTEMPTS} attempts: {last_error}"
+                )
                 connection_stats["total_fetch_errors"] += 1
                 connection_stats["metrics_consecutive_failures"] += 1
                 return None
@@ -395,7 +397,9 @@ def fetch_latest_data():
         except requests.exceptions.ConnectionError as e:
             last_error = str(e)
             if attempt < RETRY_MAX_ATTEMPTS - 1:
-                logger.debug(f"Connection error on attempt {attempt + 1}, retrying in {delay:.1f}s")
+                logger.debug(
+                    f"Connection error on attempt {attempt + 1}, retrying in {delay:.1f}s"
+                )
                 time.sleep(delay)
                 delay = min(delay * RETRY_MULTIPLIER, RETRY_MAX_DELAY)
                 continue
@@ -442,7 +446,9 @@ def write_metrics(
             if response.status_code in (200, 204):
                 return  # Success
             if attempt < RETRY_MAX_ATTEMPTS - 1:
-                logger.debug(f"Write attempt {attempt + 1} failed with {response.status_code}")
+                logger.debug(
+                    f"Write attempt {attempt + 1} failed with {response.status_code}"
+                )
                 time.sleep(delay)
                 delay = min(delay * RETRY_MULTIPLIER, RETRY_MAX_DELAY)
                 continue
@@ -455,7 +461,9 @@ def write_metrics(
                 time.sleep(delay)
                 delay = min(delay * RETRY_MULTIPLIER, RETRY_MAX_DELAY)
                 continue
-            logger.error(f"Connection error writing metrics after {RETRY_MAX_ATTEMPTS} attempts")
+            logger.error(
+                f"Connection error writing metrics after {RETRY_MAX_ATTEMPTS} attempts"
+            )
             connection_stats["total_write_errors"] += 1
         except Exception as e:
             logger.error(f"Exception writing metrics: {e}")
@@ -543,7 +551,9 @@ def send_anomaly_alert(score: float, data: dict, mode: str, top_features: list):
 
     for attempt in range(RETRY_MAX_ATTEMPTS):
         try:
-            response = requests.post(alert_url, json=payload, headers=headers, timeout=5)
+            response = requests.post(
+                alert_url, json=payload, headers=headers, timeout=5
+            )
             if response.status_code in (200, 201):
                 logger.info(f"Anomaly alert sent successfully (score: {score:.4f})")
                 last_alert_time = time.time()
@@ -551,11 +561,15 @@ def send_anomaly_alert(score: float, data: dict, mode: str, top_features: list):
                 connection_stats["alert_consecutive_failures"] = 0
                 return
             if attempt < RETRY_MAX_ATTEMPTS - 1:
-                logger.debug(f"Alert attempt {attempt + 1} failed with {response.status_code}")
+                logger.debug(
+                    f"Alert attempt {attempt + 1} failed with {response.status_code}"
+                )
                 time.sleep(delay)
                 delay = min(delay * RETRY_MULTIPLIER, RETRY_MAX_DELAY)
                 continue
-            logger.warning(f"Alert endpoint returned {response.status_code} after {RETRY_MAX_ATTEMPTS} attempts")
+            logger.warning(
+                f"Alert endpoint returned {response.status_code} after {RETRY_MAX_ATTEMPTS} attempts"
+            )
             connection_stats["alert_consecutive_failures"] += 1
             connection_stats["total_alert_errors"] += 1
         except requests.exceptions.ConnectionError:
@@ -563,7 +577,9 @@ def send_anomaly_alert(score: float, data: dict, mode: str, top_features: list):
                 time.sleep(delay)
                 delay = min(delay * RETRY_MULTIPLIER, RETRY_MAX_DELAY)
                 continue
-            logger.error(f"Connection error sending alert after {RETRY_MAX_ATTEMPTS} attempts")
+            logger.error(
+                f"Connection error sending alert after {RETRY_MAX_ATTEMPTS} attempts"
+            )
             connection_stats["alert_consecutive_failures"] += 1
             connection_stats["total_alert_errors"] += 1
         except Exception as e:
@@ -697,7 +713,9 @@ def wait_for_connection():
         try:
             response = requests.get(query_url, params={"query": "up"}, timeout=5)
             if response.status_code == 200:
-                logger.info(f"Successfully connected to VictoriaMetrics after {attempt} attempt(s).")
+                logger.info(
+                    f"Successfully connected to VictoriaMetrics after {attempt} attempt(s)."
+                )
                 connection_stats["metrics_connected"] = True
                 return
             else:

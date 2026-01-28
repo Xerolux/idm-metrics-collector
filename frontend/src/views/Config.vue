@@ -712,7 +712,6 @@ const fileInput = ref(null);
 const showDeleteDialog = ref(false);
 const deleteConfirmationText = ref('');
 const deletingDatabase = ref(false);
-const updating = ref(false);
 
 // Update Help Dialog
 const showUpdateHelpDialog = ref(false);

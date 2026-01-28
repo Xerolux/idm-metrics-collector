@@ -127,7 +127,6 @@ export class WebSocketClient {
         }
 
         if (!this.socket?.connected) {
-            console.log('WebSocket not connected, subscription queued for:', metrics);
             return;
         }
 
@@ -135,8 +134,6 @@ export class WebSocketClient {
             metrics,
             dashboard_id: dashboardId
         });
-
-        console.log(`Subscribed to metrics: ${metrics.join(', ')}`);
     }
 
     /**
@@ -157,8 +154,6 @@ export class WebSocketClient {
             metrics,
             dashboard_id: dashboardId
         });
-
-        console.log(`Unsubscribed from metrics: ${metrics.join(', ')}`);
     }
 
     /**
@@ -233,7 +228,6 @@ export class WebSocketClient {
      */
     _setupEventHandlers() {
         this.socket.on('connect', () => {
-            console.log('WebSocket connected:', this.socket.id);
             this.connectionState = ConnectionState.CONNECTED;
             this.reconnectAttempts = 0;
             this._emitStateChange();
@@ -247,21 +241,18 @@ export class WebSocketClient {
             }
         });
 
-        this.socket.on('disconnect', (reason) => {
-            console.log('WebSocket disconnected:', reason);
+        this.socket.on('disconnect', () => {
             this.connectionState = ConnectionState.DISCONNECTED;
             this._emitStateChange();
         });
 
-        this.socket.on('reconnect', (attemptNumber) => {
-            console.log(`WebSocket reconnected after ${attemptNumber} attempts`);
+        this.socket.on('reconnect', () => {
             this.connectionState = ConnectionState.CONNECTED;
             this.reconnectAttempts = 0;
             this._emitStateChange();
         });
 
         this.socket.on('reconnect_attempt', (attemptNumber) => {
-            console.log(`WebSocket reconnect attempt ${attemptNumber}`);
             this.connectionState = ConnectionState.RECONNECTING;
             this.reconnectAttempts = attemptNumber;
             this._emitStateChange();
@@ -280,8 +271,8 @@ export class WebSocketClient {
         });
 
         // Server events
-        this.socket.on('connected', (data) => {
-            console.log('Server confirmed connection:', data);
+        this.socket.on('connected', () => {
+            // Server confirmed connection
         });
 
         this.socket.on('metric_update', (data) => {

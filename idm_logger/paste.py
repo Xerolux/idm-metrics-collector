@@ -51,7 +51,9 @@ def upload(text, url="https://paste.blueml.eu"):
             return resp.url
 
         resp.raise_for_status()
-        raise Exception(f"MicroBin returned unexpected response (status {resp.status_code})")
+        raise Exception(
+            f"MicroBin returned unexpected response (status {resp.status_code})"
+        )
 
     except requests.RequestException as e:
         raise Exception(f"Upload failed: {e}") from e
