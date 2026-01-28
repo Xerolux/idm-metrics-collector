@@ -35,16 +35,6 @@ def signal_handler(sig, frame):
     stop_event.set()
 
 
-def run_async(coro):
-    """Run an async coroutine from sync context."""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro)
-
-
 def main():
     # Configure logging
     logger.setLevel(logging.INFO)
@@ -183,7 +173,7 @@ def main():
     # Now initialize the backend components
     try:
         # Initialize HeatpumpManager
-        run_async(heatpump_manager.initialize())
+        asyncio.run(heatpump_manager.initialize())
     except Exception as e:
         logger.error(f"Failed to initialize HeatpumpManager: {e}", exc_info=True)
 
@@ -258,7 +248,7 @@ def main():
             # Read all heatpumps
             logger.debug("Reading sensors...")
             try:
-                data = run_async(heatpump_manager.read_all())
+                data = asyncio.run(heatpump_manager.read_all())
 
                 if data:
                     # Flatten data for Web UI/WebSocket broadcasting
@@ -329,7 +319,7 @@ def main():
         if mqtt:
             mqtt.stop()
 
-        run_async(heatpump_manager.close())
+        asyncio.run(heatpump_manager.close())
         logger.info("Stopped")
 
 

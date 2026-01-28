@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Valid characters for metric names and labels
 METRIC_NAME_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+SANITIZE_PATTERN = re.compile(r"[^a-zA-Z0-9_]")
 
 
 class MetricsWriter:
@@ -274,7 +275,7 @@ class MetricsWriter:
         # Influx field keys can contain anything if escaped, but sticking to
         # simpler chars is better for compatibility
         # We assume standard prometheus-like names, just ensure no spaces or weird chars
-        sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+        sanitized = SANITIZE_PATTERN.sub("_", name)
         # Ensure starts with letter or underscore
         if sanitized and sanitized[0].isdigit():
             sanitized = "_" + sanitized

@@ -58,6 +58,10 @@ class TestScheduler(unittest.TestCase):
         current_day = datetime.datetime.now().strftime("%a")
 
         # Patch asyncio.run to avoid event loop issues and verify calls
+        # Also temporarily replace write_value with MagicMock to avoid unawaited coroutine warnings
+        # (since asyncio.run is mocked, it won't await the result of write_value)
+        self.hp_manager_mock.write_value = MagicMock()
+
         with patch("asyncio.run") as mock_asyncio_run:
             # Add 3 jobs that should run
             for i in range(3):
