@@ -1578,12 +1578,18 @@ def share_logs():
     """Upload logs to PrivateBin and return share link."""
     try:
         logs = memory_handler.get_logs()
-        # Format logs for text file
+
+        # Add Header
+        header = f"IDM Metrics Collector System Logs\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'-'*40}\n"
+
+        # Format logs for text file (Reverse order: Oldest -> Newest)
         lines = []
-        for log in logs:
+        # logs is [newest, ..., oldest] so we reverse it
+        for log in reversed(logs):
             line = f"[{log['timestamp']}] {log['level']}: {log['message']}"
             lines.append(line)
-        content = "\n".join(lines)
+
+        content = header + "\n".join(lines)
 
         privatebin_url = config.get("privatebin.url", "https://paste.blueml.eu")
         link = upload(content, url=privatebin_url)
