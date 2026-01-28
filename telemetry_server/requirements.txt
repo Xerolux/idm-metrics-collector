@@ -1,0 +1,7 @@
+fastapi==0.109.2
+uvicorn==0.27.1
+requests==2.32.4
+pydantic==2.6.1
+river==0.23.0
+schedule==1.2.2
+cryptography==46.0.4
