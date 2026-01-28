@@ -9,6 +9,8 @@
         <div v-else class="flex flex-col lg:flex-row gap-6 h-full overflow-hidden">
             <!-- Navigation (Sidebar on Desktop, Top Scrollbar on Mobile) -->
             <div class="w-full lg:w-64 flex-shrink-0 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto lg:overflow-visible pr-2 pb-2 lg:pb-20">
+            <!-- Sidebar Navigation -->
+            <div class="w-full lg:w-64 flex-shrink-0 flex flex-col gap-2 overflow-y-auto pr-2 pb-20">
                 <button
                     v-for="cat in categories"
                     :key="cat.id"
