@@ -2,36 +2,10 @@
 import requests
 from urllib.parse import urljoin
 
-def _extract_share_link(resp, base_url, api_url):
-    """Extract a share link from a MicroBin response."""
-    resp.raise_for_status()
-
-    data = None
-    try:
-        data = resp.json()
-    except ValueError:
-        data = None
-
-    if isinstance(data, dict):
-        direct_url = data.get("url")
-        if direct_url:
-            return direct_url
-        paste_id = data.get("id") or data.get("paste_id")
-        if paste_id:
-            return f"{base_url.rstrip('/')}/{paste_id}"
-
-    if resp.url and resp.url.rstrip("/") != api_url.rstrip("/") and resp.url.startswith(base_url.rstrip("/")):
-        return resp.url
-
-    location = resp.headers.get("Location") or resp.headers.get("location")
-    if location:
-        return urljoin(f"{base_url.rstrip('/')}/", location)
-
-    return None
 
 def upload(text, url="https://paste.blueml.eu"):
     """
-    Upload text to MicroBin (simple API, no encryption).
+    Upload text to MicroBin using the web form endpoint.
 
     Args:
         text: Content to upload
@@ -40,56 +14,44 @@ def upload(text, url="https://paste.blueml.eu"):
     Returns:
         Share link URL
     """
+    base_url = url.rstrip("/")
+    upload_url = f"{base_url}/upload"
+
+    # MicroBin form data - use files parameter to force multipart/form-data encoding
+    # Each field is a tuple of (filename, value) where filename=None for text fields
+    form_fields = {
+        "content": (None, text),
+        "expiration": (None, "1week"),
+        "privacy": (None, "unlisted"),
+        "burn_after": (None, "0"),
+        "syntax_highlight": (None, ""),
+        "encrypt_client": (None, ""),
+        "random_key": (None, ""),
+        "plain_key": (None, ""),
+    }
+
     try:
-        base_url = url.rstrip("/")
-        errors = []
+        # POST to /upload endpoint - MicroBin returns 302 redirect to the paste URL
+        resp = requests.post(
+            upload_url,
+            files=form_fields,
+            timeout=15,
+            allow_redirects=False,
+        )
 
-        # MicroBin API endpoint (v2 JSON)
-        api_url = f"{base_url}/api/v2/paste"
+        # MicroBin returns 302 redirect with Location header containing the paste URL
+        if resp.status_code in (301, 302, 303, 307, 308):
+            location = resp.headers.get("Location") or resp.headers.get("location")
+            if location:
+                # Convert relative URL to absolute if needed
+                return urljoin(f"{base_url}/", location)
 
-        # Payload for MicroBin
-        payload = {
-            "content": text,
-            "title": "IDM Logger Protokoll",
-            "expires": "1week",
-            "privacy": "public"
-        }
+        # If we followed redirects or got 200, check the final URL
+        if resp.status_code == 200 and resp.url and resp.url != upload_url:
+            return resp.url
 
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
+        resp.raise_for_status()
+        raise Exception(f"MicroBin returned unexpected response (status {resp.status_code})")
 
-        try:
-            resp = requests.post(api_url, json=payload, headers=headers, timeout=10)
-            link = _extract_share_link(resp, base_url, api_url)
-            if link:
-                return link
-            errors.append(f"MicroBin returned invalid response: {resp.text[:200]}")
-        except Exception as exc:
-            errors.append(str(exc))
-
-        # Fallback to legacy API (form-encoded)
-        api_url = f"{base_url}/api/paste"
-        payload = {
-            "content": text,
-            "title": "IDM Logger Protokoll",
-            "expiration": "1week",
-            "visibility": "public"
-        }
-
-        headers = {
-            "Accept": "application/json"
-        }
-
-        resp = requests.post(api_url, data=payload, headers=headers, timeout=10)
-        link = _extract_share_link(resp, base_url, api_url)
-        if link:
-            return link
-        raise Exception(f"MicroBin returned invalid response: {resp.text[:200]}")
-
-    except Exception as e:
-        message = str(e)
-        if "errors" in locals() and errors:
-            message = f"{message}; previous errors: {' | '.join(errors)}"
-        raise Exception(f"Upload failed: {message}")
+    except requests.RequestException as e:
+        raise Exception(f"Upload failed: {e}") from e
