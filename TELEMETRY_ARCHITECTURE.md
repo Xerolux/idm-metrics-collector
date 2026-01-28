@@ -69,3 +69,27 @@ Ein einfacher REST-Endpunkt, der JSON-Payloads empfängt.
 1.  Aufsetzen des Ingest-Servers (z.B. mit FastAPI und VictoriaMetrics).
 2.  Bereitstellen der URL unter `collector.xerolux.de` (Standard im Client).
 3.  Optional: Setzen der Environment-Variable `TELEMETRY_ENDPOINT` im Docker-Image, falls eine andere URL verwendet werden soll.
+
+## Server Deployment
+
+Der Telemetry Server ist dafür ausgelegt, hinter einem Reverse Proxy zu laufen.
+
+*   **Domain**: `collector.xerolux.de`
+*   **Port**: `8000` (auf den Host gemappt)
+
+### Nginx Konfiguration (ISPConfig)
+
+Fügen Sie die folgende Direktive zur Nginx-Konfiguration hinzu (z.B. in ISPConfig unter "Optionen" -> "Nginx Direktiven"):
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
