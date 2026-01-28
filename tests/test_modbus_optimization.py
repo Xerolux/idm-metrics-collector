@@ -75,6 +75,7 @@ class TestModbusOptimization(unittest.TestCase):
         # Setup mock instance
         mock_instance = mock_client_cls.return_value
         mock_instance.connect.return_value = True
+        mock_instance.is_socket_open.return_value = True
 
         # Mock response
         # We need to return an object that has .isError() and .registers

@@ -1,8 +1,8 @@
 <template>
     <div class="p-4 flex flex-col gap-4">
-        <div class="flex justify-between items-center mb-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
             <h1 class="text-2xl font-bold">Systemprotokolle</h1>
-            <div class="flex gap-2">
+            <div class="flex gap-2 w-full md:w-auto">
                 <Button
                     label="Teilen"
                     icon="pi pi-share-alt"

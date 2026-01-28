@@ -19,8 +19,10 @@ class TestScheduler(unittest.TestCase):
         self.db_patcher.stop()
 
     def test_process_jobs_batching(self):
-        current_time = datetime.datetime.now().strftime("%H:%M")
-        current_day = datetime.datetime.now().strftime("%a")
+        # Use a fixed time for testing to avoid day mismatch issues
+        fixed_now = datetime.datetime(2024, 1, 1, 12, 0, 0)  # A Monday
+        current_time = fixed_now.strftime("%H:%M")
+        current_day = fixed_now.strftime("%a")
 
         # Add 3 jobs that should run
         for i in range(3):
@@ -48,7 +50,13 @@ class TestScheduler(unittest.TestCase):
         self.scheduler.jobs.append(wrong_time_job)
 
         # Run process_jobs
-        self.scheduler.process_jobs()
+        with patch("idm_logger.scheduler.datetime") as mock_datetime:
+            mock_datetime.datetime.now.return_value = fixed_now
+            # We also need to mock time.time() because the scheduler uses it for last_run check
+            with patch("idm_logger.scheduler.time.time") as mock_time:
+                mock_time.return_value = 100000  # Fixed timestamp
+
+                self.scheduler.process_jobs()
 
         # Verify modbus writes
         self.assertEqual(self.modbus_mock.write_sensor.call_count, 3)

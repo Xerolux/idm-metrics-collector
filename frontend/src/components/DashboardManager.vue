@@ -118,8 +118,26 @@
                      </div>
                 </div>
 
+                <!-- Empty State / Welcome -->
+                <div v-if="currentCharts.length === 0" class="h-full flex flex-col items-center justify-center text-center p-8 text-surface-500">
+                    <div class="bg-surface-0 dark:bg-surface-800 p-8 rounded-xl shadow-sm border border-surface-200 dark:border-surface-700 max-w-md">
+                        <div class="mb-6 text-primary-500 bg-primary-500/10 w-24 h-24 rounded-full flex items-center justify-center mx-auto">
+                            <i class="pi pi-chart-bar text-5xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-surface-900 dark:text-surface-0 mb-2">Dein Dashboard ist leer</h3>
+                        <p class="mb-8 text-sm text-surface-600 dark:text-surface-400">
+                            Starte jetzt, indem du Sensoren aus der linken Leiste hierher ziehst oder eine vorgefertigte Vorlage verwendest.
+                        </p>
+                        <div class="flex flex-col gap-3">
+                            <Button label="Neuen Chart erstellen" icon="pi pi-plus" size="large" @click="showAddChartDialog = true" />
+                            <Button label="Vorlage verwenden" icon="pi pi-copy" severity="secondary" size="large" @click="showTemplateDialog = true" />
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Draggable Charts Grid -->
                 <draggable
+                    v-else
                     v-model="currentCharts"
                     :disabled="!editMode"
                     item-key="id"

@@ -1,15 +1,33 @@
 <template>
-    <div class="p-4 flex flex-col gap-4">
-        <h1 class="text-2xl font-bold mb-4">Konfiguration</h1>
+    <div class="p-4 flex flex-col gap-4 h-[calc(100vh-2rem)] overflow-hidden">
+        <h1 class="text-2xl font-bold mb-2 flex-shrink-0">Konfiguration</h1>
 
-        <div v-if="loading" class="flex justify-center">
+        <div v-if="loading" class="flex justify-center items-center h-full">
             <i class="pi pi-spin pi-spinner text-4xl"></i>
         </div>
 
-        <div v-else>
-            <TabView :scrollable="true">
-                <TabPanel header="Verbindung">
-                     <div class="flex flex-col gap-6">
+        <div v-else class="flex flex-col lg:flex-row gap-6 h-full overflow-hidden">
+            <!-- Navigation (Sidebar on Desktop, Top Scrollbar on Mobile) -->
+            <div class="w-full lg:w-64 flex-shrink-0 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto lg:overflow-visible pr-2 pb-2 lg:pb-20">
+                <button
+                    v-for="cat in categories"
+                    :key="cat.id"
+                    @click="activeCategory = cat.id"
+                    class="flex items-center gap-3 p-3 rounded-lg text-left transition-colors whitespace-nowrap"
+                    :class="activeCategory === cat.id ? 'bg-primary-500 text-white shadow-lg' : 'bg-surface-800 text-surface-200 hover:bg-surface-700'"
+                >
+                    <i :class="cat.icon" class="text-lg"></i>
+                    <span class="font-medium">{{ cat.label }}</span>
+                </button>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="flex-grow bg-surface-900 rounded-xl border border-surface-700 overflow-hidden flex flex-col">
+                <div class="p-6 overflow-y-auto flex-grow">
+                    <!-- Verbindung -->
+                    <div v-if="activeCategory === 'connection'" class="flex flex-col gap-6">
+                        <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2">Verbindung & Daten</h2>
+
                         <Fieldset legend="IDM Wärmepumpe" :toggleable="true">
                              <div class="flex flex-col gap-4">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -76,81 +94,85 @@
                             </div>
                         </Fieldset>
                     </div>
-                </TabPanel>
 
-                <TabPanel header="MQTT & Integration">
-                    <Fieldset legend="MQTT Publishing" :toggleable="false">
-                        <template #legend>
-                            <div class="flex items-center gap-2">
-                                <Checkbox v-model="config.mqtt.enabled" binary inputId="mqtt_enabled" />
-                                <span class="font-bold text-lg">MQTT Aktivieren</span>
-                            </div>
-                        </template>
+                    <!-- MQTT -->
+                    <div v-if="activeCategory === 'mqtt'" class="flex flex-col gap-6">
+                        <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2">MQTT & Integration</h2>
 
-                        <div v-if="config.mqtt.enabled" class="flex flex-col gap-6 mt-4">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div class="flex flex-col gap-2">
-                                    <label>Broker Adresse</label>
-                                    <InputText v-model="config.mqtt.broker" placeholder="mqtt.example.com" class="w-full" />
+                        <Fieldset legend="MQTT Publishing" :toggleable="false">
+                            <template #legend>
+                                <div class="flex items-center gap-2">
+                                    <Checkbox v-model="config.mqtt.enabled" binary inputId="mqtt_enabled" />
+                                    <span class="font-bold text-lg">MQTT Aktivieren</span>
                                 </div>
-                                <div class="flex flex-col gap-2">
-                                    <label>Port</label>
-                                    <InputNumber v-model="config.mqtt.port" :useGrouping="false" :min="1" :max="65535" class="w-full" />
-                                </div>
-                                <div class="flex flex-col gap-2">
-                                    <label>Benutzername</label>
-                                    <InputText v-model="config.mqtt.username" placeholder="Optional" class="w-full" />
-                                </div>
-                                <div class="flex flex-col gap-2">
-                                    <label>Passwort</label>
-                                    <InputText v-model="mqttPassword" type="password" placeholder="••••••" class="w-full" />
-                                </div>
-                            </div>
+                            </template>
 
-                            <div class="border-t border-gray-700 pt-4">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <Checkbox v-model="config.mqtt.use_tls" binary inputId="mqtt_tls" />
-                                    <label for="mqtt_tls" class="font-bold cursor-pointer">TLS/SSL Verschlüsselung</label>
-                                </div>
-                                <div v-if="config.mqtt.use_tls" class="ml-8 mb-4">
+                            <div v-if="config.mqtt.enabled" class="flex flex-col gap-6 mt-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-sm">CA-Zertifikat Pfad (optional)</label>
-                                        <InputText v-model="config.mqtt.tls_ca_cert" placeholder="/path/to/ca.crt" class="w-full" />
-                                        <small class="text-gray-400">Für selbst-signierte Zertifikate. Leer lassen für System-CA.</small>
+                                        <label>Broker Adresse</label>
+                                        <InputText v-model="config.mqtt.broker" placeholder="mqtt.example.com" class="w-full" />
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Port</label>
+                                        <InputNumber v-model="config.mqtt.port" :useGrouping="false" :min="1" :max="65535" class="w-full" />
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Benutzername</label>
+                                        <InputText v-model="config.mqtt.username" placeholder="Optional" class="w-full" />
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>Passwort</label>
+                                        <InputText v-model="mqttPassword" type="password" placeholder="••••••" class="w-full" />
+                                    </div>
+                                </div>
+
+                                <div class="border-t border-gray-700 pt-4">
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <Checkbox v-model="config.mqtt.use_tls" binary inputId="mqtt_tls" />
+                                        <label for="mqtt_tls" class="font-bold cursor-pointer">TLS/SSL Verschlüsselung</label>
+                                    </div>
+                                    <div v-if="config.mqtt.use_tls" class="ml-8 mb-4">
+                                        <div class="flex flex-col gap-2">
+                                            <label class="text-sm">CA-Zertifikat Pfad (optional)</label>
+                                            <InputText v-model="config.mqtt.tls_ca_cert" placeholder="/path/to/ca.crt" class="w-full" />
+                                            <small class="text-gray-400">Für selbst-signierte Zertifikate. Leer lassen für System-CA.</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-700 pt-4">
+                                    <div class="flex flex-col gap-2">
+                                        <label>Topic Präfix</label>
+                                        <InputText v-model="config.mqtt.topic_prefix" class="w-full" />
+                                    </div>
+                                    <div class="flex flex-col gap-2">
+                                        <label>QoS Level</label>
+                                        <SelectButton v-model="config.mqtt.qos" :options="[0, 1, 2]" aria-labelledby="basic" class="w-full" />
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col gap-3 border border-green-600/50 rounded bg-green-900/10 p-4">
+                                    <div class="flex items-center gap-2">
+                                        <Checkbox v-model="config.mqtt.ha_discovery_enabled" binary inputId="ha_discovery" />
+                                        <label for="ha_discovery" class="font-bold text-green-400 cursor-pointer">Home Assistant Auto-Discovery</label>
+                                    </div>
+                                    <div v-if="config.mqtt.ha_discovery_enabled" class="ml-8">
+                                        <label class="text-sm">Discovery Präfix</label>
+                                        <InputText v-model="config.mqtt.ha_discovery_prefix" class="w-full mt-1" />
                                     </div>
                                 </div>
                             </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-700 pt-4">
-                                <div class="flex flex-col gap-2">
-                                    <label>Topic Präfix</label>
-                                    <InputText v-model="config.mqtt.topic_prefix" class="w-full" />
-                                </div>
-                                <div class="flex flex-col gap-2">
-                                    <label>QoS Level</label>
-                                    <SelectButton v-model="config.mqtt.qos" :options="[0, 1, 2]" aria-labelledby="basic" class="w-full" />
-                                </div>
+                            <div v-else class="text-gray-400 italic">
+                                Aktivieren Sie MQTT, um Daten an Broker wie Mosquitto oder Home Assistant zu senden.
                             </div>
+                        </Fieldset>
+                    </div>
 
-                            <div class="flex flex-col gap-3 border border-green-600/50 rounded bg-green-900/10 p-4">
-                                <div class="flex items-center gap-2">
-                                    <Checkbox v-model="config.mqtt.ha_discovery_enabled" binary inputId="ha_discovery" />
-                                    <label for="ha_discovery" class="font-bold text-green-400 cursor-pointer">Home Assistant Auto-Discovery</label>
-                                </div>
-                                <div v-if="config.mqtt.ha_discovery_enabled" class="ml-8">
-                                    <label class="text-sm">Discovery Präfix</label>
-                                    <InputText v-model="config.mqtt.ha_discovery_prefix" class="w-full mt-1" />
-                                </div>
-                            </div>
-                        </div>
-                        <div v-else class="text-gray-400 italic">
-                            Aktivieren Sie MQTT, um Daten an Broker wie Mosquitto oder Home Assistant zu senden.
-                        </div>
-                    </Fieldset>
-                </TabPanel>
+                    <!-- Benachrichtigungen -->
+                    <div v-if="activeCategory === 'notifications'" class="flex flex-col gap-6">
+                        <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2">Benachrichtigungen</h2>
 
-                <TabPanel header="Benachrichtigungen">
-                    <div class="flex flex-col gap-6">
                         <Fieldset legend="Signal Messenger" :toggleable="true">
                             <template #legend>
                                 <div class="flex items-center gap-2">
@@ -251,10 +273,11 @@
                             </div>
                         </Fieldset>
                     </div>
-                </TabPanel>
 
-                <TabPanel header="KI-Analyse">
-                     <div class="flex flex-col gap-6">
+                    <!-- AI -->
+                    <div v-if="activeCategory === 'ai'" class="flex flex-col gap-6">
+                        <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2">KI-Analyse</h2>
+
                         <Fieldset legend="KI & Anomalieerkennung" :toggleable="true">
                             <template #legend>
                                 <div class="flex items-center gap-2">
@@ -307,11 +330,12 @@
                                  </div>
                              </div>
                         </Fieldset>
-                     </div>
-                </TabPanel>
+                    </div>
 
-                <TabPanel header="Sicherheit">
-                    <div class="flex flex-col gap-6">
+                    <!-- Security -->
+                    <div v-if="activeCategory === 'security'" class="flex flex-col gap-6">
+                        <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2">Sicherheit</h2>
+
                          <Fieldset legend="Webzugriff" :toggleable="true">
                             <div class="flex flex-col gap-4">
                                 <div class="flex flex-col gap-2">
@@ -355,163 +379,166 @@
                             </div>
                         </Fieldset>
                     </div>
-                </TabPanel>
 
-                <TabPanel header="System & Wartung">
-                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                        <!-- Update Status -->
-                        <div data-update-section class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3">
-                            <h3 class="font-bold text-lg flex items-center gap-2">
-                                <i class="pi pi-refresh"></i> Update Status
-                            </h3>
-                             <div class="flex items-center justify-between bg-gray-900/50 p-3 rounded">
-                                 <div>
-                                     <div class="text-sm text-gray-400">Installierte Version</div>
-                                     <div class="font-mono">{{ updateStatus.current_version || 'v0.0.0' }}</div>
-                                 </div>
-                                 <div class="text-right">
-                                     <div class="text-sm text-gray-400">Verfügbare Version</div>
-                                     <div class="font-mono text-green-400">{{ updateStatus.latest_version || 'Checking...' }}</div>
-                                 </div>
-                             </div>
+                    <!-- System -->
+                    <div v-if="activeCategory === 'system'" class="flex flex-col gap-6">
+                        <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2">System & Wartung</h2>
 
-                             <!-- Docker Image Status -->
-                             <div v-if="updateStatus.docker" class="bg-gray-900/50 p-3 rounded mt-2">
-                                 <div class="flex items-center gap-2 mb-2">
-                                     <i class="pi pi-box text-blue-400"></i>
-                                     <span class="text-sm font-bold">Docker Images</span>
-                                     <span v-if="updateStatus.docker.updates_available" class="px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full">Updates verfügbar</span>
+                        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                            <!-- Update Status -->
+                            <div data-update-section class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3">
+                                <h3 class="font-bold text-lg flex items-center gap-2">
+                                    <i class="pi pi-refresh"></i> Update Status
+                                </h3>
+                                 <div class="flex items-center justify-between bg-gray-900/50 p-3 rounded">
+                                     <div>
+                                         <div class="text-sm text-gray-400">Installierte Version</div>
+                                         <div class="font-mono">{{ updateStatus.current_version || 'v0.0.0' }}</div>
+                                     </div>
+                                     <div class="text-right">
+                                         <div class="text-sm text-gray-400">Verfügbare Version</div>
+                                         <div class="font-mono text-green-400">{{ updateStatus.latest_version || 'Checking...' }}</div>
+                                     </div>
                                  </div>
-                                 <div class="grid grid-cols-1 gap-2 text-xs">
-                                     <div v-for="(img, name) in updateStatus.docker.images" :key="name"
-                                          class="flex items-center justify-between p-2 rounded"
-                                          :class="img.update_available ? 'bg-blue-900/30 border border-blue-600/50' : 'bg-gray-800'">
-                                         <div class="flex items-center gap-2">
-                                             <i :class="img.update_available ? 'pi pi-arrow-up text-blue-400' : 'pi pi-check text-green-400'"></i>
-                                             <span class="font-mono">{{ name }}</span>
+
+                                 <!-- Docker Image Status -->
+                                 <div v-if="updateStatus.docker" class="bg-gray-900/50 p-3 rounded mt-2">
+                                     <div class="flex items-center gap-2 mb-2">
+                                         <i class="pi pi-box text-blue-400"></i>
+                                         <span class="text-sm font-bold">Docker Images</span>
+                                         <span v-if="updateStatus.docker.updates_available" class="px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full">Updates verfügbar</span>
+                                     </div>
+                                     <div class="grid grid-cols-1 gap-2 text-xs">
+                                         <div v-for="(img, name) in updateStatus.docker.images" :key="name"
+                                              class="flex items-center justify-between p-2 rounded"
+                                              :class="img.update_available ? 'bg-blue-900/30 border border-blue-600/50' : 'bg-gray-800'">
+                                             <div class="flex items-center gap-2">
+                                                 <i :class="img.update_available ? 'pi pi-arrow-up text-blue-400' : 'pi pi-check text-green-400'"></i>
+                                                 <span class="font-mono">{{ name }}</span>
+                                             </div>
+                                             <div class="text-right">
+                                                 <span v-if="img.update_available" class="text-blue-300">Update verfügbar</span>
+                                                 <span v-else class="text-green-400">Aktuell</span>
+                                             </div>
                                          </div>
-                                         <div class="text-right">
-                                             <span v-if="img.update_available" class="text-blue-300">Update verfügbar</span>
-                                             <span v-else class="text-green-400">Aktuell</span>
-                                         </div>
                                      </div>
                                  </div>
-                             </div>
 
-                             <!-- Update Available Info -->
-                             <div v-if="updateStatus.update_available" class="bg-blue-900/20 border border-blue-600/50 p-3 rounded mt-2 flex flex-col gap-2">
-                                <div class="flex items-center gap-2 text-blue-300 text-sm">
-                                    <i class="pi pi-info-circle"></i>
-                                    <span>Neue Version verfügbar!</span>
-                                </div>
-                                <p class="text-xs text-gray-400">
-                                    Watchtower aktualisiert automatisch täglich um 3:00 Uhr.
-                                </p>
-                             </div>
-
-                             <!-- Watchtower Info -->
-                             <div class="bg-gray-900/50 p-3 rounded mt-2">
-                                 <div class="flex items-center gap-2 mb-2">
-                                     <i class="pi pi-sync text-green-400"></i>
-                                     <span class="text-sm font-bold">Automatische Updates</span>
+                                 <!-- Update Available Info -->
+                                 <div v-if="updateStatus.update_available" class="bg-blue-900/20 border border-blue-600/50 p-3 rounded mt-2 flex flex-col gap-2">
+                                    <div class="flex items-center gap-2 text-blue-300 text-sm">
+                                        <i class="pi pi-info-circle"></i>
+                                        <span>Neue Version verfügbar!</span>
+                                    </div>
+                                    <p class="text-xs text-gray-400">
+                                        Watchtower aktualisiert automatisch täglich um 3:00 Uhr.
+                                    </p>
                                  </div>
-                                 <p class="text-xs text-gray-400 mb-2">
-                                     Watchtower prüft täglich um <span class="text-green-400 font-mono">03:00 Uhr</span> auf neue Docker Images und aktualisiert automatisch.
-                                 </p>
-                                 <Button label="Anleitung für manuelles Update" icon="pi pi-question-circle" severity="secondary" size="small" text @click="showUpdateHelpDialog = true" />
-                             </div>
 
-                             <div class="flex justify-end mt-2">
-                                 <Button label="Jetzt prüfen" icon="pi pi-search" size="small" severity="secondary" @click="checkUpdates" :loading="checkingUpdates" />
-                             </div>
-                        </div>
+                                 <!-- Watchtower Info -->
+                                 <div class="bg-gray-900/50 p-3 rounded mt-2">
+                                     <div class="flex items-center gap-2 mb-2">
+                                         <i class="pi pi-sync text-green-400"></i>
+                                         <span class="text-sm font-bold">Automatische Updates</span>
+                                     </div>
+                                     <p class="text-xs text-gray-400 mb-2">
+                                         Watchtower prüft täglich um <span class="text-green-400 font-mono">03:00 Uhr</span> auf neue Docker Images und aktualisiert automatisch.
+                                     </p>
+                                     <Button label="Anleitung für manuelles Update" icon="pi pi-question-circle" severity="secondary" size="small" text @click="showUpdateHelpDialog = true" />
+                                 </div>
 
-                        <!-- Backup Actions -->
-                        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3">
-                             <h3 class="font-bold text-lg flex items-center gap-2">
-                                <i class="pi pi-database"></i> Backup
-                            </h3>
-                            <div class="flex flex-col gap-2 mb-2">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-2">
-                                         <Checkbox v-model="config.backup.enabled" binary inputId="auto_backup" />
-                                         <label for="auto_backup" class="font-bold text-sm">Automatisches Backup</label>
-                                    </div>
-                                </div>
-                                <div v-if="config.backup.enabled" class="grid grid-cols-2 gap-2 text-sm bg-gray-900/30 p-2 rounded">
-                                     <div class="flex flex-col">
-                                         <label class="text-xs text-gray-400">Intervall (Std)</label>
-                                         <InputNumber v-model="config.backup.interval" :min="1" :max="168" class="p-inputtext-sm" />
-                                     </div>
-                                     <div class="flex flex-col">
-                                         <label class="text-xs text-gray-400">Behalten (Anzahl)</label>
-                                         <InputNumber v-model="config.backup.retention" :min="1" :max="50" class="p-inputtext-sm" />
-                                     </div>
-                                      <div class="col-span-2 flex items-center gap-2 mt-1">
-                                         <Checkbox v-model="config.backup.auto_upload" binary inputId="backup_upload" :disabled="!config.webdav.enabled" />
-                                         <label for="backup_upload" class="text-xs" :class="{'opacity-50': !config.webdav.enabled}">Automatisch in Cloud hochladen</label>
-                                    </div>
-                                </div>
+                                 <div class="flex justify-end mt-2">
+                                     <Button label="Jetzt prüfen" icon="pi pi-search" size="small" severity="secondary" @click="checkUpdates" :loading="checkingUpdates" />
+                                 </div>
                             </div>
 
-                            <div class="flex gap-2">
-                                <Button label="Backup erstellen" icon="pi pi-download" size="small" @click="createBackup" :loading="creatingBackup" />
-                                <Button label="Backup hochladen" icon="pi pi-upload" size="small" severity="secondary" @click="$refs.fileInput.click()" />
-                                <input type="file" ref="fileInput" class="hidden" @change="handleFileSelect" accept=".zip" />
+                            <!-- Backup Actions -->
+                            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3">
+                                 <h3 class="font-bold text-lg flex items-center gap-2">
+                                    <i class="pi pi-database"></i> Backup
+                                </h3>
+                                <div class="flex flex-col gap-2 mb-2">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                             <Checkbox v-model="config.backup.enabled" binary inputId="auto_backup" />
+                                             <label for="auto_backup" class="font-bold text-sm">Automatisches Backup</label>
+                                        </div>
+                                    </div>
+                                    <div v-if="config.backup.enabled" class="grid grid-cols-2 gap-2 text-sm bg-gray-900/30 p-2 rounded">
+                                         <div class="flex flex-col">
+                                             <label class="text-xs text-gray-400">Intervall (Std)</label>
+                                             <InputNumber v-model="config.backup.interval" :min="1" :max="168" class="p-inputtext-sm" />
+                                         </div>
+                                         <div class="flex flex-col">
+                                             <label class="text-xs text-gray-400">Behalten (Anzahl)</label>
+                                             <InputNumber v-model="config.backup.retention" :min="1" :max="50" class="p-inputtext-sm" />
+                                         </div>
+                                          <div class="col-span-2 flex items-center gap-2 mt-1">
+                                             <Checkbox v-model="config.backup.auto_upload" binary inputId="backup_upload" :disabled="!config.webdav.enabled" />
+                                             <label for="backup_upload" class="text-xs" :class="{'opacity-50': !config.webdav.enabled}">Automatisch in Cloud hochladen</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex gap-2">
+                                    <Button label="Backup erstellen" icon="pi pi-download" size="small" @click="createBackup" :loading="creatingBackup" />
+                                    <Button label="Backup hochladen" icon="pi pi-upload" size="small" severity="secondary" @click="$refs.fileInput.click()" />
+                                    <input type="file" ref="fileInput" class="hidden" @change="handleFileSelect" accept=".zip" />
+                                </div>
+                                <Button v-if="selectedFile" label="Wiederherstellen starten" severity="warning" class="w-full mt-2" @click="restoreFromFile" />
+
+                                 <div class="mt-2 max-h-40 overflow-y-auto">
+                                    <div v-for="backup in backups" :key="backup.filename" class="flex justify-between items-center p-2 hover:bg-gray-700 rounded text-sm border-b border-gray-700 last:border-0">
+                                        <span class="truncate">{{ backup.filename }}</span>
+                                        <div class="flex gap-1">
+                                            <Button icon="pi pi-cloud-upload" text size="small" @click="uploadToCloud(backup.filename)" title="Upload to WebDAV" />
+                                            <Button icon="pi pi-download" text size="small" @click="downloadBackup(backup.filename)" />
+                                            <Button icon="pi pi-trash" text severity="danger" size="small" @click="confirmDeleteBackup(backup.filename)" />
+                                        </div>
+                                    </div>
+                                 </div>
+
+                                 <div class="border-t border-gray-700 pt-3 mt-2">
+                                     <div class="flex items-center gap-2 mb-2">
+                                        <Checkbox v-model="config.webdav.enabled" binary inputId="webdav_enabled" />
+                                        <label for="webdav_enabled" class="font-bold cursor-pointer">Cloud Backup (WebDAV/Nextcloud)</label>
+                                    </div>
+                                    <div v-if="config.webdav.enabled" class="flex flex-col gap-2">
+                                        <div class="flex flex-col gap-1">
+                                            <label class="text-xs">URL</label>
+                                            <InputText v-model="config.webdav.url" placeholder="https://cloud.example.com/remote.php/dav/files/user/" class="p-inputtext-sm w-full" />
+                                        </div>
+                                        <div class="flex flex-col gap-1">
+                                            <label class="text-xs">Benutzername</label>
+                                            <InputText v-model="config.webdav.username" class="p-inputtext-sm w-full" />
+                                        </div>
+                                        <div class="flex flex-col gap-1">
+                                            <label class="text-xs">Passwort</label>
+                                            <InputText v-model="webdavPassword" type="password" class="p-inputtext-sm w-full" />
+                                        </div>
+                                    </div>
+                                 </div>
                             </div>
-                            <Button v-if="selectedFile" label="Wiederherstellen starten" severity="warning" class="w-full mt-2" @click="restoreFromFile" />
 
-                             <div class="mt-2 max-h-40 overflow-y-auto">
-                                <div v-for="backup in backups" :key="backup.filename" class="flex justify-between items-center p-2 hover:bg-gray-700 rounded text-sm border-b border-gray-700 last:border-0">
-                                    <span class="truncate">{{ backup.filename }}</span>
-                                    <div class="flex gap-1">
-                                        <Button icon="pi pi-cloud-upload" text size="small" @click="uploadToCloud(backup.filename)" title="Upload to WebDAV" />
-                                        <Button icon="pi pi-download" text size="small" @click="downloadBackup(backup.filename)" />
-                                        <Button icon="pi pi-trash" text severity="danger" size="small" @click="confirmDeleteBackup(backup.filename)" />
-                                    </div>
+                             <!-- Service Control -->
+                             <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3 xl:col-span-2">
+                                <h3 class="font-bold text-lg flex items-center gap-2 text-red-400">
+                                    <i class="pi pi-power-off"></i> Danger Zone
+                                </h3>
+                                <div class="flex gap-4">
+                                    <Button label="Dienst neu starten" icon="pi pi-refresh" severity="warning" @click="confirmRestart" />
+                                    <Button label="Datenbank löschen" icon="pi pi-trash" severity="danger" @click="showDeleteDialog = true" />
                                 </div>
-                             </div>
-
-                             <div class="border-t border-gray-700 pt-3 mt-2">
-                                 <div class="flex items-center gap-2 mb-2">
-                                    <Checkbox v-model="config.webdav.enabled" binary inputId="webdav_enabled" />
-                                    <label for="webdav_enabled" class="font-bold cursor-pointer">Cloud Backup (WebDAV/Nextcloud)</label>
-                                </div>
-                                <div v-if="config.webdav.enabled" class="flex flex-col gap-2">
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-xs">URL</label>
-                                        <InputText v-model="config.webdav.url" placeholder="https://cloud.example.com/remote.php/dav/files/user/" class="p-inputtext-sm w-full" />
-                                    </div>
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-xs">Benutzername</label>
-                                        <InputText v-model="config.webdav.username" class="p-inputtext-sm w-full" />
-                                    </div>
-                                    <div class="flex flex-col gap-1">
-                                        <label class="text-xs">Passwort</label>
-                                        <InputText v-model="webdavPassword" type="password" class="p-inputtext-sm w-full" />
-                                    </div>
-                                </div>
-                             </div>
-                        </div>
-
-                         <!-- Service Control -->
-                         <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3 xl:col-span-2">
-                            <h3 class="font-bold text-lg flex items-center gap-2 text-red-400">
-                                <i class="pi pi-power-off"></i> Danger Zone
-                            </h3>
-                            <div class="flex gap-4">
-                                <Button label="Dienst neu starten" icon="pi pi-refresh" severity="warning" @click="confirmRestart" />
-                                <Button label="Datenbank löschen" icon="pi pi-trash" severity="danger" @click="showDeleteDialog = true" />
                             </div>
                         </div>
                     </div>
-                </TabPanel>
+                </div>
 
-            </TabView>
-        </div>
-
-        <div class="flex gap-4 mt-4 justify-end border-t border-gray-700 pt-4 sticky bottom-0 bg-gray-900/90 backdrop-blur p-4 z-10">
-            <Button label="Speichern" icon="pi pi-save" @click="saveConfig" :loading="saving" size="large" severity="primary" />
+                <!-- Footer (Save Button) inside the content area to be sticky at bottom -->
+                <div class="flex gap-4 justify-end border-t border-surface-700 p-4 bg-surface-900/90 backdrop-blur z-10">
+                    <Button label="Speichern" icon="pi pi-save" @click="saveConfig" :loading="saving" size="large" severity="primary" />
+                </div>
+            </div>
         </div>
 
         <!-- Dialogs -->
@@ -605,8 +632,6 @@ import InputNumber from 'primevue/inputnumber';
 import Checkbox from 'primevue/checkbox';
 import Button from 'primevue/button';
 import Textarea from 'primevue/textarea';
-import TabView from 'primevue/tabview';
-import TabPanel from 'primevue/tabpanel';
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import Dialog from 'primevue/dialog';
@@ -631,6 +656,17 @@ const config = ref({
     updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all', channel: 'latest' },
     backup: { enabled: false, interval: 24, retention: 10, auto_upload: false }
 });
+
+const activeCategory = ref('connection');
+const categories = [
+    { id: 'connection', label: 'Verbindung', icon: 'pi pi-server' },
+    { id: 'mqtt', label: 'MQTT & Integration', icon: 'pi pi-share-alt' },
+    { id: 'notifications', label: 'Benachrichtigungen', icon: 'pi pi-bell' },
+    { id: 'ai', label: 'KI-Analyse', icon: 'pi pi-chart-line' },
+    { id: 'security', label: 'Sicherheit', icon: 'pi pi-shield' },
+    { id: 'system', label: 'System & Wartung', icon: 'pi pi-cog' }
+];
+
 const showPasswordDialog = ref(false);
 const newPassword = ref('');
 const confirmPassword = ref('');
@@ -797,17 +833,6 @@ const checkUpdates = async () => {
 };
 
 const savePassword = () => {
-    // Password will be saved when main saveConfig is called, or we can save it separately.
-    // Given the architecture, newPassword variable is used in saveConfig.
-    // So we just close the dialog and let the user click "Save" on the main page?
-    // User request implies immediate action "Pop up zum Passwort ändern".
-    // But existing saveConfig handles it. Let's make the dialog just set the variable and then user saves?
-    // OR we trigger save immediately. Let's trigger save immediately for better UX if it's a separate dialog.
-    // Actually, saveConfig handles everything. To avoid confusion, let's call saveConfig here ONLY with password?
-    // The backend endpoint accepts partial updates effectively by merging.
-    // However, saveConfig sends the WHOLE config object.
-    // So we can just set the variable, close dialog, and call saveConfig.
-
     showPasswordDialog.value = false;
     saveConfig();
 };

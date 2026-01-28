@@ -30,7 +30,11 @@ def upload(text, url="https://paste.blueml.eu"):
 
         resp = requests.post(api_url, json=payload, headers=headers, timeout=10)
         resp.raise_for_status()
-        data = resp.json()
+
+        try:
+            data = resp.json()
+        except ValueError:
+            raise Exception(f"MicroBin returned invalid response: {resp.text[:200]}")
 
         # MicroBin returns paste ID
         paste_id = data.get("id") or data.get("paste_id")
