@@ -44,6 +44,7 @@ from .expression_parser import ExpressionParser
 from .websocket_handler import websocket_handler
 from .sharing import SharingManager
 from .model_updater import model_updater
+from .privatebin import upload
 from .manufacturers import ManufacturerRegistry
 from .migrations import run_migration, get_default_heatpump_id, get_legacy_heatpump_id
 from .db import db
@@ -1558,20 +1559,45 @@ def download_logs():
 
         # Create BytesIO buffer
         buffer = io.BytesIO()
-        buffer.write(content.encode('utf-8'))
+        buffer.write(content.encode("utf-8"))
         buffer.seek(0)
 
         filename = f"system_logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
 
         return send_file(
-            buffer,
-            as_attachment=True,
-            download_name=filename,
-            mimetype="text/plain"
+            buffer, as_attachment=True, download_name=filename, mimetype="text/plain"
         )
     except Exception as e:
         logger.error(f"Failed to download logs: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/logs/share", methods=["POST"])
+@login_required
+def share_logs():
+    """Upload logs to PrivateBin and return share link."""
+    try:
+        logs = memory_handler.get_logs()
+
+        # Add Header
+        header = f"IDM Metrics Collector System Logs\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{'-' * 40}\n"
+
+        # Format logs for text file (Reverse order: Oldest -> Newest)
+        lines = []
+        # logs is [newest, ..., oldest] so we reverse it
+        for log in reversed(logs):
+            line = f"[{log['timestamp']}] {log['level']}: {log['message']}"
+            lines.append(line)
+
+        content = header + "\n".join(lines)
+
+        privatebin_url = config.get("privatebin.url", "https://paste.blueml.eu")
+        link = upload(content, url=privatebin_url)
+
+        return jsonify({"success": True, "link": link})
+    except Exception as e:
+        logger.error(f"Failed to share logs: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/tools/technician-code", methods=["GET"])
@@ -1968,7 +1994,10 @@ def config_page():
                 config.data["share_data"] = bool(data["share_data"])
             if "telemetry_auth_token" in data:
                 # Skip if masked value "***" is sent back
-                if data["telemetry_auth_token"] and data["telemetry_auth_token"] != "***":
+                if (
+                    data["telemetry_auth_token"]
+                    and data["telemetry_auth_token"] != "***"
+                ):
                     config.data["telemetry_auth_token"] = data["telemetry_auth_token"]
 
             new_pass = data.get("new_password")

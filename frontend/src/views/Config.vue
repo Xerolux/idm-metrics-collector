@@ -1,5 +1,5 @@
 <template>
-    <div class="p-4 flex flex-col gap-4">
+    <div class="p-4 flex flex-col gap-4 pb-20">
         <h1 class="text-2xl font-bold mb-4">Konfiguration</h1>
 
         <div v-if="loading" class="flex justify-center">
@@ -552,6 +552,18 @@
                              </div>
                         </div>
 
+                        <!-- Log Sharing Settings -->
+                        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3">
+                            <h3 class="font-bold text-lg flex items-center gap-2">
+                                <i class="pi pi-share-alt"></i> Log Sharing
+                            </h3>
+                            <div class="flex flex-col gap-2">
+                                <label class="text-sm">PrivateBin Server URL</label>
+                                <InputText v-model="config.privatebin.url" placeholder="https://paste.blueml.eu" class="w-full" />
+                                <small class="text-gray-400">Server für verschlüsseltes Log-Sharing (v2 Protokoll)</small>
+                            </div>
+                        </div>
+
                         <!-- Backup Actions -->
                         <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3">
                              <h3 class="font-bold text-lg flex items-center gap-2">
@@ -765,6 +777,7 @@ const config = ref({
     discord: { enabled: false, webhook_url: '' },
     email: { enabled: false, smtp_server: '', smtp_port: 587, username: '', sender: '', recipients: [] },
     webdav: { enabled: false, url: '', username: '' },
+    privatebin: { url: 'https://paste.blueml.eu' },
     ai: { enabled: false, sensitivity: 3.0, model: 'rolling' },
     updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all', channel: 'latest' },
     backup: { enabled: false, interval: 24, retention: 10, auto_upload: false },
@@ -867,6 +880,7 @@ onMounted(async () => {
             discord: { enabled: false, webhook_url: '' },
             email: { enabled: false, smtp_server: '', smtp_port: 587, username: '', sender: '', recipients: [] },
             webdav: { enabled: false, url: '', username: '' },
+            privatebin: { url: 'https://paste.blueml.eu' },
             ai: { enabled: false, sensitivity: 3.0, model: 'rolling' },
             updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all', channel: 'latest' },
             backup: { enabled: false, interval: 24, retention: 10, auto_upload: false },
@@ -1107,6 +1121,7 @@ const saveConfig = async () => {
             webdav_url: config.value.webdav?.url || '',
             webdav_username: config.value.webdav?.username || '',
             webdav_password: webdavPassword.value || undefined,
+            privatebin_url: config.value.privatebin?.url || 'https://paste.blueml.eu',
             ai_enabled: config.value.ai?.enabled || false,
             ai_sensitivity: config.value.ai?.sensitivity || 3.0,
             ai_model: config.value.ai?.model || 'rolling',

@@ -174,7 +174,9 @@ def main():
     try:
         migrated_hp = run_migration()
         if migrated_hp:
-            logger.info(f"Successfully migrated legacy configuration to heatpump {migrated_hp}")
+            logger.info(
+                f"Successfully migrated legacy configuration to heatpump {migrated_hp}"
+            )
     except Exception as e:
         logger.error(f"Failed to run migrations: {e}", exc_info=True)
 
@@ -204,7 +206,9 @@ def main():
             mqtt = mqtt_publisher
             logger.info("MQTT publisher initialized")
         elif mqtt_enabled and not mqtt_broker:
-            logger.warning("MQTT is enabled but no broker configured - skipping MQTT initialization")
+            logger.warning(
+                "MQTT is enabled but no broker configured - skipping MQTT initialization"
+            )
     except Exception as e:
         logger.error(f"Failed to initialize MQTT publisher: {e}", exc_info=True)
 
