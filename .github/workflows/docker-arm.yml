@@ -1,4 +1,4 @@
-name: Build and publish IDM Metrics Collector Docker image (ARM64 Only)
+name: Build and publish IDM Metrics Collector Docker image (ARM)
 
 on:
   workflow_dispatch:
@@ -47,11 +47,11 @@ jobs:
             ghcr.io/${{ github.repository }}
             ${{ secrets.DOCKER_USERNAME }}/idm-metrics-collector
           tags: |
-            type=raw,value=${{ inputs.version }}
+            type=raw,value=${{ inputs.version }}-arm
           labels: |
-            org.opencontainers.image.description=Modern dashboard for IDM Heatpumps. Monitoring, control and automation for IDM Navigator 2.0. (ARM64 Build)
+            org.opencontainers.image.description=Modern dashboard for IDM Heatpumps. Monitoring, control and automation for IDM Navigator 2.0. (ARM Build)
           annotations: |
-            org.opencontainers.image.description=Modern dashboard for IDM Heatpumps. Monitoring, control and automation for IDM Navigator 2.0. (ARM64 Build)
+            org.opencontainers.image.description=Modern dashboard for IDM Heatpumps. Monitoring, control and automation for IDM Navigator 2.0. (ARM Build)
 
       - name: Get short SHA
         id: vars
@@ -78,4 +78,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
-          platforms: linux/arm64
+          platforms: linux/arm64,linux/arm/v7

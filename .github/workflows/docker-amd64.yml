@@ -1,9 +1,9 @@
-name: Build and publish IDM Metrics Collector Docker image (Multi-Arch Release)
+name: Build and publish IDM Metrics Collector Docker image (AMD64)
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       version:
@@ -50,13 +50,12 @@ jobs:
             ghcr.io/${{ github.repository }}
             ${{ secrets.DOCKER_USERNAME }}/idm-metrics-collector
           tags: |
-            type=ref,event=tag
-            type=raw,value=latest
-            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=raw,value=latest-amd64,enable=${{ github.ref == 'refs/heads/main' && github.event_name != 'workflow_dispatch' }}
+            type=raw,value=${{ inputs.version }}-amd64,enable=${{ github.event_name == 'workflow_dispatch' }}
           labels: |
-            org.opencontainers.image.description=Modern dashboard for IDM Heatpumps. Monitoring, control and automation for IDM Navigator 2.0.
+            org.opencontainers.image.description=Modern dashboard for IDM Heatpumps. Monitoring, control and automation for IDM Navigator 2.0. (AMD64 Build)
           annotations: |
-            org.opencontainers.image.description=Modern dashboard for IDM Heatpumps. Monitoring, control and automation for IDM Navigator 2.0.
+            org.opencontainers.image.description=Modern dashboard for IDM Heatpumps. Monitoring, control and automation for IDM Navigator 2.0. (AMD64 Build)
 
       - name: Get short SHA
         id: vars
@@ -65,9 +64,7 @@ jobs:
       - name: Determine Version
         id: version
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "app_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.version }}" != "latest" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.version }}" != "latest" ]]; then
             VERSION_INPUT="${{ inputs.version }}"
             echo "app_version=${VERSION_INPUT#v}" >> $GITHUB_OUTPUT
           else
@@ -75,7 +72,7 @@ jobs:
             echo "app_version=${BASE_VERSION}.${{ steps.vars.outputs.sha_short }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and push (Multi-Arch)
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -85,4 +82,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64
