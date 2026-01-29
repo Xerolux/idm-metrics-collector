@@ -110,6 +110,7 @@ import Textarea from 'primevue/textarea';
 import Chips from 'primevue/chips';
 import Checkbox from 'primevue/checkbox';
 import Button from 'primevue/button';
+import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
 
 const props = defineProps({
@@ -120,6 +121,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'saved']);
 
+const toast = useToast();
 const visible = ref(props.modelValue);
 const localAnnotation = ref({
     time: null,
@@ -177,7 +179,12 @@ const handleSave = async () => {
         resetForm();
     } catch (error) {
         console.error('Failed to save annotation:', error);
-        // TODO: Show error toast
+        toast.add({
+            severity: 'error',
+            summary: 'Fehler',
+            detail: 'Annotation konnte nicht gespeichert werden',
+            life: 5000
+        });
     }
 };
 
@@ -189,7 +196,12 @@ const handleDelete = async () => {
         resetForm();
     } catch (error) {
         console.error('Failed to delete annotation:', error);
-        // TODO: Show error toast
+        toast.add({
+            severity: 'error',
+            summary: 'Fehler',
+            detail: 'Annotation konnte nicht gelöscht werden',
+            life: 5000
+        });
     }
 };
 

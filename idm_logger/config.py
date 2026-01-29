@@ -335,7 +335,6 @@ class Config:
             },
             "privatebin": {
                 "url": "https://paste.blueml.eu",
-                "service_type": "privatebin",  # "privatebin" or "microbin"
             },
             "internal_api_key": None,
             "setup_completed": False,
