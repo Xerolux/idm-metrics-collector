@@ -215,10 +215,11 @@ const handleSave = async () => {
         resetForm();
     } catch (error) {
         console.error('Failed to save variable:', error);
+        const errorMsg = error.response?.data?.error || 'Variable konnte nicht gespeichert werden';
         toast.add({
             severity: 'error',
             summary: 'Fehler',
-            detail: 'Variable konnte nicht gespeichert werden',
+            detail: errorMsg,
             life: 5000
         });
     }
@@ -232,10 +233,11 @@ const handleDelete = async () => {
         resetForm();
     } catch (error) {
         console.error('Failed to delete variable:', error);
+        const errorMsg = error.response?.data?.error || 'Variable konnte nicht gelöscht werden';
         toast.add({
             severity: 'error',
             summary: 'Fehler',
-            detail: 'Variable konnte nicht gelöscht werden',
+            detail: errorMsg,
             life: 5000
         });
     }
