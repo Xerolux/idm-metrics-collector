@@ -10,26 +10,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 class TestMLAlertAnnotation(unittest.TestCase):
     def setUp(self):
-        # Clean up modules
-        for mod in list(sys.modules.keys()):
-            if mod.startswith("idm_logger"):
-                del sys.modules[mod]
-
-        # Mock modules
-        self.modules_patcher = patch.dict(
-            sys.modules,
-            {
-                "idm_logger.db": MagicMock(),
-                "idm_logger.mqtt": MagicMock(),
-                "idm_logger.scheduler": MagicMock(),
-                "idm_logger.modbus": MagicMock(),
-            },
-        )
-        self.modules_patcher.start()
-
-        # Import config with json.loads patched to avoid db error
-        with patch("json.loads", return_value={}):
-            pass
+        # Patch db to prevent real DB access/creation
+        self.db_patcher = patch("idm_logger.db.db")
+        self.mock_db = self.db_patcher.start()
+        # Ensure get_setting returns None so json.loads is skipped during config init
+        self.mock_db.get_setting.return_value = None
 
         # Patch config instance
         self.config_patcher = patch("idm_logger.config.config")
@@ -50,12 +35,17 @@ class TestMLAlertAnnotation(unittest.TestCase):
         self.client = self.app.test_client()
 
         # Patch managers
-        self.web.annotation_manager = MagicMock()
-        self.web.notification_manager = MagicMock()
+        self.annotation_manager_patcher = patch("idm_logger.web.annotation_manager")
+        self.mock_annotation_manager = self.annotation_manager_patcher.start()
+
+        self.notification_manager_patcher = patch("idm_logger.web.notification_manager")
+        self.mock_notification_manager = self.notification_manager_patcher.start()
 
     def tearDown(self):
+        self.notification_manager_patcher.stop()
+        self.annotation_manager_patcher.stop()
         self.config_patcher.stop()
-        self.modules_patcher.stop()
+        self.db_patcher.stop()
 
     def test_alert_creates_annotation(self):
         payload = {
@@ -76,12 +66,12 @@ class TestMLAlertAnnotation(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-        self.web.notification_manager.send_all.assert_called_with(
+        self.mock_notification_manager.send_all.assert_called_with(
             message="Test Alert", subject="IDM ML Anomalie-Warnung"
         )
 
-        self.web.annotation_manager.add_annotation.assert_called()
-        args, kwargs = self.web.annotation_manager.add_annotation.call_args
+        self.mock_annotation_manager.add_annotation.assert_called()
+        args, kwargs = self.mock_annotation_manager.add_annotation.call_args
 
         self.assertEqual(kwargs["text"], "Test Alert")
         self.assertEqual(kwargs["tags"], ["ai", "anomaly", "heating"])
