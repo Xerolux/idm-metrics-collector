@@ -1602,12 +1602,6 @@ def config_page():
                         {"error": "Update-Ziel muss all, major, minor oder patch sein"}
                     ), 400
                 config.data["updates"]["target"] = data["updates_target"]
-            if "updates_channel" in data:
-                if data["updates_channel"] not in ["latest", "beta", "release"]:
-                    return jsonify(
-                        {"error": "Update-Kanal muss latest, beta oder release sein"}
-                    ), 400
-                config.data["updates"]["channel"] = data["updates_channel"]
 
             # Backup
             if "backup_enabled" in data:

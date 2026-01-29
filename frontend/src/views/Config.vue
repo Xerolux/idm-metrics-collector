@@ -654,7 +654,7 @@ const config = ref({
     email: { enabled: false, smtp_server: '', smtp_port: 587, username: '', sender: '', recipients: [] },
     webdav: { enabled: false, url: '', username: '' },
     ai: { enabled: false, sensitivity: 3.0, model: 'rolling' },
-    updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all', channel: 'latest' },
+    updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all' },
     backup: { enabled: false, interval: 24, retention: 10, auto_upload: false }
 });
 
@@ -779,7 +779,7 @@ const loadStatus = async (showNotification = false) => {
     statusLoading.value = true;
     try {
         const [updateRes, signalRes] = await Promise.all([
-            axios.get('/api/check-update', { params: { channel: config.value.updates?.channel || 'latest' } }),
+            axios.get('/api/check-update'),
             axios.get('/api/signal/status')
         ]);
         updateStatus.value = updateRes.data;
@@ -817,7 +817,7 @@ const loadStatus = async (showNotification = false) => {
 const checkUpdates = async () => {
     checkingUpdates.value = true;
     try {
-        const res = await axios.get('/api/check-update', { params: { channel: config.value.updates.channel } });
+        const res = await axios.get('/api/check-update');
         updateStatus.value = res.data;
         if (res.data.update_available) {
              toast.add({ severity: 'info', summary: 'Update verfügbar', detail: `Version ${res.data.latest_version} ist verfügbar.`, life: 5000 });
@@ -900,7 +900,6 @@ const saveConfig = async () => {
             updates_interval_hours: config.value.updates?.interval_hours || 12,
             updates_mode: config.value.updates?.mode || 'apply',
             updates_target: config.value.updates?.target || 'all',
-            updates_channel: config.value.updates?.channel || 'latest',
             backup_enabled: config.value.backup?.enabled || false,
             backup_interval: config.value.backup?.interval || 24,
             backup_retention: config.value.backup?.retention || 10,
