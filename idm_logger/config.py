@@ -325,7 +325,6 @@ class Config:
                 "interval_hours": 12,
                 "mode": "apply",
                 "target": "all",
-                "channel": "latest",
             },
             "backup": {
                 "enabled": False,
