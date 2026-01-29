@@ -182,7 +182,7 @@ const handleSave = async () => {
         toast.add({
             severity: 'error',
             summary: 'Fehler',
-            detail: 'Annotation konnte nicht gespeichert werden',
+            detail: error.response?.data?.detail || 'Annotation konnte nicht gespeichert werden',
             life: 5000
         });
     }
@@ -199,7 +199,7 @@ const handleDelete = async () => {
         toast.add({
             severity: 'error',
             summary: 'Fehler',
-            detail: 'Annotation konnte nicht gelöscht werden',
+            detail: error.response?.data?.detail || 'Annotation konnte nicht gelöscht werden',
             life: 5000
         });
     }
