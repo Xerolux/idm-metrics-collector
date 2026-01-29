@@ -339,10 +339,6 @@ class BackupManager:
             ml_backup_dir = backup_dir / "ml_service"
             ml_backup_dir.mkdir(exist_ok=True)
 
-            # Note: The River ML model runs in a separate container
-            # and doesn't currently persist its state.
-            # We can only backup the anomaly_state.json which is already done.
-
             # Copy ML service source code and config for reference
             project_root = Path(__file__).parent.parent
             ml_service_dir = project_root / "ml_service"
@@ -356,21 +352,20 @@ class BackupManager:
 
                 logger.info("ML service configuration backed up")
 
-            # Try to get ML model stats from the running container
-            # This is informational only, as River models are not easily serializable
+            # Copy ML model data from container
+            container_name = "idm-ml-service"
             try:
-                container_name = "idm-ml-service"
-                cmd = ["docker", "logs", "--tail", "50", container_name]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-
-                if result.returncode == 0:
-                    stats_file = ml_backup_dir / "ml_service_logs.txt"
-                    with open(stats_file, "w") as f:
-                        f.write(result.stdout)
-                    logger.info("ML service logs captured")
-
+                # Copy model_state.pkl
+                cmd = [
+                    "docker",
+                    "cp",
+                    f"{container_name}:/app/data/model_state.pkl",
+                    str(ml_backup_dir / "model_state.pkl"),
+                ]
+                subprocess.run(cmd, capture_output=True, check=True)
+                logger.info("ML model state copied from container")
             except Exception as e:
-                logger.debug(f"Could not capture ML logs: {e}")
+                logger.debug(f"Could not copy ML model state: {e}")
 
             return True
 
@@ -488,17 +483,10 @@ class BackupManager:
                     if key_file.exists():
                         zipf.write(key_file, "secrets/.secret.key")
 
-                    # Add AI anomaly state file
+                    # Add AI anomaly state file (legacy/if present)
                     ai_file = Path(DATA_DIR) / "anomaly_state.json"
                     if ai_file.exists():
                         zipf.write(ai_file, "ai/anomaly_state.json")
-
-                    # Add ML model state file (River model)
-                    model_file = Path(DATA_DIR) / "model_state.pkl"
-                    if model_file.exists():
-                        zipf.write(model_file, "ml/model_state.pkl")
-                        backup_data["metadata"]["ml_model_backed_up"] = True
-                        logger.info("ML model state backed up")
 
                     # Add VictoriaMetrics backup if exists
                     vm_dir = temp_backup_dir / "victoriametrics"
@@ -759,6 +747,43 @@ class BackupManager:
             return False
 
     @staticmethod
+    def _restore_ml_service(extract_dir: Path) -> bool:
+        """
+        Restore ML service data (model state).
+        """
+        try:
+            ml_backup_dir = extract_dir / "ml_service"
+            if not ml_backup_dir.exists():
+                return False
+
+            # Check for model state
+            model_file = ml_backup_dir / "model_state.pkl"
+            if model_file.exists():
+                logger.info("Restoring ML model state...")
+                container_name = "idm-ml-service"
+                # Copy to container
+                cmd = [
+                    "docker",
+                    "cp",
+                    str(model_file),
+                    f"{container_name}:/app/data/model_state.pkl",
+                ]
+                subprocess.run(cmd, capture_output=True, check=True)
+
+                # Restart ML service
+                subprocess.run(
+                    ["docker", "restart", container_name],
+                    capture_output=True,
+                    check=False,
+                )
+                logger.info("ML service restored and restarted")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"ML restore failed: {e}")
+            return False
+
+    @staticmethod
     def restore_backup(
         backup_file_path: str, restore_secrets: bool = False
     ) -> Dict[str, Any]:
@@ -837,21 +862,13 @@ class BackupManager:
                         "Secret key restored - this may cause encryption issues!"
                     )
 
-                # 6. Restore AI state
+                # 6. Restore AI state (legacy / simple file)
                 if "ai/anomaly_state.json" in zipf.namelist():
                     ai_file = Path(DATA_DIR) / "anomaly_state.json"
                     with open(ai_file, "wb") as f:
                         f.write(zipf.read("ai/anomaly_state.json"))
-                    restored_items.append("ai_model")
-                    logger.info("AI Model state restored")
-
-                # 6b. Restore ML model state (River model)
-                if "ml/model_state.pkl" in zipf.namelist():
-                    model_file = Path(DATA_DIR) / "model_state.pkl"
-                    with open(model_file, "wb") as f:
-                        f.write(zipf.read("ml/model_state.pkl"))
-                    restored_items.append("ml_model")
-                    logger.info("ML Model state (River) restored")
+                    restored_items.append("ai_model_legacy")
+                    logger.info("AI Model state (legacy) restored")
 
             # 7. Restore VictoriaMetrics
             vm_success = BackupManager._restore_victoriametrics(temp_extract_dir)
@@ -864,6 +881,12 @@ class BackupManager:
             if grafana_success:
                 restored_items.append("grafana")
                 logger.info("Grafana data restored")
+
+            # 9. Restore ML Service Data (River model)
+            ml_success = BackupManager._restore_ml_service(temp_extract_dir)
+            if ml_success:
+                restored_items.append("ml_service_model")
+                logger.info("ML Service data restored")
 
             # Reload configuration
             config.reload()

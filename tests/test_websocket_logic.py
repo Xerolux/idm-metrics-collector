@@ -77,6 +77,7 @@ class TestWebSocketHandler:
             from flask import request as flask_request
 
             flask_request.sid = "test_sid"
+            flask_request.namespace = "/"
 
             subscribe_handler(data)
 

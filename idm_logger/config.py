@@ -325,7 +325,6 @@ class Config:
                 "interval_hours": 12,
                 "mode": "apply",
                 "target": "all",
-                "channel": "latest",
             },
             "backup": {
                 "enabled": False,
@@ -349,7 +348,7 @@ class Config:
 
         # Load from DB, structure into dict like old yaml
         raw = db.get_setting("config")
-        if raw:
+        if raw and isinstance(raw, (str, bytes, bytearray)):
             try:
                 data = json.loads(raw)
                 # Decrypt sensitive fields

@@ -19,10 +19,7 @@ DOCKER_IMAGES = {
     "ml-service": "ghcr.io/xerolux/idm-metrics-collector-ml",
 }
 
-# Channels:
-# - latest: rolling updates from main (version: 0.6.<hash>)
-# - beta: pre-releases from GitHub (version: 0.6.x-betaX)
-# - release: stable releases from GitHub (version: 0.6.x)
+# Only one channel: "latest" (rolling updates from main / Docker latest)
 
 
 def get_repo_path() -> Optional[str]:
@@ -349,23 +346,11 @@ def _parse_version(version: str) -> Optional[Tuple[int, int, int, int, int]]:
     - 0: alpha/beta/rc (prerelease)
     - 1: stable (release)
     - 2: dev/latest (hash-based, treated as newest if local hash logic isn't used)
-
-    However, we usually compare within channels.
-    But to support 0.6.0 > 0.6.0-beta1:
-    0.6.0 -> (0, 6, 0, 1, 0)
-    0.6.0-beta1 -> (0, 6, 0, 0, 1)
-
-    For hash versions (0.6.<hash>):
-    We can't easily compare numerically against semantic versions without context.
-    But for this function, we try to extract what we can.
     """
     if not version or version == "unknown":
         return None
 
     cleaned = version.lstrip("v")
-
-    # Check for dev/hash version (e.g. 0.6.a1b2c3d)
-    # Or beta version (e.g. 0.6.0-beta1)
 
     try:
         # Split by '-' to separate prerelease info
@@ -385,32 +370,22 @@ def _parse_version(version: str) -> Optional[Tuple[int, int, int, int, int]]:
                 patch = int(seg3)
                 is_hash = False
             else:
-                # It's a hash, e.g. 0.6.a1b2c3d
-                # Treat as patch 0, but mark as special?
-                # Actually, our 'latest' channel uses 0.6.<hash>.
-                # We can't compare hashes numerically.
                 patch = 0
                 is_hash = True
         else:
             is_hash = False
 
         if is_hash:
-            # Hash versions are tricky. We usually rely on git/api to check 'latest' updates.
-            # But for sorting, let's just say it's type 2 (dev)
             return (major, minor, patch, 2, 0)
 
         if suffix:
-            # Handle beta/rc/alpha
-            # e.g. beta1
             import re
 
             match = re.match(r"([a-zA-Z]+)(\d+)?", suffix)
             if match:
-                # _type_str = match.group(1) # e.g. beta
                 num = int(match.group(2)) if match.group(2) else 0
                 return (major, minor, patch, 0, num)
             else:
-                # Unknown suffix
                 return (major, minor, patch, 0, 0)
         else:
             # Stable
@@ -456,8 +431,7 @@ def is_update_allowed(update_type: str, target: str) -> bool:
 
 def check_for_update() -> Dict[str, Any]:
     current_version = get_current_version()
-    # Default channel is now 'latest' (formerly dev)
-    channel = config.get("updates.channel", "latest")
+    # Always check against latest/main
 
     # Also need repo path for git checks
     repo_path = get_repo_path()
@@ -468,157 +442,103 @@ def check_for_update() -> Dict[str, Any]:
     update_available = False
 
     try:
-        if channel == "release":
-            # Check for latest stable release
-            url = f"{GITHUB_API_BASE}/releases/latest"
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+        # Checks against main branch
+        git_worked = False
+        if repo_path:
+            try:
+                # Check git availability
+                subprocess.run(
+                    ["git", "--version"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=True,
+                )
 
-            latest_version = data.get("tag_name", "")
-            release_date = data.get("published_at", "")
-            release_notes = data.get("body", "")[:200]
+                subprocess.run(
+                    ["git", "fetch", "origin", "main"],
+                    timeout=10,
+                    cwd=repo_path,
+                    capture_output=True,
+                    check=True,
+                )
+                head = subprocess.check_output(
+                    ["git", "rev-parse", "HEAD"], cwd=repo_path, text=True
+                ).strip()
+                remote = subprocess.check_output(
+                    ["git", "rev-parse", "origin/main"], cwd=repo_path, text=True
+                ).strip()
 
-            # Simple string comparison isn't enough (v0.6.0-beta vs v0.6.0)
-            # But typically 'latest' endpoint only returns stable.
-            if latest_version != current_version:
-                # Ensure we don't downgrade or reinstall same
-                # But parsing is hard. Let's assume if strings differ, it's an update
-                # unless current is 'newer'.
-                # Actually, if I am on 0.6.0-beta1 and latest is 0.6.0, I want update.
-                # If I am on 0.6.1 and latest is 0.6.0, I don't.
-
-                # Basic check:
-                curr_p = _parse_version(current_version)
-                lat_p = _parse_version(latest_version)
-
-                if lat_p and curr_p and lat_p > curr_p:
+                latest_version = f"dev-{remote[:7]}"
+                if head != remote:
                     update_available = True
+                    release_notes = "Neue Version auf 'main' verfügbar"
+                else:
+                    release_notes = "System ist aktuell (latest)"
+                git_worked = True
+            except (
+                subprocess.CalledProcessError,
+                FileNotFoundError,
+                Exception,
+            ) as e:
+                logger.debug(f"Git check failed: {e}")
 
-        elif channel == "beta":
-            # Check for latest release (including prereleases)
-            url = f"{GITHUB_API_BASE}/releases"
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            releases = response.json()
+        if not git_worked:
+            # Fallback to GitHub API for commits/main
+            try:
+                # Parse current hash from version 0.6.<hash>
+                current_hash = None
+                parts = current_version.split(".")
+                if len(parts) >= 3:
+                    current_hash = parts[-1]
+                    if ".at" in current_hash:
+                        current_hash = current_hash.split(".at")[-1]
 
-            # Find the newest tag (releases are usually sorted by date desc)
-            # We want the first one that is newer than current.
-            # Or simply the first one in the list is the candidate.
-            if releases:
-                candidate = releases[0]
-                latest_version = candidate.get("tag_name", "")
-                release_date = candidate.get("published_at", "")
-                release_notes = candidate.get("body", "")[:200]
+                resp = requests.get(f"{GITHUB_API_BASE}/commits/main", timeout=10)
+                resp.raise_for_status()
+                remote_data = resp.json()
+                remote_hash = remote_data["sha"]
 
-                curr_p = _parse_version(current_version)
-                lat_p = _parse_version(latest_version)
-
-                if lat_p and curr_p and lat_p > curr_p:
-                    update_available = True
-                elif lat_p and not curr_p:
-                    # If current is unknown, assume update
-                    update_available = True
-
-        else:  # channel == 'latest' (formerly dev)
-            # Checks against main branch
-
-            git_worked = False
-            if repo_path:
+                # Try to fetch authoritative base version from GitHub
+                # First try local VERSION file, then remote, then hardcoded fallback
+                base_ver = get_file_version() or "1.0.3"
                 try:
-                    # Check git availability
-                    subprocess.run(
-                        ["git", "--version"],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        check=True,
+                    v_resp = requests.get(
+                        f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/VERSION",
+                        timeout=5,
                     )
-
-                    subprocess.run(
-                        ["git", "fetch", "origin", "main"],
-                        timeout=10,
-                        cwd=repo_path,
-                        capture_output=True,
-                        check=True,
-                    )
-                    head = subprocess.check_output(
-                        ["git", "rev-parse", "HEAD"], cwd=repo_path, text=True
-                    ).strip()
-                    remote = subprocess.check_output(
-                        ["git", "rev-parse", "origin/main"], cwd=repo_path, text=True
-                    ).strip()
-
-                    latest_version = f"dev-{remote[:7]}"
-                    if head != remote:
-                        update_available = True
-                        release_notes = "Neue Version auf 'main' verfügbar"
+                    if v_resp.status_code == 200:
+                        base_ver = v_resp.text.strip()
                     else:
-                        release_notes = "System ist aktuell (latest)"
-                    git_worked = True
-                except (
-                    subprocess.CalledProcessError,
-                    FileNotFoundError,
-                    Exception,
-                ) as e:
-                    logger.debug(f"Git check failed: {e}")
-
-            if not git_worked:
-                # Fallback to GitHub API for commits/main
-                try:
-                    # Parse current hash from version 0.6.<hash>
-                    current_hash = None
-                    parts = current_version.split(".")
-                    if len(parts) >= 3:
-                        current_hash = parts[-1]
-                        if ".at" in current_hash:
-                            current_hash = current_hash.split(".at")[-1]
-
-                    resp = requests.get(f"{GITHUB_API_BASE}/commits/main", timeout=10)
-                    resp.raise_for_status()
-                    remote_data = resp.json()
-                    remote_hash = remote_data["sha"]
-
-                    # Try to fetch authoritative base version from GitHub
-                    # First try local VERSION file, then remote, then hardcoded fallback
-                    base_ver = get_file_version() or "1.0.3"
-                    try:
-                        v_resp = requests.get(
-                            f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/VERSION",
-                            timeout=5,
-                        )
-                        if v_resp.status_code == 200:
-                            base_ver = v_resp.text.strip()
-                        else:
-                            # Fallback to local
-                            local_ver = get_file_version()
-                            if local_ver:
-                                base_ver = local_ver
-                                # Strip hash if present (assuming max 3 parts for base: X.Y.Z)
-                                parts = base_ver.split(".")
-                                if len(parts) > 3:
-                                    base_ver = ".".join(parts[:3])
-                    except Exception:
+                        # Fallback to local
                         local_ver = get_file_version()
                         if local_ver:
                             base_ver = local_ver
+                            # Strip hash if present (assuming max 3 parts for base: X.Y.Z)
                             parts = base_ver.split(".")
                             if len(parts) > 3:
                                 base_ver = ".".join(parts[:3])
+                except Exception:
+                    local_ver = get_file_version()
+                    if local_ver:
+                        base_ver = local_ver
+                        parts = base_ver.split(".")
+                        if len(parts) > 3:
+                            base_ver = ".".join(parts[:3])
 
-                    latest_version = f"{base_ver}.{remote_hash[:7]}"
+                latest_version = f"{base_ver}.{remote_hash[:7]}"
 
-                    if current_hash and not remote_hash.startswith(current_hash):
-                        update_available = True
-                        release_notes = f"Update: {remote_data.get('commit', {}).get('message', '').splitlines()[0]}"
-                    elif not current_hash:
-                        # Can't determine current hash, assume update if version looks wrong
-                        update_available = True
-                    else:
-                        release_notes = "System ist aktuell (latest)"
+                if current_hash and not remote_hash.startswith(current_hash):
+                    update_available = True
+                    release_notes = f"Update: {remote_data.get('commit', {}).get('message', '').splitlines()[0]}"
+                elif not current_hash:
+                    # Can't determine current hash, assume update if version looks wrong
+                    update_available = True
+                else:
+                    release_notes = "System ist aktuell (latest)"
 
-                except Exception as e:
-                    logger.warning(f"API check failed: {e}")
-                    latest_version = "unknown"
+            except Exception as e:
+                logger.warning(f"API check failed: {e}")
+                latest_version = "unknown"
 
     except Exception as e:
         logger.error(f"Update check failed: {e}")
@@ -683,47 +603,21 @@ def perform_update(repo_path: Optional[str] = None, docker_only: bool = False) -
             f"Update fehlgeschlagen: {repo_path} ist kein Git-Repository."
         )
 
-    channel = config.get("updates.channel", "latest")
-    logger.info(f"Performing update (Channel: {channel}) in {repo_path}...")
+    logger.info(f"Performing update (Channel: latest) in {repo_path}...")
 
-    if channel in ["release", "beta"]:
-        # Fetch tags
-        try:
-            # Logic is similar for beta and release: find the tag we want
-            check_res = check_for_update()
-            if not check_res.get("update_available"):
-                logger.info("No update available according to check.")
-                # Force pull anyway if user requested?
-                # But we need a target tag.
-                # If check_for_update fails or says no update, we might stick to current or latest available.
-                pass
+    # Always pull main branch for 'latest' channel
+    logger.info("Pulling latest changes from git (main)...")
+    subprocess.run(["git", "checkout", "main"], check=False, cwd=repo_path)
+    result = subprocess.run(
+        ["git", "pull", "origin", "main"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        cwd=repo_path,
+    )
 
-            target_tag = check_res.get("latest_version")
-            if not target_tag or target_tag == "unknown":
-                # Fallback: fetch tags and checkout based on logic again?
-                # Or just fail
-                raise RuntimeError("Konnte Ziel-Version nicht ermitteln.")
-
-            logger.info(f"Fetching tags and checking out {target_tag}...")
-            subprocess.run(["git", "fetch", "--tags"], check=True, cwd=repo_path)
-            subprocess.run(["git", "checkout", target_tag], check=True, cwd=repo_path)
-
-        except Exception as e:
-            raise RuntimeError(f"Update failed: {e}")
-
-    else:  # latest (main branch)
-        logger.info("Pulling latest changes from git (main)...")
-        subprocess.run(["git", "checkout", "main"], check=False, cwd=repo_path)
-        result = subprocess.run(
-            ["git", "pull", "origin", "main"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            cwd=repo_path,
-        )
-
-        if result.returncode != 0:
-            raise RuntimeError(f"Git pull failed: {result.stderr}")
+    if result.returncode != 0:
+        raise RuntimeError(f"Git pull failed: {result.stderr}")
 
     logger.info("Restarting Docker Compose stack...")
     compose_cmd = ["docker", "compose"]
