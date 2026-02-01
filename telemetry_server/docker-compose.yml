@@ -4,8 +4,8 @@ services:
     image: ghcr.io/xerolux/idm-metrics-collector-telemetry:latest
     # For local development, comment out the image line above and uncomment:
     # build:
-    #   context: .
-    #   dockerfile: Dockerfile
+    #   context: ..
+    #   dockerfile: telemetry_server/Dockerfile
     ports:
       - "8000:8000"
     environment:
