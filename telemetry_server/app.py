@@ -520,12 +520,25 @@ def validate_model_name(model_name: Optional[str]) -> Optional[str]:
     """Validate model name contains only safe characters."""
     if not model_name:
         return None
+
+    # Check for null bytes
+    if "\x00" in model_name:
+        raise HTTPException(status_code=400, detail="Invalid model name format")
+
+    # Check length
+    if len(model_name) > 100:
+        raise HTTPException(status_code=400, detail="Model name too long")
+
     # Allow alphanumeric, underscore, hyphen, dot, space, parentheses
     if not re.match(r"^[a-zA-Z0-9_\-\. \(\)]+$", model_name):
         raise HTTPException(status_code=400, detail="Invalid model name format")
-    if ".." in model_name:
+
+    # Prevent path traversal
+    if ".." in model_name or "/" in model_name or "\\" in model_name:
         raise HTTPException(status_code=400, detail="Invalid model name format")
-    return model_name
+
+    # Normalize spaces to underscores
+    return model_name.replace(" ", "_")
 
 
 async def get_data_pool_stats(request: Request) -> Dict[str, Any]:
@@ -865,7 +878,7 @@ async def check_eligibility(
     """
     # Validation
     validate_installation_id(installation_id)
-    validate_model_name(model)
+    model = validate_model_name(model)  # Returns normalized/validated name or None
 
     try:
         result = {
@@ -961,10 +974,9 @@ async def check_eligibility(
         metadata_file = None
 
         if model:
-            # Look for model-specific file
-            safe_model_name = os.path.basename(model).replace(" ", "_")
-            model_file = model_dir / f"{safe_model_name}.enc"
-            metadata_file = model_dir / f"{safe_model_name}_metadata.json"
+            # Look for model-specific file (model is already validated and normalized)
+            model_file = model_dir / f"{model}.enc"
+            metadata_file = model_dir / f"{model}_metadata.json"
             if not model_file.exists():
                 # Fall back to generic model
                 model_file = model_dir / "community_model.enc"
@@ -1045,7 +1057,7 @@ async def download_model(
     """
     # Validation
     validate_installation_id(installation_id)
-    validate_model_name(model)
+    model = validate_model_name(model)  # Returns normalized/validated name or None
 
     try:
         # Verify eligibility first
@@ -1073,14 +1085,14 @@ async def download_model(
         model_file = None
 
         if model:
-            safe_model_name = os.path.basename(model).replace(" ", "_")
-            model_file = model_dir / f"{safe_model_name}.enc"
+            # Model is already validated and normalized
+            model_file = model_dir / f"{model}.enc"
             if not model_file.exists():
                 model_file = model_dir / "community_model.enc"
         else:
             model_file = model_dir / "community_model.enc"
 
-        if not model_file or not model_file.exists():
+        if not model_file.exists():
             logger.warning(
                 "model_download_not_found", installation_id=installation_id, model=model
             )

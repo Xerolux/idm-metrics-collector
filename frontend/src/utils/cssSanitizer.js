@@ -37,8 +37,9 @@ const DANGEROUS_PATTERNS = [
   /<!--/g,
   /-->/g,
 
-  // Unicode escapes that might bypass filters
-  /\\0{0,4}(4a|4A|6a|6A)/g // 'j' for javascript
+  // Unicode escapes that might bypass filters (more comprehensive)
+  /\\[0-9a-fA-F]{1,6}/g, // Any unicode escape
+  /\\0/g, // Null byte escape
 ]
 
 // Patterns for external URLs (warn but allow with sanitization)

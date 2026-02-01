@@ -608,7 +608,7 @@ def setup():
         )
     except Exception as e:
         logger.error(f"Setup error: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Setup failed"}), 500
 
 
 @app.route("/")
@@ -732,7 +732,7 @@ def get_current_metrics():
         return jsonify(metrics)
     except Exception as e:
         logger.error(f"Failed to fetch current metrics: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to fetch metrics"}), 500
 
 
 @app.route("/api/dashboards", methods=["GET", "POST"])
@@ -910,7 +910,7 @@ def get_available_metrics():
         return jsonify(grouped)
     except Exception as e:
         logger.error(f"Failed to fetch available metrics: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to fetch metrics"}), 500
 
 
 @app.route("/api/ai/status")
@@ -954,7 +954,7 @@ def query_metrics_range():
         return jsonify(response.json())
     except Exception as e:
         logger.error(f"Metrics query failed: {e}")
-        return jsonify({"status": "error", "error": str(e)}), 500
+        return jsonify({"status": "error", "error": "Query failed"}), 500
 
 
 @app.route("/api/export/data", methods=["POST"])
@@ -1176,7 +1176,7 @@ def export_metrics_data():
 
     except Exception as e:
         logger.error(f"Export failed: {e}", exc_info=True)
-        return jsonify({"error": f"Export failed: {str(e)}"}), 500
+        return jsonify({"error": "Export failed"}), 500
 
 
 @app.route("/api/query/evaluate", methods=["POST"])
@@ -1230,7 +1230,7 @@ def evaluate_expression():
         return jsonify({"status": "success", "data": {"values": results}})
     except Exception as e:
         logger.error(f"Expression evaluation failed: {e}")
-        return jsonify({"status": "error", "error": str(e)}), 500
+        return jsonify({"status": "error", "error": "Expression evaluation failed"}), 500
 
 
 @app.route("/api/internal/ml_alert", methods=["POST"])
@@ -1294,7 +1294,7 @@ def ml_alert_endpoint():
 
     except Exception as e:
         logger.error(f"Failed to process ML alert: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to process alert"}), 500
 
 
 @app.route("/api/health")
@@ -2324,7 +2324,8 @@ def submit_telemetry_data():
                 }
             ), 500
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Share error: {e}")
+        return jsonify({"error": "Share failed"}), 500
 
 
 @app.route("/api/telemetry/check", methods=["POST"])
@@ -2467,7 +2468,7 @@ def delete_annotation(annotation_id):
         return jsonify({"success": True})
     except Exception as e:
         logger.error(f"Failed to delete annotation: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to delete annotation"}), 500
 
 
 # ============================================================================

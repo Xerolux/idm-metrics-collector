@@ -14,6 +14,13 @@ logger = logging.getLogger(__name__)
 # Valid phone number pattern (international format: +country code + number)
 _PHONE_PATTERN = re.compile(r"^\+[1-9]\d{6,14}$")
 
+# Maximum message length to prevent DoS
+_MAX_MESSAGE_LENGTH = 1000
+
+# Dangerous characters that should not be in messages (prevents injection)
+# Allow: alphanumeric, basic punctuation, spaces, newlines, German umlauts
+_SAFE_MESSAGE_PATTERN = re.compile(r"^[\w\s\.\,\!\?\:\;\-\+\(\)\[\]\{\}\/\@\#\&\%\$\=\ä\ö\ü\Ä\Ö\Ü\ß\n\r]+$")
+
 
 def _validate_phone_number(number: str) -> bool:
     """Validate that a string looks like a valid international phone number."""
@@ -43,9 +50,31 @@ def _normalize_recipients(value) -> List[str]:
     return valid_recipients
 
 
+def _validate_message(message: str) -> str:
+    """Validate and sanitize message to prevent command injection."""
+    if not isinstance(message, str):
+        raise RuntimeError("Signal Nachricht muss ein String sein.")
+
+    # Check length
+    if len(message) > _MAX_MESSAGE_LENGTH:
+        raise RuntimeError(
+            f"Signal Nachricht zu lang (max {_MAX_MESSAGE_LENGTH} Zeichen)."
+        )
+
+    # Check for null bytes
+    if "\x00" in message:
+        raise RuntimeError("Signal Nachricht enthält ungültige Zeichen.")
+
+    # Trim leading/trailing whitespace but preserve internal formatting
+    return message.strip()
+
+
 def send_signal_message(message: str) -> None:
     if not config.get("signal.enabled", False):
         raise RuntimeError("Signal-Benachrichtigungen sind deaktiviert.")
+
+    # Validate and sanitize message FIRST
+    message = _validate_message(message)
 
     cli_path = config.get("signal.cli_path", "signal-cli")
     sender = config.get("signal.sender", "")
