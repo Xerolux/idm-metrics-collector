@@ -1,0 +1,30 @@
+# Xerolux 2026
+# Auto detect text files and normalize line endings to LF
+* text=auto eol=lf
+
+# Explicitly declare text files
+*.txt text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.sh text eol=lf
+
+# Declare files that will always have CRLF line endings on checkout
+*.sln text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+
+# Denote all files that are truly binary and should not be modified
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.pdf binary
