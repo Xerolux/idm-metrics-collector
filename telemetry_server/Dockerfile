@@ -5,10 +5,11 @@ RUN apt-get update && apt-get install -y gcc python3-dev && rm -rf /var/lib/apt/
 
 WORKDIR /app
 
-COPY requirements.txt .
+# Copy requirements from telemetry_server directory
+COPY telemetry_server/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all application files
-COPY . .
+# Copy all application files from telemetry_server
+COPY telemetry_server/ .
 
 CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
