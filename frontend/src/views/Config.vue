@@ -957,20 +957,36 @@
               </div>
             </div>
 
-            <Fieldset legend="Available Models" :toggleable="true" v-if="telemetryStatus?.server_stats?.models">
+            <Fieldset legend="Available Models" :toggleable="true" v-if="adminModels">
+              <div class="mb-3 text-sm text-gray-400">
+                Showing {{ adminModels.total || 0 }} model(s), Total Size: {{ adminModels.models?.reduce((sum, m) => sum + m.size_mb, 0).toFixed(2) || 0 }} MB
+              </div>
               <div class="grid grid-cols-1 gap-4">
-                <div v-for="model in telemetryStatus.server_stats.models" :key="model.name"
+                <div v-for="model in adminModels.models" :key="model.filename"
                      class="bg-gray-900/50 p-4 rounded border border-gray-700 flex justify-between items-center">
                   <div class="flex flex-col">
                     <span class="font-bold text-lg">{{ model.name }}</span>
-                    <span class="text-xs text-gray-300">Modified: {{ new Date(model.modified * 1000).toLocaleString() }}</span>
+                    <div class="text-xs text-gray-400 mt-1">
+                      <div>Modified: {{ model.modified_formatted }}</div>
+                      <div class="font-mono">Hash: {{ model.hash?.substring(0, 16) }}...</div>
+                    </div>
                   </div>
-                  <div class="flex flex-col items-end">
-                    <span class="font-mono text-blue-300">{{ (model.size / 1024 / 1024).toFixed(2) }} MB</span>
+                  <div class="flex items-center gap-4">
+                    <div class="flex flex-col items-end">
+                      <span class="font-mono text-blue-300">{{ model.size_mb }} MB</span>
+                    </div>
+                    <Button
+                      icon="pi pi-trash"
+                      severity="danger"
+                      size="small"
+                      :loading="modelDeleting"
+                      @click="deleteModel(model.name)"
+                      v-tooltip="'Modell löschen'"
+                    />
                   </div>
                 </div>
-                <div v-if="!telemetryStatus.server_stats.models.length" class="text-gray-500 italic text-center p-4">
-                  No models available yet.
+                <div v-if="!adminModels.models || !adminModels.models.length" class="text-gray-500 italic text-center p-4">
+                  No models available yet. Models will be generated automatically when enough data is collected.
                 </div>
               </div>
             </Fieldset>
@@ -1005,15 +1021,23 @@
                   </div>
                 </div>
               </div>
-              <Button
-                label="Trigger Training"
-                icon="pi pi-play"
-                @click="triggerTraining"
-                :loading="trainingInProgress"
-                severity="success"
-                size="small"
-                class="mt-2"
-              />
+              <div class="flex gap-2 mt-2">
+                <Button
+                  label="Refresh Data"
+                  icon="pi pi-refresh"
+                  @click="async () => { await fetchAdminModels(); await fetchAdminHealth(); await fetchAdminInstallations(); }"
+                  severity="secondary"
+                  size="small"
+                />
+                <Button
+                  label="Trigger Training"
+                  icon="pi pi-play"
+                  @click="triggerTraining"
+                  :loading="trainingInProgress"
+                  severity="success"
+                  size="small"
+                />
+              </div>
             </Fieldset>
 
             <!-- Installations List -->
@@ -1281,6 +1305,8 @@ const statusLoading = ref(false)
 // Admin Zone variables
 const adminHealth = ref(null)
 const adminInstallations = ref(null)
+const adminModels = ref(null)
+const modelDeleting = ref(false)
 const trainingInProgress = ref(false)
 const checkingUpdates = ref(false)
 const checkingModel = ref(false)
@@ -1333,6 +1359,61 @@ const fetchAdminInstallations = async () => {
   } catch (err) {
     console.error('Failed to fetch admin installations:', err)
   }
+}
+
+const fetchAdminModels = async () => {
+  if (!telemetryStatus.value?.is_admin) return
+
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const res = await axios.get(`${telemetryUrl}/api/v1/admin/models`, {
+      params: { installation_id: config.value.installation_id }
+    })
+    adminModels.value = res.data
+  } catch (err) {
+    console.error('Failed to fetch admin models:', err)
+  }
+}
+
+const deleteModel = async (modelName) => {
+  // Show confirmation dialog
+  confirm.require({
+    message: `Möchtest du das Modell "${modelName}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+    header: 'Modell löschen',
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: 'Löschen',
+    rejectLabel: 'Abbrechen',
+    accept: async () => {
+      modelDeleting.value = true
+      try {
+        const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+        await axios.delete(`${telemetryUrl}/api/v1/admin/models/${encodeURIComponent(modelName)}`, {
+          params: { installation_id: config.value.installation_id }
+        })
+
+        toast.add({
+          severity: 'success',
+          summary: 'Modell gelöscht',
+          detail: `Modell "${modelName}" wurde erfolgreich gelöscht`,
+          life: 3000
+        })
+
+        // Refresh model list
+        await fetchAdminModels()
+        await fetchAdminHealth() // Update stats
+      } catch (err) {
+        console.error('Failed to delete model:', err)
+        toast.add({
+          severity: 'error',
+          summary: 'Fehler',
+          detail: 'Modell konnte nicht gelöscht werden: ' + (err.response?.data?.detail || err.message),
+          life: 5000
+        })
+      } finally {
+        modelDeleting.value = false
+      }
+    }
+  })
 }
 
 const triggerTraining = async () => {
@@ -1595,6 +1676,7 @@ const loadTelemetryStatus = async () => {
     if (res.data.is_admin) {
       await fetchAdminHealth()
       await fetchAdminInstallations()
+      await fetchAdminModels()
     }
   } catch (e) {
     console.error('Failed to load Telemetry status', e)
