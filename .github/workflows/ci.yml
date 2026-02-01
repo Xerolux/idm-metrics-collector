@@ -36,8 +36,7 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'pnpm'
-        cache-dependency-path: frontend/pnpm-lock.yaml
+        # No cache to ensure fresh builds
 
     - name: Install Frontend Dependencies
       working-directory: frontend
@@ -67,8 +66,7 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'pnpm'
-        cache-dependency-path: frontend/pnpm-lock.yaml
+        # No cache to ensure fresh builds
 
     - name: Install dependencies
       run: pnpm install
