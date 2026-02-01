@@ -23,6 +23,14 @@ from collections import defaultdict
 from analysis import get_community_averages
 import structlog
 
+# Redis (optional, for persistent rate limiting)
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    redis = None
+
 # Configuration
 # VictoriaMetrics Import Endpoint (Influx Line Protocol)
 VM_WRITE_URL = os.environ.get("VM_WRITE_URL", "http://victoriametrics:8428/write")
@@ -98,6 +106,11 @@ DEFAULT_BAN_DURATION = int(
 # Cache configurations
 HASH_CACHE_TTL = int(os.environ.get("HASH_CACHE_TTL", "3600"))  # 1 hour
 POOL_STATS_CACHE_TTL = int(os.environ.get("POOL_STATS_CACHE_TTL", "60"))  # 1 minute
+
+# Redis configuration (optional, for persistent rate limiting)
+REDIS_URL = os.environ.get("REDIS_URL", "")  # e.g., "redis://localhost:6379/0" or "redis://:password@localhost:6379/0"
+USE_REDIS = REDIS_AVAILABLE and bool(REDIS_URL)
+_redis_client = None  # Will be initialized on startup if USE_REDIS is True
 
 # Cache stores
 _file_hash_cache: Dict[
@@ -179,13 +192,37 @@ async def cleanup_rate_limits_and_bans():
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize HTTP client and start background tasks."""
+    """Initialize HTTP client, Redis, and start background tasks."""
+    global _redis_client
+
     # Create HTTPX client with connection pooling
     app.state.http_client = httpx.AsyncClient(
         timeout=httpx.Timeout(10.0, connect=5.0),
         limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
     )
     logger.info("http_client_initialized")
+
+    # Initialize Redis if configured
+    if USE_REDIS:
+        try:
+            _redis_client = redis.from_url(
+                REDIS_URL,
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_timeout=5,
+                retry_on_timeout=True,
+            )
+            # Test connection
+            _redis_client.ping()
+            logger.info("redis_connected", url=REDIS_URL.split("@")[0] + "@***" if "@" in REDIS_URL else REDIS_URL)
+        except Exception as e:
+            logger.warning("redis_connection_failed", error=str(e), fallback="in_memory")
+            _redis_client = None
+    else:
+        if REDIS_AVAILABLE:
+            logger.info("redis_not_configured", hint="Set REDIS_URL environment variable to enable persistent rate limiting")
+        else:
+            logger.info("redis_not_available", hint="Install redis package to enable persistent rate limiting")
 
     # Start cleanup task
     asyncio.create_task(cleanup_rate_limits_and_bans())
@@ -198,6 +235,14 @@ async def shutdown_event():
     if hasattr(app.state, "http_client"):
         await app.state.http_client.aclose()
         logger.info("http_client_closed")
+
+    # Close Redis connection
+    if _redis_client:
+        try:
+            _redis_client.close()
+            logger.info("redis_closed")
+        except Exception as e:
+            logger.warning("redis_close_error", error=str(e))
 
 
 # Middleware for HTTPS enforcement and Security Headers
@@ -250,6 +295,8 @@ async def root():
 def check_rate_limit(client_ip: str, endpoint_type: str = "default") -> Tuple[bool, Dict[str, str]]:
     """
     Rate limiting check with headers and endpoint-specific limits.
+    Supports Redis for persistence (falls back to in-memory).
+
     Returns (allowed, headers_dict).
 
     Args:
@@ -262,8 +309,53 @@ def check_rate_limit(client_ip: str, endpoint_type: str = "default") -> Tuple[bo
     rate_limit = RATE_LIMITS.get(endpoint_type, RATE_LIMITS["default"])
 
     # Use compound key for IP + endpoint type
-    compound_key = f"{client_ip}:{endpoint_type}"
+    compound_key = f"ratelimit:{client_ip}:{endpoint_type}"
 
+    # Use Redis if available, otherwise fall back to in-memory
+    if _redis_client:
+        try:
+            # Redis-based rate limiting using Sorted Sets
+            # Use timestamp as score for automatic expiration
+            pipe = _redis_client.pipeline()
+
+            # Remove entries outside the time window
+            min_score = now - RATE_LIMIT_WINDOW
+            pipe.zremrangebyscore(compound_key, 0, min_score)
+
+            # Count current requests in window
+            pipe.zcard(compound_key)
+            pipe.zadd(compound_key, {str(now): now})
+            pipe.expire(compound_key, RATE_LIMIT_WINDOW)
+
+            results = pipe.execute()
+            current_count = results[1]  # zcard result
+
+            remaining = max(0, rate_limit - current_count)
+            # Get oldest timestamp for reset time calculation
+            oldest = _redis_client.zrange(compound_key, 0, 0, withscores=True)
+            reset_time = int(oldest[0][1] + RATE_LIMIT_WINDOW) if oldest else int(now + RATE_LIMIT_WINDOW)
+
+            # Check limit
+            if current_count >= rate_limit:
+                logger.warning("rate_limit_exceeded_redis", ip=mask_ip(client_ip), endpoint=endpoint_type)
+                return False, {
+                    "X-RateLimit-Limit": str(rate_limit),
+                    "X-RateLimit-Remaining": "0",
+                    "X-RateLimit-Reset": str(reset_time),
+                    "Retry-After": str(RATE_LIMIT_WINDOW),
+                }
+
+            return True, {
+                "X-RateLimit-Limit": str(rate_limit),
+                "X-RateLimit-Remaining": str(remaining - 1),
+                "X-RateLimit-Reset": str(reset_time),
+            }
+
+        except Exception as e:
+            logger.warning("redis_rate_limit_failed", error=str(e), fallback="in_memory")
+            # Fall through to in-memory implementation
+
+    # In-memory rate limiting (fallback)
     # Check if too many IPs stored
     if len(_rate_limit_store) >= MAX_RATE_LIMIT_ENTRIES:
         # Remove oldest entries
@@ -289,7 +381,7 @@ def check_rate_limit(client_ip: str, endpoint_type: str = "default") -> Tuple[bo
 
     # Check limit
     if len(_rate_limit_store[compound_key]) >= rate_limit:
-        logger.warning("rate_limit_exceeded", ip=mask_ip(client_ip), endpoint=endpoint_type)
+        logger.warning("rate_limit_exceeded_memory", ip=mask_ip(client_ip), endpoint=endpoint_type)
         return False, {
             "X-RateLimit-Limit": str(rate_limit),
             "X-RateLimit-Remaining": "0",
@@ -306,12 +398,36 @@ def check_rate_limit(client_ip: str, endpoint_type: str = "default") -> Tuple[bo
 
 
 async def check_ip_ban(client_ip: str) -> bool:
-    """Check if IP is banned."""
+    """Check if IP is banned. Supports Redis for persistence (falls back to in-memory)."""
+    ban_key = f"ban:{client_ip}"
     now = time.time()
+
+    # Use Redis if available
+    if _redis_client:
+        try:
+            # Get ban data from Redis
+            ban_data = _redis_client.get(ban_key)
+            if ban_data:
+                ban_info = json.loads(ban_data)
+                ban_time = ban_info["ban_time"]
+                duration = ban_info["duration"]
+                if now - ban_time < duration:
+                    logger.warning("ip_ban_check_redis", ip=mask_ip(client_ip), banned=True)
+                    return True  # Still banned
+                else:
+                    # Ban expired, remove from Redis
+                    _redis_client.delete(ban_key)
+            return False
+
+        except Exception as e:
+            logger.warning("redis_ip_ban_check_failed", error=str(e), fallback="in_memory")
+            # Fall through to in-memory implementation
+
+    # In-memory IP ban check (fallback)
     if client_ip in _banned_ips:
         ban_time, duration = _banned_ips[client_ip]
         if now - ban_time < duration:
-            logger.warning("ip_ban_check", ip=mask_ip(client_ip), banned=True)
+            logger.warning("ip_ban_check_memory", ip=mask_ip(client_ip), banned=True)
             return True  # Still banned
         else:
             del _banned_ips[client_ip]  # Ban expired
@@ -319,15 +435,38 @@ async def check_ip_ban(client_ip: str) -> bool:
 
 
 def ban_ip(client_ip: str, duration: Optional[int] = None) -> None:
-    """Ban an IP for duration seconds."""
+    """Ban an IP for duration seconds. Supports Redis for persistence (falls back to in-memory)."""
     if duration is None:
         duration = DEFAULT_BAN_DURATION
-    _banned_ips[client_ip] = (time.time(), duration)
+
+    ban_time = time.time()
+    ban_key = f"ban:{client_ip}"
+    ban_data = json.dumps({"ban_time": ban_time, "duration": duration})
+
+    # Use Redis if available
+    if _redis_client:
+        try:
+            # Store ban in Redis with TTL
+            _redis_client.setex(ban_key, duration, ban_data)
+            logger.warning(
+                "ip_banned_redis",
+                ip=mask_ip(client_ip),
+                duration=duration,
+                backend="redis",
+            )
+            return
+
+        except Exception as e:
+            logger.warning("redis_ip_ban_failed", error=str(e), fallback="in_memory")
+            # Fall through to in-memory implementation
+
+    # In-memory IP ban (fallback)
+    _banned_ips[client_ip] = (ban_time, duration)
     logger.warning(
-        "ip_banned",
+        "ip_banned_memory",
         ip=mask_ip(client_ip),
         duration=duration,
-        reason="Manual or automatic ban",
+        backend="memory",
     )
 
 
