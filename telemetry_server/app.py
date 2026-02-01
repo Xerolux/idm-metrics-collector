@@ -9,6 +9,7 @@ from fastapi.responses import (
 )
 from pydantic import BaseModel, validator
 from typing import List, Optional, Dict, Any, Tuple
+from urllib.parse import urlparse
 import os
 import httpx
 import time
@@ -217,9 +218,24 @@ async def startup_event():
             )
             # Test connection
             _redis_client.ping()
+
+            # Mask Redis Password
+            safe_url = REDIS_URL
+            try:
+                parsed = urlparse(REDIS_URL)
+                if parsed.password:
+                    # Construct masked URL safely
+                    user_part = parsed.username if parsed.username is not None else ""
+                    host_part = parsed.hostname if parsed.hostname else ""
+                    port_part = f":{parsed.port}" if parsed.port else ""
+                    safe_netloc = f"{user_part}:***@{host_part}{port_part}"
+                    safe_url = parsed._replace(netloc=safe_netloc).geturl()
+            except Exception:
+                safe_url = "redis://***"
+
             logger.info(
                 "redis_connected",
-                url=REDIS_URL.split("@")[0] + "@***" if "@" in REDIS_URL else REDIS_URL,
+                url=safe_url,
             )
         except Exception as e:
             logger.warning(
