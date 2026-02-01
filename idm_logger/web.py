@@ -1230,7 +1230,9 @@ def evaluate_expression():
         return jsonify({"status": "success", "data": {"values": results}})
     except Exception as e:
         logger.error(f"Expression evaluation failed: {e}")
-        return jsonify({"status": "error", "error": "Expression evaluation failed"}), 500
+        return jsonify(
+            {"status": "error", "error": "Expression evaluation failed"}
+        ), 500
 
 
 @app.route("/api/internal/ml_alert", methods=["POST"])

@@ -19,7 +19,9 @@ _MAX_MESSAGE_LENGTH = 1000
 
 # Dangerous characters that should not be in messages (prevents injection)
 # Allow: alphanumeric, basic punctuation, spaces, newlines, German umlauts
-_SAFE_MESSAGE_PATTERN = re.compile(r"^[\w\s\.\,\!\?\:\;\-\+\(\)\[\]\{\}\/\@\#\&\%\$\=\ä\ö\ü\Ä\Ö\Ü\ß\n\r]+$")
+_SAFE_MESSAGE_PATTERN = re.compile(
+    r"^[\w\s\.\,\!\?\:\;\-\+\(\)\[\]\{\}\/\@\#\&\%\$\=\ä\ö\ü\Ä\Ö\Ü\ß\n\r]+$"
+)
 
 
 def _validate_phone_number(number: str) -> bool:

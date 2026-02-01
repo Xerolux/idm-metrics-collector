@@ -26,6 +26,7 @@ import structlog
 # Redis (optional, for persistent rate limiting)
 try:
     import redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -108,7 +109,9 @@ HASH_CACHE_TTL = int(os.environ.get("HASH_CACHE_TTL", "3600"))  # 1 hour
 POOL_STATS_CACHE_TTL = int(os.environ.get("POOL_STATS_CACHE_TTL", "60"))  # 1 minute
 
 # Redis configuration (optional, for persistent rate limiting)
-REDIS_URL = os.environ.get("REDIS_URL", "")  # e.g., "redis://localhost:6379/0" or "redis://:password@localhost:6379/0"
+REDIS_URL = os.environ.get(
+    "REDIS_URL", ""
+)  # e.g., "redis://localhost:6379/0" or "redis://:password@localhost:6379/0"
 USE_REDIS = REDIS_AVAILABLE and bool(REDIS_URL)
 _redis_client = None  # Will be initialized on startup if USE_REDIS is True
 
@@ -214,15 +217,26 @@ async def startup_event():
             )
             # Test connection
             _redis_client.ping()
-            logger.info("redis_connected", url=REDIS_URL.split("@")[0] + "@***" if "@" in REDIS_URL else REDIS_URL)
+            logger.info(
+                "redis_connected",
+                url=REDIS_URL.split("@")[0] + "@***" if "@" in REDIS_URL else REDIS_URL,
+            )
         except Exception as e:
-            logger.warning("redis_connection_failed", error=str(e), fallback="in_memory")
+            logger.warning(
+                "redis_connection_failed", error=str(e), fallback="in_memory"
+            )
             _redis_client = None
     else:
         if REDIS_AVAILABLE:
-            logger.info("redis_not_configured", hint="Set REDIS_URL environment variable to enable persistent rate limiting")
+            logger.info(
+                "redis_not_configured",
+                hint="Set REDIS_URL environment variable to enable persistent rate limiting",
+            )
         else:
-            logger.info("redis_not_available", hint="Install redis package to enable persistent rate limiting")
+            logger.info(
+                "redis_not_available",
+                hint="Install redis package to enable persistent rate limiting",
+            )
 
     # Start cleanup task
     asyncio.create_task(cleanup_rate_limits_and_bans())
@@ -268,10 +282,14 @@ async def enforce_https(request: Request, call_next):
 
     # HSTS (only if already HTTPS)
     if proto == "https":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
 
     # Content Security Policy (restrictive for API)
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';"
+    )
 
     return response
 
@@ -292,7 +310,9 @@ async def root():
     )
 
 
-def check_rate_limit(client_ip: str, endpoint_type: str = "default") -> Tuple[bool, Dict[str, str]]:
+def check_rate_limit(
+    client_ip: str, endpoint_type: str = "default"
+) -> Tuple[bool, Dict[str, str]]:
     """
     Rate limiting check with headers and endpoint-specific limits.
     Supports Redis for persistence (falls back to in-memory).
@@ -333,11 +353,19 @@ def check_rate_limit(client_ip: str, endpoint_type: str = "default") -> Tuple[bo
             remaining = max(0, rate_limit - current_count)
             # Get oldest timestamp for reset time calculation
             oldest = _redis_client.zrange(compound_key, 0, 0, withscores=True)
-            reset_time = int(oldest[0][1] + RATE_LIMIT_WINDOW) if oldest else int(now + RATE_LIMIT_WINDOW)
+            reset_time = (
+                int(oldest[0][1] + RATE_LIMIT_WINDOW)
+                if oldest
+                else int(now + RATE_LIMIT_WINDOW)
+            )
 
             # Check limit
             if current_count >= rate_limit:
-                logger.warning("rate_limit_exceeded_redis", ip=mask_ip(client_ip), endpoint=endpoint_type)
+                logger.warning(
+                    "rate_limit_exceeded_redis",
+                    ip=mask_ip(client_ip),
+                    endpoint=endpoint_type,
+                )
                 return False, {
                     "X-RateLimit-Limit": str(rate_limit),
                     "X-RateLimit-Remaining": "0",
@@ -352,7 +380,9 @@ def check_rate_limit(client_ip: str, endpoint_type: str = "default") -> Tuple[bo
             }
 
         except Exception as e:
-            logger.warning("redis_rate_limit_failed", error=str(e), fallback="in_memory")
+            logger.warning(
+                "redis_rate_limit_failed", error=str(e), fallback="in_memory"
+            )
             # Fall through to in-memory implementation
 
     # In-memory rate limiting (fallback)
@@ -381,7 +411,9 @@ def check_rate_limit(client_ip: str, endpoint_type: str = "default") -> Tuple[bo
 
     # Check limit
     if len(_rate_limit_store[compound_key]) >= rate_limit:
-        logger.warning("rate_limit_exceeded_memory", ip=mask_ip(client_ip), endpoint=endpoint_type)
+        logger.warning(
+            "rate_limit_exceeded_memory", ip=mask_ip(client_ip), endpoint=endpoint_type
+        )
         return False, {
             "X-RateLimit-Limit": str(rate_limit),
             "X-RateLimit-Remaining": "0",
@@ -412,7 +444,9 @@ async def check_ip_ban(client_ip: str) -> bool:
                 ban_time = ban_info["ban_time"]
                 duration = ban_info["duration"]
                 if now - ban_time < duration:
-                    logger.warning("ip_ban_check_redis", ip=mask_ip(client_ip), banned=True)
+                    logger.warning(
+                        "ip_ban_check_redis", ip=mask_ip(client_ip), banned=True
+                    )
                     return True  # Still banned
                 else:
                     # Ban expired, remove from Redis
@@ -420,7 +454,9 @@ async def check_ip_ban(client_ip: str) -> bool:
             return False
 
         except Exception as e:
-            logger.warning("redis_ip_ban_check_failed", error=str(e), fallback="in_memory")
+            logger.warning(
+                "redis_ip_ban_check_failed", error=str(e), fallback="in_memory"
+            )
             # Fall through to in-memory implementation
 
     # In-memory IP ban check (fallback)
@@ -1232,14 +1268,18 @@ async def verify_admin(
 async def check_admin_rate_limit(request: Request) -> None:
     """Check rate limit for admin endpoints."""
     forwarded = request.headers.get("X-Forwarded-For")
-    raw_ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "unknown")
+    raw_ip = (
+        forwarded.split(",")[0].strip()
+        if forwarded
+        else (request.client.host if request.client else "unknown")
+    )
 
     allowed, rate_limit_headers = check_rate_limit(raw_ip, "admin")
     if not allowed:
         raise HTTPException(
             status_code=429,
             detail="Too many admin requests. Please try again later.",
-            headers=rate_limit_headers
+            headers=rate_limit_headers,
         )
 
 
