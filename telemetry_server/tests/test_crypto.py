@@ -13,9 +13,13 @@ from telemetry_server.scripts.export_model import export_model
 
 
 @pytest.fixture
-def temp_dir(tmp_path):
+def temp_dir(tmp_path, monkeypatch):
     d = tmp_path / "model_test"
     d.mkdir()
+    # Set secure key for testing
+    monkeypatch.setenv(
+        "TELEMETRY_ENCRYPTION_KEY", "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA="
+    )
     return d
 
 
