@@ -28,11 +28,11 @@ def export_model(input_file, output_dir=None, output_file=None):
         print("Error: Either output_dir or output_file must be provided")
         return
 
-    # Get key from environment or use default (for dev/compat)
-    # Ideally should fail if not set in production
-    key_str = os.environ.get(
-        "TELEMETRY_ENCRYPTION_KEY", "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA="
-    )
+    # Get key from environment
+    key_str = os.environ.get("TELEMETRY_ENCRYPTION_KEY")
+    if not key_str:
+        raise ValueError("TELEMETRY_ENCRYPTION_KEY environment variable is not set")
+
     key = key_str.encode() if isinstance(key_str, str) else key_str
 
     f = Fernet(key)

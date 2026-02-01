@@ -4,7 +4,47 @@ import base64
 import hmac
 import hashlib
 import pickle
+import io
 from cryptography.fernet import Fernet
+
+
+class RestrictedUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        # Only allow safe modules and classes
+        # This list should be updated as needed for the ML model components
+        safe_modules = {
+            "river",
+            "numpy",
+            "collections",
+            "datetime",
+            "math",
+        }
+
+        # Allow submodules of safe modules (simple prefix check)
+        is_safe_module = any(
+            module == m or module.startswith(m + ".") for m in safe_modules
+        )
+
+        if is_safe_module:
+            return super().find_class(module, name)
+
+        # Handle builtins safely
+        if module == "builtins":
+            if name in {
+                "dict",
+                "list",
+                "set",
+                "tuple",
+                "str",
+                "int",
+                "float",
+                "bool",
+                "bytes",
+                "NoneType",
+            }:
+                return super().find_class(module, name)
+
+        raise pickle.UnpicklingError(f"Global '{module}.{name}' is forbidden")
 
 
 def load_encrypted_model(filepath):
@@ -55,7 +95,7 @@ def load_encrypted_model(filepath):
         decrypted_data = f.decrypt(encrypted_data)
 
         # 4. Unpickle
-        return pickle.loads(decrypted_data)
+        return RestrictedUnpickler(io.BytesIO(decrypted_data)).load()
 
     except Exception:
         return None
