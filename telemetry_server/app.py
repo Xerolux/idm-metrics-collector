@@ -73,15 +73,21 @@ MAX_PAYLOAD_SIZE = int(
     os.environ.get("MAX_PAYLOAD_SIZE", str(10 * 1024 * 1024))
 )  # 10 MB default
 
-# Simple in-memory rate limiting
+# Simple in-memory rate limiting with endpoint-specific limits
 _rate_limit_store: Dict[str, List[float]] = defaultdict(list)
-RATE_LIMIT_REQUESTS = int(
-    os.environ.get("RATE_LIMIT_REQUESTS", "100")
-)  # requests per window
 RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))  # seconds
 MAX_RATE_LIMIT_ENTRIES = int(
     os.environ.get("MAX_RATE_LIMIT_ENTRIES", "10000")
 )  # Max IPs to track
+
+# Endpoint-specific rate limits (requests per window)
+RATE_LIMITS = {
+    "default": int(os.environ.get("RATE_LIMIT_DEFAULT", "100")),
+    "submit": int(os.environ.get("RATE_LIMIT_SUBMIT", "60")),  # Telemetry submission
+    "status": int(os.environ.get("RATE_LIMIT_STATUS", "30")),  # Status checks
+    "model": int(os.environ.get("RATE_LIMIT_MODEL", "10")),  # Model downloads
+    "admin": int(os.environ.get("RATE_LIMIT_ADMIN", "20")),  # Admin operations
+}
 
 # IP Ban store
 _banned_ips: Dict[str, Tuple[float, int]] = {}  # {ip: (ban_time, duration)}
@@ -194,7 +200,7 @@ async def shutdown_event():
         logger.info("http_client_closed")
 
 
-# Middleware for HTTPS enforcement
+# Middleware for HTTPS enforcement and Security Headers
 @app.middleware("http")
 async def enforce_https(request: Request, call_next):
     # Trust X-Forwarded-Proto from reverse proxy
@@ -205,6 +211,23 @@ async def enforce_https(request: Request, call_next):
         )
 
     response = await call_next(request)
+
+    # Add security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+
+    # HSTS (only if already HTTPS)
+    if proto == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+    # Content Security Policy (restrictive for API)
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';"
+
     return response
 
 
@@ -224,12 +247,22 @@ async def root():
     )
 
 
-def check_rate_limit(client_ip: str) -> Tuple[bool, Dict[str, str]]:
+def check_rate_limit(client_ip: str, endpoint_type: str = "default") -> Tuple[bool, Dict[str, str]]:
     """
-    Rate limiting check with headers.
+    Rate limiting check with headers and endpoint-specific limits.
     Returns (allowed, headers_dict).
+
+    Args:
+        client_ip: The client IP address
+        endpoint_type: Type of endpoint (default, submit, status, model, admin)
     """
     now = time.time()
+
+    # Get rate limit for this endpoint type
+    rate_limit = RATE_LIMITS.get(endpoint_type, RATE_LIMITS["default"])
+
+    # Use compound key for IP + endpoint type
+    compound_key = f"{client_ip}:{endpoint_type}"
 
     # Check if too many IPs stored
     if len(_rate_limit_store) >= MAX_RATE_LIMIT_ENTRIES:
@@ -243,29 +276,30 @@ def check_rate_limit(client_ip: str) -> Tuple[bool, Dict[str, str]]:
         logger.warning("rate_limit_eviction", evicted=len(oldest_keys))
 
     # Clean old entries
-    _rate_limit_store[client_ip] = [
-        t for t in _rate_limit_store[client_ip] if now - t < RATE_LIMIT_WINDOW
+    _rate_limit_store[compound_key] = [
+        t for t in _rate_limit_store[compound_key] if now - t < RATE_LIMIT_WINDOW
     ]
 
-    remaining = max(0, RATE_LIMIT_REQUESTS - len(_rate_limit_store[client_ip]))
+    remaining = max(0, rate_limit - len(_rate_limit_store[compound_key]))
     reset_time = int(
-        max(_rate_limit_store[client_ip]) + RATE_LIMIT_WINDOW
-        if _rate_limit_store[client_ip]
+        max(_rate_limit_store[compound_key]) + RATE_LIMIT_WINDOW
+        if _rate_limit_store[compound_key]
         else now + RATE_LIMIT_WINDOW
     )
 
     # Check limit
-    if len(_rate_limit_store[client_ip]) >= RATE_LIMIT_REQUESTS:
+    if len(_rate_limit_store[compound_key]) >= rate_limit:
+        logger.warning("rate_limit_exceeded", ip=mask_ip(client_ip), endpoint=endpoint_type)
         return False, {
-            "X-RateLimit-Limit": str(RATE_LIMIT_REQUESTS),
+            "X-RateLimit-Limit": str(rate_limit),
             "X-RateLimit-Remaining": "0",
             "X-RateLimit-Reset": str(reset_time),
             "Retry-After": str(RATE_LIMIT_WINDOW),
         }
 
-    _rate_limit_store[client_ip].append(now)
+    _rate_limit_store[compound_key].append(now)
     return True, {
-        "X-RateLimit-Limit": str(RATE_LIMIT_REQUESTS),
+        "X-RateLimit-Limit": str(rate_limit),
         "X-RateLimit-Remaining": str(remaining - 1),
         "X-RateLimit-Reset": str(reset_time),
     }
@@ -531,8 +565,8 @@ async def submit_telemetry(
             headers={"Content-Type": "application/json"},
         )
 
-    # Rate limiting with headers
-    allowed, rate_limit_headers = check_rate_limit(raw_ip)
+    # Rate limiting with headers (endpoint-specific for submit)
+    allowed, rate_limit_headers = check_rate_limit(raw_ip, "submit")
     if not allowed:
         logger.warning(
             "rate_limit_exceeded", ip=client_ip, installation_id=payload.installation_id
@@ -1044,6 +1078,20 @@ async def verify_admin(
         raise HTTPException(status_code=403, detail="Not authorized as admin")
 
 
+async def check_admin_rate_limit(request: Request) -> None:
+    """Check rate limit for admin endpoints."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    raw_ip = forwarded.split(",")[0].strip() if forwarded else (request.client.host if request.client else "unknown")
+
+    allowed, rate_limit_headers = check_rate_limit(raw_ip, "admin")
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many admin requests. Please try again later.",
+            headers=rate_limit_headers
+        )
+
+
 @app.get("/api/v1/admin/models")
 async def admin_list_models(
     request: Request,
@@ -1051,6 +1099,7 @@ async def admin_list_models(
     installation_id: Optional[str] = None,
 ):
     """Admin: List all models with details."""
+    await check_admin_rate_limit(request)
     await verify_admin(authorization, installation_id)
 
     model_dir = Path(MODEL_DIR)
@@ -1090,6 +1139,7 @@ async def admin_delete_model(
     installation_id: Optional[str] = None,
 ):
     """Admin: Delete a model file."""
+    await check_admin_rate_limit(request)
     await verify_admin(authorization, installation_id)
 
     # Sanitize model name
@@ -1123,6 +1173,7 @@ async def admin_trigger_training(
     installation_id: Optional[str] = None,
 ):
     """Admin: Trigger manual model training."""
+    await check_admin_rate_limit(request)
     await verify_admin(authorization, installation_id)
 
     # Import training scheduler
@@ -1166,6 +1217,7 @@ async def admin_list_installations(
     limit: int = 100,
 ):
     """Admin: List all active installations with stats."""
+    await check_admin_rate_limit(request)
     await verify_admin(authorization, installation_id)
 
     try:
@@ -1233,6 +1285,7 @@ async def admin_server_health(
     installation_id: Optional[str] = None,
 ):
     """Admin: Get server health stats."""
+    await check_admin_rate_limit(request)
     await verify_admin(authorization, installation_id)
 
     try:
