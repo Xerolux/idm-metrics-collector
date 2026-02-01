@@ -1067,6 +1067,70 @@
               </div>
             </Fieldset>
 
+            <!-- Community Analysis -->
+            <Fieldset legend="Community Data Analysis" :toggleable="true">
+              <div class="flex flex-col gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="flex flex-col gap-2">
+                    <label class="font-bold text-sm text-gray-300">Target Model</label>
+                    <Dropdown
+                      v-model="selectedStatsModel"
+                      :options="adminModels?.models?.map(m => m.name) || models.map(m => m.value)"
+                      placeholder="Select Model"
+                      class="w-full"
+                      editable
+                    />
+                  </div>
+                  <div class="flex flex-col gap-2">
+                    <label class="font-bold text-sm text-gray-300">Metrics (comma separated)</label>
+                    <InputText v-model="statsMetrics" placeholder="cop_current, temp_outdoor" class="w-full" />
+                  </div>
+                </div>
+
+                <Button
+                  label="Analyze Community Data"
+                  icon="pi pi-chart-bar"
+                  @click="fetchCommunityAverages"
+                  :loading="statsLoading"
+                  class="w-full md:w-auto self-start"
+                />
+
+                <div v-if="communityStats" class="mt-4 bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                    <div>
+                      <span class="text-gray-400 text-sm">Model:</span>
+                      <span class="ml-2 font-bold">{{ communityStats.model }}</span>
+                    </div>
+                    <div>
+                      <span class="text-gray-400 text-sm">Sample Size:</span>
+                      <span class="ml-2 font-bold text-blue-400">{{ communityStats.sample_size }}</span>
+                    </div>
+                  </div>
+
+                  <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                      <thead>
+                        <tr class="text-left text-gray-400 border-b border-gray-700">
+                          <th class="pb-2">Metric</th>
+                          <th class="pb-2 text-right">Avg</th>
+                          <th class="pb-2 text-right">Min</th>
+                          <th class="pb-2 text-right">Max</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(stats, metric) in communityStats.metrics" :key="metric" class="border-b border-gray-800 last:border-0">
+                          <td class="py-2 font-mono text-gray-300">{{ metric }}</td>
+                          <td class="py-2 text-right font-mono">{{ stats.avg?.toFixed(2) ?? '-' }}</td>
+                          <td class="py-2 text-right font-mono text-gray-500">{{ stats.min?.toFixed(2) ?? '-' }}</td>
+                          <td class="py-2 text-right font-mono text-gray-500">{{ stats.max?.toFixed(2) ?? '-' }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </Fieldset>
+
             <div class="bg-yellow-900/20 border border-yellow-600/50 p-4 rounded flex items-start gap-3">
               <i class="pi pi-info-circle text-yellow-500 text-xl mt-1"></i>
               <div class="text-sm text-yellow-200">
@@ -1306,6 +1370,10 @@ const statusLoading = ref(false)
 const adminHealth = ref(null)
 const adminInstallations = ref(null)
 const adminModels = ref(null)
+const communityStats = ref(null)
+const statsLoading = ref(false)
+const selectedStatsModel = ref(null)
+const statsMetrics = ref('cop_current, temp_outdoor')
 const modelDeleting = ref(false)
 const trainingInProgress = ref(false)
 const checkingUpdates = ref(false)
@@ -1372,6 +1440,44 @@ const fetchAdminModels = async () => {
     adminModels.value = res.data
   } catch (err) {
     console.error('Failed to fetch admin models:', err)
+  }
+}
+
+const fetchCommunityAverages = async () => {
+  if (!selectedStatsModel.value) {
+    toast.add({ severity: 'warn', summary: 'Warnung', detail: 'Bitte wähle ein Modell', life: 3000 })
+    return
+  }
+
+  statsLoading.value = true
+  communityStats.value = null
+
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const headers = {}
+    if (config.value.telemetry?.auth_token) {
+      headers['Authorization'] = `Bearer ${config.value.telemetry.auth_token}`
+    }
+
+    const res = await axios.get(`${telemetryUrl}/api/v1/community/averages`, {
+      params: {
+        model: selectedStatsModel.value,
+        metrics: statsMetrics.value
+      },
+      headers: headers
+    })
+
+    communityStats.value = res.data
+  } catch (err) {
+    console.error('Failed to fetch community averages:', err)
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err.response?.data?.detail || err.message,
+      life: 5000
+    })
+  } finally {
+    statsLoading.value = false
   }
 }
 
