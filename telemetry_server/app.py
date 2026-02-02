@@ -47,6 +47,15 @@ from permissions import (
     is_admin,
     PERMISSIONS,
 )
+from installation_manager import (
+    installation_manager,
+    InstallationRole,
+    BanType,
+    check_upload_allowed,
+    check_download_allowed,
+    ROLE_DESCRIPTIONS,
+    ROLE_FEATURES,
+)
 from training_queue import training_queue
 
 # Redis (optional, for persistent rate limiting)
@@ -1050,6 +1059,20 @@ async def submit_telemetry(
     # Verify token (per-installation with fallback)
     await verify_token_with_fallback(payload.installation_id, authorization)
 
+    # Check installation ban status
+    upload_allowed, ban_reason = check_upload_allowed(payload.installation_id)
+    if not upload_allowed:
+        logger.warning(
+            "submit_installation_banned",
+            installation_id=payload.installation_id,
+            reason=ban_reason,
+        )
+        return JSONResponse(
+            {"detail": f"Upload blocked: {ban_reason}"},
+            status_code=403,
+            headers={"Content-Type": "application/json"},
+        )
+
     # Prefer X-Forwarded-For if behind proxy, else fallback to direct connection
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
@@ -1436,6 +1459,19 @@ async def download_model(
     # Validation
     validate_installation_id(installation_id)
     model = validate_model_name(model)  # Returns normalized/validated name or None
+
+    # Check installation ban status
+    download_allowed, ban_reason = check_download_allowed(installation_id)
+    if not download_allowed:
+        logger.warning(
+            "model_download_installation_banned",
+            installation_id=installation_id,
+            reason=ban_reason,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail=f"Download blocked: {ban_reason}",
+        )
 
     try:
         # Verify eligibility first
@@ -2862,7 +2898,337 @@ async def admin_get_permissions(
         )
 
 
-# Prometheus Metrics
+# =====================================================================
+# Installation Role and Ban Management Endpoints
+# =====================================================================
+
+
+@app.get("/api/v1/admin/installations/roles")
+async def admin_get_role_definitions(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get role definitions and features. Requires admin:view permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:view"
+        )
+
+    return {
+        "roles": [
+            {
+                "name": role.value,
+                "description": ROLE_DESCRIPTIONS.get(role, ""),
+                "features": ROLE_FEATURES.get(role, []),
+            }
+            for role in InstallationRole
+        ],
+        "ban_types": [
+            {"name": bt.value, "description": f"{bt.value.title()} ban"}
+            for bt in BanType
+        ],
+    }
+
+
+@app.get("/api/v1/admin/installations/stats")
+async def admin_get_installation_stats(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get installation statistics. Requires admin:view permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:view"
+        )
+
+    return installation_manager.get_stats()
+
+
+@app.get("/api/v1/admin/installations/list")
+async def admin_list_installations(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    role: Optional[str] = None,
+    banned_only: bool = False,
+    limit: int = 100,
+    offset: int = 0,
+):
+    """
+    Admin: List installations with filters.
+    Requires admin:users permission.
+    """
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:users"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:users"
+        )
+
+    role_filter = None
+    if role:
+        try:
+            role_filter = InstallationRole(role)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid role: {role}")
+
+    return installation_manager.list_installations(
+        role_filter=role_filter,
+        banned_only=banned_only,
+        limit=min(limit, 500),
+        offset=offset,
+    )
+
+
+@app.get("/api/v1/admin/installations/{target_id}/role")
+async def admin_get_installation_role(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get role and ban status for an installation. Requires admin:view permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:view"
+        )
+
+    info = installation_manager.get_installation(target_id)
+
+    return {
+        "installation_id": target_id,
+        "role": info["effective_role"] if info else "guest",
+        "is_banned": info["is_banned"] if info else False,
+        "active_bans": info["active_bans"] if info else [],
+        "notes": info.get("notes", "") if info else "",
+        "created_at": info.get("created_at") if info else None,
+        "metadata": info.get("metadata", {}) if info else {},
+    }
+
+
+@app.post("/api/v1/admin/installations/{target_id}/role")
+async def admin_set_installation_role(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    role: str = None,
+    reason: Optional[str] = None,
+):
+    """
+    Admin: Set role for an installation.
+    Requires admin:users permission.
+    """
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:users"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:users"
+        )
+
+    if not role:
+        raise HTTPException(status_code=400, detail="role parameter is required")
+
+    try:
+        new_role = InstallationRole(role)
+    except ValueError:
+        valid_roles = [r.value for r in InstallationRole]
+        raise HTTPException(
+            status_code=400, detail=f"Invalid role: {role}. Valid: {valid_roles}"
+        )
+
+    changed = installation_manager.set_role(
+        target_id,
+        new_role,
+        set_by=admin_id,
+        reason=reason,
+    )
+
+    logger.info(
+        "admin_set_role",
+        admin_id=admin_id,
+        target_id=target_id,
+        role=role,
+        changed=changed,
+    )
+
+    return {
+        "success": True,
+        "installation_id": target_id,
+        "role": role,
+        "changed": changed,
+        "set_by": admin_id,
+    }
+
+
+@app.post("/api/v1/admin/installations/{target_id}/ban")
+async def admin_ban_installation(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    ban_type: str = "full",
+    reason: str = None,
+    duration_hours: Optional[int] = None,
+):
+    """
+    Admin: Ban an installation.
+    Requires admin:users permission.
+
+    Args:
+        target_id: Installation to ban
+        ban_type: Type of ban (upload, download, full)
+        reason: Reason for ban (required)
+        duration_hours: Ban duration in hours (None = permanent)
+    """
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:users"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:users"
+        )
+
+    if not reason:
+        raise HTTPException(status_code=400, detail="reason parameter is required")
+
+    try:
+        bt = BanType(ban_type)
+    except ValueError:
+        valid_types = [t.value for t in BanType]
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid ban_type: {ban_type}. Valid: {valid_types}",
+        )
+
+    ban_record = installation_manager.ban_installation(
+        target_id,
+        bt,
+        banned_by=admin_id,
+        reason=reason,
+        duration_hours=duration_hours,
+    )
+
+    logger.warning(
+        "admin_ban_installation",
+        admin_id=admin_id,
+        target_id=target_id,
+        ban_type=ban_type,
+        reason=reason,
+        duration_hours=duration_hours,
+    )
+
+    return {
+        "success": True,
+        "installation_id": target_id,
+        "ban": ban_record,
+        "message": f"Installation {target_id} has been banned ({ban_type})"
+        + (f" for {duration_hours} hours" if duration_hours else " permanently"),
+    }
+
+
+@app.post("/api/v1/admin/installations/{target_id}/unban")
+async def admin_unban_installation(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    ban_type: str = "full",
+    reason: Optional[str] = None,
+):
+    """
+    Admin: Remove a ban from an installation.
+    Requires admin:users permission.
+    """
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:users"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:users"
+        )
+
+    try:
+        bt = BanType(ban_type)
+    except ValueError:
+        valid_types = [t.value for t in BanType]
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid ban_type: {ban_type}. Valid: {valid_types}",
+        )
+
+    success = installation_manager.unban_installation(
+        target_id,
+        bt,
+        unbanned_by=admin_id,
+        reason=reason,
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No active {ban_type} ban found for {target_id}",
+        )
+
+    logger.info(
+        "admin_unban_installation",
+        admin_id=admin_id,
+        target_id=target_id,
+        ban_type=ban_type,
+    )
+
+    return {
+        "success": True,
+        "installation_id": target_id,
+        "ban_type": ban_type,
+        "message": f"Ban removed for {target_id}",
+    }
+
+
+@app.post("/api/v1/admin/installations/{target_id}/notes")
+async def admin_set_installation_notes(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    notes: str = "",
+):
+    """
+    Admin: Set notes for an installation.
+    Requires admin:users permission.
+    """
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:users"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:users"
+        )
+
+    installation_manager.set_notes(target_id, notes, set_by=admin_id)
+
+    return {
+        "success": True,
+        "installation_id": target_id,
+        "notes": notes,
+    }
+
+
+
+# Prometheus Metrics# Prometheus Metrics
 try:
     from prometheus_client import Counter, Histogram, Gauge, generate_latest
 
