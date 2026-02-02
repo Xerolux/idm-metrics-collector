@@ -932,27 +932,51 @@
 
           <!-- Admin Zone -->
           <div v-if="activeCategory === 'admin'" class="flex flex-col gap-6">
-            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2 flex items-center gap-2">
-              <i class="pi pi-crown text-yellow-500"></i> Admin Zone
-            </h2>
+            <div class="flex items-center justify-between border-b border-surface-700 pb-2 mb-2">
+              <h2 class="text-xl font-bold flex items-center gap-2">
+                <i class="pi pi-crown text-yellow-500"></i> Admin Zone
+              </h2>
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-400">Auto-Refresh (30s)</span>
+                <Button
+                  :icon="adminAutoRefresh ? 'pi pi-pause' : 'pi pi-play'"
+                  :severity="adminAutoRefresh ? 'success' : 'secondary'"
+                  size="small"
+                  @click="toggleAdminAutoRefresh"
+                  v-tooltip.top="adminAutoRefresh ? 'Pause Auto-Refresh' : 'Start Auto-Refresh'"
+                />
+              </div>
+            </div>
 
             <div v-if="telemetryStatus?.server_stats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <!-- Global Stats -->
-              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center">
+              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center transition-all duration-300 hover:border-blue-500">
                 <i class="pi pi-database text-4xl text-blue-400 mb-2"></i>
-                <div class="text-3xl font-bold">{{ telemetryStatus.server_stats.total_points?.toLocaleString() || 0 }}</div>
+                <transition name="counter" mode="out-in">
+                  <div :key="telemetryStatus.server_stats.total_points" class="text-3xl font-bold">
+                    {{ telemetryStatus.server_stats.total_points?.toLocaleString() || 0 }}
+                  </div>
+                </transition>
                 <div class="text-gray-300 uppercase text-xs tracking-wider mt-1">Total Data Points</div>
               </div>
 
-              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center">
+              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center transition-all duration-300 hover:border-green-500">
                 <i class="pi pi-desktop text-4xl text-green-400 mb-2"></i>
-                <div class="text-3xl font-bold">{{ telemetryStatus.server_stats.active_installations || 0 }}</div>
+                <transition name="counter" mode="out-in">
+                  <div :key="telemetryStatus.server_stats.active_installations" class="text-3xl font-bold">
+                    {{ telemetryStatus.server_stats.active_installations || 0 }}
+                  </div>
+                </transition>
                 <div class="text-gray-300 uppercase text-xs tracking-wider mt-1">Active Installations</div>
               </div>
 
-              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center">
+              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center transition-all duration-300 hover:border-purple-500">
                  <i class="pi pi-box text-4xl text-purple-400 mb-2"></i>
-                 <div class="text-3xl font-bold">{{ telemetryStatus.server_stats.models?.length || 0 }}</div>
+                 <transition name="counter" mode="out-in">
+                   <div :key="telemetryStatus.server_stats.models?.length" class="text-3xl font-bold">
+                     {{ telemetryStatus.server_stats.models?.length || 0 }}
+                   </div>
+                 </transition>
                  <div class="text-gray-300 uppercase text-xs tracking-wider mt-1">Generated Models</div>
               </div>
             </div>
@@ -969,6 +993,10 @@
                     <div class="text-xs text-gray-400 mt-1">
                       <div>Modified: {{ model.modified_formatted }}</div>
                       <div class="font-mono">Hash: {{ model.hash?.substring(0, 16) }}...</div>
+                      <div class="flex items-center gap-1 mt-1">
+                        <i class="pi pi-download text-green-400"></i>
+                        <span>Downloads: {{ model.download_count || 0 }}</span>
+                      </div>
                     </div>
                   </div>
                   <div class="flex items-center gap-4">
@@ -988,6 +1016,16 @@
                 <div v-if="!adminModels.models || !adminModels.models.length" class="text-gray-500 italic text-center p-4">
                   No models available yet. Models will be generated automatically when enough data is collected.
                 </div>
+              </div>
+            </Fieldset>
+
+            <!-- Model Downloads Chart -->
+            <Fieldset legend="Model Downloads" :toggleable="true" v-if="adminModels && adminModels.models?.some(m => m.download_count > 0)">
+              <div class="mb-3 text-sm text-gray-400">
+                Top 10 most downloaded models
+              </div>
+              <div class="bg-gray-900/50 p-4 rounded border border-gray-700" style="height: 300px;">
+                <canvas ref="modelDownloadsChart"></canvas>
               </div>
             </Fieldset>
 
@@ -1025,7 +1063,7 @@
                 <Button
                   label="Refresh Data"
                   icon="pi pi-refresh"
-                  @click="async () => { await fetchAdminModels(); await fetchAdminHealth(); await fetchAdminInstallations(); }"
+                  @click="async () => { await Promise.all([fetchAdminModels(), fetchAdminHealth(), fetchAdminInstallations(), fetchAdminMetrics()]); }"
                   severity="secondary"
                   size="small"
                 />
@@ -1051,19 +1089,127 @@
                       <th class="text-right py-2 px-3">Data Points</th>
                       <th class="text-right py-2 px-3">Last Seen</th>
                       <th class="text-center py-2 px-3">Admin</th>
+                      <th class="text-center py-2 px-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="inst in adminInstallations.installations" :key="inst.installation_id" class="border-b border-gray-800 hover:bg-gray-800/50">
-                      <td class="py-2 px-3 font-mono text-xs">{{ inst.installation_id.substring(0, 20) }}...</td>
+                      <td class="py-2 px-3 font-mono text-xs">
+                        <button
+                          @click="openInstallationDetails(inst.installation_id)"
+                          class="text-blue-400 hover:text-blue-300 hover:underline text-left"
+                        >
+                          {{ inst.installation_id.substring(0, 20) }}...
+                        </button>
+                      </td>
                       <td class="py-2 px-3 text-right">{{ inst.data_points?.toLocaleString() || 0 }}</td>
                       <td class="py-2 px-3 text-right">{{ inst.last_seen_formatted || 'Unknown' }}</td>
                       <td class="py-2 px-3 text-center">
                         <i v-if="inst.is_admin" class="pi pi-crown text-yellow-500"></i>
                       </td>
+                      <td class="py-2 px-3 text-center">
+                        <Button
+                          icon="pi pi-eye"
+                          severity="secondary"
+                          size="small"
+                          text
+                          @click="openInstallationDetails(inst.installation_id)"
+                          v-tooltip="'Details anzeigen'"
+                        />
+                      </td>
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            </Fieldset>
+
+            <!-- System Metrics -->
+            <Fieldset legend="System Metrics" :toggleable="true" v-if="adminMetrics">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Request Metrics -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-chart-line text-blue-400 text-xl"></i>
+                    <span class="font-bold">Requests</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.requests?.total?.toLocaleString() || 0 }}</div>
+                  <div class="text-xs text-gray-400 mt-1">Total Requests</div>
+                  <div class="text-xs text-red-400 mt-1">{{ adminMetrics.requests?.errors || 0 }} Errors</div>
+                </div>
+
+                <!-- Data Submissions -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-upload text-green-400 text-xl"></i>
+                    <span class="font-bold">Submissions</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.business?.submissions?.toLocaleString() || 0 }}</div>
+                  <div class="text-xs text-gray-400 mt-1">Data Submissions</div>
+                  <div class="text-xs text-gray-400 mt-1">{{ adminMetrics.business?.data_points?.toLocaleString() || 0 }} Points</div>
+                </div>
+
+                <!-- Cache Performance -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-bolt text-yellow-400 text-xl"></i>
+                    <span class="font-bold">Cache</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.cache?.hit_rate?.toFixed(1) || 0 }}%</div>
+                  <div class="text-xs text-gray-400 mt-1">Hit Rate</div>
+                  <div class="text-xs text-gray-400 mt-1">{{ adminMetrics.cache?.hits?.toLocaleString() || 0 }} Hits / {{ adminMetrics.cache?.misses?.toLocaleString() || 0 }} Misses</div>
+                </div>
+
+                <!-- Rate Limits -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-ban text-red-400 text-xl"></i>
+                    <span class="font-bold">Rate Limits</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.requests?.rate_limit_hits?.toLocaleString() || 0 }}</div>
+                  <div class="text-xs text-gray-400 mt-1">Total Violations</div>
+                </div>
+
+                <!-- Model Downloads -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-download text-purple-400 text-xl"></i>
+                    <span class="font-bold">Downloads</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.business?.model_downloads?.toLocaleString() || 0 }}</div>
+                  <div class="text-xs text-gray-400 mt-1">Model Downloads</div>
+                </div>
+
+                <!-- Training Runs -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-cog text-cyan-400 text-xl"></i>
+                    <span class="font-bold">Training</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.business?.training_runs?.toLocaleString() || 0 }}</div>
+                  <div class="text-xs text-gray-400 mt-1">Total Runs</div>
+                </div>
+
+                <!-- Active Installations (from metrics) -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-users text-teal-400 text-xl"></i>
+                    <span class="font-bold">Installations</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.business?.active_installations?.toLocaleString() || telemetryStatus.server_stats?.active_installations || 0 }}</div>
+                  <div class="text-xs text-gray-400 mt-1">Active (30d)</div>
+                </div>
+
+                <!-- Error Rate -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-exclamation-triangle text-orange-400 text-xl"></i>
+                    <span class="font-bold">Error Rate</span>
+                  </div>
+                  <div class="text-2xl font-bold">
+                    {{ (adminMetrics.requests?.total > 0 ? (adminMetrics.requests.errors / adminMetrics.requests.total * 100).toFixed(2) : 0) }}%
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Errors / Requests</div>
+                </div>
               </div>
             </Fieldset>
 
@@ -1157,6 +1303,111 @@
     </div>
 
     <!-- Dialogs -->
+
+    <!-- Installation Details Dialog -->
+    <Dialog
+      v-model:visible="installationDetailDialog"
+      modal
+      header="Installation Details"
+      :style="{ width: '90vw', maxWidth: '900px' }"
+      @hide="closeInstallationDetails"
+    >
+      <div v-if="loadingDetails" class="flex justify-center items-center p-8">
+        <i class="pi pi-spin pi-spinner text-4xl text-blue-500"></i>
+      </div>
+
+      <div v-else-if="installationDetails" class="flex flex-col gap-6">
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+            <div class="text-xs text-gray-400 uppercase mb-1">Heat Pump Model</div>
+            <div class="text-lg font-bold">{{ installationDetails.heatpump_model }}</div>
+          </div>
+
+          <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+            <div class="text-xs text-gray-400 uppercase mb-1">Total Submissions</div>
+            <div class="text-lg font-bold text-green-400">{{ installationDetails.total_submissions?.toLocaleString() || 0 }}</div>
+          </div>
+
+          <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+            <div class="text-xs text-gray-400 uppercase mb-1">Data Quality</div>
+            <div class="flex items-center gap-2">
+              <div class="text-lg font-bold" :class="installationDetails.data_quality_score >= 0.8 ? 'text-green-400' : 'text-yellow-400'">
+                {{ (installationDetails.data_quality_score * 100).toFixed(0) }}%
+              </div>
+              <i v-if="installationDetails.data_quality_score >= 0.8" class="pi pi-check-circle text-green-400"></i>
+              <i v-else class="pi pi-exclamation-triangle text-yellow-400"></i>
+            </div>
+          </div>
+
+          <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+            <div class="text-xs text-gray-400 uppercase mb-1">First Seen</div>
+            <div class="text-sm">{{ installationDetails.first_seen ? new Date(installationDetails.first_seen).toLocaleString('de-DE') : 'Unknown' }}</div>
+          </div>
+
+          <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+            <div class="text-xs text-gray-400 uppercase mb-1">Last Seen</div>
+            <div class="text-sm">{{ installationDetails.last_seen ? new Date(installationDetails.last_seen).toLocaleString('de-DE') : 'Unknown' }}</div>
+          </div>
+
+          <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+            <div class="text-xs text-gray-400 uppercase mb-1">Contribution Rank</div>
+            <div class="text-lg font-bold text-purple-400">{{ installationDetails.contribution_rank }}</div>
+          </div>
+        </div>
+
+        <!-- Model Downloads -->
+        <div v-if="installationDetails.model_downloads && installationDetails.model_downloads.length > 0">
+          <h3 class="text-lg font-bold mb-3 flex items-center gap-2">
+            <i class="pi pi-download text-green-400"></i>
+            Model Downloads
+          </h3>
+          <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+            <div class="space-y-2">
+              <div v-for="(download, idx) in installationDetails.model_downloads" :key="idx" class="flex justify-between items-center border-b border-gray-800 pb-2 last:border-0">
+                <span class="font-mono text-sm">{{ download.model }}</span>
+                <span class="text-xs text-gray-400">{{ new Date(download.downloaded_at).toLocaleString('de-DE') }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submission History Timeline -->
+        <div v-if="installationHistory && installationHistory.history && installationHistory.history.length > 0">
+          <h3 class="text-lg font-bold mb-3 flex items-center gap-2">
+            <i class="pi pi-clock text-blue-400"></i>
+            Recent Activity (Last 20 Entries)
+          </h3>
+          <div class="bg-gray-900/50 p-4 rounded border border-gray-700 max-h-64 overflow-y-auto">
+            <div class="space-y-2">
+              <div v-for="(entry, idx) in installationHistory.history" :key="idx" class="flex justify-between items-center text-sm border-b border-gray-800 pb-2 last:border-0">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-circle-fill text-xs text-blue-400"></i>
+                  <span class="font-mono text-xs text-gray-400">{{ entry.metric }}</span>
+                  <span class="text-xs px-2 py-0.5 bg-gray-800 rounded">{{ entry.count }} points</span>
+                </div>
+                <span class="text-xs text-gray-500">{{ new Date(entry.timestamp).toLocaleString('de-DE') }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Badge -->
+        <div v-if="installationDetails.is_admin" class="bg-yellow-900/20 border border-yellow-700 rounded p-3 flex items-center gap-2">
+          <i class="pi pi-crown text-yellow-500"></i>
+          <span class="text-yellow-200">This is an admin installation</span>
+        </div>
+      </div>
+
+      <div v-else class="p-8 text-center text-gray-400">
+        No data available
+      </div>
+
+      <template #footer>
+        <Button label="Schließen" icon="pi pi-times" @click="closeInstallationDetails" text />
+      </template>
+    </Dialog>
+
     <Dialog
       v-model:visible="showPasswordDialog"
       modal
@@ -1292,6 +1543,10 @@ import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { copyToClipboard } from '../utils/clipboard'
 import PrivacyPolicyDialog from '../components/PrivacyPolicyDialog.vue'
+import { Chart, registerables } from 'chart.js'
+
+// Register Chart.js components
+Chart.register(...registerables)
 
 const config = ref({
   installation_id: '',
@@ -1370,12 +1625,22 @@ const statusLoading = ref(false)
 const adminHealth = ref(null)
 const adminInstallations = ref(null)
 const adminModels = ref(null)
+const adminMetrics = ref(null)
 const communityStats = ref(null)
 const statsLoading = ref(false)
+const installationDetailDialog = ref(false)
+const selectedInstallation = ref(null)
+const installationDetails = ref(null)
+const installationHistory = ref(null)
+const loadingDetails = ref(false)
 const selectedStatsModel = ref(null)
 const statsMetrics = ref('cop_current, temp_outdoor')
 const modelDeleting = ref(false)
 const trainingInProgress = ref(false)
+const adminAutoRefresh = ref(true)
+let adminAutoRefreshInterval = null
+const modelDownloadsChart = ref(null)
+let modelDownloadsChartInstance = null
 const checkingUpdates = ref(false)
 const checkingModel = ref(false)
 const submittingTelemetry = ref(false)
@@ -1438,8 +1703,99 @@ const fetchAdminModels = async () => {
       params: { installation_id: config.value.installation_id }
     })
     adminModels.value = res.data
+
+    // Update chart after data is loaded
+    setTimeout(() => renderModelDownloadsChart(), 100)
   } catch (err) {
     console.error('Failed to fetch admin models:', err)
+  }
+}
+
+const renderModelDownloadsChart = () => {
+  if (!adminModels.value?.models || !modelDownloadsChart.value) return
+
+  const ctx = modelDownloadsChart.value.getContext('2d')
+
+  // Destroy existing chart instance
+  if (modelDownloadsChartInstance) {
+    modelDownloadsChartInstance.destroy()
+  }
+
+  // Prepare data
+  const models = adminModels.value.models
+    .filter(m => m.download_count > 0)
+    .sort((a, b) => b.download_count - a.download_count)
+    .slice(0, 10) // Show top 10
+
+  if (models.length === 0) {
+    // No downloads yet
+    return
+  }
+
+  const labels = models.map(m => m.name)
+  const data = models.map(m => m.download_count)
+
+  // Create new chart
+  modelDownloadsChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Downloads',
+        data: data,
+        backgroundColor: 'rgba(59, 130, 246, 0.7)', // Blue
+        borderColor: 'rgba(59, 130, 246, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        title: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1,
+            color: 'rgba(156, 163, 175, 0.8)'
+          },
+          grid: {
+            color: 'rgba(75, 85, 99, 0.2)'
+          }
+        },
+        x: {
+          ticks: {
+            color: 'rgba(156, 163, 175, 0.8)',
+            maxRotation: 45,
+            minRotation: 45
+          },
+          grid: {
+            display: false
+          }
+        }
+      }
+    }
+  })
+}
+
+const fetchAdminMetrics = async () => {
+  if (!telemetryStatus.value?.is_admin) return
+
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const res = await axios.get(`${telemetryUrl}/api/v1/admin/metrics`, {
+      params: { installation_id: config.value.installation_id }
+    })
+    adminMetrics.value = res.data
+  } catch (err) {
+    console.error('Failed to fetch admin metrics:', err)
   }
 }
 
@@ -1481,6 +1837,48 @@ const fetchCommunityAverages = async () => {
   }
 }
 
+const openInstallationDetails = async (installationId) => {
+  selectedInstallation.value = installationId
+  installationDetailDialog.value = true
+  loadingDetails.value = true
+  installationDetails.value = null
+  installationHistory.value = null
+
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+
+    // Fetch details and history in parallel
+    const [detailsRes, historyRes] = await Promise.all([
+      axios.get(`${telemetryUrl}/api/v1/admin/installations/${installationId}/details`, {
+        params: { installation_id: config.value.installation_id }
+      }),
+      axios.get(`${telemetryUrl}/api/v1/admin/installations/${installationId}/history`, {
+        params: { installation_id: config.value.installation_id, limit: 20 }
+      })
+    ])
+
+    installationDetails.value = detailsRes.data
+    installationHistory.value = historyRes.data
+  } catch (err) {
+    console.error('Failed to fetch installation details:', err)
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err.response?.data?.detail || 'Installation Details konnten nicht geladen werden',
+      life: 5000
+    })
+  } finally {
+    loadingDetails.value = false
+  }
+}
+
+const closeInstallationDetails = () => {
+  installationDetailDialog.value = false
+  selectedInstallation.value = null
+  installationDetails.value = null
+  installationHistory.value = null
+}
+
 const deleteModel = async (modelName) => {
   // Show confirmation dialog
   confirm.require({
@@ -1504,9 +1902,8 @@ const deleteModel = async (modelName) => {
           life: 3000
         })
 
-        // Refresh model list
-        await fetchAdminModels()
-        await fetchAdminHealth() // Update stats
+        // Refresh model list and stats in parallel
+        await Promise.all([fetchAdminModels(), fetchAdminHealth()])
       } catch (err) {
         console.error('Failed to delete model:', err)
         toast.add({
@@ -1564,6 +1961,8 @@ const passwordMismatch = computed(() => {
 
 onUnmounted(() => {
   if (aiStatusInterval) clearInterval(aiStatusInterval)
+  if (adminAutoRefreshInterval) clearInterval(adminAutoRefreshInterval)
+  if (modelDownloadsChartInstance) modelDownloadsChartInstance.destroy()
 })
 
 // Backup & Restore state
@@ -1778,14 +2177,50 @@ const loadTelemetryStatus = async () => {
     const res = await axios.get('/api/telemetry/status')
     telemetryStatus.value = res.data
 
-    // Load admin-specific data if admin
+    // Load admin-specific data if admin (parallel for better performance)
     if (res.data.is_admin) {
-      await fetchAdminHealth()
-      await fetchAdminInstallations()
-      await fetchAdminModels()
+      await Promise.all([
+        fetchAdminHealth(),
+        fetchAdminInstallations(),
+        fetchAdminModels(),
+        fetchAdminMetrics()
+      ])
+
+      // Start auto-refresh for admin data
+      startAdminAutoRefresh()
     }
   } catch (e) {
     console.error('Failed to load Telemetry status', e)
+  }
+}
+
+const startAdminAutoRefresh = () => {
+  // Clear existing interval if any
+  if (adminAutoRefreshInterval) {
+    clearInterval(adminAutoRefreshInterval)
+  }
+
+  // Set up auto-refresh every 30 seconds
+  adminAutoRefreshInterval = setInterval(async () => {
+    if (adminAutoRefresh.value && telemetryStatus.value?.is_admin) {
+      try {
+        await Promise.all([
+          fetchAdminHealth(),
+          fetchAdminInstallations(),
+          fetchAdminModels(),
+          fetchAdminMetrics()
+        ])
+      } catch (e) {
+        console.error('Auto-refresh failed', e)
+      }
+    }
+  }, 30000) // 30 seconds
+}
+
+const toggleAdminAutoRefresh = () => {
+  adminAutoRefresh.value = !adminAutoRefresh.value
+  if (adminAutoRefresh.value) {
+    startAdminAutoRefresh()
   }
 }
 
@@ -2125,3 +2560,27 @@ const confirmDeleteDatabase = async () => {
   }
 }
 </script>
+
+<style scoped>
+/* Counter transition animations */
+.counter-enter-active,
+.counter-leave-active {
+  transition: all 0.3s ease;
+}
+
+.counter-enter-from {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+}
+
+.counter-leave-to {
+  opacity: 0;
+  transform: translateY(10px) scale(0.95);
+}
+
+.counter-enter-to,
+.counter-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+</style>

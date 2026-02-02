@@ -249,9 +249,36 @@ class TelemetryManager:
             # Convert map to list
             payload_data = list(measurement_map.values())
 
-            # Batching (e.g. 5000 records per request)
-            # Reduced to 200 to avoid Nginx 413 Request Entity Too Large errors
-            BATCH_SIZE = 200
+            # Dynamic batch size calculation based on payload size
+            # Server has 10MB limit, but we use 8MB for safety margin
+            MAX_PAYLOAD_MB = 8
+            MAX_BATCH_SIZE = 1000
+            MIN_BATCH_SIZE = 100
+
+            # Estimate average record size from sample
+            if len(payload_data) > 0:
+                # Use first 10 records or all if less
+                sample_size = min(10, len(payload_data))
+                sample_json = json.dumps(payload_data[:sample_size])
+                avg_record_bytes = len(sample_json.encode('utf-8')) / sample_size
+
+                # Add overhead for payload wrapper (installation_id, model, etc.)
+                overhead_bytes = 500
+
+                # Calculate optimal batch size
+                optimal_batch = int(((MAX_PAYLOAD_MB * 1024 * 1024) - overhead_bytes) / avg_record_bytes)
+
+                # Clamp to min/max bounds
+                BATCH_SIZE = max(MIN_BATCH_SIZE, min(MAX_BATCH_SIZE, optimal_batch))
+
+                logger.info(
+                    f"Dynamic batch size: {BATCH_SIZE} records "
+                    f"(avg record size: {int(avg_record_bytes)} bytes, "
+                    f"total records: {len(payload_data)})"
+                )
+            else:
+                BATCH_SIZE = 200  # Fallback
+
             total_batches = (len(payload_data) + BATCH_SIZE - 1) // BATCH_SIZE
 
             headers = {
@@ -371,14 +398,60 @@ class TelemetryManager:
             )
             resp.raise_for_status()
 
-            # 3. Decrypt and Verify
+            # 3. Integrity Verification (BEFORE parsing/decryption)
+            raw_content = resp.content
+
+            # Verify SHA256 hash if provided
+            expected_hash = resp.headers.get("X-Model-Hash", "").strip()
+            if expected_hash:
+                actual_hash = hashlib.sha256(raw_content).hexdigest()
+                if not hmac.compare_digest(expected_hash.lower(), actual_hash.lower()):
+                    raise Exception(
+                        f"Hash-Verifizierung fehlgeschlagen! Erwartet: {expected_hash[:16]}..., "
+                        f"Erhalten: {actual_hash[:16]}... - Modell könnte manipuliert sein!"
+                    )
+                logger.info("Model hash verified successfully")
+            else:
+                logger.warning("No X-Model-Hash header found - hash verification skipped")
+
+            # Parse JSON envelope
             envelope = resp.json()
+
+            # Version compatibility check
+            envelope_version = envelope.get("version", "1.0")
+            supported_versions = ["1.0", "2.0"]
+            if envelope_version not in supported_versions:
+                raise Exception(
+                    f"Nicht unterstützte Modell-Version: {envelope_version}. "
+                    f"Unterstützte Versionen: {', '.join(supported_versions)}"
+                )
+            logger.info(f"Model version {envelope_version} is compatible")
 
             # Verify signature
             key = DEFAULT_ENCRYPTION_KEY
             payload_b64 = envelope["payload"]
             metadata = envelope["metadata"]
             signature = envelope["signature"]
+
+            # Timestamp verification (prevent replay attacks)
+            model_timestamp = metadata.get("timestamp")
+            if model_timestamp:
+                age_hours = (time.time() - model_timestamp) / 3600
+                # Models older than 90 days are suspicious
+                if age_hours > 90 * 24:
+                    logger.warning(
+                        f"Model is very old ({int(age_hours/24)} days). "
+                        "This could indicate a replay attack or outdated model."
+                    )
+                # Models from the future are definitely suspicious
+                if age_hours < -24:
+                    raise Exception(
+                        f"Model timestamp is in the future! Possible replay attack. "
+                        f"Model timestamp: {model_timestamp}, Current time: {time.time()}"
+                    )
+                logger.info(f"Model age: {int(age_hours/24)} days - timestamp valid")
+            else:
+                logger.warning("No timestamp in model metadata - replay protection unavailable")
 
             # Reconstruct message to sign
             metadata_json = json.dumps(metadata, sort_keys=True)
@@ -388,6 +461,8 @@ class TelemetryManager:
 
             if not hmac.compare_digest(expected_sig, signature):
                 raise Exception("Ungültige Signatur des Modells! Download abgebrochen.")
+
+            logger.info("Model signature verified successfully")
 
             # Decrypt
             f = Fernet(key)
