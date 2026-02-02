@@ -250,8 +250,8 @@ class TelemetryManager:
             payload_data = list(measurement_map.values())
 
             # Dynamic batch size calculation based on payload size
-            # Server has 10MB limit, but we use 8MB for safety margin
-            MAX_PAYLOAD_MB = 8
+            # Server seems to have strict limit (likely 1MB Nginx default), so we use 0.9MB
+            MAX_PAYLOAD_MB = 0.9
             MAX_BATCH_SIZE = 1000
             MIN_BATCH_SIZE = 100
 
