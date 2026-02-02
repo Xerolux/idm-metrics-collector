@@ -37,6 +37,7 @@ Path(TASK_STORAGE_DIR).mkdir(parents=True, exist_ok=True)
 
 class TaskStatus(str, Enum):
     """Training task status."""
+
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -47,6 +48,7 @@ class TaskStatus(str, Enum):
 @dataclass
 class TrainingTask:
     """Training task metadata."""
+
     task_id: str
     status: TaskStatus
     created_at: str
@@ -108,9 +110,7 @@ class TrainingQueue:
             logger.error("task_save_failed", error=str(e))
 
     async def enqueue_training(
-        self,
-        triggered_by: str,
-        script_path: str = "/app/scripts/train_models.py"
+        self, triggered_by: str, script_path: str = "/app/scripts/train_models.py"
     ) -> str:
         """
         Enqueue a new training task.
@@ -124,7 +124,9 @@ class TrainingQueue:
         """
         # Check if training is already running
         if self.current_task and not self.current_task.done():
-            raise ValueError("Training is already in progress. Please wait for it to complete.")
+            raise ValueError(
+                "Training is already in progress. Please wait for it to complete."
+            )
 
         # Generate task ID
         task_id = str(uuid.uuid4())
@@ -141,11 +143,7 @@ class TrainingQueue:
         self.tasks[task_id] = task
         self._save_tasks()
 
-        logger.info(
-            "training_task_queued",
-            task_id=task_id,
-            triggered_by=triggered_by
-        )
+        logger.info("training_task_queued", task_id=task_id, triggered_by=triggered_by)
 
         # Start training in background
         self.current_task_id = task_id
@@ -182,7 +180,7 @@ class TrainingQueue:
                 script_path,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd="/app"
+                cwd="/app",
             )
 
             # Update progress periodically
@@ -205,8 +203,8 @@ class TrainingQueue:
 
             # Update task with results
             task.returncode = process.returncode
-            task.stdout = stdout.decode('utf-8') if stdout else None
-            task.stderr = stderr.decode('utf-8') if stderr else None
+            task.stdout = stdout.decode("utf-8") if stdout else None
+            task.stderr = stderr.decode("utf-8") if stderr else None
             task.duration_seconds = duration
             task.completed_at = datetime.now(timezone.utc).isoformat()
 
@@ -214,11 +212,7 @@ class TrainingQueue:
                 task.status = TaskStatus.COMPLETED
                 task.progress = 100
                 task.message = f"Training completed successfully in {duration:.1f}s"
-                logger.info(
-                    "training_completed",
-                    task_id=task_id,
-                    duration=duration
-                )
+                logger.info("training_completed", task_id=task_id, duration=duration)
             else:
                 task.status = TaskStatus.FAILED
                 task.message = f"Training failed with exit code {process.returncode}"
@@ -226,7 +220,7 @@ class TrainingQueue:
                     "training_failed",
                     task_id=task_id,
                     returncode=process.returncode,
-                    stderr_preview=stderr[:500] if stderr else None
+                    stderr_preview=stderr[:500] if stderr else None,
                 )
 
         except asyncio.CancelledError:
@@ -242,11 +236,7 @@ class TrainingQueue:
             task.status = TaskStatus.FAILED
             task.message = f"Training failed: {str(e)}"
             task.completed_at = datetime.now(timezone.utc).isoformat()
-            logger.error(
-                "training_error",
-                task_id=task_id,
-                error=str(e)
-            )
+            logger.error("training_error", task_id=task_id, error=str(e))
 
         finally:
             # Always save final state
@@ -293,7 +283,9 @@ class TrainingQueue:
 
         # Don't include full stdout/stderr in status response (too large)
         # Only include if task failed and stderr is small
-        if task.status != TaskStatus.FAILED or (task.stderr and len(task.stderr) > 1000):
+        if task.status != TaskStatus.FAILED or (
+            task.stderr and len(task.stderr) > 1000
+        ):
             result["stdout"] = None
             result["stderr"] = None
 
@@ -339,11 +331,15 @@ class TrainingQueue:
             True if task was cancelled, False if not found or not running
         """
         if task_id != self.current_task_id:
-            logger.warning("cancel_training_failed", reason="not_current_task", task_id=task_id)
+            logger.warning(
+                "cancel_training_failed", reason="not_current_task", task_id=task_id
+            )
             return False
 
         if not self.current_task or self.current_task.done():
-            logger.warning("cancel_training_failed", reason="task_not_running", task_id=task_id)
+            logger.warning(
+                "cancel_training_failed", reason="task_not_running", task_id=task_id
+            )
             return False
 
         # Cancel the task
