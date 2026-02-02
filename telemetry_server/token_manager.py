@@ -16,7 +16,6 @@ import os
 import json
 import secrets
 import hashlib
-import time
 from pathlib import Path
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
@@ -65,7 +64,12 @@ class TokenManager:
         except Exception as e:
             logger.error("token_save_failed", error=str(e))
 
-    def generate_token(self, installation_id: str, metadata: Optional[Dict[str, Any]] = None, with_encryption_key: bool = True) -> tuple:
+    def generate_token(
+        self,
+        installation_id: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        with_encryption_key: bool = True,
+    ) -> tuple:
         """
         Generate a new authentication token (and optionally encryption key) for an installation.
 
@@ -90,8 +94,9 @@ class TokenManager:
         if with_encryption_key:
             # Generate 32-byte key for Fernet (AES-128 in CBC mode)
             from cryptography.fernet import Fernet
+
             encryption_key = Fernet.generate_key()  # Returns base64-encoded 32-byte key
-            encryption_key_b64 = encryption_key.decode('utf-8')  # Store as string
+            encryption_key_b64 = encryption_key.decode("utf-8")  # Store as string
 
         # Store token info
         self.tokens[installation_id] = {
@@ -101,7 +106,7 @@ class TokenManager:
             "created_at": datetime.now(timezone.utc).isoformat(),
             "last_used": None,
             "revoked": False,
-            "metadata": metadata or {}
+            "metadata": metadata or {},
         }
 
         self._save_tokens()
@@ -110,11 +115,11 @@ class TokenManager:
             "token_generated",
             installation_id=installation_id,
             token_hash_prefix=token_hash[:16],
-            has_encryption_key=with_encryption_key
+            has_encryption_key=with_encryption_key,
         )
 
         if with_encryption_key:
-            return (token, encryption_key.decode('utf-8'))  # Return as string
+            return (token, encryption_key.decode("utf-8"))  # Return as string
         else:
             return token
 
@@ -130,14 +135,22 @@ class TokenManager:
             True if token is valid, False otherwise
         """
         if installation_id not in self.tokens:
-            logger.debug("token_validation_failed", reason="installation_not_found", installation_id=installation_id)
+            logger.debug(
+                "token_validation_failed",
+                reason="installation_not_found",
+                installation_id=installation_id,
+            )
             return False
 
         token_info = self.tokens[installation_id]
 
         # Check if token is revoked
         if token_info.get("revoked", False):
-            logger.warning("token_validation_failed", reason="token_revoked", installation_id=installation_id)
+            logger.warning(
+                "token_validation_failed",
+                reason="token_revoked",
+                installation_id=installation_id,
+            )
             return False
 
         # Hash provided token and compare
@@ -146,15 +159,22 @@ class TokenManager:
 
         # Constant-time comparison
         import hmac
+
         is_valid = hmac.compare_digest(provided_hash, stored_hash)
 
         if is_valid:
             # Update last_used timestamp
-            self.tokens[installation_id]["last_used"] = datetime.now(timezone.utc).isoformat()
+            self.tokens[installation_id]["last_used"] = datetime.now(
+                timezone.utc
+            ).isoformat()
             self._save_tokens()
             logger.debug("token_validated", installation_id=installation_id)
         else:
-            logger.warning("token_validation_failed", reason="hash_mismatch", installation_id=installation_id)
+            logger.warning(
+                "token_validation_failed",
+                reason="hash_mismatch",
+                installation_id=installation_id,
+            )
 
         return is_valid
 
@@ -169,11 +189,17 @@ class TokenManager:
             True if token was revoked, False if not found
         """
         if installation_id not in self.tokens:
-            logger.warning("token_revocation_failed", reason="not_found", installation_id=installation_id)
+            logger.warning(
+                "token_revocation_failed",
+                reason="not_found",
+                installation_id=installation_id,
+            )
             return False
 
         self.tokens[installation_id]["revoked"] = True
-        self.tokens[installation_id]["revoked_at"] = datetime.now(timezone.utc).isoformat()
+        self.tokens[installation_id]["revoked_at"] = datetime.now(
+            timezone.utc
+        ).isoformat()
         self._save_tokens()
 
         logger.info("token_revoked", installation_id=installation_id)
@@ -181,7 +207,9 @@ class TokenManager:
 
     def token_exists(self, installation_id: str) -> bool:
         """Check if a token exists for an installation."""
-        return installation_id in self.tokens and not self.tokens[installation_id].get("revoked", False)
+        return installation_id in self.tokens and not self.tokens[installation_id].get(
+            "revoked", False
+        )
 
     def get_encryption_key(self, installation_id: str) -> Optional[bytes]:
         """
@@ -201,7 +229,11 @@ class TokenManager:
         token_info = self.tokens[installation_id]
 
         if token_info.get("revoked", False):
-            logger.warning("encryption_key_access_denied", reason="token_revoked", installation_id=installation_id)
+            logger.warning(
+                "encryption_key_access_denied",
+                reason="token_revoked",
+                installation_id=installation_id,
+            )
             return None
 
         encryption_key_b64 = token_info.get("encryption_key_b64")
@@ -209,7 +241,7 @@ class TokenManager:
             return None
 
         # Decode from base64 string to bytes
-        return encryption_key_b64.encode('utf-8')
+        return encryption_key_b64.encode("utf-8")
 
     def has_encryption_key(self, installation_id: str) -> bool:
         """Check if an installation has a personal encryption key."""
@@ -217,7 +249,10 @@ class TokenManager:
             return False
 
         token_info = self.tokens[installation_id]
-        return token_info.get("has_encryption_key", False) and token_info.get("encryption_key_b64") is not None
+        return (
+            token_info.get("has_encryption_key", False)
+            and token_info.get("encryption_key_b64") is not None
+        )
 
     def get_token_info(self, installation_id: str) -> Optional[Dict[str, Any]]:
         """Get token info (without the actual token or encryption key)."""
@@ -258,7 +293,12 @@ token_manager = TokenManager()
 
 # Convenience functions
 
-def generate_token(installation_id: str, metadata: Optional[Dict[str, Any]] = None, with_encryption_key: bool = True):
+
+def generate_token(
+    installation_id: str,
+    metadata: Optional[Dict[str, Any]] = None,
+    with_encryption_key: bool = True,
+):
     """Generate a new token (and optionally encryption key) for an installation."""
     return token_manager.generate_token(installation_id, metadata, with_encryption_key)
 

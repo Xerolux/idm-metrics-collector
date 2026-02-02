@@ -102,9 +102,9 @@ class TestTelemetry(unittest.TestCase):
 
         self.tm._load_state()
 
-        # 250 records
+        # 1100 records (to force batching since MAX_BATCH_SIZE=1000)
         records = []
-        for i in range(250):
+        for i in range(1100):
             records.append(
                 json.dumps(
                     {
@@ -173,6 +173,11 @@ class TestTelemetry(unittest.TestCase):
         mock_resp_download = MagicMock()
         mock_resp_download.status_code = 200
         mock_resp_download.json.return_value = envelope
+        # Content is needed for hash verification
+        mock_resp_download.content = json.dumps(envelope).encode("utf-8")
+        # Headers needed to avoid MagicMock in get()
+        actual_hash = hashlib.sha256(mock_resp_download.content).hexdigest()
+        mock_resp_download.headers = {"X-Model-Hash": actual_hash}
 
         mock_resp_upload = MagicMock()
         mock_resp_upload.status_code = 200
@@ -246,6 +251,57 @@ class TestTelemetry(unittest.TestCase):
         # Verify
         self.assertFalse(self.tm.is_admin)
         self.assertIsNone(self.tm.server_stats)
+
+    @patch("idm_logger.telemetry.requests")
+    def test_submit_data_large_records(self, mock_requests):
+        """Test with large records to verify dynamic batching."""
+        self.mock_get.side_effect = lambda k, d=None: {
+            "telemetry.enabled": True,
+            "telemetry.server_url": "http://test-server",
+            "telemetry.auth_token": "token",
+            "metrics.url": "http://vm:8428/write",
+            "installation_id": "uuid",
+            "hp_model": "TestModel",
+        }.get(k, d)
+
+        self.tm._load_state()
+
+        # Simulate large records using long metric names
+        # The telemetry manager discards unknown fields, so we must use valid fields to increase size.
+        # It aggregates by timestamp, so one long metric name per timestamp will result in a large record.
+        long_metric_suffix = "x" * 3500
+        metric_name = f"idm_heatpump_large_metric_{long_metric_suffix}"
+
+        # 2880 records (total ~10MB)
+        records = []
+        for i in range(2880):
+            records.append(
+                json.dumps(
+                    {
+                        "metric": {"__name__": metric_name},
+                        "values": [i],
+                        "timestamps": [i * 1000],
+                    }
+                ).encode()
+            )
+
+        mock_response_vm = MagicMock()
+        mock_response_vm.status_code = 200
+        mock_response_vm.iter_lines.return_value = records
+        mock_requests.get.return_value = mock_response_vm
+        mock_requests.post.return_value = MagicMock(status_code=200)
+
+        # Run
+        success = self.tm.submit_data()
+
+        self.assertTrue(success)
+
+        # New behavior: MAX_PAYLOAD_MB = 0.9
+        # Avg size ~3610 bytes.
+        # Batch size calc: (0.9 * 1024 * 1024 - 500) / 3610 = ~261
+        # So 2880 / 261 = ~11 batches.
+        self.assertTrue(mock_requests.post.call_count >= 10)
+        self.assertTrue(mock_requests.post.call_count <= 15)
 
 
 if __name__ == "__main__":

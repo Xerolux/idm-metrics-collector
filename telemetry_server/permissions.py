@@ -17,14 +17,16 @@ import os
 import json
 import structlog
 from pathlib import Path
-from typing import Set, Dict, Optional, List
+from typing import Set, Dict, Optional
 from datetime import datetime, timezone
 from fastapi import HTTPException
 
 logger = structlog.get_logger()
 
 # Permission storage location
-PERMISSION_STORAGE_DIR = os.environ.get("PERMISSION_STORAGE_DIR", "/var/lib/telemetry/permissions")
+PERMISSION_STORAGE_DIR = os.environ.get(
+    "PERMISSION_STORAGE_DIR", "/var/lib/telemetry/permissions"
+)
 PERMISSION_FILE = os.path.join(PERMISSION_STORAGE_DIR, "admin_permissions.json")
 
 # Ensure storage directory exists
@@ -99,12 +101,7 @@ class PermissionManager:
         except Exception as e:
             logger.error("permission_save_failed", error=str(e))
 
-    def grant_permission(
-        self,
-        admin_id: str,
-        permission: str,
-        granted_by: str
-    ) -> bool:
+    def grant_permission(self, admin_id: str, permission: str, granted_by: str) -> bool:
         """
         Grant a permission to an admin.
 
@@ -130,7 +127,9 @@ class PermissionManager:
 
         if permission not in self.admin_permissions[admin_id]["permissions"]:
             self.admin_permissions[admin_id]["permissions"].append(permission)
-            self.admin_permissions[admin_id]["last_modified"] = datetime.now(timezone.utc).isoformat()
+            self.admin_permissions[admin_id]["last_modified"] = datetime.now(
+                timezone.utc
+            ).isoformat()
             self.admin_permissions[admin_id]["last_modified_by"] = granted_by
             self._save_permissions()
 
@@ -138,18 +137,17 @@ class PermissionManager:
                 "permission_granted",
                 admin_id=admin_id,
                 permission=permission,
-                granted_by=granted_by
+                granted_by=granted_by,
             )
             return True
         else:
-            logger.debug("permission_already_exists", admin_id=admin_id, permission=permission)
+            logger.debug(
+                "permission_already_exists", admin_id=admin_id, permission=permission
+            )
             return False
 
     def revoke_permission(
-        self,
-        admin_id: str,
-        permission: str,
-        revoked_by: str
+        self, admin_id: str, permission: str, revoked_by: str
     ) -> bool:
         """
         Revoke a permission from an admin.
@@ -165,12 +163,16 @@ class PermissionManager:
         admin_id = admin_id.lower()
 
         if admin_id not in self.admin_permissions:
-            logger.warning("revoke_permission_failed", reason="admin_not_found", admin_id=admin_id)
+            logger.warning(
+                "revoke_permission_failed", reason="admin_not_found", admin_id=admin_id
+            )
             return False
 
         if permission in self.admin_permissions[admin_id]["permissions"]:
             self.admin_permissions[admin_id]["permissions"].remove(permission)
-            self.admin_permissions[admin_id]["last_modified"] = datetime.now(timezone.utc).isoformat()
+            self.admin_permissions[admin_id]["last_modified"] = datetime.now(
+                timezone.utc
+            ).isoformat()
             self.admin_permissions[admin_id]["last_modified_by"] = revoked_by
             self._save_permissions()
 
@@ -178,11 +180,13 @@ class PermissionManager:
                 "permission_revoked",
                 admin_id=admin_id,
                 permission=permission,
-                revoked_by=revoked_by
+                revoked_by=revoked_by,
             )
             return True
         else:
-            logger.debug("permission_not_found", admin_id=admin_id, permission=permission)
+            logger.debug(
+                "permission_not_found", admin_id=admin_id, permission=permission
+            )
             return False
 
     def has_permission(self, admin_id: str, permission: str) -> bool:
@@ -199,7 +203,9 @@ class PermissionManager:
         admin_id = admin_id.lower()
 
         if admin_id not in self.admin_permissions:
-            logger.debug("permission_check_failed", reason="admin_not_found", admin_id=admin_id)
+            logger.debug(
+                "permission_check_failed", reason="admin_not_found", admin_id=admin_id
+            )
             return False
 
         admin_perms = set(self.admin_permissions[admin_id]["permissions"])
@@ -244,7 +250,10 @@ class PermissionManager:
     def is_admin(self, admin_id: str) -> bool:
         """Check if an installation_id is an admin (has any permissions)."""
         admin_id = admin_id.lower()
-        return admin_id in self.admin_permissions and len(self.admin_permissions[admin_id]["permissions"]) > 0
+        return (
+            admin_id in self.admin_permissions
+            and len(self.admin_permissions[admin_id]["permissions"]) > 0
+        )
 
     def list_admins(self) -> Dict[str, Dict]:
         """List all admins with their permissions (for admin UI)."""
@@ -279,6 +288,7 @@ permission_manager = PermissionManager()
 
 # Convenience functions
 
+
 def has_permission(admin_id: str, permission: str) -> bool:
     """Check if an admin has a specific permission."""
     return permission_manager.has_permission(admin_id, permission)
@@ -300,7 +310,6 @@ def require_permission(permission: str):
             ...
     """
     from functools import wraps
-    from fastapi import HTTPException
 
     def decorator(func):
         @wraps(func)
@@ -310,8 +319,7 @@ def require_permission(permission: str):
 
             if not admin_id:
                 raise HTTPException(
-                    status_code=500,
-                    detail="Internal error: admin_id not provided"
+                    status_code=500, detail="Internal error: admin_id not provided"
                 )
 
             if not has_permission(admin_id, permission):
@@ -319,11 +327,11 @@ def require_permission(permission: str):
                     "permission_denied",
                     admin_id=admin_id,
                     permission=permission,
-                    has_permissions=list(permission_manager.get_permissions(admin_id))
+                    has_permissions=list(permission_manager.get_permissions(admin_id)),
                 )
                 raise HTTPException(
                     status_code=403,
-                    detail=f"Insufficient permissions. Required: {permission}"
+                    detail=f"Insufficient permissions. Required: {permission}",
                 )
 
             logger.debug("permission_granted", admin_id=admin_id, permission=permission)

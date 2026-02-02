@@ -14,7 +14,7 @@ import os
 import httpx
 import time
 import asyncio
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 import hashlib
 import re
 import uuid
@@ -32,14 +32,11 @@ from audit_log import (
     log_model_delete,
     log_model_download,
     log_training_trigger,
-    log_failed_auth,
-    log_admin_access,
 )
 from token_manager import (
     token_manager,
     generate_token,
     validate_token as validate_installation_token,
-    revoke_token,
     token_exists,
     get_encryption_key,
     has_encryption_key,
@@ -48,7 +45,6 @@ from permissions import (
     permission_manager,
     has_permission,
     is_admin,
-    require_permission,
     PERMISSIONS,
 )
 from training_queue import training_queue, TaskStatus
@@ -73,10 +69,13 @@ AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "change-me-to-something-secure")
 # Shared encryption key for backward compatibility
 # Per-installation keys are preferred (see token_manager.py)
 _encryption_key_str = os.environ.get(
-    "TELEMETRY_ENCRYPTION_KEY",
-    "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA="
+    "TELEMETRY_ENCRYPTION_KEY", "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA="
 )
-DEFAULT_ENCRYPTION_KEY = _encryption_key_str.encode() if isinstance(_encryption_key_str, str) else _encryption_key_str
+DEFAULT_ENCRYPTION_KEY = (
+    _encryption_key_str.encode()
+    if isinstance(_encryption_key_str, str)
+    else _encryption_key_str
+)
 
 # Setup Structured Logging
 structlog.configure(
@@ -145,7 +144,9 @@ DEFAULT_BAN_DURATION = int(
 # Cache configurations
 HASH_CACHE_TTL = int(os.environ.get("HASH_CACHE_TTL", "3600"))  # 1 hour
 POOL_STATS_CACHE_TTL = int(os.environ.get("POOL_STATS_CACHE_TTL", "60"))  # 1 minute
-COMMUNITY_AVG_CACHE_TTL = int(os.environ.get("COMMUNITY_AVG_CACHE_TTL", "300"))  # 5 minutes
+COMMUNITY_AVG_CACHE_TTL = int(
+    os.environ.get("COMMUNITY_AVG_CACHE_TTL", "300")
+)  # 5 minutes
 
 # Redis configuration (optional, for persistent rate limiting)
 REDIS_URL = os.environ.get(
@@ -241,11 +242,13 @@ async def cleanup_rate_limits_and_bans():
                 del _community_avg_cache[cache_key]
 
             if expired_avg_cache:
-                logger.info("community_avg_cache_cleanup", expired=len(expired_avg_cache))
+                logger.info(
+                    "community_avg_cache_cleanup", expired=len(expired_avg_cache)
+                )
 
             # Clean old audit logs (run once per day)
             # Check if we should run daily cleanup (every ~288 iterations of 5min = 24h)
-            if not hasattr(cleanup_rate_limits_and_bans, '_cleanup_counter'):
+            if not hasattr(cleanup_rate_limits_and_bans, "_cleanup_counter"):
                 cleanup_rate_limits_and_bans._cleanup_counter = 0
 
             cleanup_rate_limits_and_bans._cleanup_counter += 1
@@ -810,8 +813,7 @@ async def verify_token(authorization: Optional[str] = Header(None)):
 
 
 async def verify_token_with_fallback(
-    installation_id: str,
-    authorization: Optional[str] = Header(None)
+    installation_id: str, authorization: Optional[str] = Header(None)
 ):
     """
     Verify token with fallback to global token for backward compatibility.
@@ -832,28 +834,44 @@ async def verify_token_with_fallback(
     # Try per-installation token first
     if token_exists(installation_id):
         if validate_installation_token(installation_id, token):
-            logger.debug("token_validated", installation_id=installation_id, type="per_installation")
+            logger.debug(
+                "token_validated",
+                installation_id=installation_id,
+                type="per_installation",
+            )
             return
         else:
             # Token exists but doesn't match - fail immediately
             logger.warning("token_mismatch", installation_id=installation_id)
-            raise HTTPException(status_code=403, detail="Invalid Token for this installation")
+            raise HTTPException(
+                status_code=403, detail="Invalid Token for this installation"
+            )
 
     # Fallback to global token (for backward compatibility / migration)
     if AUTH_TOKEN and token == AUTH_TOKEN:
-        logger.info("global_token_used", installation_id=installation_id, migrating=True)
+        logger.info(
+            "global_token_used", installation_id=installation_id, migrating=True
+        )
         # Auto-register this installation with unique token AND encryption key
         try:
-            result = generate_token(
+            generate_token(
                 installation_id,
                 metadata={"migrated_from_global": True},
-                with_encryption_key=True
+                with_encryption_key=True,
             )
             # Result is tuple of (token, encryption_key)
-            logger.info("installation_auto_registered", installation_id=installation_id, has_encryption_key=True)
+            logger.info(
+                "installation_auto_registered",
+                installation_id=installation_id,
+                has_encryption_key=True,
+            )
             # Note: Client doesn't know about the new credentials yet, but on next model check it will be notified
         except Exception as e:
-            logger.error("auto_registration_failed", installation_id=installation_id, error=str(e))
+            logger.error(
+                "auto_registration_failed",
+                installation_id=installation_id,
+                error=str(e),
+            )
         return
 
     # Neither per-installation nor global token worked
@@ -864,7 +882,7 @@ async def verify_token_with_fallback(
 async def register_installation(
     installation_id: str,
     heatpump_model: Optional[str] = None,
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
 ):
     """
     Register a new installation and receive a unique authentication token.
@@ -892,14 +910,16 @@ async def register_installation(
 
     scheme, _, token = authorization.partition(" ")
     if scheme.lower() != "bearer" or token != AUTH_TOKEN:
-        raise HTTPException(status_code=403, detail="Invalid global token for registration")
+        raise HTTPException(
+            status_code=403, detail="Invalid global token for registration"
+        )
 
     # Check if already registered
     if token_exists(installation_id):
         logger.warning("registration_duplicate", installation_id=installation_id)
         raise HTTPException(
             status_code=409,
-            detail="Installation already registered. Use /api/v1/token/refresh to get a new token."
+            detail="Installation already registered. Use /api/v1/token/refresh to get a new token.",
         )
 
     # Generate new token AND encryption key
@@ -907,13 +927,17 @@ async def register_installation(
         result = generate_token(
             installation_id,
             metadata={"heatpump_model": heatpump_model} if heatpump_model else {},
-            with_encryption_key=True  # Generate encryption key alongside token
+            with_encryption_key=True,  # Generate encryption key alongside token
         )
 
         # Unpack result (tuple of token, encryption_key)
         new_token, encryption_key = result
 
-        logger.info("installation_registered", installation_id=installation_id, has_encryption_key=True)
+        logger.info(
+            "installation_registered",
+            installation_id=installation_id,
+            has_encryption_key=True,
+        )
 
         return {
             "installation_id": installation_id,
@@ -921,10 +945,12 @@ async def register_installation(
             "encryption_key": encryption_key,  # NEW: Per-installation encryption key
             "registered_at": datetime.now(timezone.utc).isoformat(),
             "message": "Credentials generated successfully. Store these securely - they won't be shown again!",
-            "security_note": "Your personal encryption key provides additional security. Future model downloads will use per-installation encryption."
+            "security_note": "Your personal encryption key provides additional security. Future model downloads will use per-installation encryption.",
         }
     except Exception as e:
-        logger.error("registration_failed", installation_id=installation_id, error=str(e))
+        logger.error(
+            "registration_failed", installation_id=installation_id, error=str(e)
+        )
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 
@@ -932,7 +958,7 @@ async def register_installation(
 async def submit_telemetry(
     payload: TelemetryPayload,
     request: Request,
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
 ):
     """
     Ingest telemetry data and forward to VictoriaMetrics.
@@ -1027,7 +1053,9 @@ async def submit_telemetry(
 
             # Track business metrics
             if PROMETHEUS_AVAILABLE:
-                data_submissions_total.labels(heatpump_model=payload.heatpump_model).inc()
+                data_submissions_total.labels(
+                    heatpump_model=payload.heatpump_model
+                ).inc()
                 data_points_submitted_total.inc(len(lines))
 
         return JSONResponse(
@@ -1286,7 +1314,7 @@ async def check_eligibility(
             result["token_info"] = {
                 "created_at": token_info.get("created_at") if token_info else None,
                 "last_used": token_info.get("last_used") if token_info else None,
-                "message": "You have a personal authentication token. Make sure to use it instead of the shared token."
+                "message": "You have a personal authentication token. Make sure to use it instead of the shared token.",
             }
 
         # Add encryption key information (for per-installation encryption)
@@ -1294,7 +1322,7 @@ async def check_eligibility(
         if result["has_personal_encryption_key"]:
             result["encryption_key_info"] = {
                 "message": "You have a personal encryption key for enhanced security. This will be used for future model encryption.",
-                "note": "Currently using shared encryption for backward compatibility. Migration to per-installation encryption is planned."
+                "note": "Currently using shared encryption for backward compatibility. Migration to per-installation encryption is planned.",
             }
 
         return result
@@ -1390,7 +1418,7 @@ async def download_model(
             installation_id=installation_id,
             ip_address=client_ip,
             model_name=model_file.stem,
-            success=True
+            success=True,
         )
 
         # Check if installation has personal encryption key
@@ -1401,18 +1429,18 @@ async def download_model(
             logger.info(
                 "model_reencrypt_personal",
                 installation_id=installation_id,
-                model=model_file.stem
+                model=model_file.stem,
             )
 
             try:
                 # Read encrypted model file (JSON envelope)
                 def _read_and_reencrypt():
-                    with open(model_file, 'r', encoding='utf-8') as f:
+                    with open(model_file, "r", encoding="utf-8") as f:
                         envelope = json.load(f)
 
                     # Decrypt with shared key
                     shared_fernet = Fernet(DEFAULT_ENCRYPTION_KEY)
-                    encrypted_data = base64.b64decode(envelope['payload'])
+                    encrypted_data = base64.b64decode(envelope["payload"])
                     model_data = shared_fernet.decrypt(encrypted_data)
 
                     # Encrypt with personal key
@@ -1423,8 +1451,8 @@ async def download_model(
                     new_envelope = {
                         "version": envelope.get("version", "2.0"),
                         "metadata": envelope["metadata"].copy(),
-                        "payload": base64.b64encode(personal_encrypted).decode('utf-8'),
-                        "encryption": "per-installation"  # Mark as personally encrypted
+                        "payload": base64.b64encode(personal_encrypted).decode("utf-8"),
+                        "encryption": "per-installation",  # Mark as personally encrypted
                     }
 
                     # Add installation info to metadata
@@ -1433,7 +1461,7 @@ async def download_model(
 
                     # Create signature with personal key
                     metadata_json = json.dumps(new_envelope["metadata"], sort_keys=True)
-                    msg = f"{new_envelope['payload']}.{metadata_json}".encode('utf-8')
+                    msg = f"{new_envelope['payload']}.{metadata_json}".encode("utf-8")
                     signature = hmac.new(personal_key, msg, hashlib.sha256).hexdigest()
                     new_envelope["signature"] = signature
 
@@ -1446,10 +1474,7 @@ async def download_model(
 
                 # Write to temporary file
                 temp_file = tempfile.NamedTemporaryFile(
-                    mode='w',
-                    suffix='.enc',
-                    delete=False,
-                    encoding='utf-8'
+                    mode="w", suffix=".enc", delete=False, encoding="utf-8"
                 )
                 try:
                     json.dump(new_envelope, temp_file, indent=2)
@@ -1475,7 +1500,7 @@ async def download_model(
                     logger.info(
                         "model_download_personal_encryption",
                         installation_id=installation_id,
-                        model=model_file.stem
+                        model=model_file.stem,
                     )
 
                     return response
@@ -1484,7 +1509,7 @@ async def download_model(
                     # Clean up temp file on error
                     try:
                         os.unlink(temp_file.name)
-                    except:
+                    except Exception:
                         pass
                     raise e
 
@@ -1493,7 +1518,7 @@ async def download_model(
                     "personal_encryption_failed",
                     installation_id=installation_id,
                     error=str(e),
-                    fallback_to_shared=True
+                    fallback_to_shared=True,
                 )
                 # Fall through to shared encryption on error
 
@@ -1592,7 +1617,9 @@ async def community_averages(
     if cache_key in _community_avg_cache:
         cached_result, cached_time = _community_avg_cache[cache_key]
         if time.time() - cached_time < COMMUNITY_AVG_CACHE_TTL:
-            logger.info("community_averages_cache_hit", model=model, metrics=len(metric_list))
+            logger.info(
+                "community_averages_cache_hit", model=model, metrics=len(metric_list)
+            )
 
             # Track cache hit metric
             if PROMETHEUS_AVAILABLE:
@@ -1654,7 +1681,9 @@ async def verify_admin(
             raise HTTPException(status_code=403, detail="Not authorized as admin")
         else:
             # Legacy admin - automatically grant full permissions
-            logger.info("legacy_admin_detected", installation_id=installation_id, migrating=True)
+            logger.info(
+                "legacy_admin_detected", installation_id=installation_id, migrating=True
+            )
 
     return installation_id  # Return for use in endpoints
 
@@ -1690,8 +1719,7 @@ async def admin_list_models(
     # Check permission
     if not has_permission(admin_id, "admin:view"):
         raise HTTPException(
-            status_code=403,
-            detail="Insufficient permissions. Required: admin:view"
+            status_code=403, detail="Insufficient permissions. Required: admin:view"
         )
 
     model_dir = Path(MODEL_DIR)
@@ -1704,9 +1732,11 @@ async def admin_list_models(
         if PROMETHEUS_AVAILABLE:
             try:
                 # Get the counter value for this specific model
-                metric_value = model_downloads_total.labels(model=model_file.stem)._value.get()
+                metric_value = model_downloads_total.labels(
+                    model=model_file.stem
+                )._value.get()
                 download_count = int(metric_value) if metric_value else 0
-            except:
+            except Exception:
                 download_count = 0
 
         return {
@@ -1749,8 +1779,7 @@ async def admin_delete_model(
     # Check permission
     if not has_permission(admin_id, "admin:models"):
         raise HTTPException(
-            status_code=403,
-            detail="Insufficient permissions. Required: admin:models"
+            status_code=403, detail="Insufficient permissions. Required: admin:models"
         )
 
     # Sanitize model name
@@ -1785,7 +1814,7 @@ async def admin_delete_model(
             admin_id=installation_id,
             ip_address=client_ip,
             model_name=safe_name,
-            success=True
+            success=True,
         )
 
         return {"success": True, "message": f"Model {safe_name} deleted"}
@@ -1797,7 +1826,7 @@ async def admin_delete_model(
             admin_id=installation_id,
             ip_address=client_ip,
             model_name=safe_name,
-            success=False
+            success=False,
         )
 
         raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")
@@ -1816,8 +1845,7 @@ async def admin_trigger_training(
     # Check permission
     if not has_permission(admin_id, "admin:training"):
         raise HTTPException(
-            status_code=403,
-            detail="Insufficient permissions. Required: admin:training"
+            status_code=403, detail="Insufficient permissions. Required: admin:training"
         )
 
     # Get client IP for audit log
@@ -1846,9 +1874,9 @@ async def admin_trigger_training(
             ip_address=client_ip,
             success=True,
             metadata={
-                "task_id": task_id,
-                "async": True
-            }
+                "returncode": result.returncode,
+                "has_stderr": bool(result.stderr),
+            },
         )
 
         return {
@@ -1884,7 +1912,7 @@ async def admin_trigger_training(
             admin_id=admin_id,
             ip_address=client_ip,
             success=False,
-            metadata={"error": str(e)}
+            metadata={"error": str(e)},
         )
 
         raise HTTPException(
@@ -2134,7 +2162,9 @@ async def admin_installation_details(
         client = request.app.state.http_client
 
         # Get all metrics for this installation (30d window)
-        metrics_query = f'{{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}'
+        metrics_query = (
+            f'{{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}'
+        )
         response = await client.get(VM_QUERY_URL, params={"query": metrics_query})
 
         if response.status_code != 200:
@@ -2142,7 +2172,9 @@ async def admin_installation_details(
 
         data = response.json()
         if not data.get("data") or not data["data"].get("result"):
-            raise HTTPException(status_code=404, detail="No data found for this installation")
+            raise HTTPException(
+                status_code=404, detail="No data found for this installation"
+            )
 
         results = data["data"]["result"]
 
@@ -2162,7 +2194,9 @@ async def admin_installation_details(
             count_data = count_resp.json()
             if count_data.get("data") and count_data["data"].get("result"):
                 total_submissions = sum(
-                    int(float(r["value"][1])) for r in count_data["data"]["result"] if r.get("value")
+                    int(float(r["value"][1]))
+                    for r in count_data["data"]["result"]
+                    if r.get("value")
                 )
 
         # Get first seen (earliest timestamp)
@@ -2174,7 +2208,11 @@ async def admin_installation_details(
             first_data = first_resp.json()
             if first_data.get("data") and first_data["data"].get("result"):
                 # Get the timestamp of the earliest metric
-                timestamps = [float(r["value"][0]) for r in first_data["data"]["result"] if r.get("value")]
+                timestamps = [
+                    float(r["value"][0])
+                    for r in first_data["data"]["result"]
+                    if r.get("value")
+                ]
                 if timestamps:
                     first_seen = min(timestamps)
 
@@ -2185,22 +2223,23 @@ async def admin_installation_details(
         last_seen = None
         if last_resp.status_code == 200:
             last_data = last_resp.json()
-            if last_data.get("data") and last_data["data"]["result"):
+            if last_data.get("data") and last_data["data"]["result"]:
                 last_seen = float(last_data["data"]["result"][0]["value"][0])
 
         # Calculate data quality score (based on completeness and consistency)
         # Simple heuristic: more metrics = better quality
         unique_metrics = len(set(r["metric"]["__name__"] for r in results))
-        data_quality_score = min(1.0, unique_metrics / 20.0)  # Assuming 20+ metrics = good quality
+        data_quality_score = min(
+            1.0, unique_metrics / 20.0
+        )  # Assuming 20+ metrics = good quality
 
         # Get model download history (from audit log if available)
         model_downloads = []
         try:
             from audit_log import get_audit_logs
+
             logs = get_audit_logs(
-                action="model_download",
-                installation_id=target_id,
-                limit=50
+                action="model_download", installation_id=target_id, limit=50
             )
             model_downloads = [
                 {
@@ -2215,15 +2254,22 @@ async def admin_installation_details(
 
         # Calculate contribution rank
         # Get all installations and rank by submission count
-        all_installations_query = 'group by(installation_id) (count by (installation_id))'
-        rank_resp = await client.get(VM_QUERY_URL, params={"query": all_installations_query})
+        all_installations_query = (
+            "group by(installation_id) (count by (installation_id))"
+        )
+        rank_resp = await client.get(
+            VM_QUERY_URL, params={"query": all_installations_query}
+        )
 
         contribution_rank = "Unknown"
         if rank_resp.status_code == 200:
             rank_data = rank_resp.json()
             if rank_data.get("data") and rank_data["data"].get("result"):
-                counts = [(r["metric"].get("installation_id"), int(r["value"][1]))
-                          for r in rank_data["data"]["result"] if r.get("value")]
+                counts = [
+                    (r["metric"].get("installation_id"), int(r["value"][1]))
+                    for r in rank_data["data"]["result"]
+                    if r.get("value")
+                ]
                 counts.sort(key=lambda x: x[1], reverse=True)
 
                 total_installs = len(counts)
@@ -2243,8 +2289,12 @@ async def admin_installation_details(
         return {
             "installation_id": target_id,
             "heatpump_model": heatpump_model,
-            "first_seen": datetime.fromtimestamp(first_seen, timezone.utc).isoformat() if first_seen else None,
-            "last_seen": datetime.fromtimestamp(last_seen, timezone.utc).isoformat() if last_seen else None,
+            "first_seen": datetime.fromtimestamp(first_seen, timezone.utc).isoformat()
+            if first_seen
+            else None,
+            "last_seen": datetime.fromtimestamp(last_seen, timezone.utc).isoformat()
+            if last_seen
+            else None,
             "total_submissions": total_submissions,
             "data_quality_score": round(data_quality_score, 2),
             "model_downloads": model_downloads,
@@ -2256,7 +2306,9 @@ async def admin_installation_details(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("admin_installation_details_failed", error=str(e), installation_id=target_id)
+        logger.error(
+            "admin_installation_details_failed", error=str(e), installation_id=target_id
+        )
         raise HTTPException(
             status_code=500, detail=f"Failed to get installation details: {str(e)}"
         )
@@ -2286,10 +2338,10 @@ async def admin_installation_history(
             VM_QUERY_URL.replace("/query", "/query_range"),
             params={
                 "query": query,
-                "start": int(time.time()) - 30*24*3600,  # 30 days ago
+                "start": int(time.time()) - 30 * 24 * 3600,  # 30 days ago
                 "end": int(time.time()),
                 "step": "3600",  # 1 hour resolution
-            }
+            },
         )
 
         history = []
@@ -2300,11 +2352,15 @@ async def admin_installation_history(
                 for result in data["data"]["result"]:
                     metric_name = result["metric"].get("__name__", "unknown")
                     for timestamp, value in result.get("values", []):
-                        history.append({
-                            "timestamp": datetime.fromtimestamp(float(timestamp), timezone.utc).isoformat(),
-                            "metric": metric_name,
-                            "count": int(float(value)),
-                        })
+                        history.append(
+                            {
+                                "timestamp": datetime.fromtimestamp(
+                                    float(timestamp), timezone.utc
+                                ).isoformat(),
+                                "metric": metric_name,
+                                "count": int(float(value)),
+                            }
+                        )
 
         # Sort by timestamp descending
         history.sort(key=lambda x: x["timestamp"], reverse=True)
@@ -2316,7 +2372,9 @@ async def admin_installation_history(
         }
 
     except Exception as e:
-        logger.error("admin_installation_history_failed", error=str(e), installation_id=target_id)
+        logger.error(
+            "admin_installation_history_failed", error=str(e), installation_id=target_id
+        )
         raise HTTPException(
             status_code=500, detail=f"Failed to get installation history: {str(e)}"
         )
@@ -2440,7 +2498,10 @@ async def admin_get_metrics(
                             for sample in metric.samples:
                                 if labels:
                                     # Match specific labels
-                                    if all(sample.labels.get(k) == v for k, v in labels.items()):
+                                    if all(
+                                        sample.labels.get(k) == v
+                                        for k, v in labels.items()
+                                    ):
                                         return sample.value
                                 else:
                                     # Return first sample if no labels specified
@@ -2473,7 +2534,9 @@ async def admin_get_metrics(
         }
 
         # Calculate cache hit rate
-        total_cache_requests = metrics_data["cache"]["hits"] + metrics_data["cache"]["misses"]
+        total_cache_requests = (
+            metrics_data["cache"]["hits"] + metrics_data["cache"]["misses"]
+        )
         if total_cache_requests > 0:
             metrics_data["cache"]["hit_rate"] = (
                 metrics_data["cache"]["hits"] / total_cache_requests
@@ -2532,11 +2595,13 @@ async def admin_get_audit_log(
             "filters": {
                 "action": action,
                 "admin_filter": admin_filter,
-            }
+            },
         }
     except Exception as e:
         logger.error("admin_audit_log_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get audit log: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get audit log: {str(e)}"
+        )
 
 
 # ==================== PERMISSION MANAGEMENT ENDPOINTS ====================
@@ -2555,8 +2620,7 @@ async def admin_list_permissions(
     # Check permission - only full admins can manage permissions
     if not has_permission(admin_id, "admin:full"):
         raise HTTPException(
-            status_code=403,
-            detail="Insufficient permissions. Required: admin:full"
+            status_code=403, detail="Insufficient permissions. Required: admin:full"
         )
 
     try:
@@ -2568,7 +2632,9 @@ async def admin_list_permissions(
         }
     except Exception as e:
         logger.error("admin_list_permissions_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to list permissions: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list permissions: {str(e)}"
+        )
 
 
 @app.post("/api/v1/admin/permissions/grant")
@@ -2586,8 +2652,7 @@ async def admin_grant_permission(
     # Check permission - only full admins can grant permissions
     if not has_permission(admin_id, "admin:full"):
         raise HTTPException(
-            status_code=403,
-            detail="Insufficient permissions. Required: admin:full"
+            status_code=403, detail="Insufficient permissions. Required: admin:full"
         )
 
     try:
@@ -2595,14 +2660,12 @@ async def admin_grant_permission(
         if permission not in PERMISSIONS:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid permission. Must be one of: {list(PERMISSIONS.keys())}"
+                detail=f"Invalid permission. Must be one of: {list(PERMISSIONS.keys())}",
             )
 
         # Grant permission
         granted = permission_manager.grant_permission(
-            target_admin_id,
-            permission,
-            granted_by=admin_id
+            target_admin_id, permission, granted_by=admin_id
         )
 
         if granted:
@@ -2610,7 +2673,7 @@ async def admin_grant_permission(
                 "permission_granted",
                 target=target_admin_id,
                 permission=permission,
-                by=admin_id
+                by=admin_id,
             )
             return {
                 "success": True,
@@ -2631,7 +2694,9 @@ async def admin_grant_permission(
         raise
     except Exception as e:
         logger.error("admin_grant_permission_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to grant permission: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to grant permission: {str(e)}"
+        )
 
 
 @app.post("/api/v1/admin/permissions/revoke")
@@ -2649,23 +2714,19 @@ async def admin_revoke_permission(
     # Check permission - only full admins can revoke permissions
     if not has_permission(admin_id, "admin:full"):
         raise HTTPException(
-            status_code=403,
-            detail="Insufficient permissions. Required: admin:full"
+            status_code=403, detail="Insufficient permissions. Required: admin:full"
         )
 
     # Prevent self-revocation of admin:full
     if target_admin_id.lower() == admin_id.lower() and permission == "admin:full":
         raise HTTPException(
-            status_code=400,
-            detail="Cannot revoke your own admin:full permission"
+            status_code=400, detail="Cannot revoke your own admin:full permission"
         )
 
     try:
         # Revoke permission
         revoked = permission_manager.revoke_permission(
-            target_admin_id,
-            permission,
-            revoked_by=admin_id
+            target_admin_id, permission, revoked_by=admin_id
         )
 
         if revoked:
@@ -2673,7 +2734,7 @@ async def admin_revoke_permission(
                 "permission_revoked",
                 target=target_admin_id,
                 permission=permission,
-                by=admin_id
+                by=admin_id,
             )
             return {
                 "success": True,
@@ -2694,7 +2755,9 @@ async def admin_revoke_permission(
         raise
     except Exception as e:
         logger.error("admin_revoke_permission_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to revoke permission: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to revoke permission: {str(e)}"
+        )
 
 
 @app.get("/api/v1/admin/permissions/{target_admin_id}")
@@ -2711,8 +2774,7 @@ async def admin_get_permissions(
     # Check permission
     if not has_permission(admin_id, "admin:view"):
         raise HTTPException(
-            status_code=403,
-            detail="Insufficient permissions. Required: admin:view"
+            status_code=403, detail="Insufficient permissions. Required: admin:view"
         )
 
     try:
@@ -2720,8 +2782,7 @@ async def admin_get_permissions(
 
         if not admin_info:
             raise HTTPException(
-                status_code=404,
-                detail=f"Admin {target_admin_id} not found"
+                status_code=404, detail=f"Admin {target_admin_id} not found"
             )
 
         return {
@@ -2733,12 +2794,14 @@ async def admin_get_permissions(
         raise
     except Exception as e:
         logger.error("admin_get_permissions_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get permissions: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get permissions: {str(e)}"
+        )
 
 
 # Prometheus Metrics
 try:
-    from prometheus_client import Counter, Histogram, Gauge, generate_latest, REGISTRY
+    from prometheus_client import Counter, Histogram, Gauge, generate_latest
 
     telemetry_requests_total = Counter(
         "telemetry_requests_total", "Total telemetry requests received", ["endpoint"]
