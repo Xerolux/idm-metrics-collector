@@ -41,6 +41,7 @@ Path(INSTALLATION_STORAGE_DIR).mkdir(parents=True, exist_ok=True)
 
 class InstallationRole(str, Enum):
     """Installation role levels."""
+
     GUEST = "guest"
     VISITOR = "visitor"
     SPONSOR = "sponsor"
@@ -50,9 +51,10 @@ class InstallationRole(str, Enum):
 
 class BanType(str, Enum):
     """Types of bans that can be applied."""
-    UPLOAD = "upload"      # Cannot upload/submit data
+
+    UPLOAD = "upload"  # Cannot upload/submit data
     DOWNLOAD = "download"  # Cannot download models
-    FULL = "full"          # Completely blocked
+    FULL = "full"  # Completely blocked
 
 
 # Role hierarchy (higher index = more privileges)
@@ -77,10 +79,20 @@ ROLE_DESCRIPTIONS = {
 ROLE_FEATURES = {
     InstallationRole.GUEST: ["upload", "download_community_model"],
     InstallationRole.VISITOR: ["upload", "download_community_model", "view_stats"],
-    InstallationRole.SPONSOR: ["upload", "download_community_model", "view_stats",
-                               "priority_training", "early_access"],
-    InstallationRole.MODERATOR: ["upload", "download_community_model", "view_stats",
-                                  "view_installations", "view_audit_log"],
+    InstallationRole.SPONSOR: [
+        "upload",
+        "download_community_model",
+        "view_stats",
+        "priority_training",
+        "early_access",
+    ],
+    InstallationRole.MODERATOR: [
+        "upload",
+        "download_community_model",
+        "view_stats",
+        "view_installations",
+        "view_audit_log",
+    ],
     InstallationRole.ADMIN: ["*"],  # All features
 }
 
@@ -139,7 +151,7 @@ class InstallationManager:
         installation_id: str,
         role: InstallationRole,
         set_by: str,
-        reason: Optional[str] = None
+        reason: Optional[str] = None,
     ) -> bool:
         """
         Set the role for an installation.
@@ -169,13 +181,15 @@ class InstallationManager:
         # Add to history
         if "role_history" not in record:
             record["role_history"] = []
-        record["role_history"].append({
-            "from": old_role,
-            "to": role.value,
-            "changed_at": datetime.now(timezone.utc).isoformat(),
-            "changed_by": set_by,
-            "reason": reason,
-        })
+        record["role_history"].append(
+            {
+                "from": old_role,
+                "to": role.value,
+                "changed_at": datetime.now(timezone.utc).isoformat(),
+                "changed_by": set_by,
+                "reason": reason,
+            }
+        )
 
         self._save_installations()
 
@@ -200,7 +214,9 @@ class InstallationManager:
         except ValueError:
             return InstallationRole.GUEST
 
-    def has_role_or_higher(self, installation_id: str, min_role: InstallationRole) -> bool:
+    def has_role_or_higher(
+        self, installation_id: str, min_role: InstallationRole
+    ) -> bool:
         """Check if installation has at least the specified role."""
         current_role = self.get_role(installation_id)
         current_idx = ROLE_HIERARCHY.index(current_role)
@@ -260,10 +276,12 @@ class InstallationManager:
         # Add to ban history
         if "ban_history" not in record:
             record["ban_history"] = []
-        record["ban_history"].append({
-            **ban_record,
-            "action": "banned",
-        })
+        record["ban_history"].append(
+            {
+                **ban_record,
+                "action": "banned",
+            }
+        )
 
         self._save_installations()
 
@@ -309,19 +327,23 @@ class InstallationManager:
 
         # Mark as inactive instead of deleting
         record["bans"][ban_type.value]["active"] = False
-        record["bans"][ban_type.value]["unbanned_at"] = datetime.now(timezone.utc).isoformat()
+        record["bans"][ban_type.value]["unbanned_at"] = datetime.now(
+            timezone.utc
+        ).isoformat()
         record["bans"][ban_type.value]["unbanned_by"] = unbanned_by
 
         # Add to ban history
         if "ban_history" not in record:
             record["ban_history"] = []
-        record["ban_history"].append({
-            "type": ban_type.value,
-            "action": "unbanned",
-            "unbanned_at": datetime.now(timezone.utc).isoformat(),
-            "unbanned_by": unbanned_by,
-            "reason": reason,
-        })
+        record["ban_history"].append(
+            {
+                "type": ban_type.value,
+                "action": "unbanned",
+                "unbanned_at": datetime.now(timezone.utc).isoformat(),
+                "unbanned_by": unbanned_by,
+                "reason": reason,
+            }
+        )
 
         self._save_installations()
 
@@ -334,7 +356,9 @@ class InstallationManager:
 
         return True
 
-    def is_banned(self, installation_id: str, ban_type: Optional[BanType] = None) -> bool:
+    def is_banned(
+        self, installation_id: str, ban_type: Optional[BanType] = None
+    ) -> bool:
         """
         Check if installation is banned.
 
@@ -399,10 +423,12 @@ class InstallationManager:
 
         for ban_type, ban in bans.items():
             if self._is_ban_active(ban):
-                active_bans.append({
-                    "type": ban_type,
-                    **ban,
-                })
+                active_bans.append(
+                    {
+                        "type": ban_type,
+                        **ban,
+                    }
+                )
 
         return active_bans
 
@@ -446,7 +472,7 @@ class InstallationManager:
         self,
         installation_id: str,
         metadata: Dict[str, Any],
-        updated_by: Optional[str] = None
+        updated_by: Optional[str] = None,
     ):
         """Update installation metadata (heatpump model, last seen, etc.)."""
         installation_id = installation_id.lower()
@@ -500,15 +526,17 @@ class InstallationManager:
                 if not self.is_banned(inst_id):
                     continue
 
-            items.append({
-                "installation_id": inst_id,
-                "role": record.get("role", "guest"),
-                "is_banned": self.is_banned(inst_id),
-                "active_bans": self.get_active_bans(inst_id),
-                "created_at": record.get("created_at"),
-                "notes": record.get("notes", "")[:100],  # Truncate notes
-                "metadata": record.get("metadata", {}),
-            })
+            items.append(
+                {
+                    "installation_id": inst_id,
+                    "role": record.get("role", "guest"),
+                    "is_banned": self.is_banned(inst_id),
+                    "active_bans": self.get_active_bans(inst_id),
+                    "created_at": record.get("created_at"),
+                    "notes": record.get("notes", "")[:100],  # Truncate notes
+                    "metadata": record.get("metadata", {}),
+                }
+            )
 
         # Sort by creation date (newest first)
         items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
@@ -573,7 +601,9 @@ def check_upload_allowed(installation_id: str) -> tuple[bool, Optional[str]]:
     """
     if installation_manager.is_banned(installation_id, BanType.UPLOAD):
         ban_info = installation_manager.get_ban_info(installation_id, BanType.UPLOAD)
-        reason = ban_info.get("reason", "Upload banned") if ban_info else "Upload banned"
+        reason = (
+            ban_info.get("reason", "Upload banned") if ban_info else "Upload banned"
+        )
         expires = ban_info.get("expires_at") if ban_info else None
         if expires:
             reason += f" (expires: {expires})"
@@ -581,7 +611,11 @@ def check_upload_allowed(installation_id: str) -> tuple[bool, Optional[str]]:
 
     if installation_manager.is_banned(installation_id, BanType.FULL):
         ban_info = installation_manager.get_ban_info(installation_id, BanType.FULL)
-        reason = ban_info.get("reason", "Installation banned") if ban_info else "Installation banned"
+        reason = (
+            ban_info.get("reason", "Installation banned")
+            if ban_info
+            else "Installation banned"
+        )
         return False, reason
 
     return True, None
@@ -596,7 +630,9 @@ def check_download_allowed(installation_id: str) -> tuple[bool, Optional[str]]:
     """
     if installation_manager.is_banned(installation_id, BanType.DOWNLOAD):
         ban_info = installation_manager.get_ban_info(installation_id, BanType.DOWNLOAD)
-        reason = ban_info.get("reason", "Download banned") if ban_info else "Download banned"
+        reason = (
+            ban_info.get("reason", "Download banned") if ban_info else "Download banned"
+        )
         expires = ban_info.get("expires_at") if ban_info else None
         if expires:
             reason += f" (expires: {expires})"
@@ -604,7 +640,11 @@ def check_download_allowed(installation_id: str) -> tuple[bool, Optional[str]]:
 
     if installation_manager.is_banned(installation_id, BanType.FULL):
         ban_info = installation_manager.get_ban_info(installation_id, BanType.FULL)
-        reason = ban_info.get("reason", "Installation banned") if ban_info else "Installation banned"
+        reason = (
+            ban_info.get("reason", "Installation banned")
+            if ban_info
+            else "Installation banned"
+        )
         return False, reason
 
     return True, None

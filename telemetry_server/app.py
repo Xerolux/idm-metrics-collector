@@ -2953,7 +2953,7 @@ async def admin_get_installation_stats(
 
 
 @app.get("/api/v1/admin/installations/list")
-async def admin_list_installations(
+async def admin_list_installations_filtered(
     request: Request,
     authorization: Optional[str] = Header(None),
     installation_id: Optional[str] = None,
@@ -3225,7 +3225,6 @@ async def admin_set_installation_notes(
         "installation_id": target_id,
         "notes": notes,
     }
-
 
 
 # Prometheus Metrics# Prometheus Metrics
