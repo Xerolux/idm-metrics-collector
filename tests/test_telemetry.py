@@ -102,9 +102,9 @@ class TestTelemetry(unittest.TestCase):
 
         self.tm._load_state()
 
-        # 250 records
+        # 1100 records (to force batching since MAX_BATCH_SIZE=1000)
         records = []
-        for i in range(250):
+        for i in range(1100):
             records.append(
                 json.dumps(
                     {
@@ -173,6 +173,11 @@ class TestTelemetry(unittest.TestCase):
         mock_resp_download = MagicMock()
         mock_resp_download.status_code = 200
         mock_resp_download.json.return_value = envelope
+        # Content is needed for hash verification
+        mock_resp_download.content = json.dumps(envelope).encode("utf-8")
+        # Headers needed to avoid MagicMock in get()
+        actual_hash = hashlib.sha256(mock_resp_download.content).hexdigest()
+        mock_resp_download.headers = {"X-Model-Hash": actual_hash}
 
         mock_resp_upload = MagicMock()
         mock_resp_upload.status_code = 200

@@ -24,9 +24,9 @@ def test_submit_telemetry(mock_ban_check, client):
     # Mock IP ban check to return False (not banned)
     mock_ban_check.return_value = False
 
-    # Use valid UUID
+    # Use valid UUID (unique for this test to avoid collision with other tests that might register it)
     payload = {
-        "installation_id": "550e8400-e29b-41d4-a716-446655440000",
+        "installation_id": "550e8400-e29b-41d4-a716-446655440099",
         "heatpump_model": "test-model",
         "version": "1.0",
         "data": [{"timestamp": 1234567890, "temp": 20.5}],
@@ -71,7 +71,13 @@ def test_submit_telemetry_invalid_model(client):
 
 
 def test_submit_telemetry_unauthorized(client):
-    response = client.post("/api/v1/submit", json={})
+    payload = {
+        "installation_id": "550e8400-e29b-41d4-a716-446655440000",
+        "heatpump_model": "test-model",
+        "version": "1.0",
+        "data": [],
+    }
+    response = client.post("/api/v1/submit", json=payload)
     assert response.status_code == 401
 
 
