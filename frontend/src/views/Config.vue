@@ -1049,7 +1049,7 @@
                 <Button
                   label="Refresh Data"
                   icon="pi pi-refresh"
-                  @click="async () => { await Promise.all([fetchAdminModels(), fetchAdminHealth(), fetchAdminInstallations()]); }"
+                  @click="async () => { await Promise.all([fetchAdminModels(), fetchAdminHealth(), fetchAdminInstallations(), fetchAdminMetrics()]); }"
                   severity="secondary"
                   size="small"
                 />
@@ -1088,6 +1088,96 @@
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            </Fieldset>
+
+            <!-- System Metrics -->
+            <Fieldset legend="System Metrics" :toggleable="true" v-if="adminMetrics">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Request Metrics -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-chart-line text-blue-400 text-xl"></i>
+                    <span class="font-bold">Requests</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.requests?.total?.toLocaleString() || 0 }}</div>
+                  <div class="text-xs text-gray-400 mt-1">Total Requests</div>
+                  <div class="text-xs text-red-400 mt-1">{{ adminMetrics.requests?.errors || 0 }} Errors</div>
+                </div>
+
+                <!-- Data Submissions -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-upload text-green-400 text-xl"></i>
+                    <span class="font-bold">Submissions</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.business?.submissions?.toLocaleString() || 0 }}</div>
+                  <div class="text-xs text-gray-400 mt-1">Data Submissions</div>
+                  <div class="text-xs text-gray-400 mt-1">{{ adminMetrics.business?.data_points?.toLocaleString() || 0 }} Points</div>
+                </div>
+
+                <!-- Cache Performance -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-bolt text-yellow-400 text-xl"></i>
+                    <span class="font-bold">Cache</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.cache?.hit_rate?.toFixed(1) || 0 }}%</div>
+                  <div class="text-xs text-gray-400 mt-1">Hit Rate</div>
+                  <div class="text-xs text-gray-400 mt-1">{{ adminMetrics.cache?.hits?.toLocaleString() || 0 }} Hits / {{ adminMetrics.cache?.misses?.toLocaleString() || 0 }} Misses</div>
+                </div>
+
+                <!-- Rate Limits -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-ban text-red-400 text-xl"></i>
+                    <span class="font-bold">Rate Limits</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.requests?.rate_limit_hits?.toLocaleString() || 0 }}</div>
+                  <div class="text-xs text-gray-400 mt-1">Total Violations</div>
+                </div>
+
+                <!-- Model Downloads -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-download text-purple-400 text-xl"></i>
+                    <span class="font-bold">Downloads</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.business?.model_downloads?.toLocaleString() || 0 }}</div>
+                  <div class="text-xs text-gray-400 mt-1">Model Downloads</div>
+                </div>
+
+                <!-- Training Runs -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-cog text-cyan-400 text-xl"></i>
+                    <span class="font-bold">Training</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.business?.training_runs?.toLocaleString() || 0 }}</div>
+                  <div class="text-xs text-gray-400 mt-1">Total Runs</div>
+                </div>
+
+                <!-- Active Installations (from metrics) -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-users text-teal-400 text-xl"></i>
+                    <span class="font-bold">Installations</span>
+                  </div>
+                  <div class="text-2xl font-bold">{{ adminMetrics.business?.active_installations?.toLocaleString() || telemetryStatus.server_stats?.active_installations || 0 }}</div>
+                  <div class="text-xs text-gray-400 mt-1">Active (30d)</div>
+                </div>
+
+                <!-- Error Rate -->
+                <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+                  <div class="flex items-center gap-2 mb-2">
+                    <i class="pi pi-exclamation-triangle text-orange-400 text-xl"></i>
+                    <span class="font-bold">Error Rate</span>
+                  </div>
+                  <div class="text-2xl font-bold">
+                    {{ (adminMetrics.requests?.total > 0 ? (adminMetrics.requests.errors / adminMetrics.requests.total * 100).toFixed(2) : 0) }}%
+                  </div>
+                  <div class="text-xs text-gray-400 mt-1">Errors / Requests</div>
+                </div>
               </div>
             </Fieldset>
 
@@ -1394,6 +1484,7 @@ const statusLoading = ref(false)
 const adminHealth = ref(null)
 const adminInstallations = ref(null)
 const adminModels = ref(null)
+const adminMetrics = ref(null)
 const communityStats = ref(null)
 const statsLoading = ref(false)
 const selectedStatsModel = ref(null)
@@ -1466,6 +1557,20 @@ const fetchAdminModels = async () => {
     adminModels.value = res.data
   } catch (err) {
     console.error('Failed to fetch admin models:', err)
+  }
+}
+
+const fetchAdminMetrics = async () => {
+  if (!telemetryStatus.value?.is_admin) return
+
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const res = await axios.get(`${telemetryUrl}/api/v1/admin/metrics`, {
+      params: { installation_id: config.value.installation_id }
+    })
+    adminMetrics.value = res.data
+  } catch (err) {
+    console.error('Failed to fetch admin metrics:', err)
   }
 }
 
@@ -1809,7 +1914,8 @@ const loadTelemetryStatus = async () => {
       await Promise.all([
         fetchAdminHealth(),
         fetchAdminInstallations(),
-        fetchAdminModels()
+        fetchAdminModels(),
+        fetchAdminMetrics()
       ])
 
       // Start auto-refresh for admin data
@@ -1833,7 +1939,8 @@ const startAdminAutoRefresh = () => {
         await Promise.all([
           fetchAdminHealth(),
           fetchAdminInstallations(),
-          fetchAdminModels()
+          fetchAdminModels(),
+          fetchAdminMetrics()
         ])
       } catch (e) {
         console.error('Auto-refresh failed', e)

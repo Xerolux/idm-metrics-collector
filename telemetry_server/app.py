@@ -867,6 +867,11 @@ async def submit_telemetry(
                 ip=client_ip,
             )
 
+            # Track business metrics
+            if PROMETHEUS_AVAILABLE:
+                data_submissions_total.labels(heatpump_model=payload.heatpump_model).inc()
+                data_points_submitted_total.inc(len(lines))
+
         return JSONResponse(
             {"status": "success", "processed": len(lines)}, headers=rate_limit_headers
         )
@@ -1288,10 +1293,19 @@ async def community_averages(
         cached_result, cached_time = _community_avg_cache[cache_key]
         if time.time() - cached_time < COMMUNITY_AVG_CACHE_TTL:
             logger.info("community_averages_cache_hit", model=model, metrics=len(metric_list))
+
+            # Track cache hit metric
+            if PROMETHEUS_AVAILABLE:
+                cache_hits_total.labels(cache_type="community_averages").inc()
+
             return cached_result
 
     # Cache miss - fetch from VictoriaMetrics
     logger.info("community_averages_cache_miss", model=model, metrics=len(metric_list))
+
+    # Track cache miss metric
+    if PROMETHEUS_AVAILABLE:
+        cache_misses_total.labels(cache_type="community_averages").inc()
     result = await get_community_averages(
         model, metric_list, client=request.app.state.http_client
     )
@@ -1674,6 +1688,93 @@ async def admin_server_health(
         raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 
 
+@app.get("/api/v1/admin/metrics")
+async def admin_get_metrics(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """
+    Admin: Get metrics for monitoring dashboard.
+
+    Returns metrics in a frontend-friendly format.
+    """
+    await check_admin_rate_limit(request)
+    await verify_admin(authorization, installation_id)
+
+    if not PROMETHEUS_AVAILABLE:
+        raise HTTPException(
+            status_code=501, detail="Metrics not available. Install prometheus_client."
+        )
+
+    try:
+        from prometheus_client import REGISTRY
+
+        # Collect all metrics
+        metrics_data = {}
+
+        # Helper to get metric value
+        def get_metric_value(metric_name, labels=None):
+            try:
+                for collector in REGISTRY._collector_to_names.keys():
+                    for metric in collector.collect():
+                        if metric.name == metric_name:
+                            for sample in metric.samples:
+                                if labels:
+                                    # Match specific labels
+                                    if all(sample.labels.get(k) == v for k, v in labels.items()):
+                                        return sample.value
+                                else:
+                                    # Return first sample if no labels specified
+                                    return sample.value
+                return 0
+            except Exception:
+                return 0
+
+        # Request metrics
+        metrics_data["requests"] = {
+            "total": get_metric_value("telemetry_requests_total"),
+            "errors": get_metric_value("telemetry_errors_total"),
+            "rate_limit_hits": get_metric_value("rate_limit_hits_total"),
+        }
+
+        # Business metrics
+        metrics_data["business"] = {
+            "submissions": get_metric_value("telemetry_data_submissions_total"),
+            "data_points": get_metric_value("telemetry_data_points_submitted_total"),
+            "model_downloads": get_metric_value("model_downloads_total"),
+            "training_runs": get_metric_value("telemetry_training_runs_total"),
+            "active_installations": get_metric_value("telemetry_active_installations"),
+        }
+
+        # Cache metrics
+        metrics_data["cache"] = {
+            "hits": get_metric_value("telemetry_cache_hits_total"),
+            "misses": get_metric_value("telemetry_cache_misses_total"),
+            "hit_rate": 0.0,
+        }
+
+        # Calculate cache hit rate
+        total_cache_requests = metrics_data["cache"]["hits"] + metrics_data["cache"]["misses"]
+        if total_cache_requests > 0:
+            metrics_data["cache"]["hit_rate"] = (
+                metrics_data["cache"]["hits"] / total_cache_requests
+            ) * 100
+
+        # Performance metrics (percentiles from histogram)
+        metrics_data["performance"] = {
+            "avg_request_duration_ms": 0.0,  # Would need histogram buckets
+            "p95_request_duration_ms": 0.0,
+            "p99_request_duration_ms": 0.0,
+        }
+
+        return metrics_data
+
+    except Exception as e:
+        logger.error("admin_metrics_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get metrics: {str(e)}")
+
+
 @app.get("/api/v1/admin/audit-log")
 async def admin_get_audit_log(
     request: Request,
@@ -1722,7 +1823,7 @@ async def admin_get_audit_log(
 
 # Prometheus Metrics
 try:
-    from prometheus_client import Counter, Histogram, generate_latest
+    from prometheus_client import Counter, Histogram, Gauge, generate_latest, REGISTRY
 
     telemetry_requests_total = Counter(
         "telemetry_requests_total", "Total telemetry requests received", ["endpoint"]
@@ -1740,6 +1841,29 @@ try:
     )
     rate_limit_hits_total = Counter(
         "rate_limit_hits_total", "Total rate limit violations"
+    )
+
+    # Business Metrics
+    data_submissions_total = Counter(
+        "telemetry_data_submissions_total", "Total data submissions", ["heatpump_model"]
+    )
+    data_points_submitted_total = Counter(
+        "telemetry_data_points_submitted_total", "Total data points submitted"
+    )
+    training_runs_total = Counter(
+        "telemetry_training_runs_total", "Total training runs", ["result"]
+    )
+    training_duration_seconds = Histogram(
+        "telemetry_training_duration_seconds", "Training duration in seconds"
+    )
+    active_installations = Gauge(
+        "telemetry_active_installations", "Number of active installations"
+    )
+    cache_hits_total = Counter(
+        "telemetry_cache_hits_total", "Total cache hits", ["cache_type"]
+    )
+    cache_misses_total = Counter(
+        "telemetry_cache_misses_total", "Total cache misses", ["cache_type"]
     )
 
     PROMETHEUS_AVAILABLE = True

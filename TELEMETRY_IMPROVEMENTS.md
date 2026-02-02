@@ -1,6 +1,6 @@
 # Telemetry System - Verbesserungen & Optimierungen
 
-**Letzte Aktualisierung:** 2026-02-02 (Option 3 abgeschlossen - Performance)
+**Letzte Aktualisierung:** 2026-02-02 (Option 4 abgeschlossen - System Monitoring Dashboard)
 **Branch:** `claude/telemetry-admin-improvements-fXQZB`
 
 ---
@@ -12,9 +12,9 @@
 | **Quick Wins** | 4 | 3 | 0 | 1 |
 | **Security** | 5 | 1 | 0 | 4 |
 | **Performance** | 6 | 2 | 0 | 4 |
-| **Admin Features** | 8 | 0 | 0 | 8 |
+| **Admin Features** | 8 | 1 | 0 | 7 |
 | **Operational** | 4 | 0 | 0 | 4 |
-| **GESAMT** | **27** | **6** | **0** | **21** |
+| **GESAMT** | **27** | **7** | **0** | **20** |
 
 ---
 
@@ -591,35 +591,72 @@ retention:
 ## 👑 Admin Features
 
 ### [#ADMIN-01] System Monitoring Dashboard
-- **Status:** ❌ Offen
+- **Status:** ✅ Erledigt (2026-02-02)
 - **Priorität:** 🟡 Hoch
 - **Aufwand:** 4 Stunden
-- **Dateien:** `frontend/src/views/Config.vue`, `telemetry_server/app.py`
+- **Dateien:** `telemetry_server/app.py:1723-1776, 1691-1776, 870-873, 1292-1303`, `frontend/src/views/Config.vue:1397, 1473-1485, 1094-1182`
 
-**Features:**
-- Live-Charts für Requests/Sekunde
-- Error Rate & Error Types
-- Response Time Percentiles (p50, p95, p99)
-- Geographic Distribution (Map)
-- Rate-Limit Hit Rate
+**Features implementiert:**
+- ✅ Business-Metriken-Dashboard mit 8 Karten
+- ✅ Request Metrics (Total, Errors, Rate-Limit-Hits)
+- ✅ Data Submissions & Data Points
+- ✅ Cache Performance (Hit Rate, Hits/Misses)
+- ✅ Model Downloads & Training Runs
+- ✅ Active Installations & Error Rate
+- ✅ Auto-Refresh alle 30 Sekunden
+- ✅ Prometheus-Integration
 
 **Implementierung:**
-- [ ] Backend: Prometheus-Metrics-Endpoint
-- [ ] Backend: `/api/v1/admin/metrics` für Chart-Daten
-- [ ] Frontend: Chart.js Integration
-- [ ] Frontend: Auto-Refresh (30s)
-- [ ] Frontend: Time-Range Selector
+- [x] Backend: Erweiterte Prometheus-Metriken (Counter, Gauge, Histogram)
+- [x] Backend: `/api/v1/admin/metrics` Endpoint mit aggregierten Daten
+- [x] Backend: Business-Metriken-Tracking (Submissions, Downloads, Training, Cache)
+- [x] Frontend: System Metrics Fieldset mit 8 Metriken-Karten
+- [x] Frontend: Auto-Refresh Integration (fetchAdminMetrics)
+- [x] Frontend: Responsive Grid-Layout (1/2/4 Spalten)
 
-**API-Endpoint:**
+**Metriken:**
+```python
+# Prometheus Metrics (Backend)
+- telemetry_requests_total (Counter)
+- telemetry_errors_total (Counter)
+- data_submissions_total (Counter mit Label heatpump_model)
+- data_points_submitted_total (Counter)
+- training_runs_total (Counter mit Label result)
+- cache_hits_total / cache_misses_total (Counter)
+- active_installations (Gauge)
+- rate_limit_hits_total (Counter)
+```
+
+**API-Response:**
 ```json
-GET /api/v1/admin/metrics?range=24h
+GET /api/v1/admin/metrics
 {
-  "requests_per_minute": [{"timestamp": "...", "value": 45}, ...],
-  "error_rate": 0.02,
-  "response_times": {"p50": 120, "p95": 450, "p99": 890},
-  "top_errors": [{"type": "ValidationError", "count": 12}, ...]
+  "requests": {
+    "total": 12453,
+    "errors": 23,
+    "rate_limit_hits": 5
+  },
+  "business": {
+    "submissions": 345,
+    "data_points": 156789,
+    "model_downloads": 89,
+    "training_runs": 12,
+    "active_installations": 67
+  },
+  "cache": {
+    "hits": 2341,
+    "misses": 456,
+    "hit_rate": 83.7
+  }
 }
 ```
+
+**Impact:**
+- ✅ Vollständige Übersicht über System-Performance
+- ✅ Cache-Effizienz-Tracking
+- ✅ Business-Metriken in Echtzeit
+- ✅ Error-Rate-Monitoring
+- ✅ Basis für Alerting und Performance-Optimierung
 
 ---
 
