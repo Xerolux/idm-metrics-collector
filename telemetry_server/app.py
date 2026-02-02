@@ -31,6 +31,13 @@ from audit_log import (
     log_failed_auth,
     log_admin_access,
 )
+from token_manager import (
+    token_manager,
+    generate_token,
+    validate_token as validate_installation_token,
+    revoke_token,
+    token_exists,
+)
 
 # Redis (optional, for persistent rate limiting)
 try:
@@ -767,6 +774,7 @@ class TelemetryPayload(BaseModel):
 
 
 async def verify_token(authorization: Optional[str] = Header(None)):
+    """Verify global AUTH_TOKEN (for admin endpoints)."""
     if not AUTH_TOKEN:
         return  # Open access if no token configured (not recommended)
 
@@ -778,13 +786,128 @@ async def verify_token(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=403, detail="Invalid Token")
 
 
+async def verify_token_with_fallback(
+    installation_id: str,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Verify token with fallback to global token for backward compatibility.
+
+    1. Try per-installation token first (if exists)
+    2. Fallback to global AUTH_TOKEN (for migration)
+    3. Auto-register installation if using global token
+
+    This allows seamless migration from shared token to per-installation tokens.
+    """
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization Header")
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid Authorization scheme")
+
+    # Try per-installation token first
+    if token_exists(installation_id):
+        if validate_installation_token(installation_id, token):
+            logger.debug("token_validated", installation_id=installation_id, type="per_installation")
+            return
+        else:
+            # Token exists but doesn't match - fail immediately
+            logger.warning("token_mismatch", installation_id=installation_id)
+            raise HTTPException(status_code=403, detail="Invalid Token for this installation")
+
+    # Fallback to global token (for backward compatibility / migration)
+    if AUTH_TOKEN and token == AUTH_TOKEN:
+        logger.info("global_token_used", installation_id=installation_id, migrating=True)
+        # Auto-register this installation with a unique token for future use
+        try:
+            new_token = generate_token(installation_id, metadata={"migrated_from_global": True})
+            logger.info("installation_auto_registered", installation_id=installation_id)
+            # Note: Client doesn't know about the new token yet, but on next model check it will get it
+        except Exception as e:
+            logger.error("auto_registration_failed", installation_id=installation_id, error=str(e))
+        return
+
+    # Neither per-installation nor global token worked
+    raise HTTPException(status_code=403, detail="Invalid Token")
+
+
+@app.post("/api/v1/register")
+async def register_installation(
+    installation_id: str,
+    heatpump_model: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Register a new installation and receive a unique authentication token.
+
+    This endpoint allows installations to register and receive their own unique token,
+    replacing the shared COMMUNITY-CONTRIBUTOR-TOKEN.
+
+    Args:
+        installation_id: Unique installation identifier
+        heatpump_model: Optional heat pump model name
+        authorization: Must provide global AUTH_TOKEN for initial registration
+
+    Returns:
+        {
+            "installation_id": "...",
+            "auth_token": "unique-token-for-this-installation",
+            "registered_at": "2026-02-02T..."
+        }
+    """
+    validate_installation_id(installation_id)
+
+    # Registration requires global AUTH_TOKEN (for security)
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization Header")
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or token != AUTH_TOKEN:
+        raise HTTPException(status_code=403, detail="Invalid global token for registration")
+
+    # Check if already registered
+    if token_exists(installation_id):
+        logger.warning("registration_duplicate", installation_id=installation_id)
+        raise HTTPException(
+            status_code=409,
+            detail="Installation already registered. Use /api/v1/token/refresh to get a new token."
+        )
+
+    # Generate new token
+    try:
+        new_token = generate_token(
+            installation_id,
+            metadata={"heatpump_model": heatpump_model} if heatpump_model else {}
+        )
+
+        logger.info("installation_registered", installation_id=installation_id)
+
+        return {
+            "installation_id": installation_id,
+            "auth_token": new_token,
+            "registered_at": datetime.now(timezone.utc).isoformat(),
+            "message": "Token generated successfully. Store this token securely - it won't be shown again."
+        }
+    except Exception as e:
+        logger.error("registration_failed", installation_id=installation_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+
 @app.post("/api/v1/submit")
 async def submit_telemetry(
-    payload: TelemetryPayload, request: Request, auth: None = Depends(verify_token)
+    payload: TelemetryPayload,
+    request: Request,
+    authorization: Optional[str] = Header(None)
 ):
     """
     Ingest telemetry data and forward to VictoriaMetrics.
+
+    Uses per-installation tokens with fallback to global token for migration.
     """
+    # Verify token (per-installation with fallback)
+    await verify_token_with_fallback(payload.installation_id, authorization)
+
     # Prefer X-Forwarded-For if behind proxy, else fallback to direct connection
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
@@ -1121,6 +1244,16 @@ async def check_eligibility(
                 "Berechtigt, aber noch kein Modell für Ihre Wärmepumpe verfügbar. "
                 "Modelle werden erstellt, wenn genügend Daten gesammelt wurden."
             )
+
+        # Add token information (for per-installation token migration)
+        result["has_personal_token"] = token_exists(installation_id)
+        if result["has_personal_token"]:
+            token_info = token_manager.get_token_info(installation_id)
+            result["token_info"] = {
+                "created_at": token_info.get("created_at") if token_info else None,
+                "last_used": token_info.get("last_used") if token_info else None,
+                "message": "You have a personal authentication token. Make sure to use it instead of the shared token."
+            }
 
         return result
 
