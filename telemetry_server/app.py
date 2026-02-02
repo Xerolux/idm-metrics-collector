@@ -840,14 +840,22 @@ async def verify_token_with_fallback(
                 type="per_installation",
             )
             return
-        else:
-            # Token exists but doesn't match - fail immediately
-            logger.warning("token_mismatch", installation_id=installation_id)
-            raise HTTPException(
-                status_code=403, detail="Invalid Token for this installation"
+        # Per-installation token exists but doesn't match
+        # Still allow global token as fallback (client may not have received per-installation token yet)
+        if AUTH_TOKEN and token == AUTH_TOKEN:
+            logger.debug(
+                "global_token_fallback",
+                installation_id=installation_id,
+                reason="per_installation_token_exists_but_client_using_global",
             )
+            return
+        # Neither per-installation nor global token matched
+        logger.warning("token_mismatch", installation_id=installation_id)
+        raise HTTPException(
+            status_code=403, detail="Invalid Token for this installation"
+        )
 
-    # Fallback to global token (for backward compatibility / migration)
+    # No per-installation token exists yet - check global token
     if AUTH_TOKEN and token == AUTH_TOKEN:
         logger.info(
             "global_token_used", installation_id=installation_id, migrating=True
