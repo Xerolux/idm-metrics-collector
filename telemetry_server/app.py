@@ -44,6 +44,13 @@ from token_manager import (
     get_encryption_key,
     has_encryption_key,
 )
+from permissions import (
+    permission_manager,
+    has_permission,
+    is_admin,
+    require_permission,
+    PERMISSIONS,
+)
 
 # Redis (optional, for persistent rate limiting)
 try:
@@ -1616,7 +1623,12 @@ async def community_averages(
 async def verify_admin(
     authorization: Optional[str] = Header(None), installation_id: Optional[str] = None
 ):
-    """Verify admin access (token + admin ID)."""
+    """
+    Verify admin access (token + admin ID).
+
+    Uses new permission system (permissions.py) with fallback to legacy ADMIN_IDS.
+    Returns installation_id for use in permission checks.
+    """
     # Verify token if configured
     if AUTH_TOKEN:
         if not authorization:
@@ -1632,9 +1644,17 @@ async def verify_admin(
             status_code=401, detail="Missing installation_id for admin check"
         )
 
-    if installation_id.lower() not in ADMIN_IDS:
-        logger.warning("unauthorized_admin_access", installation_id=installation_id)
-        raise HTTPException(status_code=403, detail="Not authorized as admin")
+    # Check using new permission system
+    if not is_admin(installation_id):
+        # Fallback to legacy ADMIN_IDS for backward compatibility
+        if installation_id.lower() not in ADMIN_IDS:
+            logger.warning("unauthorized_admin_access", installation_id=installation_id)
+            raise HTTPException(status_code=403, detail="Not authorized as admin")
+        else:
+            # Legacy admin - automatically grant full permissions
+            logger.info("legacy_admin_detected", installation_id=installation_id, migrating=True)
+
+    return installation_id  # Return for use in endpoints
 
 
 async def check_admin_rate_limit(request: Request) -> None:
@@ -1661,9 +1681,16 @@ async def admin_list_models(
     authorization: Optional[str] = Header(None),
     installation_id: Optional[str] = None,
 ):
-    """Admin: List all models with details."""
+    """Admin: List all models with details. Requires admin:view permission."""
     await check_admin_rate_limit(request)
-    await verify_admin(authorization, installation_id)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    # Check permission
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required: admin:view"
+        )
 
     model_dir = Path(MODEL_DIR)
 
@@ -1713,9 +1740,16 @@ async def admin_delete_model(
     authorization: Optional[str] = Header(None),
     installation_id: Optional[str] = None,
 ):
-    """Admin: Delete a model file."""
+    """Admin: Delete a model file. Requires admin:models permission."""
     await check_admin_rate_limit(request)
-    await verify_admin(authorization, installation_id)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    # Check permission
+    if not has_permission(admin_id, "admin:models"):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required: admin:models"
+        )
 
     # Sanitize model name
     safe_name = os.path.basename(model_name).replace(" ", "_")
@@ -1773,9 +1807,16 @@ async def admin_trigger_training(
     authorization: Optional[str] = Header(None),
     installation_id: Optional[str] = None,
 ):
-    """Admin: Trigger manual model training."""
+    """Admin: Trigger manual model training. Requires admin:training permission."""
     await check_admin_rate_limit(request)
-    await verify_admin(authorization, installation_id)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    # Check permission
+    if not has_permission(admin_id, "admin:training"):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required: admin:training"
+        )
 
     # Get client IP for audit log
     forwarded = request.headers.get("X-Forwarded-For")
@@ -2327,6 +2368,203 @@ async def admin_get_audit_log(
     except Exception as e:
         logger.error("admin_audit_log_failed", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get audit log: {str(e)}")
+
+
+# ==================== PERMISSION MANAGEMENT ENDPOINTS ====================
+
+
+@app.get("/api/v1/admin/permissions")
+async def admin_list_permissions(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: List all admins and their permissions. Requires admin:full permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    # Check permission - only full admins can manage permissions
+    if not has_permission(admin_id, "admin:full"):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required: admin:full"
+        )
+
+    try:
+        admins = permission_manager.list_admins()
+        return {
+            "admins": admins,
+            "total": len(admins),
+            "available_permissions": PERMISSIONS,
+        }
+    except Exception as e:
+        logger.error("admin_list_permissions_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to list permissions: {str(e)}")
+
+
+@app.post("/api/v1/admin/permissions/grant")
+async def admin_grant_permission(
+    request: Request,
+    target_admin_id: str,
+    permission: str,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Grant a permission to another admin. Requires admin:full permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    # Check permission - only full admins can grant permissions
+    if not has_permission(admin_id, "admin:full"):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required: admin:full"
+        )
+
+    try:
+        # Validate permission
+        if permission not in PERMISSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid permission. Must be one of: {list(PERMISSIONS.keys())}"
+            )
+
+        # Grant permission
+        granted = permission_manager.grant_permission(
+            target_admin_id,
+            permission,
+            granted_by=admin_id
+        )
+
+        if granted:
+            logger.info(
+                "permission_granted",
+                target=target_admin_id,
+                permission=permission,
+                by=admin_id
+            )
+            return {
+                "success": True,
+                "message": f"Permission {permission} granted to {target_admin_id}",
+                "target_admin_id": target_admin_id,
+                "permission": permission,
+                "granted_by": admin_id,
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Permission {permission} already exists for {target_admin_id}",
+                "target_admin_id": target_admin_id,
+                "permission": permission,
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("admin_grant_permission_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to grant permission: {str(e)}")
+
+
+@app.post("/api/v1/admin/permissions/revoke")
+async def admin_revoke_permission(
+    request: Request,
+    target_admin_id: str,
+    permission: str,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Revoke a permission from another admin. Requires admin:full permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    # Check permission - only full admins can revoke permissions
+    if not has_permission(admin_id, "admin:full"):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required: admin:full"
+        )
+
+    # Prevent self-revocation of admin:full
+    if target_admin_id.lower() == admin_id.lower() and permission == "admin:full":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot revoke your own admin:full permission"
+        )
+
+    try:
+        # Revoke permission
+        revoked = permission_manager.revoke_permission(
+            target_admin_id,
+            permission,
+            revoked_by=admin_id
+        )
+
+        if revoked:
+            logger.info(
+                "permission_revoked",
+                target=target_admin_id,
+                permission=permission,
+                by=admin_id
+            )
+            return {
+                "success": True,
+                "message": f"Permission {permission} revoked from {target_admin_id}",
+                "target_admin_id": target_admin_id,
+                "permission": permission,
+                "revoked_by": admin_id,
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Permission {permission} not found for {target_admin_id}",
+                "target_admin_id": target_admin_id,
+                "permission": permission,
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("admin_revoke_permission_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to revoke permission: {str(e)}")
+
+
+@app.get("/api/v1/admin/permissions/{target_admin_id}")
+async def admin_get_permissions(
+    target_admin_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get permissions for a specific admin. Requires admin:view permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    # Check permission
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required: admin:view"
+        )
+
+    try:
+        admin_info = permission_manager.get_admin_info(target_admin_id)
+
+        if not admin_info:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Admin {target_admin_id} not found"
+            )
+
+        return {
+            "admin_id": target_admin_id,
+            "permissions": admin_info,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("admin_get_permissions_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get permissions: {str(e)}")
 
 
 # Prometheus Metrics
