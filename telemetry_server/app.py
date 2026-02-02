@@ -6,6 +6,7 @@ from fastapi.responses import (
     ORJSONResponse,
     JSONResponse,
     Response,
+    HTMLResponse,
 )
 from pydantic import BaseModel, validator
 from typing import List, Optional, Dict, Any, Tuple
@@ -46,6 +47,15 @@ from permissions import (
     has_permission,
     is_admin,
     PERMISSIONS,
+)
+from installation_manager import (
+    installation_manager,
+    InstallationRole,
+    BanType,
+    check_upload_allowed,
+    check_download_allowed,
+    ROLE_DESCRIPTIONS,
+    ROLE_FEATURES,
 )
 from training_queue import training_queue
 
@@ -976,6 +986,20 @@ async def submit_telemetry(
     # Verify token (per-installation with fallback)
     await verify_token_with_fallback(payload.installation_id, authorization)
 
+    # Check installation ban status
+    upload_allowed, ban_reason = check_upload_allowed(payload.installation_id)
+    if not upload_allowed:
+        logger.warning(
+            "submit_installation_banned",
+            installation_id=payload.installation_id,
+            reason=ban_reason,
+        )
+        return JSONResponse(
+            {"detail": f"Upload blocked: {ban_reason}"},
+            status_code=403,
+            headers={"Content-Type": "application/json"},
+        )
+
     # Prefer X-Forwarded-For if behind proxy, else fallback to direct connection
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
@@ -1362,6 +1386,19 @@ async def download_model(
     # Validation
     validate_installation_id(installation_id)
     model = validate_model_name(model)  # Returns normalized/validated name or None
+
+    # Check installation ban status
+    download_allowed, ban_reason = check_download_allowed(installation_id)
+    if not download_allowed:
+        logger.warning(
+            "model_download_installation_banned",
+            installation_id=installation_id,
+            reason=ban_reason,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail=f"Download blocked: {ban_reason}",
+        )
 
     try:
         # Verify eligibility first
@@ -2786,6 +2823,770 @@ async def admin_get_permissions(
         raise HTTPException(
             status_code=500, detail=f"Failed to get permissions: {str(e)}"
         )
+
+
+# =====================================================================
+# Installation Role and Ban Management Endpoints
+# =====================================================================
+
+
+@app.get("/api/v1/admin/installations/roles")
+async def admin_get_role_definitions(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get role definitions and features. Requires admin:view permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:view"
+        )
+
+    return {
+        "roles": [
+            {
+                "name": role.value,
+                "description": ROLE_DESCRIPTIONS.get(role, ""),
+                "features": ROLE_FEATURES.get(role, []),
+            }
+            for role in InstallationRole
+        ],
+        "ban_types": [
+            {"name": bt.value, "description": f"{bt.value.title()} ban"}
+            for bt in BanType
+        ],
+    }
+
+
+@app.get("/api/v1/admin/installations/stats")
+async def admin_get_installation_stats(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get installation statistics. Requires admin:view permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:view"
+        )
+
+    return installation_manager.get_stats()
+
+
+@app.get("/api/v1/admin/installations/list")
+async def admin_list_installations(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    role: Optional[str] = None,
+    banned_only: bool = False,
+    limit: int = 100,
+    offset: int = 0,
+):
+    """
+    Admin: List installations with filters.
+    Requires admin:users permission.
+    """
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:users"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:users"
+        )
+
+    role_filter = None
+    if role:
+        try:
+            role_filter = InstallationRole(role)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid role: {role}")
+
+    return installation_manager.list_installations(
+        role_filter=role_filter,
+        banned_only=banned_only,
+        limit=min(limit, 500),
+        offset=offset,
+    )
+
+
+@app.get("/api/v1/admin/installations/{target_id}/role")
+async def admin_get_installation_role(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get role and ban status for an installation. Requires admin:view permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:view"
+        )
+
+    info = installation_manager.get_installation(target_id)
+
+    return {
+        "installation_id": target_id,
+        "role": info["effective_role"] if info else "guest",
+        "is_banned": info["is_banned"] if info else False,
+        "active_bans": info["active_bans"] if info else [],
+        "notes": info.get("notes", "") if info else "",
+        "created_at": info.get("created_at") if info else None,
+        "metadata": info.get("metadata", {}) if info else {},
+    }
+
+
+@app.post("/api/v1/admin/installations/{target_id}/role")
+async def admin_set_installation_role(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    role: str = None,
+    reason: Optional[str] = None,
+):
+    """
+    Admin: Set role for an installation.
+    Requires admin:users permission.
+    """
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:users"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:users"
+        )
+
+    if not role:
+        raise HTTPException(status_code=400, detail="role parameter is required")
+
+    try:
+        new_role = InstallationRole(role)
+    except ValueError:
+        valid_roles = [r.value for r in InstallationRole]
+        raise HTTPException(
+            status_code=400, detail=f"Invalid role: {role}. Valid: {valid_roles}"
+        )
+
+    changed = installation_manager.set_role(
+        target_id,
+        new_role,
+        set_by=admin_id,
+        reason=reason,
+    )
+
+    logger.info(
+        "admin_set_role",
+        admin_id=admin_id,
+        target_id=target_id,
+        role=role,
+        changed=changed,
+    )
+
+    return {
+        "success": True,
+        "installation_id": target_id,
+        "role": role,
+        "changed": changed,
+        "set_by": admin_id,
+    }
+
+
+@app.post("/api/v1/admin/installations/{target_id}/ban")
+async def admin_ban_installation(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    ban_type: str = "full",
+    reason: str = None,
+    duration_hours: Optional[int] = None,
+):
+    """
+    Admin: Ban an installation.
+    Requires admin:users permission.
+
+    Args:
+        target_id: Installation to ban
+        ban_type: Type of ban (upload, download, full)
+        reason: Reason for ban (required)
+        duration_hours: Ban duration in hours (None = permanent)
+    """
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:users"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:users"
+        )
+
+    if not reason:
+        raise HTTPException(status_code=400, detail="reason parameter is required")
+
+    try:
+        bt = BanType(ban_type)
+    except ValueError:
+        valid_types = [t.value for t in BanType]
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid ban_type: {ban_type}. Valid: {valid_types}",
+        )
+
+    ban_record = installation_manager.ban_installation(
+        target_id,
+        bt,
+        banned_by=admin_id,
+        reason=reason,
+        duration_hours=duration_hours,
+    )
+
+    logger.warning(
+        "admin_ban_installation",
+        admin_id=admin_id,
+        target_id=target_id,
+        ban_type=ban_type,
+        reason=reason,
+        duration_hours=duration_hours,
+    )
+
+    return {
+        "success": True,
+        "installation_id": target_id,
+        "ban": ban_record,
+        "message": f"Installation {target_id} has been banned ({ban_type})"
+        + (f" for {duration_hours} hours" if duration_hours else " permanently"),
+    }
+
+
+@app.post("/api/v1/admin/installations/{target_id}/unban")
+async def admin_unban_installation(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    ban_type: str = "full",
+    reason: Optional[str] = None,
+):
+    """
+    Admin: Remove a ban from an installation.
+    Requires admin:users permission.
+    """
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:users"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:users"
+        )
+
+    try:
+        bt = BanType(ban_type)
+    except ValueError:
+        valid_types = [t.value for t in BanType]
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid ban_type: {ban_type}. Valid: {valid_types}",
+        )
+
+    success = installation_manager.unban_installation(
+        target_id,
+        bt,
+        unbanned_by=admin_id,
+        reason=reason,
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No active {ban_type} ban found for {target_id}",
+        )
+
+    logger.info(
+        "admin_unban_installation",
+        admin_id=admin_id,
+        target_id=target_id,
+        ban_type=ban_type,
+    )
+
+    return {
+        "success": True,
+        "installation_id": target_id,
+        "ban_type": ban_type,
+        "message": f"Ban removed for {target_id}",
+    }
+
+
+@app.post("/api/v1/admin/installations/{target_id}/notes")
+async def admin_set_installation_notes(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    notes: str = "",
+):
+    """
+    Admin: Set notes for an installation.
+    Requires admin:users permission.
+    """
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:users"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:users"
+        )
+
+    installation_manager.set_notes(target_id, notes, set_by=admin_id)
+
+    return {
+        "success": True,
+        "installation_id": target_id,
+        "notes": notes,
+    }
+
+
+# Admin WebUI HTML Template
+ADMIN_INSTALLATIONS_HTML = """
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Installation Management - Telemetry Admin</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --card-bg: #16213e;
+            --text-color: #eee;
+            --accent: #0f3460;
+            --success: #00d26a;
+            --warning: #ffc107;
+            --danger: #ff6b6b;
+            --info: #17a2b8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { margin-bottom: 20px; color: var(--success); }
+        h2 { margin: 20px 0 10px; color: var(--info); font-size: 1.2em; }
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: var(--accent);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value { font-size: 2em; font-weight: bold; color: var(--success); }
+        .stat-label { font-size: 0.9em; opacity: 0.8; }
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        select, input, button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--accent);
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        button {
+            cursor: pointer;
+            background: var(--accent);
+            transition: background 0.2s;
+        }
+        button:hover { background: var(--info); }
+        button.danger { background: var(--danger); }
+        button.success { background: var(--success); color: #000; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--accent);
+        }
+        th { background: var(--accent); }
+        tr:hover { background: rgba(255,255,255,0.05); }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .badge-guest { background: #6c757d; }
+        .badge-visitor { background: var(--info); }
+        .badge-sponsor { background: var(--warning); color: #000; }
+        .badge-moderator { background: #9c27b0; }
+        .badge-admin { background: var(--danger); }
+        .badge-banned { background: var(--danger); }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+        }
+        .modal-content h3 { margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+        }
+        textarea { min-height: 80px; resize: vertical; }
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        .error { color: var(--danger); margin-top: 10px; }
+        .success-msg { color: var(--success); margin-top: 10px; }
+        .loading { opacity: 0.5; pointer-events: none; }
+        #auth-section { margin-bottom: 20px; }
+        #auth-section input { width: 300px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Installation Management</h1>
+
+        <div id="auth-section" class="card">
+            <h2>Authentifizierung</h2>
+            <div class="filters">
+                <input type="text" id="admin-token" placeholder="Admin Token">
+                <input type="text" id="admin-id" placeholder="Admin Installation ID">
+                <button onclick="authenticate()">Verbinden</button>
+            </div>
+            <div id="auth-status"></div>
+        </div>
+
+        <div id="main-content" style="display: none;">
+            <div class="stats-grid" id="stats-grid"></div>
+
+            <div class="card">
+                <h2>Installationen</h2>
+                <div class="filters">
+                    <select id="role-filter">
+                        <option value="">Alle Rollen</option>
+                        <option value="guest">Guest</option>
+                        <option value="visitor">Visitor</option>
+                        <option value="sponsor">Sponsor</option>
+                        <option value="moderator">Moderator</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                    <label><input type="checkbox" id="banned-only"> Nur Gesperrte</label>
+                    <button onclick="loadInstallations()">Aktualisieren</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Installation ID</th>
+                            <th>Rolle</th>
+                            <th>Status</th>
+                            <th>Erstellt</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="installations-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Role Modal -->
+    <div class="modal" id="role-modal">
+        <div class="modal-content">
+            <h3>Rolle aendern</h3>
+            <div class="form-group">
+                <label>Installation: <span id="role-modal-id"></span></label>
+            </div>
+            <div class="form-group">
+                <label>Neue Rolle:</label>
+                <select id="new-role">
+                    <option value="guest">Guest</option>
+                    <option value="visitor">Visitor</option>
+                    <option value="sponsor">Sponsor</option>
+                    <option value="moderator">Moderator</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Grund (optional):</label>
+                <input type="text" id="role-reason">
+            </div>
+            <div class="btn-group">
+                <button class="success" onclick="saveRole()">Speichern</button>
+                <button onclick="closeModal('role-modal')">Abbrechen</button>
+            </div>
+            <div id="role-modal-error" class="error"></div>
+        </div>
+    </div>
+
+    <!-- Ban Modal -->
+    <div class="modal" id="ban-modal">
+        <div class="modal-content">
+            <h3>Installation sperren</h3>
+            <div class="form-group">
+                <label>Installation: <span id="ban-modal-id"></span></label>
+            </div>
+            <div class="form-group">
+                <label>Sperrtyp:</label>
+                <select id="ban-type">
+                    <option value="upload">Upload (nur Dateneinreichung)</option>
+                    <option value="download">Download (nur Modell-Download)</option>
+                    <option value="full">Vollstaendig (alles gesperrt)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Grund (erforderlich):</label>
+                <textarea id="ban-reason" placeholder="Grund fuer die Sperre..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Dauer:</label>
+                <select id="ban-duration">
+                    <option value="">Permanent</option>
+                    <option value="1">1 Stunde</option>
+                    <option value="24">1 Tag</option>
+                    <option value="168">1 Woche</option>
+                    <option value="720">1 Monat</option>
+                    <option value="2160">3 Monate</option>
+                </select>
+            </div>
+            <div class="btn-group">
+                <button class="danger" onclick="saveBan()">Sperren</button>
+                <button onclick="closeModal('ban-modal')">Abbrechen</button>
+            </div>
+            <div id="ban-modal-error" class="error"></div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = '';
+        let adminId = '';
+        const baseUrl = window.location.origin;
+
+        function authenticate() {
+            authToken = document.getElementById('admin-token').value;
+            adminId = document.getElementById('admin-id').value;
+
+            if (!authToken || !adminId) {
+                document.getElementById('auth-status').innerHTML =
+                    '<span class="error">Bitte Token und Installation ID eingeben</span>';
+                return;
+            }
+
+            loadStats().then(() => {
+                document.getElementById('auth-status').innerHTML =
+                    '<span class="success-msg">Verbunden als ' + adminId + '</span>';
+                document.getElementById('main-content').style.display = 'block';
+                loadInstallations();
+            }).catch(err => {
+                document.getElementById('auth-status').innerHTML =
+                    '<span class="error">Authentifizierung fehlgeschlagen: ' + err.message + '</span>';
+            });
+        }
+
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const url = new URL(baseUrl + endpoint);
+            url.searchParams.append('installation_id', adminId);
+
+            const options = {
+                method,
+                headers: {
+                    'Authorization': 'Bearer ' + authToken,
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (body && method !== 'GET') {
+                Object.keys(body).forEach(key => {
+                    url.searchParams.append(key, body[key]);
+                });
+            }
+
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'API Error');
+            }
+            return response.json();
+        }
+
+        async function loadStats() {
+            const stats = await apiCall('/api/v1/admin/installations/stats');
+            const grid = document.getElementById('stats-grid');
+            grid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${stats.total_installations}</div>
+                    <div class="stat-label">Gesamt</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.by_role.guest || 0}</div>
+                    <div class="stat-label">Guests</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.by_role.sponsor || 0}</div>
+                    <div class="stat-label">Sponsors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="color: var(--danger)">${stats.banned_count}</div>
+                    <div class="stat-label">Gesperrt</div>
+                </div>
+            `;
+        }
+
+        async function loadInstallations() {
+            const role = document.getElementById('role-filter').value;
+            const bannedOnly = document.getElementById('banned-only').checked;
+
+            let endpoint = '/api/v1/admin/installations/list?limit=100';
+            if (role) endpoint += '&role=' + role;
+            if (bannedOnly) endpoint += '&banned_only=true';
+
+            const data = await apiCall(endpoint);
+            const tbody = document.getElementById('installations-table');
+
+            tbody.innerHTML = data.items.map(inst => `
+                <tr>
+                    <td><code>${inst.installation_id}</code></td>
+                    <td><span class="badge badge-${inst.role}">${inst.role}</span></td>
+                    <td>${inst.is_banned ?
+                        '<span class="badge badge-banned">GESPERRT</span>' :
+                        '<span style="color: var(--success)">Aktiv</span>'}</td>
+                    <td>${inst.created_at ? new Date(inst.created_at).toLocaleDateString('de') : '-'}</td>
+                    <td>
+                        <button onclick="openRoleModal('${inst.installation_id}', '${inst.role}')">Rolle</button>
+                        ${inst.is_banned ?
+                            `<button class="success" onclick="unban('${inst.installation_id}')">Entsperren</button>` :
+                            `<button class="danger" onclick="openBanModal('${inst.installation_id}')">Sperren</button>`
+                        }
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openRoleModal(id, currentRole) {
+            document.getElementById('role-modal-id').textContent = id;
+            document.getElementById('new-role').value = currentRole;
+            document.getElementById('role-reason').value = '';
+            document.getElementById('role-modal-error').textContent = '';
+            document.getElementById('role-modal').classList.add('active');
+        }
+
+        function openBanModal(id) {
+            document.getElementById('ban-modal-id').textContent = id;
+            document.getElementById('ban-reason').value = '';
+            document.getElementById('ban-modal-error').textContent = '';
+            document.getElementById('ban-modal').classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        async function saveRole() {
+            const id = document.getElementById('role-modal-id').textContent;
+            const role = document.getElementById('new-role').value;
+            const reason = document.getElementById('role-reason').value;
+
+            try {
+                await apiCall(`/api/v1/admin/installations/${id}/role`, 'POST', { role, reason });
+                closeModal('role-modal');
+                loadInstallations();
+                loadStats();
+            } catch (err) {
+                document.getElementById('role-modal-error').textContent = err.message;
+            }
+        }
+
+        async function saveBan() {
+            const id = document.getElementById('ban-modal-id').textContent;
+            const ban_type = document.getElementById('ban-type').value;
+            const reason = document.getElementById('ban-reason').value;
+            const duration = document.getElementById('ban-duration').value;
+
+            if (!reason) {
+                document.getElementById('ban-modal-error').textContent = 'Grund ist erforderlich';
+                return;
+            }
+
+            try {
+                const body = { ban_type, reason };
+                if (duration) body.duration_hours = parseInt(duration);
+
+                await apiCall(`/api/v1/admin/installations/${id}/ban`, 'POST', body);
+                closeModal('ban-modal');
+                loadInstallations();
+                loadStats();
+            } catch (err) {
+                document.getElementById('ban-modal-error').textContent = err.message;
+            }
+        }
+
+        async function unban(id) {
+            if (!confirm(`Installation ${id} entsperren?`)) return;
+
+            try {
+                await apiCall(`/api/v1/admin/installations/${id}/unban`, 'POST', { ban_type: 'full' });
+                await apiCall(`/api/v1/admin/installations/${id}/unban`, 'POST', { ban_type: 'upload' }).catch(() => {});
+                await apiCall(`/api/v1/admin/installations/${id}/unban`, 'POST', { ban_type: 'download' }).catch(() => {});
+                loadInstallations();
+                loadStats();
+            } catch (err) {
+                alert('Fehler: ' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>
+"""
+
+
+@app.get("/admin/installations", response_class=HTMLResponse)
+async def admin_installations_ui():
+    """
+    Admin WebUI for managing installations (roles, bans).
+    Authentication is handled client-side via the admin token.
+    """
+    return HTMLResponse(content=ADMIN_INSTALLATIONS_HTML)
 
 
 # Prometheus Metrics
