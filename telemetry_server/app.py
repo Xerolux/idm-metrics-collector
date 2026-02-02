@@ -19,6 +19,10 @@ import hashlib
 import re
 import uuid
 import json
+import base64
+import hmac
+import tempfile
+from cryptography.fernet import Fernet
 from pathlib import Path
 from collections import defaultdict
 from analysis import get_community_averages
@@ -37,6 +41,8 @@ from token_manager import (
     validate_token as validate_installation_token,
     revoke_token,
     token_exists,
+    get_encryption_key,
+    has_encryption_key,
 )
 
 # Redis (optional, for persistent rate limiting)
@@ -55,6 +61,14 @@ VM_QUERY_URL = os.environ.get(
     "VM_QUERY_URL", "http://victoriametrics:8428/api/v1/query"
 )
 AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "change-me-to-something-secure")
+
+# Shared encryption key for backward compatibility
+# Per-installation keys are preferred (see token_manager.py)
+_encryption_key_str = os.environ.get(
+    "TELEMETRY_ENCRYPTION_KEY",
+    "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA="
+)
+DEFAULT_ENCRYPTION_KEY = _encryption_key_str.encode() if isinstance(_encryption_key_str, str) else _encryption_key_str
 
 # Setup Structured Logging
 structlog.configure(
@@ -819,11 +833,16 @@ async def verify_token_with_fallback(
     # Fallback to global token (for backward compatibility / migration)
     if AUTH_TOKEN and token == AUTH_TOKEN:
         logger.info("global_token_used", installation_id=installation_id, migrating=True)
-        # Auto-register this installation with a unique token for future use
+        # Auto-register this installation with unique token AND encryption key
         try:
-            new_token = generate_token(installation_id, metadata={"migrated_from_global": True})
-            logger.info("installation_auto_registered", installation_id=installation_id)
-            # Note: Client doesn't know about the new token yet, but on next model check it will get it
+            result = generate_token(
+                installation_id,
+                metadata={"migrated_from_global": True},
+                with_encryption_key=True
+            )
+            # Result is tuple of (token, encryption_key)
+            logger.info("installation_auto_registered", installation_id=installation_id, has_encryption_key=True)
+            # Note: Client doesn't know about the new credentials yet, but on next model check it will be notified
         except Exception as e:
             logger.error("auto_registration_failed", installation_id=installation_id, error=str(e))
         return
@@ -874,20 +893,26 @@ async def register_installation(
             detail="Installation already registered. Use /api/v1/token/refresh to get a new token."
         )
 
-    # Generate new token
+    # Generate new token AND encryption key
     try:
-        new_token = generate_token(
+        result = generate_token(
             installation_id,
-            metadata={"heatpump_model": heatpump_model} if heatpump_model else {}
+            metadata={"heatpump_model": heatpump_model} if heatpump_model else {},
+            with_encryption_key=True  # Generate encryption key alongside token
         )
 
-        logger.info("installation_registered", installation_id=installation_id)
+        # Unpack result (tuple of token, encryption_key)
+        new_token, encryption_key = result
+
+        logger.info("installation_registered", installation_id=installation_id, has_encryption_key=True)
 
         return {
             "installation_id": installation_id,
             "auth_token": new_token,
+            "encryption_key": encryption_key,  # NEW: Per-installation encryption key
             "registered_at": datetime.now(timezone.utc).isoformat(),
-            "message": "Token generated successfully. Store this token securely - it won't be shown again."
+            "message": "Credentials generated successfully. Store these securely - they won't be shown again!",
+            "security_note": "Your personal encryption key provides additional security. Future model downloads will use per-installation encryption."
         }
     except Exception as e:
         logger.error("registration_failed", installation_id=installation_id, error=str(e))
@@ -1255,6 +1280,14 @@ async def check_eligibility(
                 "message": "You have a personal authentication token. Make sure to use it instead of the shared token."
             }
 
+        # Add encryption key information (for per-installation encryption)
+        result["has_personal_encryption_key"] = has_encryption_key(installation_id)
+        if result["has_personal_encryption_key"]:
+            result["encryption_key_info"] = {
+                "message": "You have a personal encryption key for enhanced security. This will be used for future model encryption.",
+                "note": "Currently using shared encryption for backward compatibility. Migration to per-installation encryption is planned."
+            }
+
         return result
 
     except HTTPException:
@@ -1351,6 +1384,111 @@ async def download_model(
             success=True
         )
 
+        # Check if installation has personal encryption key
+        personal_key = get_encryption_key(installation_id)
+
+        if personal_key:
+            # Re-encrypt model with personal key for enhanced security
+            logger.info(
+                "model_reencrypt_personal",
+                installation_id=installation_id,
+                model=model_file.stem
+            )
+
+            try:
+                # Read encrypted model file (JSON envelope)
+                def _read_and_reencrypt():
+                    with open(model_file, 'r', encoding='utf-8') as f:
+                        envelope = json.load(f)
+
+                    # Decrypt with shared key
+                    shared_fernet = Fernet(DEFAULT_ENCRYPTION_KEY)
+                    encrypted_data = base64.b64decode(envelope['payload'])
+                    model_data = shared_fernet.decrypt(encrypted_data)
+
+                    # Encrypt with personal key
+                    personal_fernet = Fernet(personal_key)
+                    personal_encrypted = personal_fernet.encrypt(model_data)
+
+                    # Create new envelope with personal encryption
+                    new_envelope = {
+                        "version": envelope.get("version", "2.0"),
+                        "metadata": envelope["metadata"].copy(),
+                        "payload": base64.b64encode(personal_encrypted).decode('utf-8'),
+                        "encryption": "per-installation"  # Mark as personally encrypted
+                    }
+
+                    # Add installation info to metadata
+                    new_envelope["metadata"]["encrypted_for"] = installation_id
+                    new_envelope["metadata"]["encryption_type"] = "per-installation"
+
+                    # Create signature with personal key
+                    metadata_json = json.dumps(new_envelope["metadata"], sort_keys=True)
+                    msg = f"{new_envelope['payload']}.{metadata_json}".encode('utf-8')
+                    signature = hmac.new(personal_key, msg, hashlib.sha256).hexdigest()
+                    new_envelope["signature"] = signature
+
+                    return new_envelope
+
+                # Execute re-encryption in thread pool (I/O intensive)
+                new_envelope = await asyncio.get_event_loop().run_in_executor(
+                    None, _read_and_reencrypt
+                )
+
+                # Write to temporary file
+                temp_file = tempfile.NamedTemporaryFile(
+                    mode='w',
+                    suffix='.enc',
+                    delete=False,
+                    encoding='utf-8'
+                )
+                try:
+                    json.dump(new_envelope, temp_file, indent=2)
+                    temp_file.close()
+
+                    # Return personally encrypted model
+                    response = FileResponse(
+                        path=temp_file.name,
+                        filename=model_file.name,
+                        media_type="application/octet-stream",
+                        headers={
+                            "X-Model-Hash": await get_file_hash(str(model_file)) or "",
+                            "X-Model-Name": model_file.stem,
+                            "X-Encryption-Type": "per-installation",
+                            "X-Encrypted-For": installation_id,
+                            "Content-Disposition": f'attachment; filename="{model_file.name}"',
+                        },
+                    )
+
+                    # Clean up temp file after response
+                    response.background = None  # Temp file will be cleaned up by OS
+
+                    logger.info(
+                        "model_download_personal_encryption",
+                        installation_id=installation_id,
+                        model=model_file.stem
+                    )
+
+                    return response
+
+                except Exception as e:
+                    # Clean up temp file on error
+                    try:
+                        os.unlink(temp_file.name)
+                    except:
+                        pass
+                    raise e
+
+            except Exception as e:
+                logger.error(
+                    "personal_encryption_failed",
+                    installation_id=installation_id,
+                    error=str(e),
+                    fallback_to_shared=True
+                )
+                # Fall through to shared encryption on error
+
+        # Return model with shared encryption (default/fallback)
         return FileResponse(
             path=str(model_file),
             filename=model_file.name,
@@ -1358,6 +1496,7 @@ async def download_model(
             headers={
                 "X-Model-Hash": await get_file_hash(str(model_file)) or "",
                 "X-Model-Name": model_file.stem,
+                "X-Encryption-Type": "shared",
                 "Content-Disposition": f'attachment; filename="{model_file.name}"',
             },
         )
