@@ -993,6 +993,10 @@
                     <div class="text-xs text-gray-400 mt-1">
                       <div>Modified: {{ model.modified_formatted }}</div>
                       <div class="font-mono">Hash: {{ model.hash?.substring(0, 16) }}...</div>
+                      <div class="flex items-center gap-1 mt-1">
+                        <i class="pi pi-download text-green-400"></i>
+                        <span>Downloads: {{ model.download_count || 0 }}</span>
+                      </div>
                     </div>
                   </div>
                   <div class="flex items-center gap-4">
@@ -1012,6 +1016,16 @@
                 <div v-if="!adminModels.models || !adminModels.models.length" class="text-gray-500 italic text-center p-4">
                   No models available yet. Models will be generated automatically when enough data is collected.
                 </div>
+              </div>
+            </Fieldset>
+
+            <!-- Model Downloads Chart -->
+            <Fieldset legend="Model Downloads" :toggleable="true" v-if="adminModels && adminModels.models?.some(m => m.download_count > 0)">
+              <div class="mb-3 text-sm text-gray-400">
+                Top 10 most downloaded models
+              </div>
+              <div class="bg-gray-900/50 p-4 rounded border border-gray-700" style="height: 300px;">
+                <canvas ref="modelDownloadsChart"></canvas>
               </div>
             </Fieldset>
 
@@ -1406,6 +1420,10 @@ import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { copyToClipboard } from '../utils/clipboard'
 import PrivacyPolicyDialog from '../components/PrivacyPolicyDialog.vue'
+import { Chart, registerables } from 'chart.js'
+
+// Register Chart.js components
+Chart.register(...registerables)
 
 const config = ref({
   installation_id: '',
@@ -1493,6 +1511,8 @@ const modelDeleting = ref(false)
 const trainingInProgress = ref(false)
 const adminAutoRefresh = ref(true)
 let adminAutoRefreshInterval = null
+const modelDownloadsChart = ref(null)
+let modelDownloadsChartInstance = null
 const checkingUpdates = ref(false)
 const checkingModel = ref(false)
 const submittingTelemetry = ref(false)
@@ -1555,9 +1575,86 @@ const fetchAdminModels = async () => {
       params: { installation_id: config.value.installation_id }
     })
     adminModels.value = res.data
+
+    // Update chart after data is loaded
+    setTimeout(() => renderModelDownloadsChart(), 100)
   } catch (err) {
     console.error('Failed to fetch admin models:', err)
   }
+}
+
+const renderModelDownloadsChart = () => {
+  if (!adminModels.value?.models || !modelDownloadsChart.value) return
+
+  const ctx = modelDownloadsChart.value.getContext('2d')
+
+  // Destroy existing chart instance
+  if (modelDownloadsChartInstance) {
+    modelDownloadsChartInstance.destroy()
+  }
+
+  // Prepare data
+  const models = adminModels.value.models
+    .filter(m => m.download_count > 0)
+    .sort((a, b) => b.download_count - a.download_count)
+    .slice(0, 10) // Show top 10
+
+  if (models.length === 0) {
+    // No downloads yet
+    return
+  }
+
+  const labels = models.map(m => m.name)
+  const data = models.map(m => m.download_count)
+
+  // Create new chart
+  modelDownloadsChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Downloads',
+        data: data,
+        backgroundColor: 'rgba(59, 130, 246, 0.7)', // Blue
+        borderColor: 'rgba(59, 130, 246, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        },
+        title: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1,
+            color: 'rgba(156, 163, 175, 0.8)'
+          },
+          grid: {
+            color: 'rgba(75, 85, 99, 0.2)'
+          }
+        },
+        x: {
+          ticks: {
+            color: 'rgba(156, 163, 175, 0.8)',
+            maxRotation: 45,
+            minRotation: 45
+          },
+          grid: {
+            display: false
+          }
+        }
+      }
+    }
+  })
 }
 
 const fetchAdminMetrics = async () => {
@@ -1695,6 +1792,7 @@ const passwordMismatch = computed(() => {
 onUnmounted(() => {
   if (aiStatusInterval) clearInterval(aiStatusInterval)
   if (adminAutoRefreshInterval) clearInterval(adminAutoRefreshInterval)
+  if (modelDownloadsChartInstance) modelDownloadsChartInstance.destroy()
 })
 
 // Backup & Restore state

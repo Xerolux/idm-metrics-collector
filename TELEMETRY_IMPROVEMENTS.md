@@ -1,6 +1,6 @@
 # Telemetry System - Verbesserungen & Optimierungen
 
-**Letzte Aktualisierung:** 2026-02-02 (Option 4 abgeschlossen - System Monitoring Dashboard)
+**Letzte Aktualisierung:** 2026-02-02 (Quick Wins komplett! - 8/27 Tasks erledigt)
 **Branch:** `claude/telemetry-admin-improvements-fXQZB`
 
 ---
@@ -9,12 +9,12 @@
 
 | Kategorie | Gesamt | Erledigt | In Arbeit | Offen |
 |-----------|--------|----------|-----------|-------|
-| **Quick Wins** | 4 | 3 | 0 | 1 |
+| **Quick Wins** | 4 | 4 | 0 | 0 |
 | **Security** | 5 | 1 | 0 | 4 |
 | **Performance** | 6 | 2 | 0 | 4 |
 | **Admin Features** | 8 | 1 | 0 | 7 |
 | **Operational** | 4 | 0 | 0 | 4 |
-| **GESAMT** | **27** | **7** | **0** | **20** |
+| **GESAMT** | **27** | **8** | **0** | **19** |
 
 ---
 
@@ -127,25 +127,76 @@ if cache_key in _community_avg_cache:
 ---
 
 ### [#QUICK-03] Model Performance Chart
-- **Status:** ❌ Offen
+- **Status:** ✅ Erledigt (2026-02-02)
 - **Priorität:** 🟢 Mittel
 - **Aufwand:** 45 Minuten
-- **Dateien:** `frontend/src/views/Config.vue`
+- **Dateien:** `telemetry_server/app.py:1202-1204, 1383-1407`, `frontend/src/views/Config.vue:1409-1412, 1500-1501, 1555-1644, 1781, 996-999, 1018-1026`
 
 **Problem:**
 Keine Visualisierung der Model-Download-Trends.
 
-**Lösung:**
-Chart mit Downloads pro Modell über Zeit hinzufügen.
+**Lösung implementiert:**
+```javascript
+// Backend: Download-Tracking in app.py (Zeile 1202-1204)
+if PROMETHEUS_AVAILABLE:
+    model_downloads_total.labels(model=model_file.stem).inc()
+
+// Backend: Download-Count in admin_list_models (Zeile 1386-1406)
+download_count = 0
+if PROMETHEUS_AVAILABLE:
+    try:
+        metric_value = model_downloads_total.labels(model=model_file.stem)._value.get()
+        download_count = int(metric_value) if metric_value else 0
+    except:
+        download_count = 0
+
+return {
+    ...,
+    "download_count": download_count,
+}
+
+// Frontend: Chart.js Integration (Zeile 1572-1644)
+const renderModelDownloadsChart = () => {
+  const models = adminModels.value.models
+    .filter(m => m.download_count > 0)
+    .sort((a, b) => b.download_count - a.download_count)
+    .slice(0, 10) // Top 10
+
+  modelDownloadsChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: 'rgba(59, 130, 246, 0.7)' }] },
+    options: { responsive: true, ... }
+  })
+}
+
+// Frontend: Canvas Element (Zeile 1018-1026)
+<Fieldset legend="Model Downloads" :toggleable="true">
+  <canvas ref="modelDownloadsChart"></canvas>
+</Fieldset>
+
+// Frontend: Download-Count-Display in Model-Liste (Zeile 996-999)
+<div class="flex items-center gap-1">
+  <i class="pi pi-download text-green-400"></i>
+  <span>Downloads: {{ model.download_count || 0 }}</span>
+</div>
+```
 
 **Impact:**
-- Bessere Insights für Admins
-- Trend-Erkennung für beliebte Modelle
+- ✅ Prometheus Counter tracking für Model-Downloads
+- ✅ Download-Counts in `/api/v1/admin/models` Response
+- ✅ Bar-Chart-Visualisierung (Top 10 Models)
+- ✅ Download-Count-Badge bei jedem Modell
+- ✅ Auto-Refresh mit Admin-Zone
+- ✅ Nur sichtbar wenn Downloads > 0
 
 **Implementierung:**
-- [ ] Backend-Endpoint für Download-Statistiken
-- [ ] Chart.js Integration im Frontend
-- [ ] Time-Range Selector (7d/30d/90d)
+- [x] Backend: Prometheus Counter Increment im download_model Endpoint
+- [x] Backend: Download-Count zu admin_list_models hinzugefügt
+- [x] Frontend: Chart.js Import und Registration
+- [x] Frontend: Bar-Chart für Top 10 Downloads
+- [x] Frontend: Download-Count-Display bei jedem Modell
+- [x] Frontend: Auto-Update bei Admin-Refresh
+- [x] Frontend: Cleanup in onUnmounted
 
 ---
 

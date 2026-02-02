@@ -1199,6 +1199,10 @@ async def download_model(
             model_file=model_file.name,
         )
 
+        # Track download in Prometheus
+        if PROMETHEUS_AVAILABLE:
+            model_downloads_total.labels(model=model_file.stem).inc()
+
         return FileResponse(
             path=str(model_file),
             filename=model_file.name,
@@ -1378,6 +1382,17 @@ async def admin_list_models(
 
     async def _get_model_details(model_file):
         stat = await run_sync(model_file.stat)
+
+        # Get download count from Prometheus counter
+        download_count = 0
+        if PROMETHEUS_AVAILABLE:
+            try:
+                # Get the counter value for this specific model
+                metric_value = model_downloads_total.labels(model=model_file.stem)._value.get()
+                download_count = int(metric_value) if metric_value else 0
+            except:
+                download_count = 0
+
         return {
             "name": model_file.stem.replace("_", " "),
             "filename": model_file.name,
@@ -1388,6 +1403,7 @@ async def admin_list_models(
                 "%Y-%m-%d %H:%M:%S", time.localtime(stat.st_mtime)
             ),
             "hash": await get_file_hash(str(model_file)),
+            "download_count": download_count,
         }
 
     models = []
