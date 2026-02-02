@@ -962,6 +962,80 @@ async def register_installation(
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 
+@app.post("/api/v1/credentials/retrieve")
+async def retrieve_credentials(
+    installation_id: str,
+    authorization: Optional[str] = Header(None),
+):
+    """
+    Retrieve (or regenerate) credentials for an installation.
+
+    This endpoint allows clients to get their per-installation credentials.
+    - For new installations: Creates new credentials
+    - For existing installations: Regenerates credentials (invalidates old token)
+
+    Requires global AUTH_TOKEN for authentication.
+
+    Args:
+        installation_id: Unique installation identifier
+        authorization: Must provide global AUTH_TOKEN
+
+    Returns:
+        {
+            "installation_id": "...",
+            "auth_token": "unique-token-for-this-installation",
+            "encryption_key": "base64-encoded-key",
+            "is_new": true/false,
+            "retrieved_at": "2026-02-02T..."
+        }
+    """
+    validate_installation_id(installation_id)
+
+    # Requires global AUTH_TOKEN
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization Header")
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or token != AUTH_TOKEN:
+        raise HTTPException(
+            status_code=403, detail="Invalid global token for credential retrieval"
+        )
+
+    is_new = not token_exists(installation_id)
+
+    # Generate new credentials (overwrites existing if present)
+    try:
+        result = generate_token(
+            installation_id,
+            metadata={"retrieved_via_api": True, "was_new": is_new},
+            with_encryption_key=True,
+        )
+
+        new_token, encryption_key = result
+
+        logger.info(
+            "credentials_retrieved",
+            installation_id=installation_id,
+            is_new=is_new,
+        )
+
+        return {
+            "installation_id": installation_id,
+            "auth_token": new_token,
+            "encryption_key": encryption_key,
+            "is_new": is_new,
+            "retrieved_at": datetime.now(timezone.utc).isoformat(),
+            "message": "Store these credentials securely - they won't be shown again!",
+        }
+    except Exception as e:
+        logger.error(
+            "credential_retrieval_failed", installation_id=installation_id, error=str(e)
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Credential retrieval failed: {str(e)}"
+        )
+
+
 @app.post("/api/v1/submit")
 async def submit_telemetry(
     payload: TelemetryPayload,
