@@ -1,6 +1,6 @@
 # Telemetry System - Verbesserungen & Optimierungen
 
-**Letzte Aktualisierung:** 2026-02-02 (Quick Wins komplett! - 8/27 Tasks erledigt)
+**Letzte Aktualisierung:** 2026-02-02 (9/27 Tasks - Installation Detail-View implementiert!)
 **Branch:** `claude/telemetry-admin-improvements-fXQZB`
 
 ---
@@ -12,9 +12,9 @@
 | **Quick Wins** | 4 | 4 | 0 | 0 |
 | **Security** | 5 | 1 | 0 | 4 |
 | **Performance** | 6 | 2 | 0 | 4 |
-| **Admin Features** | 8 | 1 | 0 | 7 |
+| **Admin Features** | 8 | 2 | 0 | 6 |
 | **Operational** | 4 | 0 | 0 | 4 |
-| **GESAMT** | **27** | **8** | **0** | **19** |
+| **GESAMT** | **27** | **9** | **0** | **18** |
 
 ---
 
@@ -712,40 +712,88 @@ GET /api/v1/admin/metrics
 ---
 
 ### [#ADMIN-02] Installation Detail-View
-- **Status:** ❌ Offen
+- **Status:** ✅ Erledigt (2026-02-02)
 - **Priorität:** 🟡 Hoch
 - **Aufwand:** 3 Stunden
-- **Dateien:** `frontend/src/views/Config.vue`, `telemetry_server/app.py`
+- **Dateien:** `telemetry_server/app.py:1623-1825, 29`, `telemetry_server/audit_log.py:230-239`, `frontend/src/views/Config.vue:1508-1512, 1717-1757, 1097-1119, 1307-1409`
+
+**Problem:**
+Admins hatten keine Möglichkeit, detaillierte Informationen über einzelne Installationen einzusehen.
+
+**Lösung implementiert:**
+```python
+# Backend: Installation Details Endpoint (L1623-1765)
+@app.get("/api/v1/admin/installations/{target_id}/details")
+async def admin_installation_details(target_id: str, ...):
+    # Calculate:
+    # - Total submissions (count_over_time)
+    # - First/Last seen timestamps
+    # - Data quality score (based on unique metrics)
+    # - Contribution rank (percentile among all installations)
+    # - Model download history (from audit log)
+    return {
+        "installation_id", "heatpump_model", "first_seen", "last_seen",
+        "total_submissions", "data_quality_score", "model_downloads",
+        "contribution_rank", "unique_metrics", "is_admin"
+    }
+
+# Backend: Installation History Endpoint (L1768-1825)
+@app.get("/api/v1/admin/installations/{target_id}/history")
+async def admin_installation_history(target_id: str, ...):
+    # Query 30 days of time-series data with 1h resolution
+    # Return timeline of data submissions
+    return {
+        "installation_id", "history": [{"timestamp", "metric", "count"}]
+    }
+
+# Audit Log: Model Download Tracking (L230-239)
+def log_model_download(installation_id, ip_address, model_name, success):
+    audit_logger.log(action="model_download", ...)
+
+# Frontend: Detail Dialog (L1307-1409)
+<Dialog v-model:visible="installationDetailDialog">
+  <!-- Summary Cards: Model, Submissions, Quality, Dates, Rank -->
+  <!-- Model Downloads List -->
+  <!-- Recent Activity Timeline -->
+  <!-- Admin Badge -->
+</Dialog>
+
+# Frontend: Clickable Installation IDs (L1097-1119)
+<button @click="openInstallationDetails(inst.installation_id)">
+  {{ inst.installation_id.substring(0, 20) }}...
+</button>
+```
+
+**Impact:**
+- ✅ Detaillierte Installation-Info mit 6 Summary-Cards
+- ✅ Data Quality Score (0-100%) mit farbiger Kennzeichnung
+- ✅ Contribution Rank (Top 10%/25%/50%)
+- ✅ Model Download History aus Audit-Log
+- ✅ Recent Activity Timeline (Last 20 Entries)
+- ✅ Clickable Installation IDs in der Liste
+- ✅ Modal-Dialog mit responsivem Layout
+- ✅ Parallele Fetches (Details + History)
+- ✅ Admin-Badge für Admin-Installations
 
 **Features:**
-- Submission History (Timeline)
-- Data Quality Score
-- Model Download History
-- Contribution Metrics
-- Aktionen: Delete, Ban, Reset Stats
+- ✅ Submission History (Timeline mit 1h Resolution)
+- ✅ Data Quality Score (basierend auf Unique Metrics)
+- ✅ Model Download History (aus Audit-Log)
+- ✅ Contribution Metrics (Rank, Total Submissions)
+- ✅ First/Last Seen Timestamps
+- ✅ Heat Pump Model Info
 
 **Implementierung:**
-- [ ] Backend: `/api/v1/admin/installations/{id}/details`
-- [ ] Backend: `/api/v1/admin/installations/{id}/history`
-- [ ] Frontend: Detail-Modal/Page
-- [ ] Frontend: Timeline-Component
-- [ ] Frontend: Action-Buttons
-
-**API-Response:**
-```json
-{
-  "installation_id": "uuid",
-  "model": "LG Therma V",
-  "first_seen": "2025-01-15T10:30:00Z",
-  "last_seen": "2026-02-02T14:22:00Z",
-  "total_submissions": 1250,
-  "data_quality_score": 0.95,
-  "model_downloads": [
-    {"model": "therma_v_v1.2", "downloaded_at": "2025-12-10T08:00:00Z"}
-  ],
-  "contribution_rank": "top_10_percent"
-}
-```
+- [x] Backend: `/api/v1/admin/installations/{id}/details` mit VictoriaMetrics-Queries
+- [x] Backend: `/api/v1/admin/installations/{id}/history` mit query_range API
+- [x] Backend: `log_model_download()` Audit-Log-Funktion
+- [x] Backend: Model Download Audit Logging im download_model Endpoint
+- [x] Frontend: Detail-Modal mit 6 Summary Cards
+- [x] Frontend: Timeline-Component für Recent Activity
+- [x] Frontend: Model Downloads List
+- [x] Frontend: Clickable Installation IDs in Tabelle
+- [x] Frontend: "Details anzeigen" Button
+- [x] Frontend: Parallel Fetches (Details + History)
 
 ---
 

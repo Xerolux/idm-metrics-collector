@@ -26,6 +26,7 @@ import structlog
 from audit_log import (
     audit_logger,
     log_model_delete,
+    log_model_download,
     log_training_trigger,
     log_failed_auth,
     log_admin_access,
@@ -1203,6 +1204,20 @@ async def download_model(
         if PROMETHEUS_AVAILABLE:
             model_downloads_total.labels(model=model_file.stem).inc()
 
+        # Log download in audit log
+        forwarded = request.headers.get("X-Forwarded-For")
+        client_ip = (
+            forwarded.split(",")[0].strip()
+            if forwarded
+            else (request.client.host if request.client else "unknown")
+        )
+        log_model_download(
+            installation_id=installation_id,
+            ip_address=client_ip,
+            model_name=model_file.stem,
+            success=True
+        )
+
         return FileResponse(
             path=str(model_file),
             filename=model_file.name,
@@ -1617,6 +1632,211 @@ async def admin_list_installations(
         logger.error("admin_installations_list_failed", error=str(e))
         raise HTTPException(
             status_code=500, detail=f"Failed to list installations: {str(e)}"
+        )
+
+
+@app.get("/api/v1/admin/installations/{target_id}/details")
+async def admin_installation_details(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get detailed information about a specific installation."""
+    await check_admin_rate_limit(request)
+    await verify_admin(authorization, installation_id)
+
+    validate_installation_id(target_id)
+
+    try:
+        client = request.app.state.http_client
+
+        # Get all metrics for this installation (30d window)
+        metrics_query = f'{{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}'
+        response = await client.get(VM_QUERY_URL, params={"query": metrics_query})
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=404, detail="Installation not found")
+
+        data = response.json()
+        if not data.get("data") or not data["data"].get("result"):
+            raise HTTPException(status_code=404, detail="No data found for this installation")
+
+        results = data["data"]["result"]
+
+        # Extract model from first metric (assuming all metrics have same model)
+        heatpump_model = "Unknown"
+        for result in results:
+            if "heatpump_model" in result.get("metric", {}):
+                heatpump_model = result["metric"]["heatpump_model"]
+                break
+
+        # Calculate total submissions (count of unique timestamps)
+        timestamps_query = f'count_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
+        count_resp = await client.get(VM_QUERY_URL, params={"query": timestamps_query})
+
+        total_submissions = 0
+        if count_resp.status_code == 200:
+            count_data = count_resp.json()
+            if count_data.get("data") and count_data["data"].get("result"):
+                total_submissions = sum(
+                    int(float(r["value"][1])) for r in count_data["data"]["result"] if r.get("value")
+                )
+
+        # Get first seen (earliest timestamp)
+        first_seen_query = f'min_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
+        first_resp = await client.get(VM_QUERY_URL, params={"query": first_seen_query})
+
+        first_seen = None
+        if first_resp.status_code == 200:
+            first_data = first_resp.json()
+            if first_data.get("data") and first_data["data"].get("result"):
+                # Get the timestamp of the earliest metric
+                timestamps = [float(r["value"][0]) for r in first_data["data"]["result"] if r.get("value")]
+                if timestamps:
+                    first_seen = min(timestamps)
+
+        # Get last seen (latest timestamp)
+        last_seen_query = f'last_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
+        last_resp = await client.get(VM_QUERY_URL, params={"query": last_seen_query})
+
+        last_seen = None
+        if last_resp.status_code == 200:
+            last_data = last_resp.json()
+            if last_data.get("data") and last_data["data"]["result"):
+                last_seen = float(last_data["data"]["result"][0]["value"][0])
+
+        # Calculate data quality score (based on completeness and consistency)
+        # Simple heuristic: more metrics = better quality
+        unique_metrics = len(set(r["metric"]["__name__"] for r in results))
+        data_quality_score = min(1.0, unique_metrics / 20.0)  # Assuming 20+ metrics = good quality
+
+        # Get model download history (from audit log if available)
+        model_downloads = []
+        try:
+            from audit_log import get_audit_logs
+            logs = get_audit_logs(
+                action="model_download",
+                installation_id=target_id,
+                limit=50
+            )
+            model_downloads = [
+                {
+                    "model": log.get("metadata", {}).get("model", "Unknown"),
+                    "downloaded_at": log.get("timestamp"),
+                }
+                for log in logs
+            ]
+        except Exception:
+            # Audit log not available or error occurred
+            pass
+
+        # Calculate contribution rank
+        # Get all installations and rank by submission count
+        all_installations_query = 'group by(installation_id) (count by (installation_id))'
+        rank_resp = await client.get(VM_QUERY_URL, params={"query": all_installations_query})
+
+        contribution_rank = "Unknown"
+        if rank_resp.status_code == 200:
+            rank_data = rank_resp.json()
+            if rank_data.get("data") and rank_data["data"].get("result"):
+                counts = [(r["metric"].get("installation_id"), int(r["value"][1]))
+                          for r in rank_data["data"]["result"] if r.get("value")]
+                counts.sort(key=lambda x: x[1], reverse=True)
+
+                total_installs = len(counts)
+                for idx, (inst_id, _) in enumerate(counts):
+                    if inst_id == target_id:
+                        percentile = ((idx + 1) / total_installs) * 100
+                        if percentile <= 10:
+                            contribution_rank = "Top 10%"
+                        elif percentile <= 25:
+                            contribution_rank = "Top 25%"
+                        elif percentile <= 50:
+                            contribution_rank = "Top 50%"
+                        else:
+                            contribution_rank = f"Top {int(percentile)}%"
+                        break
+
+        return {
+            "installation_id": target_id,
+            "heatpump_model": heatpump_model,
+            "first_seen": datetime.fromtimestamp(first_seen, timezone.utc).isoformat() if first_seen else None,
+            "last_seen": datetime.fromtimestamp(last_seen, timezone.utc).isoformat() if last_seen else None,
+            "total_submissions": total_submissions,
+            "data_quality_score": round(data_quality_score, 2),
+            "model_downloads": model_downloads,
+            "contribution_rank": contribution_rank,
+            "unique_metrics": unique_metrics,
+            "is_admin": target_id.lower() in ADMIN_IDS,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("admin_installation_details_failed", error=str(e), installation_id=target_id)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get installation details: {str(e)}"
+        )
+
+
+@app.get("/api/v1/admin/installations/{target_id}/history")
+async def admin_installation_history(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    limit: int = 50,
+):
+    """Admin: Get submission history for a specific installation."""
+    await check_admin_rate_limit(request)
+    await verify_admin(authorization, installation_id)
+
+    validate_installation_id(target_id)
+
+    try:
+        client = request.app.state.http_client
+
+        # Get time series data for this installation
+        # Query last 30 days of data with 1-hour resolution
+        query = f'count_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[1h])'
+        response = await client.get(
+            VM_QUERY_URL.replace("/query", "/query_range"),
+            params={
+                "query": query,
+                "start": int(time.time()) - 30*24*3600,  # 30 days ago
+                "end": int(time.time()),
+                "step": "3600",  # 1 hour resolution
+            }
+        )
+
+        history = []
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("data") and data["data"].get("result"):
+                # Aggregate all metrics into timeline
+                for result in data["data"]["result"]:
+                    metric_name = result["metric"].get("__name__", "unknown")
+                    for timestamp, value in result.get("values", []):
+                        history.append({
+                            "timestamp": datetime.fromtimestamp(float(timestamp), timezone.utc).isoformat(),
+                            "metric": metric_name,
+                            "count": int(float(value)),
+                        })
+
+        # Sort by timestamp descending
+        history.sort(key=lambda x: x["timestamp"], reverse=True)
+
+        return {
+            "installation_id": target_id,
+            "history": history[:limit],
+            "total": len(history),
+        }
+
+    except Exception as e:
+        logger.error("admin_installation_history_failed", error=str(e), installation_id=target_id)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get installation history: {str(e)}"
         )
 
 

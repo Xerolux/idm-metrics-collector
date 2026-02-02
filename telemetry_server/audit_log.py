@@ -227,6 +227,18 @@ def log_training_trigger(admin_id: str, ip_address: str, success: bool = True, m
     )
 
 
+def log_model_download(installation_id: str, ip_address: str, model_name: str, success: bool = True):
+    """Log model download event."""
+    audit_logger.log(
+        action="model_download",
+        admin_id=installation_id,  # For downloads, use installation_id as the user
+        ip_address=ip_address,
+        resource=model_name,
+        result="success" if success else "failure",
+        metadata={"model": model_name}
+    )
+
+
 def log_installation_delete(admin_id: str, ip_address: str, installation_id: str, success: bool = True):
     """Log installation deletion event."""
     audit_logger.log(
