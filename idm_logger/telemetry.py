@@ -398,14 +398,60 @@ class TelemetryManager:
             )
             resp.raise_for_status()
 
-            # 3. Decrypt and Verify
+            # 3. Integrity Verification (BEFORE parsing/decryption)
+            raw_content = resp.content
+
+            # Verify SHA256 hash if provided
+            expected_hash = resp.headers.get("X-Model-Hash", "").strip()
+            if expected_hash:
+                actual_hash = hashlib.sha256(raw_content).hexdigest()
+                if not hmac.compare_digest(expected_hash.lower(), actual_hash.lower()):
+                    raise Exception(
+                        f"Hash-Verifizierung fehlgeschlagen! Erwartet: {expected_hash[:16]}..., "
+                        f"Erhalten: {actual_hash[:16]}... - Modell könnte manipuliert sein!"
+                    )
+                logger.info("Model hash verified successfully")
+            else:
+                logger.warning("No X-Model-Hash header found - hash verification skipped")
+
+            # Parse JSON envelope
             envelope = resp.json()
+
+            # Version compatibility check
+            envelope_version = envelope.get("version", "1.0")
+            supported_versions = ["1.0", "2.0"]
+            if envelope_version not in supported_versions:
+                raise Exception(
+                    f"Nicht unterstützte Modell-Version: {envelope_version}. "
+                    f"Unterstützte Versionen: {', '.join(supported_versions)}"
+                )
+            logger.info(f"Model version {envelope_version} is compatible")
 
             # Verify signature
             key = DEFAULT_ENCRYPTION_KEY
             payload_b64 = envelope["payload"]
             metadata = envelope["metadata"]
             signature = envelope["signature"]
+
+            # Timestamp verification (prevent replay attacks)
+            model_timestamp = metadata.get("timestamp")
+            if model_timestamp:
+                age_hours = (time.time() - model_timestamp) / 3600
+                # Models older than 90 days are suspicious
+                if age_hours > 90 * 24:
+                    logger.warning(
+                        f"Model is very old ({int(age_hours/24)} days). "
+                        "This could indicate a replay attack or outdated model."
+                    )
+                # Models from the future are definitely suspicious
+                if age_hours < -24:
+                    raise Exception(
+                        f"Model timestamp is in the future! Possible replay attack. "
+                        f"Model timestamp: {model_timestamp}, Current time: {time.time()}"
+                    )
+                logger.info(f"Model age: {int(age_hours/24)} days - timestamp valid")
+            else:
+                logger.warning("No timestamp in model metadata - replay protection unavailable")
 
             # Reconstruct message to sign
             metadata_json = json.dumps(metadata, sort_keys=True)
@@ -415,6 +461,8 @@ class TelemetryManager:
 
             if not hmac.compare_digest(expected_sig, signature):
                 raise Exception("Ungültige Signatur des Modells! Download abgebrochen.")
+
+            logger.info("Model signature verified successfully")
 
             # Decrypt
             f = Fernet(key)
