@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+<!-- Xerolux 2026 - Telemetry Admin Panel -->
+
+{% block head %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .stat-card {
+        text-align: center;
+        padding: 20px;
+    }
+    .stat-value {
+        font-size: 2.5em;
+        font-weight: bold;
+    }
+    .stat-label {
+        font-size: 0.9em;
+        opacity: 0.8;
+    }
+    .badge-guest { background-color: #6c757d !important; }
+    .badge-visitor { background-color: #17a2b8 !important; }
+    .badge-sponsor { background-color: #ffc107 !important; color: #000 !important; }
+    .badge-moderator { background-color: #9c27b0 !important; }
+    .badge-admin { background-color: #dc3545 !important; }
+    .installation-id {
+        font-family: monospace;
+        font-size: 0.85em;
+        word-break: break-all;
+    }
+    .table-responsive {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-shield-lock"></i> Telemetry Admin</h2>
+    <a href="{{ url_for('config_page') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Zurueck
+    </a>
+</div>
+
+{% if not is_admin %}
+<div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle"></i>
+    <strong>Zugriff verweigert:</strong> Diese Seite ist nur fuer Administratoren verfuegbar.
+    Deine Installation muss als Admin registriert sein.
+</div>
+{% else %}
+
+<!-- Stats Cards -->
+<div class="stats-grid" id="stats-grid">
+    <div class="card stat-card bg-primary">
+        <div class="stat-value" id="stat-total">-</div>
+        <div class="stat-label">Gesamt</div>
+    </div>
+    <div class="card stat-card bg-secondary">
+        <div class="stat-value" id="stat-guests">-</div>
+        <div class="stat-label">Guests</div>
+    </div>
+    <div class="card stat-card bg-warning text-dark">
+        <div class="stat-value" id="stat-sponsors">-</div>
+        <div class="stat-label">Sponsors</div>
+    </div>
+    <div class="card stat-card bg-danger">
+        <div class="stat-value" id="stat-banned">-</div>
+        <div class="stat-label">Gesperrt</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Rolle filtern</label>
+                <select class="form-select" id="role-filter">
+                    <option value="">Alle Rollen</option>
+                    <option value="guest">Guest</option>
+                    <option value="visitor">Visitor</option>
+                    <option value="sponsor">Sponsor</option>
+                    <option value="moderator">Moderator</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="banned-only">
+                    <label class="form-check-label" for="banned-only">
+                        Nur Gesperrte anzeigen
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-primary" onclick="loadInstallations()">
+                    <i class="bi bi-arrow-clockwise"></i> Aktualisieren
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Installations Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-list"></i> Installationen</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-dark sticky-top">
+                    <tr>
+                        <th>Installation ID</th>
+                        <th>Rolle</th>
+                        <th>Status</th>
+                        <th>Erstellt</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody id="installations-table">
+                    <tr>
+                        <td colspan="5" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Laden...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Role Modal -->
+<div class="modal fade" id="roleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-gear"></i> Rolle aendern</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Installation:</label>
+                    <code id="role-modal-id" class="d-block"></code>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Neue Rolle:</label>
+                    <select class="form-select" id="new-role">
+                        <option value="guest">Guest - Basis-Funktionalitaet</option>
+                        <option value="visitor">Visitor - Kann Statistiken sehen</option>
+                        <option value="sponsor">Sponsor - Erweiterte Features</option>
+                        <option value="moderator">Moderator - Kann Daten einsehen</option>
+                        <option value="admin">Admin - Vollzugriff</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Grund (optional):</label>
+                    <input type="text" class="form-control" id="role-reason" placeholder="Grund fuer die Aenderung...">
+                </div>
+                <div id="role-modal-error" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-success" onclick="saveRole()">
+                    <i class="bi bi-check-lg"></i> Speichern
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ban Modal -->
+<div class="modal fade" id="banModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-slash-circle"></i> Installation sperren</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Installation:</label>
+                    <code id="ban-modal-id" class="d-block"></code>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Sperrtyp:</label>
+                    <select class="form-select" id="ban-type">
+                        <option value="upload">Upload - Kann keine Daten mehr einreichen</option>
+                        <option value="download">Download - Kann keine Modelle herunterladen</option>
+                        <option value="full">Vollstaendig - Komplett gesperrt</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Grund (erforderlich):</label>
+                    <textarea class="form-control" id="ban-reason" rows="3" placeholder="Grund fuer die Sperre..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Dauer:</label>
+                    <select class="form-select" id="ban-duration">
+                        <option value="">Permanent</option>
+                        <option value="1">1 Stunde</option>
+                        <option value="24">1 Tag</option>
+                        <option value="168">1 Woche</option>
+                        <option value="720">1 Monat (30 Tage)</option>
+                        <option value="2160">3 Monate (90 Tage)</option>
+                    </select>
+                </div>
+                <div id="ban-modal-error" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger" onclick="saveBan()">
+                    <i class="bi bi-slash-circle"></i> Sperren
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const serverUrl = '{{ server_url }}';
+    const authToken = '{{ auth_token }}';
+    const installationId = '{{ installation_id }}';
+
+    let roleModal, banModal;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        roleModal = new bootstrap.Modal(document.getElementById('roleModal'));
+        banModal = new bootstrap.Modal(document.getElementById('banModal'));
+        loadStats();
+        loadInstallations();
+    });
+
+    async function apiCall(endpoint, method = 'GET', body = null) {
+        const url = new URL(serverUrl + endpoint);
+        url.searchParams.append('installation_id', installationId);
+
+        if (body && method !== 'GET') {
+            Object.keys(body).forEach(key => {
+                if (body[key] !== null && body[key] !== undefined && body[key] !== '') {
+                    url.searchParams.append(key, body[key]);
+                }
+            });
+        }
+
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Authorization': 'Bearer ' + authToken,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'API Error');
+        }
+        return response.json();
+    }
+
+    async function loadStats() {
+        try {
+            const stats = await apiCall('/api/v1/admin/installations/stats');
+            document.getElementById('stat-total').textContent = stats.total_installations || 0;
+            document.getElementById('stat-guests').textContent = stats.by_role?.guest || 0;
+            document.getElementById('stat-sponsors').textContent = stats.by_role?.sponsor || 0;
+            document.getElementById('stat-banned').textContent = stats.banned_count || 0;
+        } catch (err) {
+            console.error('Failed to load stats:', err);
+        }
+    }
+
+    async function loadInstallations() {
+        const role = document.getElementById('role-filter').value;
+        const bannedOnly = document.getElementById('banned-only').checked;
+
+        let endpoint = '/api/v1/admin/installations/list?limit=200';
+        if (role) endpoint += '&role=' + role;
+        if (bannedOnly) endpoint += '&banned_only=true';
+
+        try {
+            const data = await apiCall(endpoint);
+            const tbody = document.getElementById('installations-table');
+
+            if (!data.items || data.items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Keine Installationen gefunden</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.items.map(inst => `
+                <tr>
+                    <td class="installation-id">${inst.installation_id}</td>
+                    <td><span class="badge badge-${inst.role}">${inst.role}</span></td>
+                    <td>${inst.is_banned ?
+                        '<span class="badge bg-danger"><i class="bi bi-slash-circle"></i> GESPERRT</span>' :
+                        '<span class="text-success"><i class="bi bi-check-circle"></i> Aktiv</span>'}</td>
+                    <td>${inst.created_at ? new Date(inst.created_at).toLocaleDateString('de-DE') : '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="openRoleModal('${inst.installation_id}', '${inst.role}')">
+                            <i class="bi bi-person-gear"></i>
+                        </button>
+                        ${inst.is_banned ?
+                            `<button class="btn btn-sm btn-outline-success" onclick="unban('${inst.installation_id}')">
+                                <i class="bi bi-unlock"></i>
+                            </button>` :
+                            `<button class="btn btn-sm btn-outline-danger" onclick="openBanModal('${inst.installation_id}')">
+                                <i class="bi bi-slash-circle"></i>
+                            </button>`
+                        }
+                    </td>
+                </tr>
+            `).join('');
+        } catch (err) {
+            document.getElementById('installations-table').innerHTML =
+                `<tr><td colspan="5" class="text-center text-danger py-4">Fehler: ${err.message}</td></tr>`;
+        }
+    }
+
+    function openRoleModal(id, currentRole) {
+        document.getElementById('role-modal-id').textContent = id;
+        document.getElementById('new-role').value = currentRole;
+        document.getElementById('role-reason').value = '';
+        document.getElementById('role-modal-error').classList.add('d-none');
+        roleModal.show();
+    }
+
+    function openBanModal(id) {
+        document.getElementById('ban-modal-id').textContent = id;
+        document.getElementById('ban-type').value = 'full';
+        document.getElementById('ban-reason').value = '';
+        document.getElementById('ban-duration').value = '';
+        document.getElementById('ban-modal-error').classList.add('d-none');
+        banModal.show();
+    }
+
+    async function saveRole() {
+        const id = document.getElementById('role-modal-id').textContent;
+        const role = document.getElementById('new-role').value;
+        const reason = document.getElementById('role-reason').value;
+
+        try {
+            await apiCall(`/api/v1/admin/installations/${id}/role`, 'POST', { role, reason });
+            roleModal.hide();
+            loadInstallations();
+            loadStats();
+        } catch (err) {
+            const errorDiv = document.getElementById('role-modal-error');
+            errorDiv.textContent = err.message;
+            errorDiv.classList.remove('d-none');
+        }
+    }
+
+    async function saveBan() {
+        const id = document.getElementById('ban-modal-id').textContent;
+        const ban_type = document.getElementById('ban-type').value;
+        const reason = document.getElementById('ban-reason').value;
+        const duration = document.getElementById('ban-duration').value;
+
+        if (!reason.trim()) {
+            const errorDiv = document.getElementById('ban-modal-error');
+            errorDiv.textContent = 'Grund ist erforderlich';
+            errorDiv.classList.remove('d-none');
+            return;
+        }
+
+        try {
+            const body = { ban_type, reason };
+            if (duration) body.duration_hours = parseInt(duration);
+
+            await apiCall(`/api/v1/admin/installations/${id}/ban`, 'POST', body);
+            banModal.hide();
+            loadInstallations();
+            loadStats();
+        } catch (err) {
+            const errorDiv = document.getElementById('ban-modal-error');
+            errorDiv.textContent = err.message;
+            errorDiv.classList.remove('d-none');
+        }
+    }
+
+    async function unban(id) {
+        if (!confirm(`Installation ${id} entsperren?`)) return;
+
+        try {
+            // Try to unban all types
+            await apiCall(`/api/v1/admin/installations/${id}/unban`, 'POST', { ban_type: 'full' }).catch(() => {});
+            await apiCall(`/api/v1/admin/installations/${id}/unban`, 'POST', { ban_type: 'upload' }).catch(() => {});
+            await apiCall(`/api/v1/admin/installations/${id}/unban`, 'POST', { ban_type: 'download' }).catch(() => {});
+            loadInstallations();
+            loadStats();
+        } catch (err) {
+            alert('Fehler: ' + err.message);
+        }
+    }
+</script>
+
+{% endif %}
+{% endblock %}

@@ -8,6 +8,7 @@ from flask import (
     abort,
     send_from_directory,
     send_file,
+    render_template,
 )
 from flask_socketio import SocketIO
 from waitress import serve
@@ -2345,6 +2346,31 @@ def check_telemetry_model():
             )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/telemetry/admin")
+@login_required
+def telemetry_admin_page():
+    """
+    Telemetry Admin page for managing installations (roles, bans).
+    Only visible to admin installations.
+    """
+    status = telemetry_manager.get_status()
+    is_admin = status.get("is_admin", False)
+
+    # Get server URL and auth token for API calls
+    telemetry_config = config.get("telemetry", {})
+    server_url = telemetry_config.get("server_url", "https://collector.xerolux.de")
+    auth_token = telemetry_config.get("auth_token", "")
+    installation_id = config.get("installation_id", "")
+
+    return render_template(
+        "telemetry_admin.html",
+        is_admin=is_admin,
+        server_url=server_url,
+        auth_token=auth_token,
+        installation_id=installation_id,
+    )
 
 
 # ============================================================================
