@@ -68,6 +68,82 @@ class TelemetryManager:
             config.set("telemetry.server_stats", self.server_stats)
         config.save()
 
+    def retrieve_credentials(self):
+        """
+        Retrieve per-installation credentials from the server.
+
+        If no per-installation token is stored locally, requests new credentials
+        from the server using the global SHARED_AUTH_TOKEN.
+
+        Returns:
+            True if credentials are available (existing or newly retrieved),
+            False if retrieval failed.
+        """
+        # Check if we already have a per-installation token
+        existing_token = config.get("telemetry.auth_token")
+        if existing_token and existing_token != SHARED_AUTH_TOKEN:
+            logger.debug("Per-installation token already configured")
+            return True
+
+        installation_id = config.get("installation_id")
+        if not installation_id:
+            logger.warning("Cannot retrieve credentials: no installation_id configured")
+            return False
+
+        server_url = config.get("telemetry.server_url", "https://collector.xerolux.de")
+
+        try:
+            logger.info("Retrieving per-installation credentials from server...")
+
+            headers = {
+                "Authorization": f"Bearer {SHARED_AUTH_TOKEN}",
+                "Content-Type": "application/json",
+            }
+
+            response = requests.post(
+                f"{server_url}/api/v1/credentials/retrieve",
+                params={"installation_id": installation_id},
+                headers=headers,
+                timeout=30,
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+
+                # Store credentials in config
+                auth_token = data.get("auth_token")
+                encryption_key = data.get("encryption_key")
+
+                if auth_token:
+                    config.set("telemetry.auth_token", auth_token)
+                    logger.info("Per-installation auth token stored")
+
+                if encryption_key:
+                    config.set("telemetry.encryption_key", encryption_key)
+                    logger.info("Per-installation encryption key stored")
+
+                config.save()
+
+                is_new = data.get("is_new", True)
+                if is_new:
+                    logger.info("New installation registered with telemetry server")
+                else:
+                    logger.info("Credentials retrieved for existing installation")
+
+                return True
+            else:
+                logger.warning(
+                    f"Failed to retrieve credentials: {response.status_code} - {response.text}"
+                )
+                return False
+
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Failed to retrieve credentials (network error): {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error retrieving credentials: {e}")
+            return False
+
     def start(self, scheduler=None):
         """
         Start the telemetry manager.
@@ -78,6 +154,14 @@ class TelemetryManager:
             return
 
         self.running = True
+
+        # Try to retrieve per-installation credentials (non-blocking, fails silently)
+        # This migrates from shared token to per-installation token
+        if config.get("telemetry.enabled", True):
+            try:
+                self.retrieve_credentials()
+            except Exception as e:
+                logger.debug(f"Credential retrieval skipped: {e}")
 
         # Start internal loop thread
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
@@ -126,6 +210,12 @@ class TelemetryManager:
     def get_status(self):
         """Return current telemetry status."""
         telemetry_config = config.get("telemetry", {})
+
+        # Check if using per-installation token
+        auth_token = telemetry_config.get("auth_token")
+        has_per_installation_token = bool(auth_token and auth_token != SHARED_AUTH_TOKEN)
+        has_encryption_key = bool(telemetry_config.get("encryption_key"))
+
         return {
             "enabled": telemetry_config.get("enabled", True),
             "installation_id": config.get("installation_id"),
@@ -136,6 +226,8 @@ class TelemetryManager:
             "version": get_current_version(),
             "is_admin": self.is_admin,
             "server_stats": self.server_stats,
+            "has_per_installation_token": has_per_installation_token,
+            "has_encryption_key": has_encryption_key,
         }
 
     def submit_data_job(self):
