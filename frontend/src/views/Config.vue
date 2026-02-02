@@ -1079,17 +1079,27 @@
             </Fieldset>
 
             <!-- Installations List -->
-            <Fieldset legend="Active Installations" :toggleable="true" v-if="adminInstallations">
-              <div class="text-sm text-gray-400 mb-2">Showing {{ adminInstallations.showing }} of {{ adminInstallations.total }} installations</div>
+            <Fieldset legend="Installation Management" :toggleable="true" v-if="adminInstallations">
+              <div class="flex justify-between items-center mb-3">
+                <div class="text-sm text-gray-400">Showing {{ adminInstallations.showing }} of {{ adminInstallations.total }} installations</div>
+                <Button
+                  label="Refresh"
+                  icon="pi pi-refresh"
+                  size="small"
+                  severity="secondary"
+                  @click="fetchInstallationRoles"
+                />
+              </div>
               <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                   <thead>
                     <tr class="border-b border-gray-700">
                       <th class="text-left py-2 px-3">Installation ID</th>
+                      <th class="text-center py-2 px-3">Rolle</th>
+                      <th class="text-center py-2 px-3">Status</th>
                       <th class="text-right py-2 px-3">Data Points</th>
                       <th class="text-right py-2 px-3">Last Seen</th>
-                      <th class="text-center py-2 px-3">Admin</th>
-                      <th class="text-center py-2 px-3">Actions</th>
+                      <th class="text-center py-2 px-3">Aktionen</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1102,20 +1112,58 @@
                           {{ inst.installation_id.substring(0, 20) }}...
                         </button>
                       </td>
+                      <td class="py-2 px-3 text-center">
+                        <span :class="getRoleBadgeClass(getInstallationRole(inst.installation_id))" class="px-2 py-1 rounded text-xs font-bold">
+                          {{ getInstallationRole(inst.installation_id) }}
+                        </span>
+                      </td>
+                      <td class="py-2 px-3 text-center">
+                        <span v-if="isInstallationBanned(inst.installation_id)" class="px-2 py-1 rounded text-xs font-bold bg-red-600 text-white">
+                          <i class="pi pi-ban mr-1"></i>GESPERRT
+                        </span>
+                        <span v-else class="text-green-400">
+                          <i class="pi pi-check-circle"></i>
+                        </span>
+                      </td>
                       <td class="py-2 px-3 text-right">{{ inst.data_points?.toLocaleString() || 0 }}</td>
                       <td class="py-2 px-3 text-right">{{ inst.last_seen_formatted || 'Unknown' }}</td>
                       <td class="py-2 px-3 text-center">
-                        <i v-if="inst.is_admin" class="pi pi-crown text-yellow-500"></i>
-                      </td>
-                      <td class="py-2 px-3 text-center">
-                        <Button
-                          icon="pi pi-eye"
-                          severity="secondary"
-                          size="small"
-                          text
-                          @click="openInstallationDetails(inst.installation_id)"
-                          v-tooltip="'Details anzeigen'"
-                        />
+                        <div class="flex gap-1 justify-center">
+                          <Button
+                            icon="pi pi-user-edit"
+                            severity="info"
+                            size="small"
+                            text
+                            @click="openRoleDialog(inst.installation_id)"
+                            v-tooltip="'Rolle aendern'"
+                          />
+                          <Button
+                            v-if="!isInstallationBanned(inst.installation_id)"
+                            icon="pi pi-ban"
+                            severity="danger"
+                            size="small"
+                            text
+                            @click="openBanDialog(inst.installation_id)"
+                            v-tooltip="'Sperren'"
+                          />
+                          <Button
+                            v-else
+                            icon="pi pi-unlock"
+                            severity="success"
+                            size="small"
+                            text
+                            @click="unbanInstallation(inst.installation_id)"
+                            v-tooltip="'Entsperren'"
+                          />
+                          <Button
+                            icon="pi pi-eye"
+                            severity="secondary"
+                            size="small"
+                            text
+                            @click="openInstallationDetails(inst.installation_id)"
+                            v-tooltip="'Details'"
+                          />
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -1518,6 +1566,89 @@
       </template>
     </Dialog>
 
+    <!-- Role Change Dialog -->
+    <Dialog v-model:visible="roleDialogVisible" header="Rolle aendern" :style="{ width: '400px' }" modal>
+      <div class="flex flex-col gap-4">
+        <div>
+          <label class="text-sm text-gray-400">Installation:</label>
+          <div class="font-mono text-xs bg-gray-800 p-2 rounded mt-1">{{ selectedInstallationForAction }}</div>
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Neue Rolle:</label>
+          <Dropdown
+            v-model="newRole"
+            :options="[
+              { label: 'Guest - Basis-Funktionalitaet', value: 'guest' },
+              { label: 'Visitor - Statistiken einsehen', value: 'visitor' },
+              { label: 'Sponsor - Erweiterte Features', value: 'sponsor' },
+              { label: 'Moderator - Daten einsehen', value: 'moderator' },
+              { label: 'Admin - Vollzugriff', value: 'admin' }
+            ]"
+            optionLabel="label"
+            optionValue="value"
+            class="w-full"
+          />
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Grund (optional):</label>
+          <InputText v-model="roleReason" class="w-full" placeholder="Grund fuer die Aenderung..." />
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Abbrechen" severity="secondary" @click="roleDialogVisible = false" />
+        <Button label="Speichern" severity="success" :loading="savingRole" @click="saveRole" />
+      </template>
+    </Dialog>
+
+    <!-- Ban Dialog -->
+    <Dialog v-model:visible="banDialogVisible" header="Installation sperren" :style="{ width: '450px' }" modal>
+      <div class="flex flex-col gap-4">
+        <div>
+          <label class="text-sm text-gray-400">Installation:</label>
+          <div class="font-mono text-xs bg-gray-800 p-2 rounded mt-1">{{ selectedInstallationForAction }}</div>
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Sperrtyp:</label>
+          <Dropdown
+            v-model="banType"
+            :options="[
+              { label: 'Upload - Keine Daten einreichen', value: 'upload' },
+              { label: 'Download - Keine Modelle herunterladen', value: 'download' },
+              { label: 'Vollstaendig - Komplett gesperrt', value: 'full' }
+            ]"
+            optionLabel="label"
+            optionValue="value"
+            class="w-full"
+          />
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Grund (erforderlich):</label>
+          <Textarea v-model="banReason" class="w-full" rows="3" placeholder="Grund fuer die Sperre..." />
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 mb-2 block">Dauer:</label>
+          <Dropdown
+            v-model="banDuration"
+            :options="[
+              { label: 'Permanent', value: null },
+              { label: '1 Stunde', value: 1 },
+              { label: '1 Tag', value: 24 },
+              { label: '1 Woche', value: 168 },
+              { label: '1 Monat', value: 720 },
+              { label: '3 Monate', value: 2160 }
+            ]"
+            optionLabel="label"
+            optionValue="value"
+            class="w-full"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Abbrechen" severity="secondary" @click="banDialogVisible = false" />
+        <Button label="Sperren" severity="danger" :loading="savingBan" @click="saveBan" />
+      </template>
+    </Dialog>
+
     <Toast />
     <ConfirmDialog />
     <PrivacyPolicyDialog ref="privacyDialog" />
@@ -1639,6 +1770,18 @@ const modelDeleting = ref(false)
 const trainingInProgress = ref(false)
 const adminAutoRefresh = ref(true)
 let adminAutoRefreshInterval = null
+// Installation Role/Ban Management
+const installationRoles = ref(null)
+const roleDialogVisible = ref(false)
+const banDialogVisible = ref(false)
+const selectedInstallationForAction = ref(null)
+const newRole = ref('guest')
+const roleReason = ref('')
+const banType = ref('full')
+const banReason = ref('')
+const banDuration = ref(null)
+const savingRole = ref(false)
+const savingBan = ref(false)
 const modelDownloadsChart = ref(null)
 let modelDownloadsChartInstance = null
 const checkingUpdates = ref(false)
@@ -1689,8 +1832,148 @@ const fetchAdminInstallations = async () => {
       params: { installation_id: config.value.installation_id, limit: 50 }
     })
     adminInstallations.value = res.data
+    // Also fetch roles data
+    await fetchInstallationRoles()
   } catch (err) {
     console.error('Failed to fetch admin installations:', err)
+  }
+}
+
+// Installation Role/Ban Management Functions
+const fetchInstallationRoles = async () => {
+  if (!telemetryStatus.value?.is_admin) return
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const authToken = config.value.telemetry?.auth_token || ''
+    const res = await axios.get(`${telemetryUrl}/api/v1/admin/installations/list`, {
+      params: { installation_id: config.value.installation_id, limit: 200 },
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    })
+    installationRoles.value = res.data
+  } catch (err) {
+    console.error('Failed to fetch installation roles:', err)
+  }
+}
+
+const getInstallationRole = (instId) => {
+  if (!installationRoles.value?.items) return 'guest'
+  const inst = installationRoles.value.items.find(i => i.installation_id === instId)
+  return inst?.role || 'guest'
+}
+
+const isInstallationBanned = (instId) => {
+  if (!installationRoles.value?.items) return false
+  const inst = installationRoles.value.items.find(i => i.installation_id === instId)
+  return inst?.is_banned || false
+}
+
+const getRoleBadgeClass = (role) => {
+  const classes = {
+    guest: 'bg-gray-600 text-white',
+    visitor: 'bg-blue-600 text-white',
+    sponsor: 'bg-yellow-500 text-black',
+    moderator: 'bg-purple-600 text-white',
+    admin: 'bg-red-600 text-white'
+  }
+  return classes[role] || classes.guest
+}
+
+const openRoleDialog = (instId) => {
+  selectedInstallationForAction.value = instId
+  newRole.value = getInstallationRole(instId)
+  roleReason.value = ''
+  roleDialogVisible.value = true
+}
+
+const openBanDialog = (instId) => {
+  selectedInstallationForAction.value = instId
+  banType.value = 'full'
+  banReason.value = ''
+  banDuration.value = null
+  banDialogVisible.value = true
+}
+
+const saveRole = async () => {
+  if (!selectedInstallationForAction.value) return
+  savingRole.value = true
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const authToken = config.value.telemetry?.auth_token || ''
+    await axios.post(
+      `${telemetryUrl}/api/v1/admin/installations/${selectedInstallationForAction.value}/role`,
+      null,
+      {
+        params: {
+          installation_id: config.value.installation_id,
+          role: newRole.value,
+          reason: roleReason.value || undefined
+        },
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      }
+    )
+    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Rolle geaendert', life: 3000 })
+    roleDialogVisible.value = false
+    await fetchInstallationRoles()
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Fehler', detail: err.response?.data?.detail || 'Rolle konnte nicht geaendert werden', life: 5000 })
+  } finally {
+    savingRole.value = false
+  }
+}
+
+const saveBan = async () => {
+  if (!selectedInstallationForAction.value || !banReason.value.trim()) {
+    toast.add({ severity: 'warn', summary: 'Hinweis', detail: 'Grund ist erforderlich', life: 3000 })
+    return
+  }
+  savingBan.value = true
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const authToken = config.value.telemetry?.auth_token || ''
+    const params = {
+      installation_id: config.value.installation_id,
+      ban_type: banType.value,
+      reason: banReason.value
+    }
+    if (banDuration.value) params.duration_hours = banDuration.value
+
+    await axios.post(
+      `${telemetryUrl}/api/v1/admin/installations/${selectedInstallationForAction.value}/ban`,
+      null,
+      { params, headers: { 'Authorization': `Bearer ${authToken}` } }
+    )
+    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Installation gesperrt', life: 3000 })
+    banDialogVisible.value = false
+    await fetchInstallationRoles()
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Fehler', detail: err.response?.data?.detail || 'Sperre fehlgeschlagen', life: 5000 })
+  } finally {
+    savingBan.value = false
+  }
+}
+
+const unbanInstallation = async (instId) => {
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const authToken = config.value.telemetry?.auth_token || ''
+    // Try to unban all types
+    const banTypes = ['full', 'upload', 'download']
+    for (const bt of banTypes) {
+      try {
+        await axios.post(
+          `${telemetryUrl}/api/v1/admin/installations/${instId}/unban`,
+          null,
+          {
+            params: { installation_id: config.value.installation_id, ban_type: bt },
+            headers: { 'Authorization': `Bearer ${authToken}` }
+          }
+        )
+      } catch { /* ignore if not banned with this type */ }
+    }
+    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Installation entsperrt', life: 3000 })
+    await fetchInstallationRoles()
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Fehler', detail: err.response?.data?.detail || 'Entsperren fehlgeschlagen', life: 5000 })
   }
 }
 
