@@ -51,6 +51,7 @@ from permissions import (
     require_permission,
     PERMISSIONS,
 )
+from training_queue import training_queue, TaskStatus
 
 # Redis (optional, for persistent rate limiting)
 try:
@@ -252,6 +253,7 @@ async def cleanup_rate_limits_and_bans():
             # Run audit log cleanup once per day (every 288 iterations)
             if cleanup_rate_limits_and_bans._cleanup_counter >= 288:
                 audit_logger.cleanup_old_logs()
+                training_queue.cleanup_old_tasks(max_age_days=30)
                 cleanup_rate_limits_and_bans._cleanup_counter = 0
 
         except Exception as e:
@@ -1826,49 +1828,60 @@ async def admin_trigger_training(
         else (request.client.host if request.client else "unknown")
     )
 
-    # Import training scheduler
+    # Enqueue training task (async, non-blocking)
     try:
-        import subprocess
-
-        result = subprocess.run(
-            ["python3", "/app/scripts/train_models.py"],
-            capture_output=True,
-            text=True,
-            timeout=300,
-            cwd="/app",
+        task_id = await training_queue.enqueue_training(
+            triggered_by=admin_id
         )
 
         logger.info(
-            "admin_training_triggered",
-            admin_id=installation_id,
-            returncode=result.returncode,
+            "admin_training_queued",
+            admin_id=admin_id,
+            task_id=task_id
         )
 
         # Audit log
         log_training_trigger(
-            admin_id=installation_id,
+            admin_id=admin_id,
             ip_address=client_ip,
-            success=(result.returncode == 0),
+            success=True,
             metadata={
-                "returncode": result.returncode,
-                "has_stderr": bool(result.stderr),
+                "task_id": task_id,
+                "async": True
             }
         )
 
         return {
-            "success": result.returncode == 0,
-            "message": "Training triggered"
-            if result.returncode == 0
-            else f"Training failed: {result.stderr}",
-            "stdout": result.stdout if result.returncode != 0 else None,
-            "stderr": result.stderr if result.returncode != 0 else None,
+            "success": True,
+            "message": "Training queued successfully. Use task_id to check progress.",
+            "task_id": task_id,
+            "status": "queued",
+            "check_status_url": f"/api/v1/admin/training/status/{task_id}"
         }
+
+    except ValueError as e:
+        # Training already in progress
+        logger.warning("training_already_running", admin_id=admin_id, error=str(e))
+
+        # Audit log
+        log_training_trigger(
+            admin_id=admin_id,
+            ip_address=client_ip,
+            success=False,
+            metadata={"error": str(e), "reason": "already_running"}
+        )
+
+        raise HTTPException(
+            status_code=409,
+            detail=str(e)
+        )
+
     except Exception as e:
         logger.error("admin_training_trigger_failed", error=str(e))
 
         # Audit log failure
         log_training_trigger(
-            admin_id=installation_id,
+            admin_id=admin_id,
             ip_address=client_ip,
             success=False,
             metadata={"error": str(e)}
@@ -1877,6 +1890,162 @@ async def admin_trigger_training(
         raise HTTPException(
             status_code=500, detail=f"Failed to trigger training: {str(e)}"
         )
+
+
+@app.get("/api/v1/admin/training/status/{task_id}")
+async def admin_get_training_status(
+    task_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get training task status. Requires admin:view permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    # Check permission
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required: admin:view"
+        )
+
+    try:
+        task_status = training_queue.get_task_status(task_id)
+
+        if not task_status:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Training task {task_id} not found"
+            )
+
+        return {
+            "task_id": task_id,
+            **task_status
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("get_training_status_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get training status: {str(e)}")
+
+
+@app.get("/api/v1/admin/training/history")
+async def admin_get_training_history(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    limit: int = 20,
+):
+    """Admin: Get recent training history. Requires admin:view permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    # Check permission
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required: admin:view"
+        )
+
+    try:
+        # Limit cap
+        limit = min(limit, 100)
+
+        tasks = training_queue.get_recent_tasks(limit=limit)
+
+        return {
+            "tasks": tasks,
+            "count": len(tasks),
+            "limit": limit,
+        }
+
+    except Exception as e:
+        logger.error("get_training_history_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get training history: {str(e)}")
+
+
+@app.get("/api/v1/admin/training/current")
+async def admin_get_current_training(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get currently running training task. Requires admin:view permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    # Check permission
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required: admin:view"
+        )
+
+    try:
+        current_task = training_queue.get_current_task()
+
+        if not current_task:
+            return {
+                "running": False,
+                "message": "No training task currently running"
+            }
+
+        return {
+            "running": True,
+            **current_task
+        }
+
+    except Exception as e:
+        logger.error("get_current_training_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get current training: {str(e)}")
+
+
+@app.post("/api/v1/admin/training/cancel/{task_id}")
+async def admin_cancel_training(
+    task_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Cancel a running training task. Requires admin:training permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    # Check permission
+    if not has_permission(admin_id, "admin:training"):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions. Required: admin:training"
+        )
+
+    try:
+        cancelled = await training_queue.cancel_training(task_id)
+
+        if not cancelled:
+            raise HTTPException(
+                status_code=400,
+                detail="Task not found, not running, or already completed"
+            )
+
+        logger.info(
+            "admin_training_cancelled",
+            admin_id=admin_id,
+            task_id=task_id
+        )
+
+        return {
+            "success": True,
+            "message": f"Training task {task_id} cancelled",
+            "task_id": task_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("cancel_training_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to cancel training: {str(e)}")
 
 
 @app.get("/api/v1/admin/installations")
