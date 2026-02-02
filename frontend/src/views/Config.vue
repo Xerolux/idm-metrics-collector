@@ -932,27 +932,51 @@
 
           <!-- Admin Zone -->
           <div v-if="activeCategory === 'admin'" class="flex flex-col gap-6">
-            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2 flex items-center gap-2">
-              <i class="pi pi-crown text-yellow-500"></i> Admin Zone
-            </h2>
+            <div class="flex items-center justify-between border-b border-surface-700 pb-2 mb-2">
+              <h2 class="text-xl font-bold flex items-center gap-2">
+                <i class="pi pi-crown text-yellow-500"></i> Admin Zone
+              </h2>
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-400">Auto-Refresh (30s)</span>
+                <Button
+                  :icon="adminAutoRefresh ? 'pi pi-pause' : 'pi pi-play'"
+                  :severity="adminAutoRefresh ? 'success' : 'secondary'"
+                  size="small"
+                  @click="toggleAdminAutoRefresh"
+                  v-tooltip.top="adminAutoRefresh ? 'Pause Auto-Refresh' : 'Start Auto-Refresh'"
+                />
+              </div>
+            </div>
 
             <div v-if="telemetryStatus?.server_stats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <!-- Global Stats -->
-              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center">
+              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center transition-all duration-300 hover:border-blue-500">
                 <i class="pi pi-database text-4xl text-blue-400 mb-2"></i>
-                <div class="text-3xl font-bold">{{ telemetryStatus.server_stats.total_points?.toLocaleString() || 0 }}</div>
+                <transition name="counter" mode="out-in">
+                  <div :key="telemetryStatus.server_stats.total_points" class="text-3xl font-bold">
+                    {{ telemetryStatus.server_stats.total_points?.toLocaleString() || 0 }}
+                  </div>
+                </transition>
                 <div class="text-gray-300 uppercase text-xs tracking-wider mt-1">Total Data Points</div>
               </div>
 
-              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center">
+              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center transition-all duration-300 hover:border-green-500">
                 <i class="pi pi-desktop text-4xl text-green-400 mb-2"></i>
-                <div class="text-3xl font-bold">{{ telemetryStatus.server_stats.active_installations || 0 }}</div>
+                <transition name="counter" mode="out-in">
+                  <div :key="telemetryStatus.server_stats.active_installations" class="text-3xl font-bold">
+                    {{ telemetryStatus.server_stats.active_installations || 0 }}
+                  </div>
+                </transition>
                 <div class="text-gray-300 uppercase text-xs tracking-wider mt-1">Active Installations</div>
               </div>
 
-              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center">
+              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center transition-all duration-300 hover:border-purple-500">
                  <i class="pi pi-box text-4xl text-purple-400 mb-2"></i>
-                 <div class="text-3xl font-bold">{{ telemetryStatus.server_stats.models?.length || 0 }}</div>
+                 <transition name="counter" mode="out-in">
+                   <div :key="telemetryStatus.server_stats.models?.length" class="text-3xl font-bold">
+                     {{ telemetryStatus.server_stats.models?.length || 0 }}
+                   </div>
+                 </transition>
                  <div class="text-gray-300 uppercase text-xs tracking-wider mt-1">Generated Models</div>
               </div>
             </div>
@@ -1025,7 +1049,7 @@
                 <Button
                   label="Refresh Data"
                   icon="pi pi-refresh"
-                  @click="async () => { await fetchAdminModels(); await fetchAdminHealth(); await fetchAdminInstallations(); }"
+                  @click="async () => { await Promise.all([fetchAdminModels(), fetchAdminHealth(), fetchAdminInstallations()]); }"
                   severity="secondary"
                   size="small"
                 />
@@ -1376,6 +1400,8 @@ const selectedStatsModel = ref(null)
 const statsMetrics = ref('cop_current, temp_outdoor')
 const modelDeleting = ref(false)
 const trainingInProgress = ref(false)
+const adminAutoRefresh = ref(true)
+let adminAutoRefreshInterval = null
 const checkingUpdates = ref(false)
 const checkingModel = ref(false)
 const submittingTelemetry = ref(false)
@@ -1504,9 +1530,8 @@ const deleteModel = async (modelName) => {
           life: 3000
         })
 
-        // Refresh model list
-        await fetchAdminModels()
-        await fetchAdminHealth() // Update stats
+        // Refresh model list and stats in parallel
+        await Promise.all([fetchAdminModels(), fetchAdminHealth()])
       } catch (err) {
         console.error('Failed to delete model:', err)
         toast.add({
@@ -1564,6 +1589,7 @@ const passwordMismatch = computed(() => {
 
 onUnmounted(() => {
   if (aiStatusInterval) clearInterval(aiStatusInterval)
+  if (adminAutoRefreshInterval) clearInterval(adminAutoRefreshInterval)
 })
 
 // Backup & Restore state
@@ -1778,14 +1804,48 @@ const loadTelemetryStatus = async () => {
     const res = await axios.get('/api/telemetry/status')
     telemetryStatus.value = res.data
 
-    // Load admin-specific data if admin
+    // Load admin-specific data if admin (parallel for better performance)
     if (res.data.is_admin) {
-      await fetchAdminHealth()
-      await fetchAdminInstallations()
-      await fetchAdminModels()
+      await Promise.all([
+        fetchAdminHealth(),
+        fetchAdminInstallations(),
+        fetchAdminModels()
+      ])
+
+      // Start auto-refresh for admin data
+      startAdminAutoRefresh()
     }
   } catch (e) {
     console.error('Failed to load Telemetry status', e)
+  }
+}
+
+const startAdminAutoRefresh = () => {
+  // Clear existing interval if any
+  if (adminAutoRefreshInterval) {
+    clearInterval(adminAutoRefreshInterval)
+  }
+
+  // Set up auto-refresh every 30 seconds
+  adminAutoRefreshInterval = setInterval(async () => {
+    if (adminAutoRefresh.value && telemetryStatus.value?.is_admin) {
+      try {
+        await Promise.all([
+          fetchAdminHealth(),
+          fetchAdminInstallations(),
+          fetchAdminModels()
+        ])
+      } catch (e) {
+        console.error('Auto-refresh failed', e)
+      }
+    }
+  }, 30000) // 30 seconds
+}
+
+const toggleAdminAutoRefresh = () => {
+  adminAutoRefresh.value = !adminAutoRefresh.value
+  if (adminAutoRefresh.value) {
+    startAdminAutoRefresh()
   }
 }
 
@@ -2125,3 +2185,27 @@ const confirmDeleteDatabase = async () => {
   }
 }
 </script>
+
+<style scoped>
+/* Counter transition animations */
+.counter-enter-active,
+.counter-leave-active {
+  transition: all 0.3s ease;
+}
+
+.counter-enter-from {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.95);
+}
+
+.counter-leave-to {
+  opacity: 0;
+  transform: translateY(10px) scale(0.95);
+}
+
+.counter-enter-to,
+.counter-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+</style>

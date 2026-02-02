@@ -108,6 +108,7 @@ DEFAULT_BAN_DURATION = int(
 # Cache configurations
 HASH_CACHE_TTL = int(os.environ.get("HASH_CACHE_TTL", "3600"))  # 1 hour
 POOL_STATS_CACHE_TTL = int(os.environ.get("POOL_STATS_CACHE_TTL", "60"))  # 1 minute
+COMMUNITY_AVG_CACHE_TTL = int(os.environ.get("COMMUNITY_AVG_CACHE_TTL", "300"))  # 5 minutes
 
 # Redis configuration (optional, for persistent rate limiting)
 REDIS_URL = os.environ.get(
@@ -124,6 +125,9 @@ _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
     None,
     0,
 )  # (stats, timestamp)
+_community_avg_cache: Dict[
+    str, Tuple[Dict[str, Any], float]
+] = {}  # {cache_key: (result, timestamp)} - cache_key = f"{model}:{metrics}"
 
 
 async def run_sync(func, *args):
@@ -189,6 +193,18 @@ async def cleanup_rate_limits_and_bans():
 
             for path in expired_hashes:
                 del _file_hash_cache[path]
+
+            # Clean community averages cache
+            expired_avg_cache = []
+            for cache_key, (_, timestamp) in list(_community_avg_cache.items()):
+                if now - timestamp >= COMMUNITY_AVG_CACHE_TTL:
+                    expired_avg_cache.append(cache_key)
+
+            for cache_key in expired_avg_cache:
+                del _community_avg_cache[cache_key]
+
+            if expired_avg_cache:
+                logger.info("community_avg_cache_cleanup", expired=len(expired_avg_cache))
 
         except Exception as e:
             logger.error("cleanup_error", error=str(e))
@@ -1229,6 +1245,7 @@ async def community_averages(
     """
     Get aggregated community statistics.
     Requires authentication (token).
+    Results are cached for 5 minutes to reduce VictoriaMetrics load.
     """
     # Validate Inputs
     validate_model_name(model)
@@ -1243,13 +1260,28 @@ async def community_averages(
             if not re.match(r"^[a-zA-Z0-9_]+$", m):
                 raise HTTPException(status_code=400, detail=f"Invalid metric name: {m}")
 
-    # Pass http_client to analysis module (we need to update analysis.py too)
+    # Create cache key from model and sorted metrics
+    cache_key = f"{model}:{','.join(sorted(metric_list))}"
+
+    # Check cache
+    global _community_avg_cache
+    if cache_key in _community_avg_cache:
+        cached_result, cached_time = _community_avg_cache[cache_key]
+        if time.time() - cached_time < COMMUNITY_AVG_CACHE_TTL:
+            logger.info("community_averages_cache_hit", model=model, metrics=len(metric_list))
+            return cached_result
+
+    # Cache miss - fetch from VictoriaMetrics
+    logger.info("community_averages_cache_miss", model=model, metrics=len(metric_list))
     result = await get_community_averages(
         model, metric_list, client=request.app.state.http_client
     )
 
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
+
+    # Store in cache
+    _community_avg_cache[cache_key] = (result, time.time())
 
     return result
 
