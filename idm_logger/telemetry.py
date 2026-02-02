@@ -249,9 +249,36 @@ class TelemetryManager:
             # Convert map to list
             payload_data = list(measurement_map.values())
 
-            # Batching (e.g. 5000 records per request)
-            # Reduced to 200 to avoid Nginx 413 Request Entity Too Large errors
-            BATCH_SIZE = 200
+            # Dynamic batch size calculation based on payload size
+            # Server has 10MB limit, but we use 8MB for safety margin
+            MAX_PAYLOAD_MB = 8
+            MAX_BATCH_SIZE = 1000
+            MIN_BATCH_SIZE = 100
+
+            # Estimate average record size from sample
+            if len(payload_data) > 0:
+                # Use first 10 records or all if less
+                sample_size = min(10, len(payload_data))
+                sample_json = json.dumps(payload_data[:sample_size])
+                avg_record_bytes = len(sample_json.encode('utf-8')) / sample_size
+
+                # Add overhead for payload wrapper (installation_id, model, etc.)
+                overhead_bytes = 500
+
+                # Calculate optimal batch size
+                optimal_batch = int(((MAX_PAYLOAD_MB * 1024 * 1024) - overhead_bytes) / avg_record_bytes)
+
+                # Clamp to min/max bounds
+                BATCH_SIZE = max(MIN_BATCH_SIZE, min(MAX_BATCH_SIZE, optimal_batch))
+
+                logger.info(
+                    f"Dynamic batch size: {BATCH_SIZE} records "
+                    f"(avg record size: {int(avg_record_bytes)} bytes, "
+                    f"total records: {len(payload_data)})"
+                )
+            else:
+                BATCH_SIZE = 200  # Fallback
+
             total_batches = (len(payload_data) + BATCH_SIZE - 1) // BATCH_SIZE
 
             headers = {
