@@ -260,13 +260,15 @@ class TelemetryManager:
                 # Use first 10 records or all if less
                 sample_size = min(10, len(payload_data))
                 sample_json = json.dumps(payload_data[:sample_size])
-                avg_record_bytes = len(sample_json.encode('utf-8')) / sample_size
+                avg_record_bytes = len(sample_json.encode("utf-8")) / sample_size
 
                 # Add overhead for payload wrapper (installation_id, model, etc.)
                 overhead_bytes = 500
 
                 # Calculate optimal batch size
-                optimal_batch = int(((MAX_PAYLOAD_MB * 1024 * 1024) - overhead_bytes) / avg_record_bytes)
+                optimal_batch = int(
+                    ((MAX_PAYLOAD_MB * 1024 * 1024) - overhead_bytes) / avg_record_bytes
+                )
 
                 # Clamp to min/max bounds
                 BATCH_SIZE = max(MIN_BATCH_SIZE, min(MAX_BATCH_SIZE, optimal_batch))
@@ -412,7 +414,9 @@ class TelemetryManager:
                     )
                 logger.info("Model hash verified successfully")
             else:
-                logger.warning("No X-Model-Hash header found - hash verification skipped")
+                logger.warning(
+                    "No X-Model-Hash header found - hash verification skipped"
+                )
 
             # Parse JSON envelope
             envelope = resp.json()
@@ -440,7 +444,7 @@ class TelemetryManager:
                 # Models older than 90 days are suspicious
                 if age_hours > 90 * 24:
                     logger.warning(
-                        f"Model is very old ({int(age_hours/24)} days). "
+                        f"Model is very old ({int(age_hours / 24)} days). "
                         "This could indicate a replay attack or outdated model."
                     )
                 # Models from the future are definitely suspicious
@@ -449,9 +453,11 @@ class TelemetryManager:
                         f"Model timestamp is in the future! Possible replay attack. "
                         f"Model timestamp: {model_timestamp}, Current time: {time.time()}"
                     )
-                logger.info(f"Model age: {int(age_hours/24)} days - timestamp valid")
+                logger.info(f"Model age: {int(age_hours / 24)} days - timestamp valid")
             else:
-                logger.warning("No timestamp in model metadata - replay protection unavailable")
+                logger.warning(
+                    "No timestamp in model metadata - replay protection unavailable"
+                )
 
             # Reconstruct message to sign
             metadata_json = json.dumps(metadata, sort_keys=True)

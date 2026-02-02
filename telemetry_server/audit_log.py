@@ -45,7 +45,9 @@ class AuditLogger:
             AUDIT_LOG_DIR.mkdir(parents=True, exist_ok=True)
             logger.info("audit_log_dir_created", path=str(AUDIT_LOG_DIR))
         except Exception as e:
-            logger.error("audit_log_dir_creation_failed", error=str(e), path=str(AUDIT_LOG_DIR))
+            logger.error(
+                "audit_log_dir_creation_failed", error=str(e), path=str(AUDIT_LOG_DIR)
+            )
 
     def log(
         self,
@@ -54,7 +56,7 @@ class AuditLogger:
         ip_address: str,
         resource: Optional[str] = None,
         result: str = "success",
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         """
         Log an audit event.
@@ -74,7 +76,7 @@ class AuditLogger:
             "ip_address": ip_address,
             "resource": resource,
             "result": result,
-            "metadata": metadata or {}
+            "metadata": metadata or {},
         }
 
         try:
@@ -83,10 +85,7 @@ class AuditLogger:
                 f.write(json.dumps(event) + "\n")
 
             # Also log to structured logger
-            logger.info(
-                "audit_event",
-                **event
-            )
+            logger.info("audit_event", **event)
         except Exception as e:
             # Never fail on audit log errors, but log the error
             logger.error("audit_log_write_failed", error=str(e), event=event)
@@ -126,7 +125,9 @@ class AuditLogger:
 
         return events
 
-    def get_events_by_admin(self, admin_id: str, limit: int = 50) -> list[Dict[str, Any]]:
+    def get_events_by_admin(
+        self, admin_id: str, limit: int = 50
+    ) -> list[Dict[str, Any]]:
         """
         Get audit events for a specific admin.
 
@@ -141,7 +142,9 @@ class AuditLogger:
         admin_events = [e for e in all_events if e.get("admin_id") == admin_id]
         return admin_events[:limit]
 
-    def get_events_by_action(self, action: str, limit: int = 50) -> list[Dict[str, Any]]:
+    def get_events_by_action(
+        self, action: str, limit: int = 50
+    ) -> list[Dict[str, Any]]:
         """
         Get audit events for a specific action type.
 
@@ -171,7 +174,9 @@ class AuditLogger:
                 lines = f.readlines()
 
             # Filter events within retention period
-            cutoff_time = datetime.now(timezone.utc).timestamp() - (AUDIT_LOG_RETENTION_DAYS * 86400)
+            cutoff_time = datetime.now(timezone.utc).timestamp() - (
+                AUDIT_LOG_RETENTION_DAYS * 86400
+            )
             kept_events = []
             removed_count = 0
 
@@ -193,7 +198,11 @@ class AuditLogger:
                 with open(self.log_file, "w", encoding="utf-8") as f:
                     f.writelines(kept_events)
 
-                logger.info("audit_log_cleanup", removed=removed_count, retained=len(kept_events))
+                logger.info(
+                    "audit_log_cleanup",
+                    removed=removed_count,
+                    retained=len(kept_events),
+                )
 
         except Exception as e:
             logger.error("audit_log_cleanup_failed", error=str(e))
@@ -205,29 +214,39 @@ audit_logger = AuditLogger()
 
 # Convenience functions for common audit events
 
-def log_model_delete(admin_id: str, ip_address: str, model_name: str, success: bool = True):
+
+def log_model_delete(
+    admin_id: str, ip_address: str, model_name: str, success: bool = True
+):
     """Log model deletion event."""
     audit_logger.log(
         action="model_delete",
         admin_id=admin_id,
         ip_address=ip_address,
         resource=model_name,
-        result="success" if success else "failure"
+        result="success" if success else "failure",
     )
 
 
-def log_training_trigger(admin_id: str, ip_address: str, success: bool = True, metadata: Optional[Dict[str, Any]] = None):
+def log_training_trigger(
+    admin_id: str,
+    ip_address: str,
+    success: bool = True,
+    metadata: Optional[Dict[str, Any]] = None,
+):
     """Log training trigger event."""
     audit_logger.log(
         action="training_trigger",
         admin_id=admin_id,
         ip_address=ip_address,
         result="success" if success else "failure",
-        metadata=metadata
+        metadata=metadata,
     )
 
 
-def log_model_download(installation_id: str, ip_address: str, model_name: str, success: bool = True):
+def log_model_download(
+    installation_id: str, ip_address: str, model_name: str, success: bool = True
+):
     """Log model download event."""
     audit_logger.log(
         action="model_download",
@@ -235,22 +254,29 @@ def log_model_download(installation_id: str, ip_address: str, model_name: str, s
         ip_address=ip_address,
         resource=model_name,
         result="success" if success else "failure",
-        metadata={"model": model_name}
+        metadata={"model": model_name},
     )
 
 
-def log_installation_delete(admin_id: str, ip_address: str, installation_id: str, success: bool = True):
+def log_installation_delete(
+    admin_id: str, ip_address: str, installation_id: str, success: bool = True
+):
     """Log installation deletion event."""
     audit_logger.log(
         action="installation_delete",
         admin_id=admin_id,
         ip_address=ip_address,
         resource=installation_id,
-        result="success" if success else "failure"
+        result="success" if success else "failure",
     )
 
 
-def log_config_change(admin_id: str, ip_address: str, config_key: str, metadata: Optional[Dict[str, Any]] = None):
+def log_config_change(
+    admin_id: str,
+    ip_address: str,
+    config_key: str,
+    metadata: Optional[Dict[str, Any]] = None,
+):
     """Log configuration change event."""
     audit_logger.log(
         action="config_change",
@@ -258,7 +284,7 @@ def log_config_change(admin_id: str, ip_address: str, config_key: str, metadata:
         ip_address=ip_address,
         resource=config_key,
         result="success",
-        metadata=metadata
+        metadata=metadata,
     )
 
 
@@ -269,7 +295,7 @@ def log_failed_auth(installation_id: str, ip_address: str, reason: str):
         admin_id=installation_id,
         ip_address=ip_address,
         result="failure",
-        metadata={"reason": reason}
+        metadata={"reason": reason},
     )
 
 
@@ -280,5 +306,5 @@ def log_admin_access(admin_id: str, ip_address: str, endpoint: str):
         admin_id=admin_id,
         ip_address=ip_address,
         resource=endpoint,
-        result="success"
+        result="success",
     )
