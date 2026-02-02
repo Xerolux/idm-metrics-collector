@@ -23,6 +23,13 @@ from pathlib import Path
 from collections import defaultdict
 from analysis import get_community_averages
 import structlog
+from audit_log import (
+    audit_logger,
+    log_model_delete,
+    log_training_trigger,
+    log_failed_auth,
+    log_admin_access,
+)
 
 # Redis (optional, for persistent rate limiting)
 try:
@@ -205,6 +212,18 @@ async def cleanup_rate_limits_and_bans():
 
             if expired_avg_cache:
                 logger.info("community_avg_cache_cleanup", expired=len(expired_avg_cache))
+
+            # Clean old audit logs (run once per day)
+            # Check if we should run daily cleanup (every ~288 iterations of 5min = 24h)
+            if not hasattr(cleanup_rate_limits_and_bans, '_cleanup_counter'):
+                cleanup_rate_limits_and_bans._cleanup_counter = 0
+
+            cleanup_rate_limits_and_bans._cleanup_counter += 1
+
+            # Run audit log cleanup once per day (every 288 iterations)
+            if cleanup_rate_limits_and_bans._cleanup_counter >= 288:
+                audit_logger.cleanup_old_logs()
+                cleanup_rate_limits_and_bans._cleanup_counter = 0
 
         except Exception as e:
             logger.error("cleanup_error", error=str(e))
@@ -1392,6 +1411,14 @@ async def admin_delete_model(
     if not exists:
         raise HTTPException(status_code=404, detail="Model not found")
 
+    # Get client IP for audit log
+    forwarded = request.headers.get("X-Forwarded-For")
+    client_ip = (
+        forwarded.split(",")[0].strip()
+        if forwarded
+        else (request.client.host if request.client else "unknown")
+    )
+
     try:
         await run_sync(model_file.unlink)
         logger.info(
@@ -1399,9 +1426,27 @@ async def admin_delete_model(
             model=safe_name,
             admin_id=installation_id,
         )
+
+        # Audit log
+        log_model_delete(
+            admin_id=installation_id,
+            ip_address=client_ip,
+            model_name=safe_name,
+            success=True
+        )
+
         return {"success": True, "message": f"Model {safe_name} deleted"}
     except Exception as e:
         logger.error("admin_model_delete_failed", model=safe_name, error=str(e))
+
+        # Audit log failure
+        log_model_delete(
+            admin_id=installation_id,
+            ip_address=client_ip,
+            model_name=safe_name,
+            success=False
+        )
+
         raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")
 
 
@@ -1414,6 +1459,14 @@ async def admin_trigger_training(
     """Admin: Trigger manual model training."""
     await check_admin_rate_limit(request)
     await verify_admin(authorization, installation_id)
+
+    # Get client IP for audit log
+    forwarded = request.headers.get("X-Forwarded-For")
+    client_ip = (
+        forwarded.split(",")[0].strip()
+        if forwarded
+        else (request.client.host if request.client else "unknown")
+    )
 
     # Import training scheduler
     try:
@@ -1433,6 +1486,17 @@ async def admin_trigger_training(
             returncode=result.returncode,
         )
 
+        # Audit log
+        log_training_trigger(
+            admin_id=installation_id,
+            ip_address=client_ip,
+            success=(result.returncode == 0),
+            metadata={
+                "returncode": result.returncode,
+                "has_stderr": bool(result.stderr),
+            }
+        )
+
         return {
             "success": result.returncode == 0,
             "message": "Training triggered"
@@ -1443,6 +1507,15 @@ async def admin_trigger_training(
         }
     except Exception as e:
         logger.error("admin_training_trigger_failed", error=str(e))
+
+        # Audit log failure
+        log_training_trigger(
+            admin_id=installation_id,
+            ip_address=client_ip,
+            success=False,
+            metadata={"error": str(e)}
+        )
+
         raise HTTPException(
             status_code=500, detail=f"Failed to trigger training: {str(e)}"
         )
@@ -1599,6 +1672,52 @@ async def admin_server_health(
     except Exception as e:
         logger.error("admin_health_check_failed", error=str(e))
         raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+
+
+@app.get("/api/v1/admin/audit-log")
+async def admin_get_audit_log(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+    limit: int = 100,
+    action: Optional[str] = None,
+    admin_filter: Optional[str] = None,
+):
+    """
+    Admin: Get audit log events.
+
+    Query parameters:
+    - limit: Maximum number of events to return (default 100, max 500)
+    - action: Filter by action type (e.g., "model_delete", "training_trigger")
+    - admin_filter: Filter by specific admin installation ID
+    """
+    await check_admin_rate_limit(request)
+    await verify_admin(authorization, installation_id)
+
+    try:
+        # Limit cap
+        limit = min(limit, 500)
+
+        # Get events based on filters
+        if action:
+            events = audit_logger.get_events_by_action(action, limit=limit)
+        elif admin_filter:
+            events = audit_logger.get_events_by_admin(admin_filter, limit=limit)
+        else:
+            events = audit_logger.get_recent_events(limit=limit)
+
+        return {
+            "events": events,
+            "count": len(events),
+            "limit": limit,
+            "filters": {
+                "action": action,
+                "admin_filter": admin_filter,
+            }
+        }
+    except Exception as e:
+        logger.error("admin_audit_log_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to get audit log: {str(e)}")
 
 
 # Prometheus Metrics
