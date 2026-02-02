@@ -213,7 +213,9 @@ class TelemetryManager:
 
         # Check if using per-installation token
         auth_token = telemetry_config.get("auth_token")
-        has_per_installation_token = bool(auth_token and auth_token != SHARED_AUTH_TOKEN)
+        has_per_installation_token = bool(
+            auth_token and auth_token != SHARED_AUTH_TOKEN
+        )
         has_encryption_key = bool(telemetry_config.get("encryption_key"))
 
         return {
