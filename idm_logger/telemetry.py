@@ -445,6 +445,53 @@ class TelemetryManager:
                     )
                     if res.status_code in (200, 204):
                         success_count += 1
+                    elif res.status_code == 403:
+                        # 403 Forbidden - Token is invalid/expired
+                        logger.warning(
+                            "Token expired or invalid (403). Attempting to refresh credentials..."
+                        )
+
+                        # Clear invalid token to force refresh
+                        config.set("telemetry.auth_token", None)
+
+                        # Try to get new credentials
+                        if self.retrieve_credentials():
+                            # Retry with new token
+                            new_token = config.get("telemetry.auth_token")
+                            if new_token:
+                                headers["Authorization"] = f"Bearer {new_token}"
+                                # Retry this batch
+                                try:
+                                    retry_res = requests.post(
+                                        f"{server_url}/api/v1/submit",
+                                        json=payload,
+                                        headers=headers,
+                                        timeout=30,
+                                    )
+                                    if retry_res.status_code in (200, 204):
+                                        success_count += 1
+                                        logger.info(
+                                            "Batch retry successful with new token."
+                                        )
+                                    else:
+                                        logger.error(
+                                            f"Submit batch {i // BATCH_SIZE + 1} retry failed: {retry_res.status_code} - {retry_res.text}"
+                                        )
+                                        # If retry fails, abort whole submission
+                                        return False
+                                except Exception as e:
+                                    logger.error(f"Submit batch retry error: {e}")
+                                    return False
+                            else:
+                                logger.error(
+                                    "Token refresh successful but no token found in config?"
+                                )
+                                return False
+                        else:
+                            logger.error(
+                                "Failed to refresh credentials. Aborting submission."
+                            )
+                            return False
                     else:
                         logger.error(
                             f"Submit batch {i // BATCH_SIZE + 1} failed: {res.status_code} - {res.text}"
