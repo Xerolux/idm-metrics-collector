@@ -1715,8 +1715,9 @@
           <div class="font-mono text-xs bg-gray-800 p-2 rounded mt-1">{{ selectedInstallationForAction }}</div>
         </div>
         <div>
-          <label class="text-sm text-gray-400 mb-2 block">Neue Rolle:</label>
+          <label class="text-sm text-gray-400 mb-2 block" for="new-role-dropdown">Neue Rolle:</label>
           <Dropdown
+            inputId="new-role-dropdown"
             v-model="newRole"
             :options="[
               { label: 'Guest - Basis-Funktionalitaet', value: 'guest' },
