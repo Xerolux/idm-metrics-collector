@@ -149,6 +149,13 @@ class ModbusClient:
             self._stats["total_disconnects"] += 1
             self.client.close()
 
+    def __del__(self):
+        """Ensure connection is closed on garbage collection."""
+        try:
+            self.close()
+        except Exception:
+            pass
+
     def get_connection_stats(self) -> dict:
         """Returns connection health statistics."""
         stats = self._stats.copy()

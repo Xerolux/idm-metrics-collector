@@ -84,11 +84,20 @@ class AuditLogger:
             with open(self.log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event) + "\n")
 
+            # Prepare safe event for structured logger (mask sensitive IDs)
+            safe_event = event.copy()
+            if safe_event.get("admin_id"):
+                aid = safe_event["admin_id"]
+                if len(aid) >= 8:
+                    safe_event["admin_id"] = f"{aid[:8]}..."
+                else:
+                    safe_event["admin_id"] = "***"
+
             # Also log to structured logger
-            logger.info("audit_event", **event)
+            logger.info("audit_event", **safe_event)
         except Exception as e:
             # Never fail on audit log errors, but log the error
-            logger.error("audit_log_write_failed", error=str(e), event=event)
+            logger.error("audit_log_write_failed", error=str(e))
 
     def get_recent_events(self, limit: int = 100) -> list[Dict[str, Any]]:
         """

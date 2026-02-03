@@ -14,6 +14,7 @@ import os
 import httpx
 import time
 import asyncio
+import threading
 from datetime import timedelta, datetime, timezone
 import hashlib
 import re
@@ -130,6 +131,7 @@ MAX_PAYLOAD_SIZE = int(
 
 # Simple in-memory rate limiting with endpoint-specific limits
 _rate_limit_store: Dict[str, List[float]] = defaultdict(list)
+_rate_limit_lock = threading.Lock()  # Protect in-memory store
 RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))  # seconds
 MAX_RATE_LIMIT_ENTRIES = int(
     os.environ.get("MAX_RATE_LIMIT_ENTRIES", "10000")
@@ -203,19 +205,20 @@ async def cleanup_rate_limits_and_bans():
             keys_to_remove = []
 
             # Clean rate limit entries
-            for ip, timestamps in list(_rate_limit_store.items()):
-                # Filter out old timestamps first
-                valid_timestamps = [
-                    t for t in timestamps if now - t < RATE_LIMIT_WINDOW
-                ]
-                if not valid_timestamps:
-                    keys_to_remove.append(ip)
-                else:
-                    _rate_limit_store[ip] = valid_timestamps
+            with _rate_limit_lock:
+                for ip, timestamps in list(_rate_limit_store.items()):
+                    # Filter out old timestamps first
+                    valid_timestamps = [
+                        t for t in timestamps if now - t < RATE_LIMIT_WINDOW
+                    ]
+                    if not valid_timestamps:
+                        keys_to_remove.append(ip)
+                    else:
+                        _rate_limit_store[ip] = valid_timestamps
 
-            for k in keys_to_remove:
-                if k in _rate_limit_store:
-                    del _rate_limit_store[k]
+                for k in keys_to_remove:
+                    if k in _rate_limit_store:
+                        del _rate_limit_store[k]
 
             if keys_to_remove:
                 logger.info("rate_limit_cleanup", removed=len(keys_to_remove))
@@ -276,6 +279,20 @@ async def cleanup_rate_limits_and_bans():
 async def startup_event():
     """Initialize HTTP client, Redis, and start background tasks."""
     global _redis_client
+
+    # Security Checks
+    if AUTH_TOKEN == "change-me-to-something-secure":
+        logger.critical(
+            "insecure_configuration",
+            message="AUTH_TOKEN is using default value! Security is compromised.",
+        )
+
+    default_key_str = "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA="
+    if _encryption_key_str == default_key_str:
+        logger.critical(
+            "insecure_configuration",
+            message="TELEMETRY_ENCRYPTION_KEY is using default value! Models are not secure.",
+        )
 
     # Create HTTPX client with connection pooling
     app.state.http_client = httpx.AsyncClient(
@@ -480,42 +497,45 @@ def check_rate_limit(
             # Fall through to in-memory implementation
 
     # In-memory rate limiting (fallback)
-    # Check if too many IPs stored
-    if len(_rate_limit_store) >= MAX_RATE_LIMIT_ENTRIES:
-        # Remove oldest entries
-        oldest_keys = sorted(
-            _rate_limit_store.keys(),
-            key=lambda k: min(_rate_limit_store[k]) if _rate_limit_store[k] else 0,
-        )[:100]
-        for k in oldest_keys:
-            del _rate_limit_store[k]
-        logger.warning("rate_limit_eviction", evicted=len(oldest_keys))
+    with _rate_limit_lock:
+        # Check if too many IPs stored
+        if len(_rate_limit_store) >= MAX_RATE_LIMIT_ENTRIES:
+            # Remove oldest entries
+            oldest_keys = sorted(
+                _rate_limit_store.keys(),
+                key=lambda k: min(_rate_limit_store[k]) if _rate_limit_store[k] else 0,
+            )[:100]
+            for k in oldest_keys:
+                del _rate_limit_store[k]
+            logger.warning("rate_limit_eviction", evicted=len(oldest_keys))
 
-    # Clean old entries
-    _rate_limit_store[compound_key] = [
-        t for t in _rate_limit_store[compound_key] if now - t < RATE_LIMIT_WINDOW
-    ]
+        # Clean old entries
+        _rate_limit_store[compound_key] = [
+            t for t in _rate_limit_store[compound_key] if now - t < RATE_LIMIT_WINDOW
+        ]
 
-    remaining = max(0, rate_limit - len(_rate_limit_store[compound_key]))
-    reset_time = int(
-        max(_rate_limit_store[compound_key]) + RATE_LIMIT_WINDOW
-        if _rate_limit_store[compound_key]
-        else now + RATE_LIMIT_WINDOW
-    )
-
-    # Check limit
-    if len(_rate_limit_store[compound_key]) >= rate_limit:
-        logger.warning(
-            "rate_limit_exceeded_memory", ip=mask_ip(client_ip), endpoint=endpoint_type
+        remaining = max(0, rate_limit - len(_rate_limit_store[compound_key]))
+        reset_time = int(
+            max(_rate_limit_store[compound_key]) + RATE_LIMIT_WINDOW
+            if _rate_limit_store[compound_key]
+            else now + RATE_LIMIT_WINDOW
         )
-        return False, {
-            "X-RateLimit-Limit": str(rate_limit),
-            "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": str(reset_time),
-            "Retry-After": str(RATE_LIMIT_WINDOW),
-        }
 
-    _rate_limit_store[compound_key].append(now)
+        # Check limit
+        if len(_rate_limit_store[compound_key]) >= rate_limit:
+            logger.warning(
+                "rate_limit_exceeded_memory",
+                ip=mask_ip(client_ip),
+                endpoint=endpoint_type,
+            )
+            return False, {
+                "X-RateLimit-Limit": str(rate_limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(reset_time),
+                "Retry-After": str(RATE_LIMIT_WINDOW),
+            }
+
+        _rate_limit_store[compound_key].append(now)
     return True, {
         "X-RateLimit-Limit": str(rate_limit),
         "X-RateLimit-Remaining": str(remaining - 1),
@@ -775,6 +795,16 @@ def mask_ip(ip: str) -> str:
     if len(parts) == 4:
         return f"{parts[0]}.{parts[1]}.xxx.xxx"
     return "xxx.xxx.xxx.xxx"
+
+
+def mask_id(id_str: str) -> str:
+    """Mask installation ID for privacy."""
+    if not id_str:
+        return "unknown"
+    # Show first 8 chars (standard UUID segment)
+    if len(id_str) >= 8:
+        return f"{id_str[:8]}..."
+    return "xxx"
 
 
 class TelemetryPayload(BaseModel):
@@ -1289,7 +1319,7 @@ async def check_eligibility(
 
         logger.info(
             "eligibility_check",
-            installation_id=installation_id,
+            installation_id=mask_id(installation_id),
             is_admin=is_admin_check,
             role=role.value,
         )
