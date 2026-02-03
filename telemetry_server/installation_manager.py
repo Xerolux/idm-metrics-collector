@@ -35,6 +35,10 @@ INSTALLATION_STORAGE_DIR = os.environ.get(
 )
 INSTALLATION_FILE = os.path.join(INSTALLATION_STORAGE_DIR, "installations.json")
 
+# Protected IDs (Super Admins)
+raw_admin_ids = os.environ.get("ADMIN_INSTALLATION_IDS", "")
+PROTECTED_IDS = {x.strip().lower() for x in raw_admin_ids.split(",") if x.strip()}
+
 # Ensure storage directory exists
 Path(INSTALLATION_STORAGE_DIR).mkdir(parents=True, exist_ok=True)
 
@@ -177,6 +181,17 @@ class InstallationManager:
             True if role was changed
         """
         installation_id = installation_id.lower()
+
+        # Security Check
+        if installation_id in PROTECTED_IDS:
+            logger.warning(
+                "attempt_to_modify_protected_admin",
+                installation_id=installation_id,
+                action="set_role",
+                set_by=set_by,
+            )
+            raise ValueError("Cannot modify protected admin role")
+
         record = self._ensure_installation(installation_id)
 
         old_role = record.get("role", InstallationRole.GUEST.value)
@@ -264,6 +279,17 @@ class InstallationManager:
             Ban record
         """
         installation_id = installation_id.lower()
+
+        # Security Check
+        if installation_id in PROTECTED_IDS:
+            logger.warning(
+                "attempt_to_modify_protected_admin",
+                installation_id=installation_id,
+                action="ban",
+                banned_by=banned_by,
+            )
+            raise ValueError("Cannot ban protected admin")
+
         record = self._ensure_installation(installation_id)
 
         expires_at = None

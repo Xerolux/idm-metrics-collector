@@ -29,6 +29,10 @@ PERMISSION_STORAGE_DIR = os.environ.get(
 )
 PERMISSION_FILE = os.path.join(PERMISSION_STORAGE_DIR, "admin_permissions.json")
 
+# Protected IDs (Super Admins)
+raw_admin_ids = os.environ.get("ADMIN_INSTALLATION_IDS", "")
+PROTECTED_IDS = {x.strip().lower() for x in raw_admin_ids.split(",") if x.strip()}
+
 # Ensure storage directory exists
 Path(PERMISSION_STORAGE_DIR).mkdir(parents=True, exist_ok=True)
 
@@ -161,6 +165,16 @@ class PermissionManager:
             True if permission was revoked, False if didn't exist
         """
         admin_id = admin_id.lower()
+
+        # Security Check
+        if admin_id in PROTECTED_IDS:
+            logger.warning(
+                "attempt_to_revoke_protected_admin",
+                admin_id=admin_id,
+                permission=permission,
+                revoked_by=revoked_by,
+            )
+            return False
 
         if admin_id not in self.admin_permissions:
             logger.warning(
