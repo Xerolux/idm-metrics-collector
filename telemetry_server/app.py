@@ -1275,13 +1275,29 @@ async def check_eligibility(
             "data_pool": await get_data_pool_stats(request),
         }
 
-        # Check if Admin
-        is_admin_check = installation_id.lower() in ADMIN_IDS
+        # Check if Admin (Legacy Env + New Role System)
+        role = installation_manager.get_role(installation_id)
+        is_banned_check = installation_manager.is_banned(installation_id)
+        active_bans = installation_manager.get_active_bans(installation_id)
+
+        is_admin_check = (
+            installation_id.lower() in ADMIN_IDS
+            or installation_manager.has_role_or_higher(
+                installation_id, InstallationRole.ADMIN
+            )
+        )
+
         logger.info(
             "eligibility_check",
             installation_id=installation_id,
             is_admin=is_admin_check,
+            role=role.value,
         )
+
+        # Add role and ban info to response
+        result["role"] = role.value
+        result["is_banned"] = is_banned_check
+        result["active_bans"] = active_bans
 
         if is_admin_check:
             result["is_admin"] = True
