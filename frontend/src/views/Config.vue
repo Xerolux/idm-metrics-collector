@@ -204,10 +204,22 @@
                 <div class="flex items-center gap-2" v-if="telemetryStatus">
                   <span class="font-bold text-sm text-gray-300">Status:</span>
                   <span
+                    v-if="telemetryStatus.is_banned"
+                    class="px-2 py-0.5 rounded bg-red-500/20 text-red-500 border border-red-500/50 text-xs font-bold uppercase"
+                  >
+                    <i class="pi pi-ban mr-1"></i> BANNED
+                  </span>
+                  <span
                     v-if="telemetryStatus.is_admin"
                     class="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/50 text-xs font-bold uppercase"
                   >
                     <i class="pi pi-crown mr-1"></i> Admin
+                  </span>
+                  <span
+                    v-else-if="telemetryStatus.role"
+                    :class="getRoleBadgeClass(telemetryStatus.role) + ' px-2 py-0.5 rounded border border-white/20 text-xs font-bold uppercase'"
+                  >
+                    <i class="pi pi-user mr-1"></i> {{ telemetryStatus.role }}
                   </span>
                   <span
                     v-else
@@ -1711,6 +1723,7 @@
               { label: 'Visitor - Statistiken einsehen', value: 'visitor' },
               { label: 'Sponsor - Erweiterte Features', value: 'sponsor' },
               { label: 'Moderator - Daten einsehen', value: 'moderator' },
+              { label: 'Support - Support leisten', value: 'support' },
               { label: 'Admin - Vollzugriff', value: 'admin' }
             ]"
             optionLabel="label"
@@ -2052,6 +2065,7 @@ const getRoleBadgeClass = (role) => {
     visitor: 'bg-blue-600 text-white',
     sponsor: 'bg-yellow-500 text-black',
     moderator: 'bg-purple-600 text-white',
+    support: 'bg-teal-600 text-white',
     admin: 'bg-red-600 text-white'
   }
   return classes[role] || classes.guest

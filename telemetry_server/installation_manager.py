@@ -46,6 +46,7 @@ class InstallationRole(str, Enum):
     VISITOR = "visitor"
     SPONSOR = "sponsor"
     MODERATOR = "moderator"
+    SUPPORT = "support"
     ADMIN = "admin"
 
 
@@ -63,6 +64,7 @@ ROLE_HIERARCHY = [
     InstallationRole.VISITOR,
     InstallationRole.SPONSOR,
     InstallationRole.MODERATOR,
+    InstallationRole.SUPPORT,
     InstallationRole.ADMIN,
 ]
 
@@ -72,6 +74,7 @@ ROLE_DESCRIPTIONS = {
     InstallationRole.VISITOR: "Can view public statistics and community data",
     InstallationRole.SPONSOR: "Extended features, priority support, early access",
     InstallationRole.MODERATOR: "Can view installation data and assist with support",
+    InstallationRole.SUPPORT: "Can view detailed diagnostics and assist users",
     InstallationRole.ADMIN: "Full administrative access (requires admin permissions)",
 }
 
@@ -92,6 +95,14 @@ ROLE_FEATURES = {
         "view_stats",
         "view_installations",
         "view_audit_log",
+    ],
+    InstallationRole.SUPPORT: [
+        "upload",
+        "download_community_model",
+        "view_stats",
+        "view_installations",
+        "view_audit_log",
+        "view_diagnostics",
     ],
     InstallationRole.ADMIN: ["*"],  # All features
 }
