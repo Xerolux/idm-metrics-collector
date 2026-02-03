@@ -200,7 +200,8 @@ class ModbusClient:
         try:
             result = self.client.connect()
             if result:
-                self._stats["total_reconnects"] += 1
+                # Note: total_reconnects is incremented in the next call when
+                # is_socket_open() returns True and _connection_was_lost is still set
                 self._stats["uptime_start"] = time.time()
                 return True
         except Exception as e:
@@ -392,7 +393,7 @@ class ModbusClient:
                     self._stats["total_read_errors"] += 1
                     self._stats["last_error"] = str(e)
                     # Mark block as failed and use individual reads
-                    self._failed_blocks.add(block_key)
+                    self._failed_blocks[block_key] = time.time()
                     self._read_block_individually(block, data)
 
             # Update statistics on successful read
