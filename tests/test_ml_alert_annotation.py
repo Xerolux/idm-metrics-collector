@@ -42,8 +42,8 @@ class TestMLAlertAnnotation(unittest.TestCase):
 
         # Configure config
         self.mock_config.get_flask_secret_key.return_value = "secret"
-        self.mock_config.get.side_effect = (
-            lambda k, d=None: "secret" if k == "internal_api_key" else d
+        self.mock_config.get.side_effect = lambda k, d=None: (
+            "secret" if k == "internal_api_key" else d
         )
         self.mock_config.data = {}
 
