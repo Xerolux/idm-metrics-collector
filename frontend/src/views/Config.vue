@@ -204,10 +204,22 @@
                 <div class="flex items-center gap-2" v-if="telemetryStatus">
                   <span class="font-bold text-sm text-gray-300">Status:</span>
                   <span
+                    v-if="telemetryStatus.is_banned"
+                    class="px-2 py-0.5 rounded bg-red-500/20 text-red-500 border border-red-500/50 text-xs font-bold uppercase"
+                  >
+                    <i class="pi pi-ban mr-1"></i> BANNED
+                  </span>
+                  <span
                     v-if="telemetryStatus.is_admin"
                     class="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/50 text-xs font-bold uppercase"
                   >
                     <i class="pi pi-crown mr-1"></i> Admin
+                  </span>
+                  <span
+                    v-else-if="telemetryStatus.role"
+                    :class="getRoleBadgeClass(telemetryStatus.role) + ' px-2 py-0.5 rounded border border-white/20 text-xs font-bold uppercase'"
+                  >
+                    <i class="pi pi-user mr-1"></i> {{ telemetryStatus.role }}
                   </span>
                   <span
                     v-else
@@ -933,7 +945,7 @@
           <!-- Admin Zone -->
           <div v-if="activeCategory === 'admin'" class="flex flex-col gap-6">
             <div class="flex items-center justify-between border-b border-surface-700 pb-2 mb-2">
-              <h2 class="text-xl font-bold flex items-center gap-2">
+              <h2 class="text-xl font-bold flex items-center gap-2 text-gray-100">
                 <i class="pi pi-crown text-yellow-500"></i> Admin Zone
               </h2>
               <div class="flex items-center gap-2">
@@ -1703,14 +1715,16 @@
           <div class="font-mono text-xs bg-gray-800 p-2 rounded mt-1">{{ selectedInstallationForAction }}</div>
         </div>
         <div>
-          <label class="text-sm text-gray-400 mb-2 block">Neue Rolle:</label>
+          <label class="text-sm text-gray-400 mb-2 block" for="new-role-dropdown">Neue Rolle:</label>
           <Dropdown
+            inputId="new-role-dropdown"
             v-model="newRole"
             :options="[
               { label: 'Guest - Basis-Funktionalitaet', value: 'guest' },
               { label: 'Visitor - Statistiken einsehen', value: 'visitor' },
               { label: 'Sponsor - Erweiterte Features', value: 'sponsor' },
               { label: 'Moderator - Daten einsehen', value: 'moderator' },
+              { label: 'Support - Support leisten', value: 'support' },
               { label: 'Admin - Vollzugriff', value: 'admin' }
             ]"
             optionLabel="label"
@@ -2052,6 +2066,7 @@ const getRoleBadgeClass = (role) => {
     visitor: 'bg-blue-600 text-white',
     sponsor: 'bg-yellow-500 text-black',
     moderator: 'bg-purple-600 text-white',
+    support: 'bg-teal-600 text-white',
     admin: 'bg-red-600 text-white'
   }
   return classes[role] || classes.guest

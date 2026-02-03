@@ -43,6 +43,8 @@ class TelemetryManager:
         # Admin State
         self.is_admin = False
         self.server_stats = None
+        self.role = "guest"
+        self.is_banned = False
 
         # Load state from config
         self._load_state()
@@ -52,6 +54,8 @@ class TelemetryManager:
         self.manual_downloads_today = telemetry_config.get("manual_downloads_today", 0)
         self.last_manual_download = telemetry_config.get("last_manual_download", 0)
         self.is_admin = telemetry_config.get("is_admin", False)
+        self.role = telemetry_config.get("role", "guest")
+        self.is_banned = telemetry_config.get("is_banned", False)
         self.server_stats = telemetry_config.get("server_stats", None)
 
         # Reset counter if it's a new day
@@ -64,6 +68,8 @@ class TelemetryManager:
         config.set("telemetry.manual_downloads_today", self.manual_downloads_today)
         config.set("telemetry.last_manual_download", self.last_manual_download)
         config.set("telemetry.is_admin", self.is_admin)
+        config.set("telemetry.role", self.role)
+        config.set("telemetry.is_banned", self.is_banned)
         if self.server_stats:
             config.set("telemetry.server_stats", self.server_stats)
         config.save()
@@ -261,6 +267,8 @@ class TelemetryManager:
             "manual_downloads_today": self.manual_downloads_today,
             "version": get_current_version(),
             "is_admin": self.is_admin,
+            "role": self.role,
+            "is_banned": self.is_banned,
             "server_stats": self.server_stats,
             "has_per_installation_token": has_per_installation_token,
             "has_encryption_key": has_encryption_key,
@@ -486,7 +494,10 @@ class TelemetryManager:
 
             config.set("telemetry.last_model_check", int(time.time()))
 
-            # Update Admin Status
+            # Update Status (Role, Admin, Ban)
+            self.role = status.get("role", "guest")
+            self.is_banned = status.get("is_banned", False)
+
             if status.get("is_admin"):
                 self.is_admin = True
                 self.server_stats = status.get("server_stats")
