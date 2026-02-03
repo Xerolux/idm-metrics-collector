@@ -993,6 +993,102 @@
               </div>
             </div>
 
+            <!-- Installations List -->
+            <Fieldset legend="Installation Management" :toggleable="true">
+              <div class="flex justify-between items-center mb-3">
+                <div class="text-sm text-gray-400" v-if="adminInstallations">Showing {{ adminInstallations.showing }} of {{ adminInstallations.total }} installations</div>
+                <Button
+                  label="Refresh"
+                  icon="pi pi-refresh"
+                  size="small"
+                  severity="secondary"
+                  @click="fetchInstallationRoles"
+                />
+              </div>
+              <div class="overflow-x-auto" v-if="adminInstallations">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-gray-700">
+                      <th class="text-left py-2 px-3">Installation ID</th>
+                      <th class="text-center py-2 px-3">Rolle</th>
+                      <th class="text-center py-2 px-3">Status</th>
+                      <th class="text-right py-2 px-3">Data Points</th>
+                      <th class="text-right py-2 px-3">Last Seen</th>
+                      <th class="text-center py-2 px-3">Aktionen</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="inst in adminInstallations.installations" :key="inst.installation_id" class="border-b border-gray-800 hover:bg-gray-800/50">
+                      <td class="py-2 px-3 font-mono text-xs">
+                        <button
+                          @click="openInstallationDetails(inst.installation_id)"
+                          class="text-blue-400 hover:text-blue-300 hover:underline text-left"
+                        >
+                          {{ inst.installation_id.substring(0, 20) }}...
+                        </button>
+                      </td>
+                      <td class="py-2 px-3 text-center">
+                        <span :class="getRoleBadgeClass(getInstallationRole(inst.installation_id))" class="px-2 py-1 rounded text-xs font-bold">
+                          {{ getInstallationRole(inst.installation_id) }}
+                        </span>
+                      </td>
+                      <td class="py-2 px-3 text-center">
+                        <span v-if="isInstallationBanned(inst.installation_id)" class="px-2 py-1 rounded text-xs font-bold bg-red-600 text-white">
+                          <i class="pi pi-ban mr-1"></i>GESPERRT
+                        </span>
+                        <span v-else class="text-green-400">
+                          <i class="pi pi-check-circle"></i>
+                        </span>
+                      </td>
+                      <td class="py-2 px-3 text-right">{{ inst.data_points?.toLocaleString() || 0 }}</td>
+                      <td class="py-2 px-3 text-right">{{ inst.last_seen_formatted || 'Unknown' }}</td>
+                      <td class="py-2 px-3 text-center">
+                        <div class="flex gap-1 justify-center">
+                          <Button
+                            icon="pi pi-user-edit"
+                            severity="info"
+                            size="small"
+                            outlined
+                            @click="openRoleDialog(inst.installation_id)"
+                            v-tooltip="'Rolle aendern'"
+                          />
+                          <Button
+                            v-if="!isInstallationBanned(inst.installation_id)"
+                            icon="pi pi-ban"
+                            severity="danger"
+                            size="small"
+                            outlined
+                            @click="openBanDialog(inst.installation_id)"
+                            v-tooltip="'Sperren'"
+                          />
+                          <Button
+                            v-else
+                            icon="pi pi-unlock"
+                            severity="success"
+                            size="small"
+                            outlined
+                            @click="unbanInstallation(inst.installation_id)"
+                            v-tooltip="'Entsperren'"
+                          />
+                          <Button
+                            icon="pi pi-eye"
+                            severity="secondary"
+                            size="small"
+                            outlined
+                            @click="openInstallationDetails(inst.installation_id)"
+                            v-tooltip="'Details'"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div v-else class="text-center py-8 text-gray-400 italic bg-gray-900/30 rounded border border-gray-800 border-dashed">
+                <i class="pi pi-spin pi-spinner mr-2"></i> Loading installations...
+              </div>
+            </Fieldset>
+
             <Fieldset legend="Available Models" :toggleable="true" v-if="adminModels">
               <div class="mb-3 text-sm text-gray-400">
                 Showing {{ adminModels.total || 0 }} model(s), Total Size: {{ adminModels.models?.reduce((sum, m) => sum + m.size_mb, 0).toFixed(2) || 0 }} MB
@@ -1090,98 +1186,6 @@
               </div>
             </Fieldset>
 
-            <!-- Installations List -->
-            <Fieldset legend="Installation Management" :toggleable="true" v-if="adminInstallations">
-              <div class="flex justify-between items-center mb-3">
-                <div class="text-sm text-gray-400">Showing {{ adminInstallations.showing }} of {{ adminInstallations.total }} installations</div>
-                <Button
-                  label="Refresh"
-                  icon="pi pi-refresh"
-                  size="small"
-                  severity="secondary"
-                  @click="fetchInstallationRoles"
-                />
-              </div>
-              <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                  <thead>
-                    <tr class="border-b border-gray-700">
-                      <th class="text-left py-2 px-3">Installation ID</th>
-                      <th class="text-center py-2 px-3">Rolle</th>
-                      <th class="text-center py-2 px-3">Status</th>
-                      <th class="text-right py-2 px-3">Data Points</th>
-                      <th class="text-right py-2 px-3">Last Seen</th>
-                      <th class="text-center py-2 px-3">Aktionen</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="inst in adminInstallations.installations" :key="inst.installation_id" class="border-b border-gray-800 hover:bg-gray-800/50">
-                      <td class="py-2 px-3 font-mono text-xs">
-                        <button
-                          @click="openInstallationDetails(inst.installation_id)"
-                          class="text-blue-400 hover:text-blue-300 hover:underline text-left"
-                        >
-                          {{ inst.installation_id.substring(0, 20) }}...
-                        </button>
-                      </td>
-                      <td class="py-2 px-3 text-center">
-                        <span :class="getRoleBadgeClass(getInstallationRole(inst.installation_id))" class="px-2 py-1 rounded text-xs font-bold">
-                          {{ getInstallationRole(inst.installation_id) }}
-                        </span>
-                      </td>
-                      <td class="py-2 px-3 text-center">
-                        <span v-if="isInstallationBanned(inst.installation_id)" class="px-2 py-1 rounded text-xs font-bold bg-red-600 text-white">
-                          <i class="pi pi-ban mr-1"></i>GESPERRT
-                        </span>
-                        <span v-else class="text-green-400">
-                          <i class="pi pi-check-circle"></i>
-                        </span>
-                      </td>
-                      <td class="py-2 px-3 text-right">{{ inst.data_points?.toLocaleString() || 0 }}</td>
-                      <td class="py-2 px-3 text-right">{{ inst.last_seen_formatted || 'Unknown' }}</td>
-                      <td class="py-2 px-3 text-center">
-                        <div class="flex gap-1 justify-center">
-                          <Button
-                            icon="pi pi-user-edit"
-                            severity="info"
-                            size="small"
-                            text
-                            @click="openRoleDialog(inst.installation_id)"
-                            v-tooltip="'Rolle aendern'"
-                          />
-                          <Button
-                            v-if="!isInstallationBanned(inst.installation_id)"
-                            icon="pi pi-ban"
-                            severity="danger"
-                            size="small"
-                            text
-                            @click="openBanDialog(inst.installation_id)"
-                            v-tooltip="'Sperren'"
-                          />
-                          <Button
-                            v-else
-                            icon="pi pi-unlock"
-                            severity="success"
-                            size="small"
-                            text
-                            @click="unbanInstallation(inst.installation_id)"
-                            v-tooltip="'Entsperren'"
-                          />
-                          <Button
-                            icon="pi pi-eye"
-                            severity="secondary"
-                            size="small"
-                            text
-                            @click="openInstallationDetails(inst.installation_id)"
-                            v-tooltip="'Details'"
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </Fieldset>
 
             <!-- System Metrics -->
             <Fieldset legend="System Metrics" :toggleable="true" v-if="adminMetrics">
