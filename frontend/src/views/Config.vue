@@ -1723,6 +1723,7 @@
               { label: 'Visitor - Statistiken einsehen', value: 'visitor' },
               { label: 'Sponsor - Erweiterte Features', value: 'sponsor' },
               { label: 'Moderator - Daten einsehen', value: 'moderator' },
+              { label: 'Support - Support leisten', value: 'support' },
               { label: 'Admin - Vollzugriff', value: 'admin' }
             ]"
             optionLabel="label"
@@ -2064,6 +2065,7 @@ const getRoleBadgeClass = (role) => {
     visitor: 'bg-blue-600 text-white',
     sponsor: 'bg-yellow-500 text-black',
     moderator: 'bg-purple-600 text-white',
+    support: 'bg-teal-600 text-white',
     admin: 'bg-red-600 text-white'
   }
   return classes[role] || classes.guest

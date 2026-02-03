@@ -1,7 +1,7 @@
 # Xerolux 2026
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
-from installation_manager import InstallationRole, BanType
+from installation_manager import InstallationRole
 
 @pytest.mark.asyncio
 async def test_check_eligibility_roles_and_bans(client):
