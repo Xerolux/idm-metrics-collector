@@ -1325,6 +1325,135 @@
               </div>
             </Fieldset>
 
+            <!-- Permission Management -->
+            <Fieldset legend="Permission Management" :toggleable="true">
+              <div class="flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                  <div class="text-sm text-gray-400">Manage admin access and roles</div>
+                  <div class="flex gap-2">
+                    <Button label="Refresh" icon="pi pi-refresh" severity="secondary" size="small" @click="fetchPermissions" />
+                    <Button label="Add Admin" icon="pi pi-plus" severity="success" size="small" @click="grantAdminDialogVisible = true" />
+                  </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm">
+                    <thead>
+                      <tr class="border-b border-gray-700 text-gray-400">
+                        <th class="text-left py-2">Admin ID</th>
+                        <th class="text-left py-2">Permissions</th>
+                        <th class="text-right py-2">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="admin in adminPermissions" :key="admin.id" class="border-b border-gray-800 last:border-0 hover:bg-gray-800/30">
+                        <td class="py-2 font-mono text-xs text-blue-300">
+                          {{ admin.id.substring(0, 12) }}...
+                          <span v-if="admin.id === config.installation_id" class="ml-1 text-green-400 text-[10px] uppercase border border-green-800 px-1 rounded bg-green-900/30">(You)</span>
+                        </td>
+                        <td class="py-2">
+                          <div class="flex flex-wrap gap-1">
+                            <span v-for="perm in admin.effective_permissions" :key="perm" class="px-1.5 py-0.5 bg-gray-700 rounded text-xs text-gray-300 border border-gray-600">
+                              {{ perm.replace('admin:', '') }}
+                            </span>
+                          </div>
+                        </td>
+                        <td class="py-2 text-right">
+                          <Button icon="pi pi-user-edit" text size="small" severity="info" @click="openPermissionDialog(admin)" v-tooltip="'Edit Permissions'" />
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Fieldset>
+
+            <!-- Training Operations -->
+            <Fieldset legend="Training Operations" :toggleable="true">
+              <div class="flex flex-col gap-4">
+                <div class="flex justify-between items-center">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-gray-300">Current Status:</span>
+                    <span v-if="adminTraining.current && adminTraining.current.running" class="px-2 py-1 bg-green-900/50 text-green-400 rounded text-xs font-bold border border-green-700">RUNNING</span>
+                    <span v-else class="px-2 py-1 bg-gray-800 text-gray-400 rounded text-xs font-bold border border-gray-700">IDLE</span>
+                  </div>
+                  <Button icon="pi pi-refresh" severity="secondary" size="small" @click="fetchTrainingInfo" v-tooltip="'Refresh'" />
+                </div>
+
+                <div v-if="adminTraining.current && adminTraining.current.running" class="bg-blue-900/20 border border-blue-600/50 p-3 rounded flex justify-between items-center">
+                  <div class="text-sm">
+                    <div class="font-bold text-blue-300">Training in progress</div>
+                    <div class="text-gray-300">Task ID: <span class="font-mono">{{ adminTraining.current.task_id }}</span></div>
+                    <div class="text-gray-400 text-xs">Started: {{ new Date(adminTraining.current.started_at * 1000).toLocaleString() }}</div>
+                  </div>
+                  <Button label="Cancel" icon="pi pi-times" severity="danger" size="small" @click="cancelTraining(adminTraining.current.task_id)" :loading="cancellingTraining" />
+                </div>
+
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm">
+                    <thead>
+                      <tr class="border-b border-gray-700 text-gray-400">
+                        <th class="text-left py-2">Timestamp</th>
+                        <th class="text-left py-2">Triggered By</th>
+                        <th class="text-center py-2">Result</th>
+                        <th class="text-right py-2">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="task in adminTraining.history" :key="task.task_id" class="border-b border-gray-800 last:border-0 hover:bg-gray-800/30">
+                        <td class="py-2 text-gray-300">{{ new Date(task.created_at * 1000).toLocaleString() }}</td>
+                        <td class="py-2 font-mono text-xs text-gray-400">{{ task.triggered_by?.substring(0, 8) }}...</td>
+                        <td class="py-2 text-center">
+                          <span :class="{'text-green-400': task.status === 'completed', 'text-red-400': task.status === 'failed', 'text-yellow-400': task.status === 'running'}" class="font-bold text-xs uppercase">
+                            {{ task.status }}
+                          </span>
+                        </td>
+                        <td class="py-2 text-right font-mono text-gray-400">{{ task.duration ? task.duration.toFixed(1) + 's' : '-' }}</td>
+                      </tr>
+                      <tr v-if="adminTraining.history.length === 0">
+                        <td colspan="4" class="py-4 text-center text-gray-500 italic">No training history available</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Fieldset>
+
+            <!-- Audit Log -->
+            <Fieldset legend="Audit Log" :toggleable="true">
+              <div class="flex flex-col gap-4">
+                <div class="flex justify-end">
+                  <Button label="Refresh Log" icon="pi pi-refresh" severity="secondary" size="small" @click="fetchAuditLog" />
+                </div>
+                <div class="overflow-x-auto max-h-96">
+                  <table class="w-full text-sm">
+                    <thead>
+                      <tr class="border-b border-gray-700 text-gray-400 sticky top-0 bg-gray-900 z-10">
+                        <th class="text-left py-2">Time</th>
+                        <th class="text-left py-2">Action</th>
+                        <th class="text-left py-2">Admin</th>
+                        <th class="text-center py-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="log in adminAuditLog" :key="log.timestamp" class="border-b border-gray-800 last:border-0 hover:bg-gray-800/30 font-mono text-xs">
+                        <td class="py-1 text-gray-400">{{ new Date(log.timestamp * 1000).toLocaleString() }}</td>
+                        <td class="py-1 text-blue-300">{{ log.action }}</td>
+                        <td class="py-1 text-gray-500" :title="log.admin_id">{{ log.admin_id.substring(0, 8) }}</td>
+                        <td class="py-1 text-center">
+                          <i v-if="log.success" class="pi pi-check text-green-500"></i>
+                          <i v-else class="pi pi-times text-red-500"></i>
+                        </td>
+                      </tr>
+                      <tr v-if="adminAuditLog.length === 0">
+                        <td colspan="4" class="py-4 text-center text-gray-500 italic">No audit logs available (Click Refresh)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Fieldset>
+
             <div class="bg-yellow-900/20 border border-yellow-600/50 p-4 rounded flex items-start gap-3">
               <i class="pi pi-info-circle text-yellow-500 text-xl mt-1"></i>
               <div class="text-sm text-yellow-200">
@@ -1649,6 +1778,43 @@
       </template>
     </Dialog>
 
+    <!-- Permission Dialog -->
+    <Dialog v-model:visible="permissionDialogVisible" header="Manage Permissions" :style="{ width: '400px' }" modal>
+      <div class="flex flex-col gap-4">
+        <div class="text-sm text-gray-400 mb-2">
+          Admin: <span class="font-mono text-white">{{ selectedAdminId.substring(0, 12) }}...</span>
+        </div>
+        <div class="flex flex-col gap-2">
+          <div v-for="perm in ['admin:view', 'admin:models', 'admin:training', 'admin:users', 'admin:full']" :key="perm" class="flex items-center gap-2">
+            <Checkbox v-model="selectedAdminPermissions" :inputId="perm" :value="perm" />
+            <label :for="perm" class="cursor-pointer select-none" :class="perm === 'admin:full' ? 'text-yellow-400 font-bold' : 'text-gray-300'">{{ perm }}</label>
+          </div>
+        </div>
+        <div class="text-xs text-gray-500 mt-2">
+          Note: 'admin:full' automatically includes all other permissions.
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Cancel" text severity="secondary" @click="permissionDialogVisible = false" />
+        <Button label="Save Changes" severity="primary" :loading="savingPermissions" @click="savePermissions" />
+      </template>
+    </Dialog>
+
+    <!-- Grant Admin Dialog -->
+    <Dialog v-model:visible="grantAdminDialogVisible" header="Add New Admin" :style="{ width: '450px' }" modal>
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-bold text-gray-300">Installation ID (UUID)</label>
+          <InputText v-model="newAdminId" class="w-full font-mono" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+          <small class="text-gray-500">The installation must already exist in the database.</small>
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Cancel" text severity="secondary" @click="grantAdminDialogVisible = false" />
+        <Button label="Grant Access" severity="success" :loading="grantingAdmin" @click="grantNewAdmin" :disabled="!newAdminId" />
+      </template>
+    </Dialog>
+
     <Toast />
     <ConfirmDialog />
     <PrivacyPolicyDialog ref="privacyDialog" />
@@ -1782,6 +1948,19 @@ const banReason = ref('')
 const banDuration = ref(null)
 const savingRole = ref(false)
 const savingBan = ref(false)
+// New Admin Features State
+const adminAuditLog = ref([])
+const adminTraining = ref({ current: null, history: [] })
+const adminPermissions = ref([])
+const permissionDialogVisible = ref(false)
+const selectedAdminId = ref('')
+const selectedAdminPermissions = ref([])
+const grantAdminDialogVisible = ref(false)
+const newAdminId = ref('')
+const savingPermissions = ref(false)
+const grantingAdmin = ref(false)
+const cancellingTraining = ref(false)
+
 const modelDownloadsChart = ref(null)
 let modelDownloadsChartInstance = null
 const checkingUpdates = ref(false)
@@ -2117,6 +2296,156 @@ const fetchCommunityAverages = async () => {
     })
   } finally {
     statsLoading.value = false
+  }
+}
+
+const fetchAuditLog = async () => {
+  if (!telemetryStatus.value?.is_admin) return
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const res = await axios.get(`${telemetryUrl}/api/v1/admin/audit-log`, {
+      params: { installation_id: config.value.installation_id, limit: 100 }
+    })
+    adminAuditLog.value = res.data.events || []
+  } catch (err) {
+    console.error('Failed to fetch audit log:', err)
+  }
+}
+
+const fetchTrainingInfo = async () => {
+  if (!telemetryStatus.value?.is_admin) return
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const [currentRes, historyRes] = await Promise.all([
+      axios.get(`${telemetryUrl}/api/v1/admin/training/current`, {
+        params: { installation_id: config.value.installation_id }
+      }),
+      axios.get(`${telemetryUrl}/api/v1/admin/training/history`, {
+        params: { installation_id: config.value.installation_id, limit: 20 }
+      })
+    ])
+
+    adminTraining.value = {
+      current: currentRes.data.running ? currentRes.data : null,
+      history: historyRes.data.tasks || []
+    }
+  } catch (err) {
+    console.error('Failed to fetch training info:', err)
+  }
+}
+
+const fetchPermissions = async () => {
+  if (!telemetryStatus.value?.is_admin) return
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const res = await axios.get(`${telemetryUrl}/api/v1/admin/permissions`, {
+      params: { installation_id: config.value.installation_id }
+    })
+
+    // Transform object to array
+    adminPermissions.value = Object.entries(res.data.admins || {}).map(([id, data]) => ({
+      id,
+      ...data
+    }))
+  } catch (err) {
+    console.error('Failed to fetch permissions:', err)
+  }
+}
+
+const cancelTraining = async (taskId) => {
+  cancellingTraining.value = true
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    await axios.post(`${telemetryUrl}/api/v1/admin/training/cancel/${taskId}`, null, {
+      params: { installation_id: config.value.installation_id }
+    })
+    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Training abgebrochen', life: 3000 })
+    await fetchTrainingInfo()
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Fehler', detail: err.response?.data?.detail || 'Abbruch fehlgeschlagen', life: 5000 })
+  } finally {
+    cancellingTraining.value = false
+  }
+}
+
+const openPermissionDialog = (admin) => {
+  selectedAdminId.value = admin.id
+  selectedAdminPermissions.value = [...admin.permissions] // Use direct permissions
+  permissionDialogVisible.value = true
+}
+
+const savePermissions = async () => {
+  if (!selectedAdminId.value) return
+  savingPermissions.value = true
+
+  try {
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const admin = adminPermissions.value.find(a => a.id === selectedAdminId.value)
+    if (!admin) return
+
+    const currentPerms = new Set(admin.permissions)
+    const newPerms = new Set(selectedAdminPermissions.value)
+
+    // Grant new permissions
+    for (const perm of newPerms) {
+      if (!currentPerms.has(perm)) {
+        await axios.post(`${telemetryUrl}/api/v1/admin/permissions/grant`, null, {
+          params: {
+            installation_id: config.value.installation_id,
+            target_admin_id: selectedAdminId.value,
+            permission: perm
+          }
+        })
+      }
+    }
+
+    // Revoke removed permissions
+    for (const perm of currentPerms) {
+      if (!newPerms.has(perm)) {
+         await axios.post(`${telemetryUrl}/api/v1/admin/permissions/revoke`, null, {
+          params: {
+            installation_id: config.value.installation_id,
+            target_admin_id: selectedAdminId.value,
+            permission: perm
+          }
+        })
+      }
+    }
+
+    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Berechtigungen aktualisiert', life: 3000 })
+    permissionDialogVisible.value = false
+    await fetchPermissions()
+  } catch (err) {
+    console.error(err)
+    toast.add({ severity: 'error', summary: 'Fehler', detail: 'Berechtigungen konnten nicht gespeichert werden', life: 5000 })
+  } finally {
+    savingPermissions.value = false
+  }
+}
+
+const grantNewAdmin = async () => {
+  if (!newAdminId.value) return
+  grantingAdmin.value = true
+
+  try {
+    // Just grant admin:view to start
+    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    await axios.post(`${telemetryUrl}/api/v1/admin/permissions/grant`, null, {
+      params: {
+        installation_id: config.value.installation_id,
+        target_admin_id: newAdminId.value,
+        permission: 'admin:view'
+      }
+    })
+
+    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Neuer Admin hinzugefügt', life: 3000 })
+    grantAdminDialogVisible.value = false
+    newAdminId.value = ''
+    await fetchPermissions()
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Fehler', detail: err.response?.data?.detail || 'Admin konnte nicht hinzugefügt werden', life: 5000 })
+  } finally {
+    grantingAdmin.value = false
   }
 }
 
@@ -2466,7 +2795,8 @@ const loadTelemetryStatus = async () => {
         fetchAdminHealth(),
         fetchAdminInstallations(),
         fetchAdminModels(),
-        fetchAdminMetrics()
+        fetchAdminMetrics(),
+        fetchTrainingInfo()
       ])
 
       // Start auto-refresh for admin data
@@ -2491,12 +2821,14 @@ const startAdminAutoRefresh = () => {
           fetchAdminHealth(),
           fetchAdminInstallations(),
           fetchAdminModels(),
-          fetchAdminMetrics()
+          fetchAdminMetrics(),
+          fetchTrainingInfo()
         ])
       } catch (e) {
         console.error('Auto-refresh failed', e)
       }
     }
+
   }, 30000) // 30 seconds
 }
 
