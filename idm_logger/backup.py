@@ -508,7 +508,7 @@ class BackupManager:
                         all_settings[key] = value
 
                 backup_data["db_settings"] = all_settings
-                conn.close()
+                # Note: Do NOT close conn here - it's a shared singleton connection
             except Exception as e:
                 logger.warning(f"Could not backup database settings: {e}")
 

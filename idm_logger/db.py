@@ -41,12 +41,23 @@ class Database:
         self.init_db()
 
     def get_connection(self):
-        """Get the persistent database connection."""
+        """Get the persistent database connection, reconnecting if needed."""
         if self._conn is None:
             self._conn = sqlite3.connect(
                 self.db_path, check_same_thread=False, timeout=10.0
             )
             self._conn.row_factory = sqlite3.Row
+        else:
+            # Check if connection was closed and reconnect if needed
+            try:
+                self._conn.execute("SELECT 1")
+            except sqlite3.ProgrammingError:
+                # Connection was closed, reconnect
+                logger.warning("Database connection was closed, reconnecting...")
+                self._conn = sqlite3.connect(
+                    self.db_path, check_same_thread=False, timeout=10.0
+                )
+                self._conn.row_factory = sqlite3.Row
         return self._conn
 
     @contextmanager

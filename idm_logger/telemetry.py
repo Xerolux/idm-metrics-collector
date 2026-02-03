@@ -92,57 +92,83 @@ class TelemetryManager:
 
         server_url = config.get("telemetry.server_url", "https://collector.xerolux.de")
 
-        try:
-            logger.info("Retrieving per-installation credentials from server...")
+        # Retry configuration for transient errors (503, network issues)
+        max_retries = 3
+        base_delay = 2.0  # seconds
 
-            headers = {
-                "Authorization": f"Bearer {SHARED_AUTH_TOKEN}",
-                "Content-Type": "application/json",
-            }
+        headers = {
+            "Authorization": f"Bearer {SHARED_AUTH_TOKEN}",
+            "Content-Type": "application/json",
+        }
 
-            response = requests.post(
-                f"{server_url}/api/v1/credentials/retrieve",
-                params={"installation_id": installation_id},
-                headers=headers,
-                timeout=30,
-            )
-
-            if response.status_code == 200:
-                data = response.json()
-
-                # Store credentials in config
-                auth_token = data.get("auth_token")
-                encryption_key = data.get("encryption_key")
-
-                if auth_token:
-                    config.set("telemetry.auth_token", auth_token)
-                    logger.info("Per-installation auth token stored")
-
-                if encryption_key:
-                    config.set("telemetry.encryption_key", encryption_key)
-                    logger.info("Per-installation encryption key stored")
-
-                config.save()
-
-                is_new = data.get("is_new", True)
-                if is_new:
-                    logger.info("New installation registered with telemetry server")
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                if attempt == 0:
+                    logger.info("Retrieving per-installation credentials from server...")
                 else:
-                    logger.info("Credentials retrieved for existing installation")
+                    logger.debug(f"Credential retrieval retry attempt {attempt + 1}/{max_retries}")
 
-                return True
-            else:
-                logger.warning(
-                    f"Failed to retrieve credentials: {response.status_code} - {response.text}"
+                response = requests.post(
+                    f"{server_url}/api/v1/credentials/retrieve",
+                    params={"installation_id": installation_id},
+                    headers=headers,
+                    timeout=30,
                 )
+
+                if response.status_code == 200:
+                    data = response.json()
+
+                    # Store credentials in config
+                    auth_token = data.get("auth_token")
+                    encryption_key = data.get("encryption_key")
+
+                    if auth_token:
+                        config.set("telemetry.auth_token", auth_token)
+                        logger.info("Per-installation auth token stored")
+
+                    if encryption_key:
+                        config.set("telemetry.encryption_key", encryption_key)
+                        logger.info("Per-installation encryption key stored")
+
+                    config.save()
+
+                    is_new = data.get("is_new", True)
+                    if is_new:
+                        logger.info("New installation registered with telemetry server")
+                    else:
+                        logger.info("Credentials retrieved for existing installation")
+
+                    return True
+                elif response.status_code in (502, 503, 504):
+                    # Transient server errors - retry with backoff
+                    last_error = f"{response.status_code} - {response.text}"
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)
+                        logger.debug(f"Server temporarily unavailable ({response.status_code}), retrying in {delay:.1f}s...")
+                        time.sleep(delay)
+                        continue
+                else:
+                    # Non-retryable error
+                    logger.warning(
+                        f"Failed to retrieve credentials: {response.status_code} - {response.text}"
+                    )
+                    return False
+
+            except requests.exceptions.RequestException as e:
+                last_error = str(e)
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    logger.debug(f"Network error, retrying in {delay:.1f}s: {e}")
+                    time.sleep(delay)
+                    continue
+            except Exception as e:
+                logger.error(f"Unexpected error retrieving credentials: {e}")
                 return False
 
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"Failed to retrieve credentials (network error): {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Unexpected error retrieving credentials: {e}")
-            return False
+        # All retries exhausted
+        logger.warning(f"Failed to retrieve credentials after {max_retries} attempts: {last_error}")
+        return False
 
     def start(self, scheduler=None):
         """
