@@ -105,9 +105,13 @@ class TelemetryManager:
         for attempt in range(max_retries):
             try:
                 if attempt == 0:
-                    logger.info("Retrieving per-installation credentials from server...")
+                    logger.info(
+                        "Retrieving per-installation credentials from server..."
+                    )
                 else:
-                    logger.debug(f"Credential retrieval retry attempt {attempt + 1}/{max_retries}")
+                    logger.debug(
+                        f"Credential retrieval retry attempt {attempt + 1}/{max_retries}"
+                    )
 
                 response = requests.post(
                     f"{server_url}/api/v1/credentials/retrieve",
@@ -144,8 +148,10 @@ class TelemetryManager:
                     # Transient server errors - retry with backoff
                     last_error = f"{response.status_code} - {response.text}"
                     if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt)
-                        logger.debug(f"Server temporarily unavailable ({response.status_code}), retrying in {delay:.1f}s...")
+                        delay = base_delay * (2**attempt)
+                        logger.debug(
+                            f"Server temporarily unavailable ({response.status_code}), retrying in {delay:.1f}s..."
+                        )
                         time.sleep(delay)
                         continue
                 else:
@@ -158,7 +164,7 @@ class TelemetryManager:
             except requests.exceptions.RequestException as e:
                 last_error = str(e)
                 if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt)
+                    delay = base_delay * (2**attempt)
                     logger.debug(f"Network error, retrying in {delay:.1f}s: {e}")
                     time.sleep(delay)
                     continue
@@ -167,7 +173,9 @@ class TelemetryManager:
                 return False
 
         # All retries exhausted
-        logger.warning(f"Failed to retrieve credentials after {max_retries} attempts: {last_error}")
+        logger.warning(
+            f"Failed to retrieve credentials after {max_retries} attempts: {last_error}"
+        )
         return False
 
     def start(self, scheduler=None):
