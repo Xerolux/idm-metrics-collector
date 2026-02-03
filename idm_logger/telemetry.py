@@ -571,7 +571,14 @@ class TelemetryManager:
             logger.info(f"Model version {envelope_version} is compatible")
 
             # Verify signature
-            key = DEFAULT_ENCRYPTION_KEY
+            key = config.get("telemetry.encryption_key")
+            if not key:
+                key = DEFAULT_ENCRYPTION_KEY
+
+            # Ensure key is bytes
+            if isinstance(key, str):
+                key = key.encode("utf-8")
+
             payload_b64 = envelope["payload"]
             metadata = envelope["metadata"]
             signature = envelope["signature"]
