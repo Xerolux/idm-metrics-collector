@@ -3,6 +3,7 @@ from playwright.sync_api import sync_playwright, expect
 import json
 import time
 
+
 def verify_ux_labels():
     print("Starting verification of UX labels...")
     with sync_playwright() as p:
@@ -42,7 +43,7 @@ def verify_ux_labels():
                 "id": "default",
                 "name": "UX Test Dashboard",
                 "charts": [],
-                "customCss": ""
+                "customCss": "",
             }
         ]
         page.route(
@@ -62,7 +63,7 @@ def verify_ux_labels():
                 "type": "custom",
                 "multi": False,
                 "values": [{"label": "A", "value": "a"}, {"label": "B", "value": "b"}],
-                "default": "a"
+                "default": "a",
             }
         ]
         page.route(
@@ -76,7 +77,7 @@ def verify_ux_labels():
         # Mock variable values endpoint
         page.route(
             "**/api/variables/*",
-             lambda route: route.fulfill(
+            lambda route: route.fulfill(
                 status=200,
                 content_type="application/json",
                 body=json.dumps(variables_response[0]),
@@ -91,7 +92,7 @@ def verify_ux_labels():
                 "text": "Something went wrong",
                 "time": 1700000000,
                 "tags": ["anomaly"],
-                "acknowledged": False
+                "acknowledged": False,
             }
         ]
         page.route(
@@ -104,7 +105,10 @@ def verify_ux_labels():
         )
 
         # 6. Metrics (Empty for now as we don't test charts)
-        page.route("**/api/metrics/*", lambda route: route.fulfill(status=200, body=json.dumps({})))
+        page.route(
+            "**/api/metrics/*",
+            lambda route: route.fulfill(status=200, body=json.dumps({})),
+        )
 
         # --- NAVIGATION ---
 
@@ -132,11 +136,11 @@ def verify_ux_labels():
         try:
             # PrimeVue 4 Dialog close button
             # It might have a specific class or aria-label
-            close_btn = page.locator('.p-dialog-header-actions button')
+            close_btn = page.locator(".p-dialog-header-actions button")
             if close_btn.count() > 0 and close_btn.is_visible():
                 print("Closing auto-opened Alarm Dialog...")
                 close_btn.click()
-                time.sleep(0.5) # Wait for animation
+                time.sleep(0.5)  # Wait for animation
         except Exception as e:
             print(f"Error handling alarm dialog: {e}")
 
@@ -159,36 +163,64 @@ def verify_ux_labels():
                 else:
                     print(f"  SUCCESS: Found aria-label='{aria_label}'")
                     if expected_label and aria_label != expected_label:
-                        print(f"  WARNING: Expected '{expected_label}', got '{aria_label}'")
+                        print(
+                            f"  WARNING: Expected '{expected_label}', got '{aria_label}'"
+                        )
             except Exception as e:
                 print(f"  ERROR: Could not find/check button '{title_or_desc}': {e}")
                 failures.append(f"Button not found/visible: {title_or_desc}")
 
         # 1. New Dashboard (Plus icon)
-        check_button("New Dashboard", page.locator('button[title="Neues Dashboard"]'), "Neues Dashboard")
+        check_button(
+            "New Dashboard",
+            page.locator('button[title="Neues Dashboard"]'),
+            "Neues Dashboard",
+        )
 
         # 2. Template (Copy icon)
-        check_button("Template", page.locator('button[title="Aus Vorlage erstellen"]'), "Aus Vorlage erstellen")
+        check_button(
+            "Template",
+            page.locator('button[title="Aus Vorlage erstellen"]'),
+            "Aus Vorlage erstellen",
+        )
 
         # 3. Settings (Cog icon)
-        check_button("Settings", page.locator('button[title="Dashboard Einstellungen"]'), "Dashboard Einstellungen")
+        check_button(
+            "Settings",
+            page.locator('button[title="Dashboard Einstellungen"]'),
+            "Dashboard Einstellungen",
+        )
 
         # 4. Delete (Trash icon)
         # Note: might be disabled if only 1 dashboard, but still should have label
-        check_button("Delete Dashboard", page.locator('button[title="Dashboard löschen"]'), "Dashboard löschen")
+        check_button(
+            "Delete Dashboard",
+            page.locator('button[title="Dashboard löschen"]'),
+            "Dashboard löschen",
+        )
 
         # 5. Warnings (Bell icon)
         # Should be visible because we mocked anomalies
-        check_button("Warnings", page.locator('button[title="Aktive Warnungen"]'), "Aktive Warnungen")
+        check_button(
+            "Warnings",
+            page.locator('button[title="Aktive Warnungen"]'),
+            "Aktive Warnungen",
+        )
 
         # 6. Export (Download icon)
-        check_button("Export", page.locator('button[title="Exportieren"]'), "Exportieren")
+        check_button(
+            "Export", page.locator('button[title="Exportieren"]'), "Exportieren"
+        )
 
         # 7. Annotations (Bookmark icon)
-        check_button("Annotations", page.locator('button[title="Annotations"]'), "Annotations")
+        check_button(
+            "Annotations", page.locator('button[title="Annotations"]'), "Annotations"
+        )
 
         # 8. Variables (Sliders icon)
-        check_button("Variables", page.locator('button[title="Variables"]'), "Variables")
+        check_button(
+            "Variables", page.locator('button[title="Variables"]'), "Variables"
+        )
 
         # 9. Test Dialog Buttons (Variable Dialog)
         # Open Variables Dialog first
@@ -198,21 +230,20 @@ def verify_ux_labels():
         # Wait for dialog content
         try:
             # Scope to dialog
-            dialog = page.locator('.p-dialog')
+            dialog = page.locator(".p-dialog")
             expect(dialog).to_be_visible()
 
             # Check Edit Variable button (Pencil)
             # Find the button inside the dialog
-            edit_btn_row = dialog.locator('button:has(.pi-pencil)')
+            edit_btn_row = dialog.locator("button:has(.pi-pencil)")
             check_button("Edit Variable (Row)", edit_btn_row, "Variable bearbeiten")
 
-            delete_btn_row = dialog.locator('button.p-button-danger:has(.pi-times)')
+            delete_btn_row = dialog.locator("button.p-button-danger:has(.pi-times)")
             check_button("Delete Variable", delete_btn_row, "Variable löschen")
 
         except Exception as e:
             print(f"Failed to check dialog buttons: {e}")
             failures.append("Dialog interaction failed")
-
 
         if failures:
             print("\nVerification FAILED. The following issues were found:")
@@ -224,6 +255,7 @@ def verify_ux_labels():
             print("\nVerification PASSED! All buttons have accessible labels.")
             page.screenshot(path="verification_success.png")
             exit(0)
+
 
 if __name__ == "__main__":
     verify_ux_labels()
