@@ -2235,31 +2235,43 @@ async def admin_list_installations(
     try:
         client = request.app.state.http_client
 
-        # Get all unique installation IDs from metrics
-        query = "group by(installation_id) (count by (installation_id))"
-        response = await client.get(VM_QUERY_URL, params={"query": query})
+        # Optimized: Run batched queries instead of N+1 loop
 
-        installations = []
-        if response.status_code == 200:
-            data = response.json()
+        # Query 1: Get list of installations and series counts (Original Query)
+        # This preserves the original semantics of 'data_points' being series count.
+        list_query = "group by(installation_id) (count by (installation_id))"
+
+        # Query 2: Get last seen timestamp for all installations in last 30d
+        time_query = 'max(tlast_over_time({__name__=~"heatpump_metrics_.*"}[30d])) by (installation_id)'
+
+        # Execute in parallel
+        list_response, time_response = await asyncio.gather(
+            client.get(VM_QUERY_URL, params={"query": list_query}),
+            client.get(VM_QUERY_URL, params={"query": time_query}),
+        )
+
+        # Process Times
+        installation_times = {}
+        if time_response.status_code == 200:
+            data = time_response.json()
             if data.get("status") == "success":
                 for result in data["data"]["result"]:
                     inst_id = result["metric"].get("installation_id", "unknown")
+                    # tlast_over_time returns timestamp as value
+                    ts = float(result["value"][1]) if result.get("value") else 0
+                    installation_times[inst_id] = ts
+
+        installations = []
+        # Process List (Main Loop)
+        if list_response.status_code == 200:
+            data = list_response.json()
+            if data.get("status") == "success":
+                for result in data["data"]["result"]:
+                    inst_id = result["metric"].get("installation_id", "unknown")
+                    # Original logic: count from value[1]
                     count = int(result["value"][1]) if result.get("value") else 0
 
-                    # Get last activity timestamp
-                    time_query = f'last_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{inst_id}"}}[30d])'
-                    time_resp = await client.get(
-                        VM_QUERY_URL, params={"query": time_query}
-                    )
-
-                    last_seen = None
-                    if time_resp.status_code == 200:
-                        time_data = time_resp.json()
-                        if time_data.get("data") and time_data["data"].get("result"):
-                            last_seen = float(
-                                time_data["data"]["result"][0]["value"][0]
-                            )
+                    last_seen = installation_times.get(inst_id)
 
                     installations.append(
                         {
