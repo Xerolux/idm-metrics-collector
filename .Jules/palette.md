@@ -13,3 +13,7 @@
 ## 2026-10-18 - Modal Form Submission
 **Learning:** When moving form actions to a standardized Dialog footer (outside the `<form>` tag), native validation and submission break.
 **Action:** Assign an `id` to the form and use `type="submit" form="form-id"` on the footer button to retain native browser validation and submission behavior without custom JavaScript handlers.
+
+## 2026-02-04 - Accessible Icon-Only Buttons
+**Learning:** Icon-only buttons in complex dashboards are frequently overlooked for accessibility. Tooltips (`title`) are insufficient for screen readers.
+**Action:** Systematically audit all `Button` components with an `icon` prop but no `label` prop. Add an explicit `aria-label` matching the tooltip text or providing a descriptive action name.
