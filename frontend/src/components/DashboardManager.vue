@@ -28,18 +28,21 @@
             icon="pi pi-plus"
             severity="primary"
             title="Neues Dashboard"
+            aria-label="Neues Dashboard"
           />
           <Button
             @click="showTemplateDialog = true"
             icon="pi pi-copy"
             severity="secondary"
             title="Aus Vorlage erstellen"
+            aria-label="Aus Vorlage erstellen"
           />
           <Button
             @click="openDashboardSettings"
             icon="pi pi-cog"
             severity="secondary"
             title="Dashboard Einstellungen"
+            aria-label="Dashboard Einstellungen"
           />
           <Button
             @click="confirmDeleteDashboard"
@@ -47,6 +50,7 @@
             severity="danger"
             :disabled="dashboards.length <= 1"
             title="Dashboard löschen"
+            aria-label="Dashboard löschen"
           />
         </div>
       </div>
@@ -68,24 +72,28 @@
             severity="danger"
             class="animate-pulse"
             title="Aktive Warnungen"
+            aria-label="Aktive Warnungen"
           />
           <Button
             @click="showExportDialog = true"
             icon="pi pi-download"
             severity="secondary"
             title="Exportieren"
+            aria-label="Exportieren"
           />
           <Button
             @click="showAnnotationsDialog = true"
             icon="pi pi-bookmark"
             severity="secondary"
             title="Annotations"
+            aria-label="Annotations"
           />
           <Button
             @click="showVariablesDialog = true"
             icon="pi pi-sliders-h"
             severity="secondary"
             title="Variables"
+            aria-label="Variables"
           />
           <Button
             @click="editMode = !editMode"
@@ -448,6 +456,7 @@
               size="small"
               text
               severity="secondary"
+              aria-label="Variable bearbeiten"
             />
             <Button
               @click="confirmDeleteVariable(variable)"
@@ -455,6 +464,7 @@
               size="small"
               text
               severity="danger"
+              aria-label="Variable löschen"
             />
           </div>
         </div>
