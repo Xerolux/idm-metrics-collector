@@ -17,3 +17,7 @@
 ## 2026-02-04 - Accessible Icon-Only Buttons
 **Learning:** Icon-only buttons in complex dashboards are frequently overlooked for accessibility. Tooltips (`title`) are insufficient for screen readers.
 **Action:** Systematically audit all `Button` components with an `icon` prop but no `label` prop. Add an explicit `aria-label` matching the tooltip text or providing a descriptive action name.
+
+## 2026-03-05 - Implicit Contrast Assumptions
+**Learning:** Headers in dark-themed sections (like `bg-surface-900`) without explicit text color classes often rely on inherited styles. This fails when the global text color defaults to a dark value, rendering the text invisible against the dark background.
+**Action:** Always explicitly define text color (e.g., `text-gray-100`) for headings within sections that enforce a specific background color, rather than relying on inheritance or dark mode variants alone.

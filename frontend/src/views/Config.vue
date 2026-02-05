@@ -35,7 +35,7 @@
         <div class="p-6 overflow-y-auto flex-grow">
           <!-- Verbindung -->
           <div v-if="activeCategory === 'connection'" class="flex flex-col gap-6">
-            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2">
+            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2 text-gray-100">
               Verbindung & Daten
             </h2>
 
@@ -46,8 +46,18 @@
                   <div class="flex items-center gap-2">
                     <div class="p-inputgroup flex-1">
                       <span class="p-inputgroup-addon">ID</span>
-                      <InputText v-model="config.installation_id" readonly class="w-full font-mono bg-gray-800" />
-                      <Button icon="pi pi-copy" severity="secondary" @click="copyId" />
+                      <InputText
+                        v-model="config.installation_id"
+                        readonly
+                        class="w-full font-mono bg-gray-800"
+                        aria-label="Installation ID"
+                      />
+                      <Button
+                        icon="pi pi-copy"
+                        severity="secondary"
+                        @click="copyId"
+                        aria-label="Installation ID kopieren"
+                      />
                     </div>
                   </div>
                 </div>
@@ -149,7 +159,9 @@
                   </div>
                 </div>
                 <div class="flex flex-col gap-2" v-if="!config.logging.realtime_mode">
-                  <label class="font-bold text-sm text-gray-300">Abfrage-Intervall (Sekunden)</label>
+                  <label class="font-bold text-sm text-gray-300"
+                    >Abfrage-Intervall (Sekunden)</label
+                  >
                   <InputNumber
                     v-model="config.logging.interval"
                     :min="1"
@@ -171,19 +183,30 @@
               </template>
 
               <div v-if="config.telemetry.enabled" class="flex flex-col gap-6">
-                <div class="bg-purple-900/20 border border-purple-600/50 p-4 rounded flex flex-col gap-3">
+                <div
+                  class="bg-purple-900/20 border border-purple-600/50 p-4 rounded flex flex-col gap-3"
+                >
                   <div class="flex items-start gap-3">
                     <i class="pi pi-users text-purple-400 text-xl mt-1"></i>
                     <div class="text-sm text-purple-200">
-                      Durch die Teilnahme am Community-Programm hilfst du, das Anomalie-Erkennungsmodell für alle zu verbessern.
-                      Deine Daten werden anonymisiert (IP-Masking) übertragen.
-                      <br><br>
-                      <strong>Vorteil:</strong> Du erhältst Zugriff auf vortrainierte Modelle ("Community Model"), die auf Daten vieler Wärmepumpen basieren.
-                      Dies ist besonders hilfreich, wenn du noch nicht genügend eigene Daten (weniger als 1 Woche) hast.
+                      Durch die Teilnahme am Community-Programm hilfst du, das
+                      Anomalie-Erkennungsmodell für alle zu verbessern. Deine Daten werden
+                      anonymisiert (IP-Masking) übertragen.
+                      <br /><br />
+                      <strong>Vorteil:</strong> Du erhältst Zugriff auf vortrainierte Modelle
+                      ("Community Model"), die auf Daten vieler Wärmepumpen basieren. Dies ist
+                      besonders hilfreich, wenn du noch nicht genügend eigene Daten (weniger als 1
+                      Woche) hast.
                     </div>
                   </div>
                   <div class="flex justify-end">
-                    <Button label="Datenschutz-Details" icon="pi pi-shield" size="small" text @click="privacyDialog.open()" />
+                    <Button
+                      label="Datenschutz-Details"
+                      icon="pi pi-shield"
+                      size="small"
+                      text
+                      @click="privacyDialog.open()"
+                    />
                   </div>
                 </div>
 
@@ -195,8 +218,8 @@
                     https://collector.xerolux.de
                   </div>
                   <small class="text-gray-400"
-                    >Standard: https://collector.xerolux.de (Community Server). Dieser
-                    Wert ist fest eingestellt.</small
+                    >Standard: https://collector.xerolux.de (Community Server). Dieser Wert ist fest
+                    eingestellt.</small
                   >
                 </div>
 
@@ -217,7 +240,10 @@
                   </span>
                   <span
                     v-else-if="telemetryStatus.role"
-                    :class="getRoleBadgeClass(telemetryStatus.role) + ' px-2 py-0.5 rounded border border-white/20 text-xs font-bold uppercase'"
+                    :class="
+                      getRoleBadgeClass(telemetryStatus.role) +
+                      ' px-2 py-0.5 rounded border border-white/20 text-xs font-bold uppercase'
+                    "
                   >
                     <i class="pi pi-user mr-1"></i> {{ telemetryStatus.role }}
                   </span>
@@ -236,24 +262,51 @@
                   <div v-if="telemetryStatus" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div class="flex justify-between border-b border-gray-700 py-2">
                       <span class="text-gray-300">Server (Verbunden):</span>
-                      <span class="font-mono truncate max-w-[150px]">{{ telemetryStatus.server_url }}</span>
+                      <span class="font-mono truncate max-w-[150px]">{{
+                        telemetryStatus.server_url
+                      }}</span>
                     </div>
                     <div class="flex justify-between border-b border-gray-700 py-2">
                       <span class="text-gray-300">Letzte Übertragung:</span>
-                      <span class="font-mono">{{ telemetryStatus.last_submission ? new Date(telemetryStatus.last_submission * 1000).toLocaleString() : 'Nie' }}</span>
+                      <span class="font-mono">{{
+                        telemetryStatus.last_submission
+                          ? new Date(telemetryStatus.last_submission * 1000).toLocaleString()
+                          : 'Nie'
+                      }}</span>
                     </div>
                     <div class="flex justify-between border-b border-gray-700 py-2">
                       <span class="text-gray-300">Letzter Modell-Check:</span>
-                      <span class="font-mono">{{ telemetryStatus.last_model_check ? new Date(telemetryStatus.last_model_check * 1000).toLocaleString() : 'Nie' }}</span>
+                      <span class="font-mono">{{
+                        telemetryStatus.last_model_check
+                          ? new Date(telemetryStatus.last_model_check * 1000).toLocaleString()
+                          : 'Nie'
+                      }}</span>
                     </div>
                     <div class="flex justify-between border-b border-gray-700 py-2">
                       <span class="text-gray-300">Manuelle Downloads heute:</span>
-                      <span class="font-mono">{{ telemetryStatus.manual_downloads_today }} / 3</span>
+                      <span class="font-mono"
+                        >{{ telemetryStatus.manual_downloads_today }} / 3</span
+                      >
                     </div>
                   </div>
                   <div class="flex flex-wrap gap-2 mt-4">
-                    <Button label="Daten jetzt senden" icon="pi pi-upload" size="small" severity="secondary" @click="manualSubmitTelemetry" :loading="submittingTelemetry" />
-                    <Button label="Modell prüfen & laden" icon="pi pi-download" size="small" severity="help" @click="manualCheckModel" :loading="checkingModel" :disabled="telemetryStatus?.manual_downloads_today >= 3" />
+                    <Button
+                      label="Daten jetzt senden"
+                      icon="pi pi-upload"
+                      size="small"
+                      severity="secondary"
+                      @click="manualSubmitTelemetry"
+                      :loading="submittingTelemetry"
+                    />
+                    <Button
+                      label="Modell prüfen & laden"
+                      icon="pi pi-download"
+                      size="small"
+                      severity="help"
+                      @click="manualCheckModel"
+                      :loading="checkingModel"
+                      :disabled="telemetryStatus?.manual_downloads_today >= 3"
+                    />
                   </div>
                 </div>
               </div>
@@ -262,7 +315,7 @@
 
           <!-- MQTT -->
           <div v-if="activeCategory === 'mqtt'" class="flex flex-col gap-6">
-            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2">
+            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2 text-gray-100">
               MQTT & Integration
             </h2>
 
@@ -378,7 +431,7 @@
 
           <!-- Benachrichtigungen -->
           <div v-if="activeCategory === 'notifications'" class="flex flex-col gap-6">
-            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2">
+            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2 text-gray-100">
               Benachrichtigungen
             </h2>
 
@@ -400,7 +453,9 @@
                   />
                 </div>
                 <div class="flex flex-col gap-2">
-                  <label class="font-bold text-sm text-gray-300">Empfänger (Pro Zeile eine Nummer)</label>
+                  <label class="font-bold text-sm text-gray-300"
+                    >Empfänger (Pro Zeile eine Nummer)</label
+                  >
                   <Textarea v-model="signalRecipientsText" rows="3" class="w-full font-mono" />
                 </div>
                 <div class="flex flex-col gap-2 border-t border-gray-700 pt-4 mt-2">
@@ -508,7 +563,9 @@
 
           <!-- AI -->
           <div v-if="activeCategory === 'ai'" class="flex flex-col gap-6">
-            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2">KI-Analyse</h2>
+            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2 text-gray-100">
+              KI-Analyse
+            </h2>
 
             <Fieldset legend="KI & Anomalieerkennung" :toggleable="true">
               <template #legend>
@@ -581,7 +638,9 @@
 
           <!-- Security -->
           <div v-if="activeCategory === 'security'" class="flex flex-col gap-6">
-            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2">Sicherheit</h2>
+            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2 text-gray-100">
+              Sicherheit
+            </h2>
 
             <Fieldset legend="Webzugriff" :toggleable="true">
               <div class="flex flex-col gap-4">
@@ -655,7 +714,7 @@
 
           <!-- System -->
           <div v-if="activeCategory === 'system'" class="flex flex-col gap-6">
-            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2">
+            <h2 class="text-xl font-bold border-b border-surface-700 pb-2 mb-2 text-gray-100">
               System & Wartung
             </h2>
 
@@ -671,7 +730,9 @@
                 <div class="flex items-center justify-between bg-gray-900/50 p-3 rounded">
                   <div>
                     <div class="text-sm text-gray-100 font-medium">Installierte Version</div>
-                    <div class="font-mono text-white font-semibold">{{ updateStatus.current_version || 'v0.0.0' }}</div>
+                    <div class="font-mono text-white font-semibold">
+                      {{ updateStatus.current_version || 'v0.0.0' }}
+                    </div>
                   </div>
                   <div class="text-right">
                     <div class="text-sm text-gray-100 font-medium">Verfügbare Version</div>
@@ -733,7 +794,8 @@
                     <span>Neue Version verfügbar!</span>
                   </div>
                   <p class="text-sm text-gray-100">
-                    Automatische Updates sind deaktiviert. Bitte führen Sie das Update manuell durch.
+                    Automatische Updates sind deaktiviert. Bitte führen Sie das Update manuell
+                    durch.
                   </p>
                 </div>
 
@@ -744,8 +806,8 @@
                     <span class="text-sm font-bold text-white">Manuelle Updates</span>
                   </div>
                   <p class="text-sm text-gray-100 mb-2">
-                    Es werden keine automatischen Updates mehr durchgeführt.
-                    Neue Versionen müssen manuell über die Konsole installiert werden.
+                    Es werden keine automatischen Updates mehr durchgeführt. Neue Versionen müssen
+                    manuell über die Konsole installiert werden.
                   </p>
                   <Button
                     label="Anleitung anzeigen"
@@ -956,47 +1018,72 @@
                   size="small"
                   @click="toggleAdminAutoRefresh"
                   v-tooltip.top="adminAutoRefresh ? 'Pause Auto-Refresh' : 'Start Auto-Refresh'"
+                  :aria-label="adminAutoRefresh ? 'Auto-Refresh pausieren' : 'Auto-Refresh starten'"
                 />
               </div>
             </div>
 
-            <div v-if="telemetryStatus?.server_stats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div
+              v-if="telemetryStatus?.server_stats"
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
               <!-- Global Stats -->
-              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center transition-all duration-300 hover:border-blue-500">
+              <div
+                class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center transition-all duration-300 hover:border-blue-500"
+              >
                 <i class="pi pi-database text-4xl text-blue-400 mb-2"></i>
                 <transition name="counter" mode="out-in">
                   <div :key="telemetryStatus.server_stats.total_points" class="text-3xl font-bold">
                     {{ telemetryStatus.server_stats.total_points?.toLocaleString() || 0 }}
                   </div>
                 </transition>
-                <div class="text-gray-300 uppercase text-xs tracking-wider mt-1">Total Data Points</div>
+                <div class="text-gray-300 uppercase text-xs tracking-wider mt-1">
+                  Total Data Points
+                </div>
               </div>
 
-              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center transition-all duration-300 hover:border-green-500">
+              <div
+                class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center transition-all duration-300 hover:border-green-500"
+              >
                 <i class="pi pi-desktop text-4xl text-green-400 mb-2"></i>
                 <transition name="counter" mode="out-in">
-                  <div :key="telemetryStatus.server_stats.active_installations" class="text-3xl font-bold">
+                  <div
+                    :key="telemetryStatus.server_stats.active_installations"
+                    class="text-3xl font-bold"
+                  >
                     {{ telemetryStatus.server_stats.active_installations || 0 }}
                   </div>
                 </transition>
-                <div class="text-gray-300 uppercase text-xs tracking-wider mt-1">Active Installations</div>
+                <div class="text-gray-300 uppercase text-xs tracking-wider mt-1">
+                  Active Installations
+                </div>
               </div>
 
-              <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center transition-all duration-300 hover:border-purple-500">
-                 <i class="pi pi-box text-4xl text-purple-400 mb-2"></i>
-                 <transition name="counter" mode="out-in">
-                   <div :key="telemetryStatus.server_stats.models?.length" class="text-3xl font-bold">
-                     {{ telemetryStatus.server_stats.models?.length || 0 }}
-                   </div>
-                 </transition>
-                 <div class="text-gray-300 uppercase text-xs tracking-wider mt-1">Generated Models</div>
+              <div
+                class="bg-gray-800 rounded-lg p-6 border border-gray-700 flex flex-col items-center transition-all duration-300 hover:border-purple-500"
+              >
+                <i class="pi pi-box text-4xl text-purple-400 mb-2"></i>
+                <transition name="counter" mode="out-in">
+                  <div
+                    :key="telemetryStatus.server_stats.models?.length"
+                    class="text-3xl font-bold"
+                  >
+                    {{ telemetryStatus.server_stats.models?.length || 0 }}
+                  </div>
+                </transition>
+                <div class="text-gray-300 uppercase text-xs tracking-wider mt-1">
+                  Generated Models
+                </div>
               </div>
             </div>
 
             <!-- Installations List -->
             <Fieldset legend="Installation Management" :toggleable="true">
               <div class="flex justify-between items-center mb-3">
-                <div class="text-sm text-gray-400" v-if="adminInstallations">Showing {{ adminInstallations.showing }} of {{ adminInstallations.total }} installations</div>
+                <div class="text-sm text-gray-400" v-if="adminInstallations">
+                  Showing {{ adminInstallations.showing }} of
+                  {{ adminInstallations.total }} installations
+                </div>
                 <Button
                   label="Refresh"
                   icon="pi pi-refresh"
@@ -1018,7 +1105,11 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="inst in adminInstallations.installations" :key="inst.installation_id" class="border-b border-gray-800 hover:bg-gray-800/50">
+                    <tr
+                      v-for="inst in adminInstallations.installations"
+                      :key="inst.installation_id"
+                      class="border-b border-gray-800 hover:bg-gray-800/50"
+                    >
                       <td class="py-2 px-3 font-mono text-xs">
                         <button
                           @click="openInstallationDetails(inst.installation_id)"
@@ -1028,20 +1119,30 @@
                         </button>
                       </td>
                       <td class="py-2 px-3 text-center">
-                        <span :class="getRoleBadgeClass(getInstallationRole(inst.installation_id))" class="px-2 py-1 rounded text-xs font-bold">
+                        <span
+                          :class="getRoleBadgeClass(getInstallationRole(inst.installation_id))"
+                          class="px-2 py-1 rounded text-xs font-bold"
+                        >
                           {{ getInstallationRole(inst.installation_id) }}
                         </span>
                       </td>
                       <td class="py-2 px-3 text-center">
-                        <span v-if="isInstallationBanned(inst.installation_id)" class="px-2 py-1 rounded text-xs font-bold bg-red-600 text-white">
+                        <span
+                          v-if="isInstallationBanned(inst.installation_id)"
+                          class="px-2 py-1 rounded text-xs font-bold bg-red-600 text-white"
+                        >
                           <i class="pi pi-ban mr-1"></i>GESPERRT
                         </span>
                         <span v-else class="text-green-400">
                           <i class="pi pi-check-circle"></i>
                         </span>
                       </td>
-                      <td class="py-2 px-3 text-right">{{ inst.data_points?.toLocaleString() || 0 }}</td>
-                      <td class="py-2 px-3 text-right">{{ inst.last_seen_formatted || 'Unknown' }}</td>
+                      <td class="py-2 px-3 text-right">
+                        {{ inst.data_points?.toLocaleString() || 0 }}
+                      </td>
+                      <td class="py-2 px-3 text-right">
+                        {{ inst.last_seen_formatted || 'Unknown' }}
+                      </td>
                       <td class="py-2 px-3 text-center">
                         <div class="flex gap-1 justify-center">
                           <Button
@@ -1051,6 +1152,7 @@
                             outlined
                             @click="openRoleDialog(inst.installation_id)"
                             v-tooltip="'Rolle aendern'"
+                            aria-label="Rolle ändern"
                           />
                           <Button
                             v-if="!isInstallationBanned(inst.installation_id)"
@@ -1060,6 +1162,7 @@
                             outlined
                             @click="openBanDialog(inst.installation_id)"
                             v-tooltip="'Sperren'"
+                            aria-label="Sperren"
                           />
                           <Button
                             v-else
@@ -1069,6 +1172,7 @@
                             outlined
                             @click="unbanInstallation(inst.installation_id)"
                             v-tooltip="'Entsperren'"
+                            aria-label="Entsperren"
                           />
                           <Button
                             icon="pi pi-eye"
@@ -1077,6 +1181,7 @@
                             outlined
                             @click="openInstallationDetails(inst.installation_id)"
                             v-tooltip="'Details'"
+                            aria-label="Details anzeigen"
                           />
                         </div>
                       </td>
@@ -1084,18 +1189,25 @@
                   </tbody>
                 </table>
               </div>
-              <div v-else class="text-center py-8 text-gray-400 italic bg-gray-900/30 rounded border border-gray-800 border-dashed">
+              <div
+                v-else
+                class="text-center py-8 text-gray-400 italic bg-gray-900/30 rounded border border-gray-800 border-dashed"
+              >
                 <i class="pi pi-spin pi-spinner mr-2"></i> Loading installations...
               </div>
             </Fieldset>
 
             <Fieldset legend="Available Models" :toggleable="true" v-if="adminModels">
               <div class="mb-3 text-sm text-gray-400">
-                Showing {{ adminModels.total || 0 }} model(s), Total Size: {{ adminModels.models?.reduce((sum, m) => sum + m.size_mb, 0).toFixed(2) || 0 }} MB
+                Showing {{ adminModels.total || 0 }} model(s), Total Size:
+                {{ adminModels.models?.reduce((sum, m) => sum + m.size_mb, 0).toFixed(2) || 0 }} MB
               </div>
               <div class="grid grid-cols-1 gap-4">
-                <div v-for="model in adminModels.models" :key="model.filename"
-                     class="bg-gray-900/50 p-4 rounded border border-gray-700 flex justify-between items-center">
+                <div
+                  v-for="model in adminModels.models"
+                  :key="model.filename"
+                  class="bg-gray-900/50 p-4 rounded border border-gray-700 flex justify-between items-center"
+                >
                   <div class="flex flex-col">
                     <span class="font-bold text-lg">{{ model.name }}</span>
                     <div class="text-xs text-gray-400 mt-1">
@@ -1118,21 +1230,28 @@
                       :loading="modelDeleting"
                       @click="deleteModel(model.name)"
                       v-tooltip="'Modell löschen'"
+                      aria-label="Modell löschen"
                     />
                   </div>
                 </div>
-                <div v-if="!adminModels.models || !adminModels.models.length" class="text-gray-500 italic text-center p-4">
-                  No models available yet. Models will be generated automatically when enough data is collected.
+                <div
+                  v-if="!adminModels.models || !adminModels.models.length"
+                  class="text-gray-500 italic text-center p-4"
+                >
+                  No models available yet. Models will be generated automatically when enough data
+                  is collected.
                 </div>
               </div>
             </Fieldset>
 
             <!-- Model Downloads Chart -->
-            <Fieldset legend="Model Downloads" :toggleable="true" v-if="adminModels && adminModels.models?.some(m => m.download_count > 0)">
-              <div class="mb-3 text-sm text-gray-400">
-                Top 10 most downloaded models
-              </div>
-              <div class="bg-gray-900/50 p-4 rounded border border-gray-700" style="height: 300px;">
+            <Fieldset
+              legend="Model Downloads"
+              :toggleable="true"
+              v-if="adminModels && adminModels.models?.some((m) => m.download_count > 0)"
+            >
+              <div class="mb-3 text-sm text-gray-400">Top 10 most downloaded models</div>
+              <div class="bg-gray-900/50 p-4 rounded border border-gray-700" style="height: 300px">
                 <canvas ref="modelDownloadsChart"></canvas>
               </div>
             </Fieldset>
@@ -1144,15 +1263,43 @@
                   <div class="flex items-center gap-2 mb-2">
                     <i class="pi pi-server text-blue-400"></i>
                     <span class="font-bold">Server</span>
-                    <i v-if="adminHealth.victoriametrics?.healthy" class="pi pi-check-circle text-green-400 ml-auto"></i>
+                    <i
+                      v-if="adminHealth.victoriametrics?.healthy"
+                      class="pi pi-check-circle text-green-400 ml-auto"
+                    ></i>
                     <i v-else class="pi pi-times-circle text-red-400 ml-auto"></i>
                   </div>
                   <div class="text-sm space-y-1">
-                    <div class="flex justify-between"><span class="text-gray-400">Hostname:</span> <span>{{ adminHealth.server?.hostname || 'N/A' }}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Uptime:</span> <span>{{ adminHealth.server?.uptime_formatted || 'N/A' }}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">CPU:</span> <span>{{ adminHealth.server?.cpu_percent?.toFixed(1) }}%</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">RAM:</span> <span>{{ adminHealth.server?.memory?.used_gb?.toFixed(1) }}GB / {{ adminHealth.server?.memory?.total_gb?.toFixed(1) }}GB ({{ adminHealth.server?.memory?.percent }}%)</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Disk:</span> <span>{{ adminHealth.server?.disk?.used_gb?.toFixed(1) }}GB / {{ adminHealth.server?.disk?.total_gb?.toFixed(1) }}GB ({{ adminHealth.server?.disk?.percent }}%)</span></div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-400">Hostname:</span>
+                      <span>{{ adminHealth.server?.hostname || 'N/A' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-400">Uptime:</span>
+                      <span>{{ adminHealth.server?.uptime_formatted || 'N/A' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-400">CPU:</span>
+                      <span>{{ adminHealth.server?.cpu_percent?.toFixed(1) }}%</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-400">RAM:</span>
+                      <span
+                        >{{ adminHealth.server?.memory?.used_gb?.toFixed(1) }}GB /
+                        {{ adminHealth.server?.memory?.total_gb?.toFixed(1) }}GB ({{
+                          adminHealth.server?.memory?.percent
+                        }}%)</span
+                      >
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-400">Disk:</span>
+                      <span
+                        >{{ adminHealth.server?.disk?.used_gb?.toFixed(1) }}GB /
+                        {{ adminHealth.server?.disk?.total_gb?.toFixed(1) }}GB ({{
+                          adminHealth.server?.disk?.percent
+                        }}%)</span
+                      >
+                    </div>
                   </div>
                 </div>
                 <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
@@ -1161,9 +1308,23 @@
                     <span class="font-bold">Models</span>
                   </div>
                   <div class="text-sm space-y-1">
-                    <div class="flex justify-between"><span class="text-gray-400">Count:</span> <span>{{ adminHealth.models?.count || 0 }}</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">Total Size:</span> <span>{{ adminHealth.models?.total_size_mb?.toFixed(2) }} MB</span></div>
-                    <div class="flex justify-between"><span class="text-gray-400">VictoriaMetrics:</span> <span :class="adminHealth.victoriametrics?.healthy ? 'text-green-400' : 'text-red-400'">{{ adminHealth.victoriametrics?.healthy ? 'Healthy' : 'Down' }}</span></div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-400">Count:</span>
+                      <span>{{ adminHealth.models?.count || 0 }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-400">Total Size:</span>
+                      <span>{{ adminHealth.models?.total_size_mb?.toFixed(2) }} MB</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-gray-400">VictoriaMetrics:</span>
+                      <span
+                        :class="
+                          adminHealth.victoriametrics?.healthy ? 'text-green-400' : 'text-red-400'
+                        "
+                        >{{ adminHealth.victoriametrics?.healthy ? 'Healthy' : 'Down' }}</span
+                      >
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1171,7 +1332,16 @@
                 <Button
                   label="Refresh Data"
                   icon="pi pi-refresh"
-                  @click="async () => { await Promise.all([fetchAdminModels(), fetchAdminHealth(), fetchAdminInstallations(), fetchAdminMetrics()]); }"
+                  @click="
+                    async () => {
+                      await Promise.all([
+                        fetchAdminModels(),
+                        fetchAdminHealth(),
+                        fetchAdminInstallations(),
+                        fetchAdminMetrics()
+                      ])
+                    }
+                  "
                   severity="secondary"
                   size="small"
                 />
@@ -1186,7 +1356,6 @@
               </div>
             </Fieldset>
 
-
             <!-- System Metrics -->
             <Fieldset legend="System Metrics" :toggleable="true" v-if="adminMetrics">
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1196,9 +1365,13 @@
                     <i class="pi pi-chart-line text-blue-400 text-xl"></i>
                     <span class="font-bold">Requests</span>
                   </div>
-                  <div class="text-2xl font-bold">{{ adminMetrics.requests?.total?.toLocaleString() || 0 }}</div>
+                  <div class="text-2xl font-bold">
+                    {{ adminMetrics.requests?.total?.toLocaleString() || 0 }}
+                  </div>
                   <div class="text-xs text-gray-400 mt-1">Total Requests</div>
-                  <div class="text-xs text-red-400 mt-1">{{ adminMetrics.requests?.errors || 0 }} Errors</div>
+                  <div class="text-xs text-red-400 mt-1">
+                    {{ adminMetrics.requests?.errors || 0 }} Errors
+                  </div>
                 </div>
 
                 <!-- Data Submissions -->
@@ -1207,9 +1380,13 @@
                     <i class="pi pi-upload text-green-400 text-xl"></i>
                     <span class="font-bold">Submissions</span>
                   </div>
-                  <div class="text-2xl font-bold">{{ adminMetrics.business?.submissions?.toLocaleString() || 0 }}</div>
+                  <div class="text-2xl font-bold">
+                    {{ adminMetrics.business?.submissions?.toLocaleString() || 0 }}
+                  </div>
                   <div class="text-xs text-gray-400 mt-1">Data Submissions</div>
-                  <div class="text-xs text-gray-400 mt-1">{{ adminMetrics.business?.data_points?.toLocaleString() || 0 }} Points</div>
+                  <div class="text-xs text-gray-400 mt-1">
+                    {{ adminMetrics.business?.data_points?.toLocaleString() || 0 }} Points
+                  </div>
                 </div>
 
                 <!-- Cache Performance -->
@@ -1218,9 +1395,14 @@
                     <i class="pi pi-bolt text-yellow-400 text-xl"></i>
                     <span class="font-bold">Cache</span>
                   </div>
-                  <div class="text-2xl font-bold">{{ adminMetrics.cache?.hit_rate?.toFixed(1) || 0 }}%</div>
+                  <div class="text-2xl font-bold">
+                    {{ adminMetrics.cache?.hit_rate?.toFixed(1) || 0 }}%
+                  </div>
                   <div class="text-xs text-gray-400 mt-1">Hit Rate</div>
-                  <div class="text-xs text-gray-400 mt-1">{{ adminMetrics.cache?.hits?.toLocaleString() || 0 }} Hits / {{ adminMetrics.cache?.misses?.toLocaleString() || 0 }} Misses</div>
+                  <div class="text-xs text-gray-400 mt-1">
+                    {{ adminMetrics.cache?.hits?.toLocaleString() || 0 }} Hits /
+                    {{ adminMetrics.cache?.misses?.toLocaleString() || 0 }} Misses
+                  </div>
                 </div>
 
                 <!-- Rate Limits -->
@@ -1229,7 +1411,9 @@
                     <i class="pi pi-ban text-red-400 text-xl"></i>
                     <span class="font-bold">Rate Limits</span>
                   </div>
-                  <div class="text-2xl font-bold">{{ adminMetrics.requests?.rate_limit_hits?.toLocaleString() || 0 }}</div>
+                  <div class="text-2xl font-bold">
+                    {{ adminMetrics.requests?.rate_limit_hits?.toLocaleString() || 0 }}
+                  </div>
                   <div class="text-xs text-gray-400 mt-1">Total Violations</div>
                 </div>
 
@@ -1239,7 +1423,9 @@
                     <i class="pi pi-download text-purple-400 text-xl"></i>
                     <span class="font-bold">Downloads</span>
                   </div>
-                  <div class="text-2xl font-bold">{{ adminMetrics.business?.model_downloads?.toLocaleString() || 0 }}</div>
+                  <div class="text-2xl font-bold">
+                    {{ adminMetrics.business?.model_downloads?.toLocaleString() || 0 }}
+                  </div>
                   <div class="text-xs text-gray-400 mt-1">Model Downloads</div>
                 </div>
 
@@ -1249,7 +1435,9 @@
                     <i class="pi pi-cog text-cyan-400 text-xl"></i>
                     <span class="font-bold">Training</span>
                   </div>
-                  <div class="text-2xl font-bold">{{ adminMetrics.business?.training_runs?.toLocaleString() || 0 }}</div>
+                  <div class="text-2xl font-bold">
+                    {{ adminMetrics.business?.training_runs?.toLocaleString() || 0 }}
+                  </div>
                   <div class="text-xs text-gray-400 mt-1">Total Runs</div>
                 </div>
 
@@ -1259,7 +1447,13 @@
                     <i class="pi pi-users text-teal-400 text-xl"></i>
                     <span class="font-bold">Installations</span>
                   </div>
-                  <div class="text-2xl font-bold">{{ adminMetrics.business?.active_installations?.toLocaleString() || telemetryStatus.server_stats?.active_installations || 0 }}</div>
+                  <div class="text-2xl font-bold">
+                    {{
+                      adminMetrics.business?.active_installations?.toLocaleString() ||
+                      telemetryStatus.server_stats?.active_installations ||
+                      0
+                    }}
+                  </div>
                   <div class="text-xs text-gray-400 mt-1">Active (30d)</div>
                 </div>
 
@@ -1270,7 +1464,14 @@
                     <span class="font-bold">Error Rate</span>
                   </div>
                   <div class="text-2xl font-bold">
-                    {{ (adminMetrics.requests?.total > 0 ? (adminMetrics.requests.errors / adminMetrics.requests.total * 100).toFixed(2) : 0) }}%
+                    {{
+                      adminMetrics.requests?.total > 0
+                        ? (
+                            (adminMetrics.requests.errors / adminMetrics.requests.total) *
+                            100
+                          ).toFixed(2)
+                        : 0
+                    }}%
                   </div>
                   <div class="text-xs text-gray-400 mt-1">Errors / Requests</div>
                 </div>
@@ -1285,7 +1486,9 @@
                     <label class="font-bold text-sm text-gray-300">Target Model</label>
                     <Dropdown
                       v-model="selectedStatsModel"
-                      :options="adminModels?.models?.map(m => m.name) || models.map(m => m.value)"
+                      :options="
+                        adminModels?.models?.map((m) => m.name) || models.map((m) => m.value)
+                      "
                       placeholder="Select Model"
                       class="w-full"
                       editable
@@ -1293,7 +1496,11 @@
                   </div>
                   <div class="flex flex-col gap-2">
                     <label class="font-bold text-sm text-gray-300">Metrics (comma separated)</label>
-                    <InputText v-model="statsMetrics" placeholder="cop_current, temp_outdoor" class="w-full" />
+                    <InputText
+                      v-model="statsMetrics"
+                      placeholder="cop_current, temp_outdoor"
+                      class="w-full"
+                    />
                   </div>
                 </div>
 
@@ -1305,7 +1512,10 @@
                   class="w-full md:w-auto self-start"
                 />
 
-                <div v-if="communityStats" class="mt-4 bg-gray-900/50 p-4 rounded border border-gray-700">
+                <div
+                  v-if="communityStats"
+                  class="mt-4 bg-gray-900/50 p-4 rounded border border-gray-700"
+                >
                   <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
                     <div>
                       <span class="text-gray-400 text-sm">Model:</span>
@@ -1313,7 +1523,9 @@
                     </div>
                     <div>
                       <span class="text-gray-400 text-sm">Sample Size:</span>
-                      <span class="ml-2 font-bold text-blue-400">{{ communityStats.sample_size }}</span>
+                      <span class="ml-2 font-bold text-blue-400">{{
+                        communityStats.sample_size
+                      }}</span>
                     </div>
                   </div>
 
@@ -1328,11 +1540,21 @@
                         </tr>
                       </thead>
                       <tbody>
-                        <tr v-for="(stats, metric) in communityStats.metrics" :key="metric" class="border-b border-gray-800 last:border-0">
+                        <tr
+                          v-for="(stats, metric) in communityStats.metrics"
+                          :key="metric"
+                          class="border-b border-gray-800 last:border-0"
+                        >
                           <td class="py-2 font-mono text-gray-300">{{ metric }}</td>
-                          <td class="py-2 text-right font-mono">{{ stats.avg?.toFixed(2) ?? '-' }}</td>
-                          <td class="py-2 text-right font-mono text-gray-500">{{ stats.min?.toFixed(2) ?? '-' }}</td>
-                          <td class="py-2 text-right font-mono text-gray-500">{{ stats.max?.toFixed(2) ?? '-' }}</td>
+                          <td class="py-2 text-right font-mono">
+                            {{ stats.avg?.toFixed(2) ?? '-' }}
+                          </td>
+                          <td class="py-2 text-right font-mono text-gray-500">
+                            {{ stats.min?.toFixed(2) ?? '-' }}
+                          </td>
+                          <td class="py-2 text-right font-mono text-gray-500">
+                            {{ stats.max?.toFixed(2) ?? '-' }}
+                          </td>
                         </tr>
                       </tbody>
                     </table>
@@ -1347,8 +1569,20 @@
                 <div class="flex justify-between items-center">
                   <div class="text-sm text-gray-400">Manage admin access and roles</div>
                   <div class="flex gap-2">
-                    <Button label="Refresh" icon="pi pi-refresh" severity="secondary" size="small" @click="fetchPermissions" />
-                    <Button label="Add Admin" icon="pi pi-plus" severity="success" size="small" @click="grantAdminDialogVisible = true" />
+                    <Button
+                      label="Refresh"
+                      icon="pi pi-refresh"
+                      severity="secondary"
+                      size="small"
+                      @click="fetchPermissions"
+                    />
+                    <Button
+                      label="Add Admin"
+                      icon="pi pi-plus"
+                      severity="success"
+                      size="small"
+                      @click="grantAdminDialogVisible = true"
+                    />
                   </div>
                 </div>
 
@@ -1362,20 +1596,39 @@
                       </tr>
                     </thead>
                     <tbody>
-                      <tr v-for="admin in adminPermissions" :key="admin.id" class="border-b border-gray-800 last:border-0 hover:bg-gray-800/30">
+                      <tr
+                        v-for="admin in adminPermissions"
+                        :key="admin.id"
+                        class="border-b border-gray-800 last:border-0 hover:bg-gray-800/30"
+                      >
                         <td class="py-2 font-mono text-xs text-blue-300">
                           {{ admin.id.substring(0, 12) }}...
-                          <span v-if="admin.id === config.installation_id" class="ml-1 text-green-400 text-[10px] uppercase border border-green-800 px-1 rounded bg-green-900/30">(You)</span>
+                          <span
+                            v-if="admin.id === config.installation_id"
+                            class="ml-1 text-green-400 text-[10px] uppercase border border-green-800 px-1 rounded bg-green-900/30"
+                            >(You)</span
+                          >
                         </td>
                         <td class="py-2">
                           <div class="flex flex-wrap gap-1">
-                            <span v-for="perm in admin.effective_permissions" :key="perm" class="px-1.5 py-0.5 bg-gray-700 rounded text-xs text-gray-300 border border-gray-600">
+                            <span
+                              v-for="perm in admin.effective_permissions"
+                              :key="perm"
+                              class="px-1.5 py-0.5 bg-gray-700 rounded text-xs text-gray-300 border border-gray-600"
+                            >
                               {{ perm.replace('admin:', '') }}
                             </span>
                           </div>
                         </td>
                         <td class="py-2 text-right">
-                          <Button icon="pi pi-user-edit" text size="small" severity="info" @click="openPermissionDialog(admin)" v-tooltip="'Edit Permissions'" />
+                          <Button
+                            icon="pi pi-user-edit"
+                            text
+                            size="small"
+                            severity="info"
+                            @click="openPermissionDialog(admin)"
+                            v-tooltip="'Edit Permissions'"
+                          />
                         </td>
                       </tr>
                     </tbody>
@@ -1390,19 +1643,48 @@
                 <div class="flex justify-between items-center">
                   <div class="flex items-center gap-2">
                     <span class="text-sm font-bold text-gray-300">Current Status:</span>
-                    <span v-if="adminTraining.current && adminTraining.current.running" class="px-2 py-1 bg-green-900/50 text-green-400 rounded text-xs font-bold border border-green-700">RUNNING</span>
-                    <span v-else class="px-2 py-1 bg-gray-800 text-gray-400 rounded text-xs font-bold border border-gray-700">IDLE</span>
+                    <span
+                      v-if="adminTraining.current && adminTraining.current.running"
+                      class="px-2 py-1 bg-green-900/50 text-green-400 rounded text-xs font-bold border border-green-700"
+                      >RUNNING</span
+                    >
+                    <span
+                      v-else
+                      class="px-2 py-1 bg-gray-800 text-gray-400 rounded text-xs font-bold border border-gray-700"
+                      >IDLE</span
+                    >
                   </div>
-                  <Button icon="pi pi-refresh" severity="secondary" size="small" @click="fetchTrainingInfo" v-tooltip="'Refresh'" />
+                  <Button
+                    icon="pi pi-refresh"
+                    severity="secondary"
+                    size="small"
+                    @click="fetchTrainingInfo"
+                    v-tooltip="'Refresh'"
+                  />
                 </div>
 
-                <div v-if="adminTraining.current && adminTraining.current.running" class="bg-blue-900/20 border border-blue-600/50 p-3 rounded flex justify-between items-center">
+                <div
+                  v-if="adminTraining.current && adminTraining.current.running"
+                  class="bg-blue-900/20 border border-blue-600/50 p-3 rounded flex justify-between items-center"
+                >
                   <div class="text-sm">
                     <div class="font-bold text-blue-300">Training in progress</div>
-                    <div class="text-gray-300">Task ID: <span class="font-mono">{{ adminTraining.current.task_id }}</span></div>
-                    <div class="text-gray-400 text-xs">Started: {{ new Date(adminTraining.current.started_at * 1000).toLocaleString() }}</div>
+                    <div class="text-gray-300">
+                      Task ID: <span class="font-mono">{{ adminTraining.current.task_id }}</span>
+                    </div>
+                    <div class="text-gray-400 text-xs">
+                      Started:
+                      {{ new Date(adminTraining.current.started_at * 1000).toLocaleString() }}
+                    </div>
                   </div>
-                  <Button label="Cancel" icon="pi pi-times" severity="danger" size="small" @click="cancelTraining(adminTraining.current.task_id)" :loading="cancellingTraining" />
+                  <Button
+                    label="Cancel"
+                    icon="pi pi-times"
+                    severity="danger"
+                    size="small"
+                    @click="cancelTraining(adminTraining.current.task_id)"
+                    :loading="cancellingTraining"
+                  />
                 </div>
 
                 <div class="overflow-x-auto">
@@ -1416,18 +1698,37 @@
                       </tr>
                     </thead>
                     <tbody>
-                      <tr v-for="task in adminTraining.history" :key="task.task_id" class="border-b border-gray-800 last:border-0 hover:bg-gray-800/30">
-                        <td class="py-2 text-gray-300">{{ new Date(task.created_at * 1000).toLocaleString() }}</td>
-                        <td class="py-2 font-mono text-xs text-gray-400">{{ task.triggered_by?.substring(0, 8) }}...</td>
+                      <tr
+                        v-for="task in adminTraining.history"
+                        :key="task.task_id"
+                        class="border-b border-gray-800 last:border-0 hover:bg-gray-800/30"
+                      >
+                        <td class="py-2 text-gray-300">
+                          {{ new Date(task.created_at * 1000).toLocaleString() }}
+                        </td>
+                        <td class="py-2 font-mono text-xs text-gray-400">
+                          {{ task.triggered_by?.substring(0, 8) }}...
+                        </td>
                         <td class="py-2 text-center">
-                          <span :class="{'text-green-400': task.status === 'completed', 'text-red-400': task.status === 'failed', 'text-yellow-400': task.status === 'running'}" class="font-bold text-xs uppercase">
+                          <span
+                            :class="{
+                              'text-green-400': task.status === 'completed',
+                              'text-red-400': task.status === 'failed',
+                              'text-yellow-400': task.status === 'running'
+                            }"
+                            class="font-bold text-xs uppercase"
+                          >
                             {{ task.status }}
                           </span>
                         </td>
-                        <td class="py-2 text-right font-mono text-gray-400">{{ task.duration ? task.duration.toFixed(1) + 's' : '-' }}</td>
+                        <td class="py-2 text-right font-mono text-gray-400">
+                          {{ task.duration ? task.duration.toFixed(1) + 's' : '-' }}
+                        </td>
                       </tr>
                       <tr v-if="adminTraining.history.length === 0">
-                        <td colspan="4" class="py-4 text-center text-gray-500 italic">No training history available</td>
+                        <td colspan="4" class="py-4 text-center text-gray-500 italic">
+                          No training history available
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -1439,12 +1740,20 @@
             <Fieldset legend="Audit Log" :toggleable="true">
               <div class="flex flex-col gap-4">
                 <div class="flex justify-end">
-                  <Button label="Refresh Log" icon="pi pi-refresh" severity="secondary" size="small" @click="fetchAuditLog" />
+                  <Button
+                    label="Refresh Log"
+                    icon="pi pi-refresh"
+                    severity="secondary"
+                    size="small"
+                    @click="fetchAuditLog"
+                  />
                 </div>
                 <div class="overflow-x-auto max-h-96">
                   <table class="w-full text-sm">
                     <thead>
-                      <tr class="border-b border-gray-700 text-gray-400 sticky top-0 bg-gray-900 z-10">
+                      <tr
+                        class="border-b border-gray-700 text-gray-400 sticky top-0 bg-gray-900 z-10"
+                      >
                         <th class="text-left py-2">Time</th>
                         <th class="text-left py-2">Action</th>
                         <th class="text-left py-2">Admin</th>
@@ -1452,17 +1761,27 @@
                       </tr>
                     </thead>
                     <tbody>
-                      <tr v-for="log in adminAuditLog" :key="log.timestamp" class="border-b border-gray-800 last:border-0 hover:bg-gray-800/30 font-mono text-xs">
-                        <td class="py-1 text-gray-400">{{ new Date(log.timestamp * 1000).toLocaleString() }}</td>
+                      <tr
+                        v-for="log in adminAuditLog"
+                        :key="log.timestamp"
+                        class="border-b border-gray-800 last:border-0 hover:bg-gray-800/30 font-mono text-xs"
+                      >
+                        <td class="py-1 text-gray-400">
+                          {{ new Date(log.timestamp * 1000).toLocaleString() }}
+                        </td>
                         <td class="py-1 text-blue-300">{{ log.action }}</td>
-                        <td class="py-1 text-gray-500" :title="log.admin_id">{{ log.admin_id.substring(0, 8) }}</td>
+                        <td class="py-1 text-gray-500" :title="log.admin_id">
+                          {{ log.admin_id.substring(0, 8) }}
+                        </td>
                         <td class="py-1 text-center">
                           <i v-if="log.success" class="pi pi-check text-green-500"></i>
                           <i v-else class="pi pi-times text-red-500"></i>
                         </td>
                       </tr>
                       <tr v-if="adminAuditLog.length === 0">
-                        <td colspan="4" class="py-4 text-center text-gray-500 italic">No audit logs available (Click Refresh)</td>
+                        <td colspan="4" class="py-4 text-center text-gray-500 italic">
+                          No audit logs available (Click Refresh)
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -1470,10 +1789,13 @@
               </div>
             </Fieldset>
 
-            <div class="bg-yellow-900/20 border border-yellow-600/50 p-4 rounded flex items-start gap-3">
+            <div
+              class="bg-yellow-900/20 border border-yellow-600/50 p-4 rounded flex items-start gap-3"
+            >
               <i class="pi pi-info-circle text-yellow-500 text-xl mt-1"></i>
               <div class="text-sm text-yellow-200">
-                You are authenticated as a <strong>Community Admin</strong>. This tab provides exclusive insights into the telemetry server status and model generation pipeline.
+                You are authenticated as a <strong>Community Admin</strong>. This tab provides
+                exclusive insights into the telemetry server status and model generation pipeline.
               </div>
             </div>
           </div>
@@ -1519,82 +1841,133 @@
 
           <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
             <div class="text-xs text-gray-400 uppercase mb-1">Total Submissions</div>
-            <div class="text-lg font-bold text-green-400">{{ installationDetails.total_submissions?.toLocaleString() || 0 }}</div>
+            <div class="text-lg font-bold text-green-400">
+              {{ installationDetails.total_submissions?.toLocaleString() || 0 }}
+            </div>
           </div>
 
           <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
             <div class="text-xs text-gray-400 uppercase mb-1">Data Quality</div>
             <div class="flex items-center gap-2">
-              <div class="text-lg font-bold" :class="installationDetails.data_quality_score >= 0.8 ? 'text-green-400' : 'text-yellow-400'">
+              <div
+                class="text-lg font-bold"
+                :class="
+                  installationDetails.data_quality_score >= 0.8
+                    ? 'text-green-400'
+                    : 'text-yellow-400'
+                "
+              >
                 {{ (installationDetails.data_quality_score * 100).toFixed(0) }}%
               </div>
-              <i v-if="installationDetails.data_quality_score >= 0.8" class="pi pi-check-circle text-green-400"></i>
+              <i
+                v-if="installationDetails.data_quality_score >= 0.8"
+                class="pi pi-check-circle text-green-400"
+              ></i>
               <i v-else class="pi pi-exclamation-triangle text-yellow-400"></i>
             </div>
           </div>
 
           <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
             <div class="text-xs text-gray-400 uppercase mb-1">First Seen</div>
-            <div class="text-sm">{{ installationDetails.first_seen ? new Date(installationDetails.first_seen).toLocaleString('de-DE') : 'Unknown' }}</div>
+            <div class="text-sm">
+              {{
+                installationDetails.first_seen
+                  ? new Date(installationDetails.first_seen).toLocaleString('de-DE')
+                  : 'Unknown'
+              }}
+            </div>
           </div>
 
           <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
             <div class="text-xs text-gray-400 uppercase mb-1">Last Seen</div>
-            <div class="text-sm">{{ installationDetails.last_seen ? new Date(installationDetails.last_seen).toLocaleString('de-DE') : 'Unknown' }}</div>
+            <div class="text-sm">
+              {{
+                installationDetails.last_seen
+                  ? new Date(installationDetails.last_seen).toLocaleString('de-DE')
+                  : 'Unknown'
+              }}
+            </div>
           </div>
 
           <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
             <div class="text-xs text-gray-400 uppercase mb-1">Contribution Rank</div>
-            <div class="text-lg font-bold text-purple-400">{{ installationDetails.contribution_rank }}</div>
+            <div class="text-lg font-bold text-purple-400">
+              {{ installationDetails.contribution_rank }}
+            </div>
           </div>
         </div>
 
         <!-- Model Downloads -->
-        <div v-if="installationDetails.model_downloads && installationDetails.model_downloads.length > 0">
+        <div
+          v-if="
+            installationDetails.model_downloads && installationDetails.model_downloads.length > 0
+          "
+        >
           <h3 class="text-lg font-bold mb-3 flex items-center gap-2">
             <i class="pi pi-download text-green-400"></i>
             Model Downloads
           </h3>
           <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
             <div class="space-y-2">
-              <div v-for="(download, idx) in installationDetails.model_downloads" :key="idx" class="flex justify-between items-center border-b border-gray-800 pb-2 last:border-0">
+              <div
+                v-for="(download, idx) in installationDetails.model_downloads"
+                :key="idx"
+                class="flex justify-between items-center border-b border-gray-800 pb-2 last:border-0"
+              >
                 <span class="font-mono text-sm">{{ download.model }}</span>
-                <span class="text-xs text-gray-400">{{ new Date(download.downloaded_at).toLocaleString('de-DE') }}</span>
+                <span class="text-xs text-gray-400">{{
+                  new Date(download.downloaded_at).toLocaleString('de-DE')
+                }}</span>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Submission History Timeline -->
-        <div v-if="installationHistory && installationHistory.history && installationHistory.history.length > 0">
+        <div
+          v-if="
+            installationHistory &&
+            installationHistory.history &&
+            installationHistory.history.length > 0
+          "
+        >
           <h3 class="text-lg font-bold mb-3 flex items-center gap-2">
             <i class="pi pi-clock text-blue-400"></i>
             Recent Activity (Last 20 Entries)
           </h3>
           <div class="bg-gray-900/50 p-4 rounded border border-gray-700 max-h-64 overflow-y-auto">
             <div class="space-y-2">
-              <div v-for="(entry, idx) in installationHistory.history" :key="idx" class="flex justify-between items-center text-sm border-b border-gray-800 pb-2 last:border-0">
+              <div
+                v-for="(entry, idx) in installationHistory.history"
+                :key="idx"
+                class="flex justify-between items-center text-sm border-b border-gray-800 pb-2 last:border-0"
+              >
                 <div class="flex items-center gap-2">
                   <i class="pi pi-circle-fill text-xs text-blue-400"></i>
                   <span class="font-mono text-xs text-gray-400">{{ entry.metric }}</span>
-                  <span class="text-xs px-2 py-0.5 bg-gray-800 rounded">{{ entry.count }} points</span>
+                  <span class="text-xs px-2 py-0.5 bg-gray-800 rounded"
+                    >{{ entry.count }} points</span
+                  >
                 </div>
-                <span class="text-xs text-gray-500">{{ new Date(entry.timestamp).toLocaleString('de-DE') }}</span>
+                <span class="text-xs text-gray-500">{{
+                  new Date(entry.timestamp).toLocaleString('de-DE')
+                }}</span>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Admin Badge -->
-        <div v-if="installationDetails.is_admin" class="bg-yellow-900/20 border border-yellow-700 rounded p-3 flex items-center gap-2">
+        <div
+          v-if="installationDetails.is_admin"
+          class="bg-yellow-900/20 border border-yellow-700 rounded p-3 flex items-center gap-2"
+        >
           <i class="pi pi-crown text-yellow-500"></i>
           <span class="text-yellow-200">This is an admin installation</span>
         </div>
       </div>
 
-      <div v-else class="p-8 text-center text-gray-400">
-        No data available
-      </div>
+      <div v-else class="p-8 text-center text-gray-400">No data available</div>
 
       <template #footer>
         <Button label="Schließen" icon="pi pi-times" @click="closeInstallationDetails" text />
@@ -1680,8 +2053,9 @@
             <span class="font-bold">Wichtiger Hinweis</span>
           </div>
           <p class="text-sm text-gray-300">
-            Die automatische Aktualisierung (Watchtower) wurde entfernt.
-            Bitte führen Sie Updates manuell über die Konsole aus, um die neuesten Funktionen und Sicherheitsverbesserungen zu erhalten.
+            Die automatische Aktualisierung (Watchtower) wurde entfernt. Bitte führen Sie Updates
+            manuell über die Konsole aus, um die neuesten Funktionen und Sicherheitsverbesserungen
+            zu erhalten.
           </p>
         </div>
 
@@ -1712,14 +2086,23 @@
     </Dialog>
 
     <!-- Role Change Dialog -->
-    <Dialog v-model:visible="roleDialogVisible" header="Rolle aendern" :style="{ width: '400px' }" modal>
+    <Dialog
+      v-model:visible="roleDialogVisible"
+      header="Rolle aendern"
+      :style="{ width: '400px' }"
+      modal
+    >
       <div class="flex flex-col gap-4">
         <div>
           <label class="text-sm text-gray-400">Installation:</label>
-          <div class="font-mono text-xs bg-gray-800 p-2 rounded mt-1">{{ selectedInstallationForAction }}</div>
+          <div class="font-mono text-xs bg-gray-800 p-2 rounded mt-1">
+            {{ selectedInstallationForAction }}
+          </div>
         </div>
         <div>
-          <label class="text-sm text-gray-400 mb-2 block" for="new-role-dropdown">Neue Rolle:</label>
+          <label class="text-sm text-gray-400 mb-2 block" for="new-role-dropdown"
+            >Neue Rolle:</label
+          >
           <Dropdown
             inputId="new-role-dropdown"
             v-model="newRole"
@@ -1738,7 +2121,11 @@
         </div>
         <div>
           <label class="text-sm text-gray-400 mb-2 block">Grund (optional):</label>
-          <InputText v-model="roleReason" class="w-full" placeholder="Grund fuer die Aenderung..." />
+          <InputText
+            v-model="roleReason"
+            class="w-full"
+            placeholder="Grund fuer die Aenderung..."
+          />
         </div>
       </div>
       <template #footer>
@@ -1748,11 +2135,18 @@
     </Dialog>
 
     <!-- Ban Dialog -->
-    <Dialog v-model:visible="banDialogVisible" header="Installation sperren" :style="{ width: '450px' }" modal>
+    <Dialog
+      v-model:visible="banDialogVisible"
+      header="Installation sperren"
+      :style="{ width: '450px' }"
+      modal
+    >
       <div class="flex flex-col gap-4">
         <div>
           <label class="text-sm text-gray-400">Installation:</label>
-          <div class="font-mono text-xs bg-gray-800 p-2 rounded mt-1">{{ selectedInstallationForAction }}</div>
+          <div class="font-mono text-xs bg-gray-800 p-2 rounded mt-1">
+            {{ selectedInstallationForAction }}
+          </div>
         </div>
         <div>
           <label class="text-sm text-gray-400 mb-2 block">Sperrtyp:</label>
@@ -1770,7 +2164,12 @@
         </div>
         <div>
           <label class="text-sm text-gray-400 mb-2 block">Grund (erforderlich):</label>
-          <Textarea v-model="banReason" class="w-full" rows="3" placeholder="Grund fuer die Sperre..." />
+          <Textarea
+            v-model="banReason"
+            class="w-full"
+            rows="3"
+            placeholder="Grund fuer die Sperre..."
+          />
         </div>
         <div>
           <label class="text-sm text-gray-400 mb-2 block">Dauer:</label>
@@ -1797,15 +2196,35 @@
     </Dialog>
 
     <!-- Permission Dialog -->
-    <Dialog v-model:visible="permissionDialogVisible" header="Manage Permissions" :style="{ width: '400px' }" modal>
+    <Dialog
+      v-model:visible="permissionDialogVisible"
+      header="Manage Permissions"
+      :style="{ width: '400px' }"
+      modal
+    >
       <div class="flex flex-col gap-4">
         <div class="text-sm text-gray-400 mb-2">
           Admin: <span class="font-mono text-white">{{ selectedAdminId.substring(0, 12) }}...</span>
         </div>
         <div class="flex flex-col gap-2">
-          <div v-for="perm in ['admin:view', 'admin:models', 'admin:training', 'admin:users', 'admin:full']" :key="perm" class="flex items-center gap-2">
+          <div
+            v-for="perm in [
+              'admin:view',
+              'admin:models',
+              'admin:training',
+              'admin:users',
+              'admin:full'
+            ]"
+            :key="perm"
+            class="flex items-center gap-2"
+          >
             <Checkbox v-model="selectedAdminPermissions" :inputId="perm" :value="perm" />
-            <label :for="perm" class="cursor-pointer select-none" :class="perm === 'admin:full' ? 'text-yellow-400 font-bold' : 'text-gray-300'">{{ perm }}</label>
+            <label
+              :for="perm"
+              class="cursor-pointer select-none"
+              :class="perm === 'admin:full' ? 'text-yellow-400 font-bold' : 'text-gray-300'"
+              >{{ perm }}</label
+            >
           </div>
         </div>
         <div class="text-xs text-gray-500 mt-2">
@@ -1814,22 +2233,42 @@
       </div>
       <template #footer>
         <Button label="Cancel" text severity="secondary" @click="permissionDialogVisible = false" />
-        <Button label="Save Changes" severity="primary" :loading="savingPermissions" @click="savePermissions" />
+        <Button
+          label="Save Changes"
+          severity="primary"
+          :loading="savingPermissions"
+          @click="savePermissions"
+        />
       </template>
     </Dialog>
 
     <!-- Grant Admin Dialog -->
-    <Dialog v-model:visible="grantAdminDialogVisible" header="Add New Admin" :style="{ width: '450px' }" modal>
+    <Dialog
+      v-model:visible="grantAdminDialogVisible"
+      header="Add New Admin"
+      :style="{ width: '450px' }"
+      modal
+    >
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
           <label class="text-sm font-bold text-gray-300">Installation ID (UUID)</label>
-          <InputText v-model="newAdminId" class="w-full font-mono" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+          <InputText
+            v-model="newAdminId"
+            class="w-full font-mono"
+            placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          />
           <small class="text-gray-500">The installation must already exist in the database.</small>
         </div>
       </div>
       <template #footer>
         <Button label="Cancel" text severity="secondary" @click="grantAdminDialogVisible = false" />
-        <Button label="Grant Access" severity="success" :loading="grantingAdmin" @click="grantNewAdmin" :disabled="!newAdminId" />
+        <Button
+          label="Grant Access"
+          severity="success"
+          :loading="grantingAdmin"
+          @click="grantNewAdmin"
+          :disabled="!newAdminId"
+        />
       </template>
     </Dialog>
 
@@ -1998,9 +2437,19 @@ let aiStatusInterval = null
 const copyId = async () => {
   const success = await copyToClipboard(config.value.installation_id)
   if (success) {
-    toast.add({ severity: 'info', summary: 'Kopiert', detail: 'ID in Zwischenablage kopiert', life: 2000 })
+    toast.add({
+      severity: 'info',
+      summary: 'Kopiert',
+      detail: 'ID in Zwischenablage kopiert',
+      life: 2000
+    })
   } else {
-    toast.add({ severity: 'error', summary: 'Fehler', detail: 'Konnte nicht kopiert werden', life: 3000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Konnte nicht kopiert werden',
+      life: 3000
+    })
   }
 }
 
@@ -2044,7 +2493,7 @@ const fetchInstallationRoles = async () => {
     const authToken = config.value.telemetry?.auth_token || ''
     const res = await axios.get(`${telemetryUrl}/api/v1/admin/installations/list`, {
       params: { installation_id: config.value.installation_id, limit: 200 },
-      headers: { 'Authorization': `Bearer ${authToken}` }
+      headers: { Authorization: `Bearer ${authToken}` }
     })
     installationRoles.value = res.data
   } catch (err) {
@@ -2054,13 +2503,13 @@ const fetchInstallationRoles = async () => {
 
 const getInstallationRole = (instId) => {
   if (!installationRoles.value?.items) return 'guest'
-  const inst = installationRoles.value.items.find(i => i.installation_id === instId)
+  const inst = installationRoles.value.items.find((i) => i.installation_id === instId)
   return inst?.role || 'guest'
 }
 
 const isInstallationBanned = (instId) => {
   if (!installationRoles.value?.items) return false
-  const inst = installationRoles.value.items.find(i => i.installation_id === instId)
+  const inst = installationRoles.value.items.find((i) => i.installation_id === instId)
   return inst?.is_banned || false
 }
 
@@ -2106,14 +2555,19 @@ const saveRole = async () => {
           role: newRole.value,
           reason: roleReason.value || undefined
         },
-        headers: { 'Authorization': `Bearer ${authToken}` }
+        headers: { Authorization: `Bearer ${authToken}` }
       }
     )
     toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Rolle geaendert', life: 3000 })
     roleDialogVisible.value = false
     await fetchInstallationRoles()
   } catch (err) {
-    toast.add({ severity: 'error', summary: 'Fehler', detail: err.response?.data?.detail || 'Rolle konnte nicht geaendert werden', life: 5000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err.response?.data?.detail || 'Rolle konnte nicht geaendert werden',
+      life: 5000
+    })
   } finally {
     savingRole.value = false
   }
@@ -2121,7 +2575,12 @@ const saveRole = async () => {
 
 const saveBan = async () => {
   if (!selectedInstallationForAction.value || !banReason.value.trim()) {
-    toast.add({ severity: 'warn', summary: 'Hinweis', detail: 'Grund ist erforderlich', life: 3000 })
+    toast.add({
+      severity: 'warn',
+      summary: 'Hinweis',
+      detail: 'Grund ist erforderlich',
+      life: 3000
+    })
     return
   }
   savingBan.value = true
@@ -2138,13 +2597,23 @@ const saveBan = async () => {
     await axios.post(
       `${telemetryUrl}/api/v1/admin/installations/${selectedInstallationForAction.value}/ban`,
       null,
-      { params, headers: { 'Authorization': `Bearer ${authToken}` } }
+      { params, headers: { Authorization: `Bearer ${authToken}` } }
     )
-    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Installation gesperrt', life: 3000 })
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Installation gesperrt',
+      life: 3000
+    })
     banDialogVisible.value = false
     await fetchInstallationRoles()
   } catch (err) {
-    toast.add({ severity: 'error', summary: 'Fehler', detail: err.response?.data?.detail || 'Sperre fehlgeschlagen', life: 5000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err.response?.data?.detail || 'Sperre fehlgeschlagen',
+      life: 5000
+    })
   } finally {
     savingBan.value = false
   }
@@ -2158,20 +2627,28 @@ const unbanInstallation = async (instId) => {
     const banTypes = ['full', 'upload', 'download']
     for (const bt of banTypes) {
       try {
-        await axios.post(
-          `${telemetryUrl}/api/v1/admin/installations/${instId}/unban`,
-          null,
-          {
-            params: { installation_id: config.value.installation_id, ban_type: bt },
-            headers: { 'Authorization': `Bearer ${authToken}` }
-          }
-        )
-      } catch { /* ignore if not banned with this type */ }
+        await axios.post(`${telemetryUrl}/api/v1/admin/installations/${instId}/unban`, null, {
+          params: { installation_id: config.value.installation_id, ban_type: bt },
+          headers: { Authorization: `Bearer ${authToken}` }
+        })
+      } catch {
+        /* ignore if not banned with this type */
+      }
     }
-    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Installation entsperrt', life: 3000 })
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Installation entsperrt',
+      life: 3000
+    })
     await fetchInstallationRoles()
   } catch (err) {
-    toast.add({ severity: 'error', summary: 'Fehler', detail: err.response?.data?.detail || 'Entsperren fehlgeschlagen', life: 5000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err.response?.data?.detail || 'Entsperren fehlgeschlagen',
+      life: 5000
+    })
   }
 }
 
@@ -2204,7 +2681,7 @@ const renderModelDownloadsChart = () => {
 
   // Prepare data
   const models = adminModels.value.models
-    .filter(m => m.download_count > 0)
+    .filter((m) => m.download_count > 0)
     .sort((a, b) => b.download_count - a.download_count)
     .slice(0, 10) // Show top 10
 
@@ -2213,21 +2690,23 @@ const renderModelDownloadsChart = () => {
     return
   }
 
-  const labels = models.map(m => m.name)
-  const data = models.map(m => m.download_count)
+  const labels = models.map((m) => m.name)
+  const data = models.map((m) => m.download_count)
 
   // Create new chart
   modelDownloadsChartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: labels,
-      datasets: [{
-        label: 'Downloads',
-        data: data,
-        backgroundColor: 'rgba(59, 130, 246, 0.7)', // Blue
-        borderColor: 'rgba(59, 130, 246, 1)',
-        borderWidth: 1
-      }]
+      datasets: [
+        {
+          label: 'Downloads',
+          data: data,
+          backgroundColor: 'rgba(59, 130, 246, 0.7)', // Blue
+          borderColor: 'rgba(59, 130, 246, 1)',
+          borderWidth: 1
+        }
+      ]
     },
     options: {
       responsive: true,
@@ -2282,7 +2761,12 @@ const fetchAdminMetrics = async () => {
 
 const fetchCommunityAverages = async () => {
   if (!selectedStatsModel.value) {
-    toast.add({ severity: 'warn', summary: 'Warnung', detail: 'Bitte wähle ein Modell', life: 3000 })
+    toast.add({
+      severity: 'warn',
+      summary: 'Warnung',
+      detail: 'Bitte wähle ein Modell',
+      life: 3000
+    })
     return
   }
 
@@ -2378,10 +2862,20 @@ const cancelTraining = async (taskId) => {
     await axios.post(`${telemetryUrl}/api/v1/admin/training/cancel/${taskId}`, null, {
       params: { installation_id: config.value.installation_id }
     })
-    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Training abgebrochen', life: 3000 })
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Training abgebrochen',
+      life: 3000
+    })
     await fetchTrainingInfo()
   } catch (err) {
-    toast.add({ severity: 'error', summary: 'Fehler', detail: err.response?.data?.detail || 'Abbruch fehlgeschlagen', life: 5000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err.response?.data?.detail || 'Abbruch fehlgeschlagen',
+      life: 5000
+    })
   } finally {
     cancellingTraining.value = false
   }
@@ -2399,7 +2893,7 @@ const savePermissions = async () => {
 
   try {
     const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
-    const admin = adminPermissions.value.find(a => a.id === selectedAdminId.value)
+    const admin = adminPermissions.value.find((a) => a.id === selectedAdminId.value)
     if (!admin) return
 
     const currentPerms = new Set(admin.permissions)
@@ -2421,7 +2915,7 @@ const savePermissions = async () => {
     // Revoke removed permissions
     for (const perm of currentPerms) {
       if (!newPerms.has(perm)) {
-         await axios.post(`${telemetryUrl}/api/v1/admin/permissions/revoke`, null, {
+        await axios.post(`${telemetryUrl}/api/v1/admin/permissions/revoke`, null, {
           params: {
             installation_id: config.value.installation_id,
             target_admin_id: selectedAdminId.value,
@@ -2431,12 +2925,22 @@ const savePermissions = async () => {
       }
     }
 
-    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Berechtigungen aktualisiert', life: 3000 })
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Berechtigungen aktualisiert',
+      life: 3000
+    })
     permissionDialogVisible.value = false
     await fetchPermissions()
   } catch (err) {
     console.error(err)
-    toast.add({ severity: 'error', summary: 'Fehler', detail: 'Berechtigungen konnten nicht gespeichert werden', life: 5000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Berechtigungen konnten nicht gespeichert werden',
+      life: 5000
+    })
   } finally {
     savingPermissions.value = false
   }
@@ -2457,12 +2961,22 @@ const grantNewAdmin = async () => {
       }
     })
 
-    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Neuer Admin hinzugefügt', life: 3000 })
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Neuer Admin hinzugefügt',
+      life: 3000
+    })
     grantAdminDialogVisible.value = false
     newAdminId.value = ''
     await fetchPermissions()
   } catch (err) {
-    toast.add({ severity: 'error', summary: 'Fehler', detail: err.response?.data?.detail || 'Admin konnte nicht hinzugefügt werden', life: 5000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err.response?.data?.detail || 'Admin konnte nicht hinzugefügt werden',
+      life: 5000
+    })
   } finally {
     grantingAdmin.value = false
   }
@@ -2540,7 +3054,8 @@ const deleteModel = async (modelName) => {
         toast.add({
           severity: 'error',
           summary: 'Fehler',
-          detail: 'Modell konnte nicht gelöscht werden: ' + (err.response?.data?.detail || err.message),
+          detail:
+            'Modell konnte nicht gelöscht werden: ' + (err.response?.data?.detail || err.message),
           life: 5000
         })
       } finally {
@@ -2578,7 +3093,8 @@ const triggerTraining = async () => {
     toast.add({
       severity: 'error',
       summary: 'Fehler',
-      detail: 'Training konnte nicht gestartet werden: ' + (err.response?.data?.detail || err.message),
+      detail:
+        'Training konnte nicht gestartet werden: ' + (err.response?.data?.detail || err.message),
       life: 5000
     })
   } finally {
@@ -2847,7 +3363,6 @@ const startAdminAutoRefresh = () => {
         console.error('Auto-refresh failed', e)
       }
     }
-
   }, 30000) // 30 seconds
 }
 
@@ -2865,7 +3380,12 @@ const manualSubmitTelemetry = async () => {
     toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message, life: 3000 })
     loadTelemetryStatus()
   } catch (e) {
-    toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.message || e.message, life: 5000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: e.response?.data?.message || e.message,
+      life: 5000
+    })
   } finally {
     submittingTelemetry.value = false
   }
@@ -2878,7 +3398,12 @@ const manualCheckModel = async () => {
     toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message, life: 3000 })
     loadTelemetryStatus()
   } catch (e) {
-    toast.add({ severity: 'error', summary: 'Fehler', detail: e.response?.data?.error || e.message, life: 5000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: e.response?.data?.error || e.message,
+      life: 5000
+    })
   } finally {
     checkingModel.value = false
   }
