@@ -5,7 +5,9 @@ import os
 
 PORT = 5173
 # Calculate path relative to this script
-STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "idm_logger", "static")
+STATIC_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "idm_logger", "static"
+)
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
