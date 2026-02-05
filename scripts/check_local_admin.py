@@ -18,7 +18,9 @@ def check_local_installation_id():
 
     # Suche nach Datenbank
     db_path = None
-    for root, dirs, files in os.walk("."):
+    # Search in parent directory since script is in scripts/
+    search_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    for root, dirs, files in os.walk(search_dir):
         if "settings.db" in files or "idm_logger.db" in files:
             db_path = os.path.join(
                 root, files[0] if "settings.db" in files else "idm_logger.db"
