@@ -2379,9 +2379,7 @@ async def admin_installation_details(
 
         # Calculate data quality score
         unique_metrics = len(set(r["metric"]["__name__"] for r in results))
-        data_quality_score = min(
-            1.0, unique_metrics / 20.0
-        )
+        data_quality_score = min(1.0, unique_metrics / 20.0)
 
         # 2. Process Total Submissions
         total_submissions = 0

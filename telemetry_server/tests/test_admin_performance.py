@@ -85,6 +85,7 @@ async def test_admin_list_installations_n_plus_1_repro(client):
     assert inst["data_points"] == 5  # Series count
     assert inst["last_seen"] == 1234567890
 
+
 @pytest.mark.asyncio
 async def test_admin_installation_details_parallel(client):
     # Setup mock client
@@ -102,26 +103,41 @@ async def test_admin_installation_details_parallel(client):
 
         data = {"status": "success", "data": {"result": []}}
 
-        if 'metrics' in query and 'heatpump_metrics' in query and 'count_over_time' not in query:
-             # Metrics query
-             data["data"]["result"] = [
-                 {"metric": {"__name__": "heatpump_metrics_temp", "heatpump_model": "TestModel"}, "value": [123, "10"]}
-             ]
-        elif 'count_over_time' in query:
+        if (
+            "metrics" in query
+            and "heatpump_metrics" in query
+            and "count_over_time" not in query
+        ):
+            # Metrics query
+            data["data"]["result"] = [
+                {
+                    "metric": {
+                        "__name__": "heatpump_metrics_temp",
+                        "heatpump_model": "TestModel",
+                    },
+                    "value": [123, "10"],
+                }
+            ]
+        elif "count_over_time" in query:
             # Count query
             data["data"]["result"] = [{"value": [123, "100"]}]
-        elif 'min_over_time' in query:
+        elif "min_over_time" in query:
             # First seen
             data["data"]["result"] = [{"value": [1000000000]}]
-        elif 'last_over_time' in query:
+        elif "last_over_time" in query:
             # Last seen
             data["data"]["result"] = [{"value": [1000000100]}]
-        elif 'group by' in query:
-             # Rank query
-             data["data"]["result"] = [
-                 {"metric": {"installation_id": "550e8400-e29b-41d4-a716-446655440000"}, "value": [123, "100"]},
-                 {"metric": {"installation_id": "other-id"}, "value": [123, "50"]}
-             ]
+        elif "group by" in query:
+            # Rank query
+            data["data"]["result"] = [
+                {
+                    "metric": {
+                        "installation_id": "550e8400-e29b-41d4-a716-446655440000"
+                    },
+                    "value": [123, "100"],
+                },
+                {"metric": {"installation_id": "other-id"}, "value": [123, "50"]},
+            ]
 
         mock_response.json.return_value = data
         return mock_response
@@ -135,8 +151,7 @@ async def test_admin_installation_details_parallel(client):
     with patch("app.verify_admin", return_value="admin-id"):
         start_time = time.time()
         response = client.get(
-            f"/api/v1/admin/installations/{target_id}/details",
-            headers=headers
+            f"/api/v1/admin/installations/{target_id}/details", headers=headers
         )
         end_time = time.time()
 
@@ -146,4 +161,4 @@ async def test_admin_installation_details_parallel(client):
     # If sequential: 5 calls * 0.1s = 0.5s + overhead
     # If parallel: 1 call duration (approx) = 0.1s + overhead
     # We assert it's faster than sequential sum (allow some buffer)
-    assert duration < 0.25 # Should be well under 0.25s (typically ~0.12s)
+    assert duration < 0.25  # Should be well under 0.25s (typically ~0.12s)
