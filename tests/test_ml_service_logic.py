@@ -176,10 +176,12 @@ class TestMLServiceLogic(unittest.TestCase):
         # Force USE_JOBLIB to False using string patch, which is safer for module globals
         with patch("ml_service.main.USE_JOBLIB", False):
             with (
-                patch("builtins.open", mock_open()),
-                patch("pickle.dump") as mock_dump,
+                patch("ml_service.main.threading.Thread") as mock_thread,
+                patch("ml_service.main.pickle.dumps") as mock_dumps,
                 patch("os.makedirs"),
             ):
+                mock_dumps.return_value = b"serialized_data"
+
                 res = self.main.save_model_state()
 
                 # Check for errors
@@ -187,9 +189,42 @@ class TestMLServiceLogic(unittest.TestCase):
                     # If failed, print error log
                     print(f"Error logs: {self.main.logger.error.call_args_list}")
 
-                mock_dump.assert_called()
-                args, _ = mock_dump.call_args
-                self.assertEqual(args[0], self.main.models)
+                # Verify serialization (snapshot)
+                mock_dumps.assert_called_once_with(self.main.models)
+
+                # Verify thread spawn
+                mock_thread.assert_called_once()
+                call_kwargs = mock_thread.call_args[1]
+                self.assertEqual(call_kwargs["target"], self.main._save_worker)
+                self.assertEqual(call_kwargs["args"][0], b"serialized_data")
+                self.assertEqual(call_kwargs["args"][1], "/tmp/test_model.pkl")
+                self.assertEqual(call_kwargs["daemon"], False)
+                mock_thread.return_value.start.assert_called_once()
+
+    def test_save_worker(self):
+        """Test the background worker file writing logic."""
+        with (
+            patch("builtins.open", mock_open()) as mock_file,
+            patch("os.replace") as mock_replace,
+            patch("os.remove") as mock_remove,
+            patch("uuid.uuid4", return_value="1234"),
+        ):
+            # Test success path
+            self.main._save_worker(b"data", "/path/to/model")
+
+            # Check file write to temp
+            expected_temp = "/path/to/model.1234.tmp"
+            mock_file.assert_called_with(expected_temp, "wb")
+            mock_file().write.assert_called_with(b"data")
+
+            # Check rename
+            mock_replace.assert_called_with(expected_temp, "/path/to/model")
+
+            # Test failure path (cleanup)
+            mock_replace.side_effect = OSError("Disk full")
+            with patch("os.path.exists", return_value=True):
+                self.main._save_worker(b"data", "/path/to/model")
+                mock_remove.assert_called_with(expected_temp)
 
 
 if __name__ == "__main__":
