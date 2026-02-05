@@ -25,7 +25,7 @@ import hmac
 import tempfile
 from cryptography.fernet import Fernet
 from pathlib import Path
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 from analysis import get_community_averages
 import structlog
 from audit_log import (
