@@ -99,6 +99,59 @@ class AuditLogger:
             # Never fail on audit log errors, but log the error
             logger.error("audit_log_write_failed", error=str(e))
 
+    def _read_last_lines(self, limit: int) -> list[str]:
+        """
+        Read the last N lines from the log file efficiently.
+        Returns lines in reverse order (newest first).
+        """
+        if not self.log_file.exists():
+            return []
+
+        lines = []
+        chunk_size = 8192
+
+        try:
+            with open(self.log_file, "rb") as f:
+                f.seek(0, os.SEEK_END)
+                position = f.tell()
+                buffer = b""
+
+                while position > 0 and len(lines) < limit:
+                    read_size = min(chunk_size, position)
+                    position -= read_size
+                    f.seek(position)
+                    chunk = f.read(read_size)
+
+                    # Combine chunk with buffer (chunk is the prefix)
+                    data = chunk + buffer
+                    parts = data.split(b"\n")
+
+                    # The first part is incomplete (continued from previous chunk)
+                    buffer = parts[0]
+
+                    # The rest are complete lines. Iterate in reverse.
+                    for line_bytes in reversed(parts[1:]):
+                        if len(lines) >= limit:
+                            break
+                        if line_bytes.strip():
+                            try:
+                                lines.append(line_bytes.decode("utf-8"))
+                            except UnicodeDecodeError:
+                                # Skip lines with decoding errors
+                                continue
+
+                # Process remaining buffer if needed
+                if len(lines) < limit and buffer.strip():
+                    try:
+                        lines.append(buffer.decode("utf-8"))
+                    except UnicodeDecodeError:
+                        pass
+
+        except Exception as e:
+            logger.error("audit_log_read_failed", error=str(e))
+
+        return lines
+
     def get_recent_events(self, limit: int = 100) -> list[Dict[str, Any]]:
         """
         Get recent audit events.
@@ -112,25 +165,18 @@ class AuditLogger:
         events = []
 
         try:
-            if not self.log_file.exists():
-                return events
+            # Get last N lines (already reversed: newest first)
+            lines = self._read_last_lines(limit)
 
-            with open(self.log_file, "r", encoding="utf-8") as f:
-                lines = f.readlines()
-
-            # Get last N lines
-            for line in lines[-limit:]:
+            for line in lines:
                 try:
                     event = json.loads(line.strip())
                     events.append(event)
                 except json.JSONDecodeError:
                     continue
 
-            # Return in reverse order (most recent first)
-            events.reverse()
-
         except Exception as e:
-            logger.error("audit_log_read_failed", error=str(e))
+            logger.error("audit_log_process_failed", error=str(e))
 
         return events
 
