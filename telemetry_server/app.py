@@ -25,7 +25,7 @@ import hmac
 import tempfile
 from cryptography.fernet import Fernet
 from pathlib import Path
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from analysis import get_community_averages
 import structlog
 from audit_log import (
@@ -130,7 +130,7 @@ MAX_PAYLOAD_SIZE = int(
 )  # 10 MB default
 
 # Simple in-memory rate limiting with endpoint-specific limits
-_rate_limit_store: Dict[str, List[float]] = defaultdict(list)
+_rate_limit_store: Dict[str, List[float]] = OrderedDict()
 _rate_limit_lock = threading.Lock()  # Protect in-memory store
 RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))  # seconds
 MAX_RATE_LIMIT_ENTRIES = int(
@@ -500,19 +500,27 @@ def check_rate_limit(
     with _rate_limit_lock:
         # Check if too many IPs stored
         if len(_rate_limit_store) >= MAX_RATE_LIMIT_ENTRIES:
-            # Remove oldest entries
-            oldest_keys = sorted(
-                _rate_limit_store.keys(),
-                key=lambda k: min(_rate_limit_store[k]) if _rate_limit_store[k] else 0,
-            )[:100]
-            for k in oldest_keys:
-                del _rate_limit_store[k]
-            logger.warning("rate_limit_eviction", evicted=len(oldest_keys))
+            # Remove oldest entries (LRU eviction)
+            evicted_count = 0
+            for _ in range(100):
+                if _rate_limit_store:
+                    _rate_limit_store.popitem(last=False)
+                    evicted_count += 1
+                else:
+                    break
+            logger.warning("rate_limit_eviction", evicted=evicted_count)
+
+        # Initialize list if new key (since OrderedDict doesn't support default_factory)
+        if compound_key not in _rate_limit_store:
+            _rate_limit_store[compound_key] = []
 
         # Clean old entries
         _rate_limit_store[compound_key] = [
             t for t in _rate_limit_store[compound_key] if now - t < RATE_LIMIT_WINDOW
         ]
+
+        # Mark as recently used
+        _rate_limit_store.move_to_end(compound_key)
 
         remaining = max(0, rate_limit - len(_rate_limit_store[compound_key]))
         reset_time = int(
