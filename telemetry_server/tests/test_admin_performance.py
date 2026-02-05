@@ -1,4 +1,5 @@
 import pytest
+import json
 from unittest.mock import MagicMock, AsyncMock, patch
 from app import app
 
@@ -17,6 +18,7 @@ async def test_admin_list_installations_n_plus_1_repro(client):
         mock_response = MagicMock()
         mock_response.status_code = 200
 
+        data = {}
         if "group by" in query:
             # Query 1: Master List & Series Counts (Original Logic)
             results = []
@@ -27,7 +29,7 @@ async def test_admin_list_installations_n_plus_1_repro(client):
                         "value": [1234567890, "5"],  # 5 active series
                     }
                 )
-            mock_response.json.return_value = {
+            data = {
                 "status": "success",
                 "data": {"result": results},
             }
@@ -42,15 +44,19 @@ async def test_admin_list_installations_n_plus_1_repro(client):
                         "value": [1234567890, "1234567890"],
                     }
                 )
-            mock_response.json.return_value = {
+            data = {
                 "status": "success",
                 "data": {"result": results},
             }
         else:
-            mock_response.json.return_value = {
+            data = {
                 "status": "success",
                 "data": {"result": []},
             }
+
+        mock_response.json.return_value = data
+        # Enable use of orjson.loads(response.content)
+        mock_response.content = json.dumps(data).encode("utf-8")
 
         return mock_response
 

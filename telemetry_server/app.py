@@ -28,6 +28,7 @@ from pathlib import Path
 from collections import defaultdict
 from analysis import get_community_averages
 import structlog
+import orjson
 from audit_log import (
     audit_logger,
     log_model_delete,
@@ -2253,7 +2254,7 @@ async def admin_list_installations(
         # Process Times
         installation_times = {}
         if time_response.status_code == 200:
-            data = time_response.json()
+            data = orjson.loads(time_response.content)
             if data.get("status") == "success":
                 for result in data["data"]["result"]:
                     inst_id = result["metric"].get("installation_id", "unknown")
@@ -2264,7 +2265,7 @@ async def admin_list_installations(
         installations = []
         # Process List (Main Loop)
         if list_response.status_code == 200:
-            data = list_response.json()
+            data = orjson.loads(list_response.content)
             if data.get("status") == "success":
                 for result in data["data"]["result"]:
                     inst_id = result["metric"].get("installation_id", "unknown")
