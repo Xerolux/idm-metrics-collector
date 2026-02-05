@@ -19,7 +19,7 @@ async def test_admin_list_installations_n_plus_1_repro(client):
         mock_response.status_code = 200
 
         data = {}
-        if "group by" in query:
+        if "count by" in query:
             # Query 1: Master List & Series Counts (Original Logic)
             results = []
             for i in range(10):

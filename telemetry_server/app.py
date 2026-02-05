@@ -2248,7 +2248,7 @@ async def admin_list_installations(
 
         # Query 1: Get list of installations and series counts (Original Query)
         # This preserves the original semantics of 'data_points' being series count.
-        list_query = "group by(installation_id) (count by (installation_id))"
+        list_query = 'count by (installation_id) ({__name__=~"heatpump_metrics_.*"})'
 
         # Query 2: Get last seen timestamp for all installations in last 30d
         time_query = 'max(tlast_over_time({__name__=~"heatpump_metrics_.*"}[30d])) by (installation_id)'

@@ -57,7 +57,7 @@ async def run_benchmark():
         mock_response.status_code = 200
 
         results = []
-        if "group by" in query:  # List query
+        if "count by" in query:  # List query
             for i in range(N_INSTALLATIONS):
                 results.append(
                     {
