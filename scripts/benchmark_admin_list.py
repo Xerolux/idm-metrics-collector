@@ -23,6 +23,7 @@ from app import app, admin_list_installations
 N_INSTALLATIONS = 100
 LATENCY_MS = 0.01  # 10ms
 
+
 async def simulate_n_plus_1(client):
     # Simulate list query (1 call)
     await asyncio.sleep(LATENCY_MS)
@@ -36,8 +37,11 @@ async def simulate_n_plus_1(client):
         results.append({"installation_id": inst_id, "last_seen": 1234567890})
     return results
 
+
 async def run_benchmark():
-    print(f"Benchmarking with N={N_INSTALLATIONS} installations, latency={LATENCY_MS*1000}ms")
+    print(
+        f"Benchmarking with N={N_INSTALLATIONS} installations, latency={LATENCY_MS * 1000}ms"
+    )
 
     # Setup mock client
     mock_client = AsyncMock()
@@ -53,24 +57,25 @@ async def run_benchmark():
         mock_response.status_code = 200
 
         results = []
-        if "group by" in query: # List query
+        if "group by" in query:  # List query
             for i in range(N_INSTALLATIONS):
-                results.append({
-                    "metric": {"installation_id": f"inst-{i}"},
-                    "value": [1234567890, "5"]
-                })
-        elif "tlast_over_time" in query: # Time query
+                results.append(
+                    {
+                        "metric": {"installation_id": f"inst-{i}"},
+                        "value": [1234567890, "5"],
+                    }
+                )
+        elif "tlast_over_time" in query:  # Time query
             for i in range(N_INSTALLATIONS):
-                results.append({
-                    "metric": {"installation_id": f"inst-{i}"},
-                    "value": [1234567890, "1234567890"]
-                })
+                results.append(
+                    {
+                        "metric": {"installation_id": f"inst-{i}"},
+                        "value": [1234567890, "1234567890"],
+                    }
+                )
 
         # Prepare valid JSON response
-        json_data = {
-            "status": "success",
-            "data": {"result": results}
-        }
+        json_data = {"status": "success", "data": {"result": results}}
         mock_response.json.return_value = json_data
         # Prepare content for orjson optimization
         mock_response.content = json.dumps(json_data).encode("utf-8")
@@ -83,8 +88,10 @@ async def run_benchmark():
     print("\nRunning Optimized Implementation...")
     start_time = time.time()
     # Mock verify_admin and check_admin_rate_limit to avoid overhead
-    with patch("app.verify_admin", new=AsyncMock(return_value="admin")), \
-         patch("app.check_admin_rate_limit", new=AsyncMock()):
+    with (
+        patch("app.verify_admin", new=AsyncMock(return_value="admin")),
+        patch("app.check_admin_rate_limit", new=AsyncMock()),
+    ):
         # Create a mock request object
         mock_request = MagicMock()
         mock_request.app = app
@@ -107,9 +114,18 @@ async def run_benchmark():
     speedup = n_plus_1_duration / optimized_duration
     print(f"\nSpeedup: {speedup:.2f}x")
 
+
 if __name__ == "__main__":
     # Setup directories
-    for d in ["/tmp/tokens", "/tmp/audit", "/tmp/permissions", "/tmp/tasks", "/tmp/installations", "/tmp/training", "/tmp/models"]:
+    for d in [
+        "/tmp/tokens",
+        "/tmp/audit",
+        "/tmp/permissions",
+        "/tmp/tasks",
+        "/tmp/installations",
+        "/tmp/training",
+        "/tmp/models",
+    ]:
         os.makedirs(d, exist_ok=True)
 
     asyncio.run(run_benchmark())
