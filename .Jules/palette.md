@@ -21,3 +21,7 @@
 ## 2026-03-05 - Implicit Contrast Assumptions
 **Learning:** Headers in dark-themed sections (like `bg-surface-900`) without explicit text color classes often rely on inherited styles. This fails when the global text color defaults to a dark value, rendering the text invisible against the dark background.
 **Action:** Always explicitly define text color (e.g., `text-gray-100`) for headings within sections that enforce a specific background color, rather than relying on inheritance or dark mode variants alone.
+
+## 2026-02-06 - Password Visibility Toggle
+**Learning:** Password fields without a visibility toggle can be frustrating for users, especially on mobile or with complex passwords. It also improves accessibility for users who struggle with typing accuracy.
+**Action:** Standardize usage of `p-inputgroup` with a toggle button for all password fields to enhance usability and reduce login errors.

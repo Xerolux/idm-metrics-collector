@@ -10,6 +10,7 @@ import AppFooter from '../components/AppFooter.vue'
 import ErrorDisplay from '../components/ErrorDisplay.vue'
 
 const password = ref('')
+const showPassword = ref(false)
 const error = ref('')
 const touched = ref(false)
 const auth = useAuthStore()
@@ -59,20 +60,29 @@ const handleLogin = async () => {
         <div class="flex flex-col gap-4">
           <div class="flex flex-col gap-2">
             <label for="password" class="text-sm font-medium text-white">Passwort</label>
-            <InputText
-              id="password"
-              v-model="password"
-              type="password"
-              placeholder="Passwort eingeben"
-              :class="{
-                'border-error-500': showPasswordError,
-                'border-gray-600': !showPasswordError
-              }"
-              :aria-invalid="!!showPasswordError"
-              aria-describedby="password-error"
-              @blur="touched = true"
-              @keyup.enter="handleLogin"
-            />
+            <div class="p-inputgroup w-full">
+              <InputText
+                id="password"
+                v-model="password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="Passwort eingeben"
+                :class="{
+                  'border-error-500': showPasswordError,
+                  'border-gray-600': !showPasswordError
+                }"
+                :aria-invalid="!!showPasswordError"
+                aria-describedby="password-error"
+                @blur="touched = true"
+                @keyup.enter="handleLogin"
+              />
+              <Button
+                :icon="showPassword ? 'pi pi-eye-slash' : 'pi pi-eye'"
+                severity="secondary"
+                @click="showPassword = !showPassword"
+                type="button"
+                :aria-label="showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'"
+              />
+            </div>
             <div
               id="password-error"
               v-if="showPasswordError"
