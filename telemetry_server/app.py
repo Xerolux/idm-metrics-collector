@@ -2327,12 +2327,38 @@ async def admin_installation_details(
     try:
         client = request.app.state.http_client
 
-        # Get all metrics for this installation (30d window)
+        # Prepare all queries for parallel execution
+        # 1. Metrics for this installation (30d window)
         metrics_query = (
             f'{{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}'
         )
-        response = await client.get(VM_QUERY_URL, params={"query": metrics_query})
 
+        # 2. Total submissions (count of unique timestamps)
+        timestamps_query = f'count_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
+
+        # 3. First seen (earliest timestamp)
+        first_seen_query = f'min_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
+
+        # 4. Last seen (latest timestamp)
+        last_seen_query = f'last_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
+
+        # 5. Contribution rank (all installations)
+        all_installations_query = (
+            "group by(installation_id) (count by (installation_id))"
+        )
+
+        # Execute all queries in parallel
+        response, count_resp, first_resp, last_resp, rank_resp = await asyncio.gather(
+            client.get(VM_QUERY_URL, params={"query": metrics_query}),
+            client.get(VM_QUERY_URL, params={"query": timestamps_query}),
+            client.get(VM_QUERY_URL, params={"query": first_seen_query}),
+            client.get(VM_QUERY_URL, params={"query": last_seen_query}),
+            client.get(VM_QUERY_URL, params={"query": all_installations_query}),
+        )
+
+        # Process Results
+
+        # 1. Process Metrics
         if response.status_code != 200:
             raise HTTPException(status_code=404, detail="Installation not found")
 
@@ -2351,10 +2377,11 @@ async def admin_installation_details(
                 heatpump_model = result["metric"]["heatpump_model"]
                 break
 
-        # Calculate total submissions (count of unique timestamps)
-        timestamps_query = f'count_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
-        count_resp = await client.get(VM_QUERY_URL, params={"query": timestamps_query})
+        # Calculate data quality score
+        unique_metrics = len(set(r["metric"]["__name__"] for r in results))
+        data_quality_score = min(1.0, unique_metrics / 20.0)
 
+        # 2. Process Total Submissions
         total_submissions = 0
         if count_resp.status_code == 200:
             count_data = count_resp.json()
@@ -2365,10 +2392,7 @@ async def admin_installation_details(
                     if r.get("value")
                 )
 
-        # Get first seen (earliest timestamp)
-        first_seen_query = f'min_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
-        first_resp = await client.get(VM_QUERY_URL, params={"query": first_seen_query})
-
+        # 3. Process First Seen
         first_seen = None
         if first_resp.status_code == 200:
             first_data = first_resp.json()
@@ -2382,22 +2406,12 @@ async def admin_installation_details(
                 if timestamps:
                     first_seen = min(timestamps)
 
-        # Get last seen (latest timestamp)
-        last_seen_query = f'last_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
-        last_resp = await client.get(VM_QUERY_URL, params={"query": last_seen_query})
-
+        # 4. Process Last Seen
         last_seen = None
         if last_resp.status_code == 200:
             last_data = last_resp.json()
             if last_data.get("data") and last_data["data"]["result"]:
                 last_seen = float(last_data["data"]["result"][0]["value"][0])
-
-        # Calculate data quality score (based on completeness and consistency)
-        # Simple heuristic: more metrics = better quality
-        unique_metrics = len(set(r["metric"]["__name__"] for r in results))
-        data_quality_score = min(
-            1.0, unique_metrics / 20.0
-        )  # Assuming 20+ metrics = good quality
 
         # Get model download history (from audit log if available)
         model_downloads = []
@@ -2418,14 +2432,7 @@ async def admin_installation_details(
             # Audit log not available or error occurred
             pass
 
-        # Calculate contribution rank
-        # Get all installations and rank by submission count
-        all_installations_query = (
-            "group by(installation_id) (count by (installation_id))"
-        )
-        rank_resp = await client.get(
-            VM_QUERY_URL, params={"query": all_installations_query}
-        )
+        # 5. Process Contribution Rank
 
         contribution_rank = "Unknown"
         if rank_resp.status_code == 200:
