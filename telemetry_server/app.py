@@ -633,12 +633,17 @@ def _get_file_hash_sync(filepath: str) -> Optional[str]:
     """Synchronous internal function for hash calculation."""
     if not os.path.exists(filepath):
         return None
-    sha256_hash = hashlib.sha256()
     try:
         with open(filepath, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-        return sha256_hash.hexdigest()
+            # Optimized file hashing using internal C implementation (Python 3.11+)
+            if hasattr(hashlib, "file_digest"):
+                return hashlib.file_digest(f, "sha256").hexdigest()
+            else:
+                # Fallback for older Python versions with increased buffer size (64KB)
+                sha256_hash = hashlib.sha256()
+                for byte_block in iter(lambda: f.read(65536), b""):
+                    sha256_hash.update(byte_block)
+                return sha256_hash.hexdigest()
     except Exception:
         return None
 
