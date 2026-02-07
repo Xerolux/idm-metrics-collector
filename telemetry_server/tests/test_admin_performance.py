@@ -2,6 +2,8 @@ import pytest
 import json
 import time
 import asyncio
+import tempfile
+import os
 from unittest.mock import MagicMock, AsyncMock, patch
 from app import app
 
@@ -162,3 +164,44 @@ async def test_admin_installation_details_parallel(client):
     # If parallel: 1 call duration (approx) = 0.1s + overhead
     # We assert it's faster than sequential sum (allow some buffer)
     assert duration < 0.25  # Should be well under 0.25s (typically ~0.12s)
+
+
+@pytest.fixture
+def temp_model_dir():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Create dummy models
+        for i in range(5):
+            with open(os.path.join(tmpdirname, f"model_{i}.enc"), "wb") as f:
+                f.write(b"data" * 100)
+        yield tmpdirname
+
+
+@pytest.mark.asyncio
+async def test_admin_list_models_parallel_execution(client, temp_model_dir):
+    # Patch MODEL_DIR
+    with patch("app.MODEL_DIR", temp_model_dir):
+        # Mock auth
+        with (
+            patch("app.verify_admin", return_value="admin-id"),
+            patch("app.has_permission", return_value=True),
+            patch("app.check_admin_rate_limit", return_value=None),
+        ):
+            # Patch get_file_hash to be slow
+            async def slow_hash(filepath):
+                await asyncio.sleep(0.1)  # Simulate 100ms I/O
+                return "hash123"
+
+            with patch("app.get_file_hash", side_effect=slow_hash):
+                start_time = time.time()
+                response = client.get("/api/v1/admin/models")
+                end_time = time.time()
+
+                assert response.status_code == 200
+                data = response.json()
+                assert len(data["models"]) == 5
+
+                duration = end_time - start_time
+                # If serial: 5 * 0.1 = 0.5s
+                # If parallel: ~0.1s + overhead
+                # Assert it's fast
+                assert duration < 0.3

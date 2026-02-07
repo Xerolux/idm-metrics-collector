@@ -633,12 +633,16 @@ def _get_file_hash_sync(filepath: str) -> Optional[str]:
     """Synchronous internal function for hash calculation."""
     if not os.path.exists(filepath):
         return None
-    sha256_hash = hashlib.sha256()
     try:
         with open(filepath, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
+            # Use file_digest if available (Python 3.11+) for optimized hashing
+            if hasattr(hashlib, "file_digest"):
+                return hashlib.file_digest(f, "sha256").hexdigest()
+
+            sha256_hash = hashlib.sha256()
+            for byte_block in iter(lambda: f.read(65536), b""):
                 sha256_hash.update(byte_block)
-        return sha256_hash.hexdigest()
+            return sha256_hash.hexdigest()
     except Exception:
         return None
 
@@ -1929,8 +1933,11 @@ async def admin_list_models(
     exists = await run_sync(model_dir.exists)
     if exists:
         model_files = await run_sync(lambda: list(model_dir.glob("*.enc")))
-        for mf in model_files:
-            models.append(await _get_model_details(mf))
+        if model_files:
+            # Fetch all model details concurrently
+            models = await asyncio.gather(
+                *[_get_model_details(mf) for mf in model_files]
+            )
 
     return {
         "models": sorted(models, key=lambda x: x["modified"], reverse=True),
