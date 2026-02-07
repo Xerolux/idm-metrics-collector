@@ -21,3 +21,7 @@
 ## 2026-03-05 - Implicit Contrast Assumptions
 **Learning:** Headers in dark-themed sections (like `bg-surface-900`) without explicit text color classes often rely on inherited styles. This fails when the global text color defaults to a dark value, rendering the text invisible against the dark background.
 **Action:** Always explicitly define text color (e.g., `text-gray-100`) for headings within sections that enforce a specific background color, rather than relying on inheritance or dark mode variants alone.
+
+## 2026-02-07 - PrimeVue Password Toggle Pattern
+**Learning:** PrimeVue 4's `InputGroup` (via `p-inputgroup` class) provides a consistent way to add password visibility toggles, which is essential for accessibility and usability, especially on mobile devices.
+**Action:** Use the `p-inputgroup` wrapper with `InputText` and a toggle `Button` for all password fields to ensure consistent styling and keyboard accessibility.
