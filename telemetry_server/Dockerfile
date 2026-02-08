@@ -7,7 +7,8 @@ WORKDIR /app
 
 # Copy requirements from telemetry_server directory
 COPY telemetry_server/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy all application files from telemetry_server
 COPY telemetry_server/ .
