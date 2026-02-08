@@ -78,10 +78,10 @@ services:
       # ML Configuration
       - ANOMALY_THRESHOLD=0.7
       - MIN_DATA_RATIO=0.4
-      - MODEL_N_TREES=25
-      - MODEL_HEIGHT=15
-      - MODEL_WINDOW_SIZE=250
-      - MODEL_SAVE_INTERVAL=300
+      - MODEL_N_TREES=15
+      - MODEL_HEIGHT=10
+      - MODEL_WINDOW_SIZE=10
+      - MODEL_SAVE_INTERVAL=60
       - MODEL_PATH=/app/data/model_state.pkl
       # Alert settings
       - ENABLE_ALERTS=true
