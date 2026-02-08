@@ -25,6 +25,12 @@ class TestMLServiceLogic(unittest.TestCase):
         )
         self.env_patcher.start()
 
+        # Mock torch if not installed
+        if "torch" not in sys.modules:
+            sys.modules["torch"] = MagicMock()
+            sys.modules["torch.nn"] = MagicMock()
+            sys.modules["torch.nn.Module"] = MagicMock
+
         try:
             import ml_service.main as main
 
@@ -215,6 +221,9 @@ class TestMLServiceLogic(unittest.TestCase):
 
     def test_autoencoder_model_score_learn(self):
         """Test that AutoencoderModel score_one and learn_one work correctly."""
+        if isinstance(self.main.torch, MagicMock):
+            self.skipTest("Torch mocked")
+
         model = self.main.AutoencoderModel(hidden_dim=8, latent_dim=4, train_steps=1)
 
         data = {"sensor1": 10.0, "sensor2": 20.0, "sensor3": 30.0}
@@ -267,6 +276,41 @@ class TestMLServiceLogic(unittest.TestCase):
         # sensor2 has z-score = |23-20|/3 = 1.0
         self.assertEqual(result[0]["feature"], "sensor1")
         self.assertAlmostEqual(result[0]["score"], 2.0)
+
+    def test_fetch_latest_data(self):
+        """Test fetch_latest_data uses POST and parses response correctly."""
+        with patch("requests.post") as mock_post:
+            mock_post.return_value.status_code = 200
+            mock_post.return_value.json.return_value = {
+                "status": "success",
+                "data": {
+                    "result": [
+                        {
+                            "metric": {"__name__": "idm_heatpump_sensor1"},
+                            "value": [1234567890, "10.5"],
+                        },
+                        {
+                            "metric": {"__name__": "idm_heatpump_sensor2"},
+                            "value": [1234567890, "20.0"],
+                        },
+                    ]
+                },
+            }
+
+            # Set measurement name to match mock data
+            with patch("ml_service.main.MEASUREMENT_NAME", "idm_heatpump"):
+                data = self.main.fetch_latest_data()
+
+            self.assertIsNotNone(data)
+            self.assertEqual(data["sensor1"], 10.5)
+            self.assertEqual(data["sensor2"], 20.0)
+
+            # Verify POST was used with correct data
+            mock_post.assert_called_once()
+            args, kwargs = mock_post.call_args
+            self.assertIn("data", kwargs)
+            self.assertIn("query", kwargs["data"])
+            self.assertIn("idm_heatpump_sensor1", kwargs["data"]["query"])
 
 
 if __name__ == "__main__":
