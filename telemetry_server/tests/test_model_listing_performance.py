@@ -4,7 +4,7 @@ import tempfile
 import time
 import shutil
 from unittest.mock import patch
-from app import app
+
 
 @pytest.fixture
 def temp_model_dir():
@@ -25,22 +25,26 @@ def temp_model_dir():
     if old_model_dir:
         os.environ["MODEL_DIR"] = old_model_dir
 
+
 @pytest.mark.asyncio
 async def test_parallel_hashing(client, temp_model_dir):
     # Create dummy models
     count = 10
-    size_mb = 10 # 10MB to ensure hashing takes noticeable time
+    size_mb = 10  # 10MB to ensure hashing takes noticeable time
 
     print(f"\nCreating {count} dummy models of {size_mb}MB...")
     for i in range(count):
         with open(os.path.join(temp_model_dir, f"model_{i}.enc"), "wb") as f:
             f.write(os.urandom(size_mb * 1024 * 1024))
 
-    headers = {"Authorization": "Bearer change-me-to-something-secure"} # Default token in tests usually
+    headers = {
+        "Authorization": "Bearer change-me-to-something-secure"
+    }  # Default token in tests usually
     # Check app.py for default token: "change-me-to-something-secure" if not set
     # But in test environment it might be different.
     # Let's check app.AUTH_TOKEN
     from app import AUTH_TOKEN
+
     headers = {"Authorization": f"Bearer {AUTH_TOKEN}"}
 
     print("Calling /api/v1/models...")

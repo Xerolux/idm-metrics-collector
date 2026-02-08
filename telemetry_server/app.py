@@ -1736,6 +1736,7 @@ async def list_available_models(request: Request, auth: None = Depends(verify_to
     model_dir = Path(MODEL_DIR)
 
     if model_dir.exists():
+
         async def _get_model_info(model_file):
             return {
                 "name": model_file.stem.replace("_", " "),
@@ -1929,7 +1930,9 @@ async def admin_list_models(
     if exists:
         model_files = await run_sync(lambda: list(model_dir.glob("*.enc")))
         if model_files:
-            models = await asyncio.gather(*[_get_model_details(mf) for mf in model_files])
+            models = await asyncio.gather(
+                *[_get_model_details(mf) for mf in model_files]
+            )
 
     return {
         "models": sorted(models, key=lambda x: x["modified"], reverse=True),
