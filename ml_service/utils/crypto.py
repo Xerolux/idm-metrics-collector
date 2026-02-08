@@ -13,11 +13,12 @@ class RestrictedUnpickler(pickle.Unpickler):
         # Only allow safe modules and classes
         # This list should be updated as needed for the ML model components
         safe_modules = {
-            "river",
+            "torch",
             "numpy",
             "collections",
             "datetime",
             "math",
+            "ml_service",
         }
 
         # Allow submodules of safe modules (simple prefix check)
