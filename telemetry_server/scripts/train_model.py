@@ -25,7 +25,6 @@ from typing import Generator, Dict, Any
 import requests
 import torch
 import torch.nn as nn
-import numpy as np
 
 # Configuration
 VM_EXPORT_URL = os.environ.get("VM_EXPORT_URL", "http://localhost:8428/api/v1/export")
@@ -121,7 +120,7 @@ class OnlineStandardScaler:
                 value = 0.0
             mean = self.means.get(key, 0.0)
             var = self.vars.get(key, 0.0)
-            std = var ** 0.5
+            std = var**0.5
             if std > 1e-6:
                 result.append((value - mean) / std)
             else:
@@ -135,8 +134,14 @@ class AutoencoderModel:
     Compatible with the ml_service runtime.
     """
 
-    def __init__(self, hidden_dim=AE_HIDDEN_DIM, latent_dim=AE_LATENT_DIM,
-                 learning_rate=AE_LEARNING_RATE, train_steps=3, ema_alpha=0.01):
+    def __init__(
+        self,
+        hidden_dim=AE_HIDDEN_DIM,
+        latent_dim=AE_LATENT_DIM,
+        learning_rate=AE_LEARNING_RATE,
+        train_steps=3,
+        ema_alpha=0.01,
+    ):
         self.hidden_dim = hidden_dim
         self.latent_dim = latent_dim
         self.learning_rate = learning_rate
@@ -156,12 +161,16 @@ class AutoencoderModel:
         if self.net is None:
             self.net = Autoencoder(input_dim, self.hidden_dim, self.latent_dim)
             self.net.train()
-            self.optimizer = torch.optim.Adam(self.net.parameters(), lr=self.learning_rate)
+            self.optimizer = torch.optim.Adam(
+                self.net.parameters(), lr=self.learning_rate
+            )
 
     def _prepare_input(self, data: dict) -> torch.Tensor:
         numeric_data = {
-            k: v for k, v in data.items()
-            if isinstance(v, (int, float)) and not (isinstance(v, float) and math.isnan(v))
+            k: v
+            for k, v in data.items()
+            if isinstance(v, (int, float))
+            and not (isinstance(v, float) and math.isnan(v))
         }
         if not self.feature_order:
             self.feature_order = sorted(numeric_data.keys())
@@ -179,7 +188,7 @@ class AutoencoderModel:
             mse = torch.mean((x - x_hat) ** 2).item()
         if self.ema_loss is None:
             return 0.0
-        ema_var = self.ema_loss_sq - self.ema_loss ** 2
+        ema_var = self.ema_loss_sq - self.ema_loss**2
         ema_std = max(ema_var, 0.0) ** 0.5
         if ema_std < 1e-8:
             score = min(mse / (self.ema_loss + 1e-8), 1.0)
@@ -192,8 +201,10 @@ class AutoencoderModel:
         self.scaler.partial_fit(data)
         if not self.feature_order:
             numeric_data = {
-                k: v for k, v in data.items()
-                if isinstance(v, (int, float)) and not (isinstance(v, float) and math.isnan(v))
+                k: v
+                for k, v in data.items()
+                if isinstance(v, (int, float))
+                and not (isinstance(v, float) and math.isnan(v))
             }
             self.feature_order = sorted(numeric_data.keys())
         self._ensure_net(len(self.feature_order))
@@ -208,10 +219,12 @@ class AutoencoderModel:
         mse = loss.item()
         if self.ema_loss is None:
             self.ema_loss = mse
-            self.ema_loss_sq = mse ** 2
+            self.ema_loss_sq = mse**2
         else:
             self.ema_loss = (1 - self.ema_alpha) * self.ema_loss + self.ema_alpha * mse
-            self.ema_loss_sq = (1 - self.ema_alpha) * self.ema_loss_sq + self.ema_alpha * (mse ** 2)
+            self.ema_loss_sq = (
+                1 - self.ema_alpha
+            ) * self.ema_loss_sq + self.ema_alpha * (mse**2)
 
 
 def fetch_data_stats(model_name: str) -> Dict[str, Any]:

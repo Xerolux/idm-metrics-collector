@@ -13,7 +13,6 @@ import math
 
 import torch
 import torch.nn as nn
-import numpy as np
 
 # Use joblib for safer model serialization (no arbitrary code execution)
 try:
@@ -292,7 +291,7 @@ class OnlineStandardScaler:
                 value = 0.0
             mean = self.means.get(key, 0.0)
             var = self.vars.get(key, 0.0)
-            std = var ** 0.5
+            std = var**0.5
             if std > 1e-6:
                 result.append((value - mean) / std)
             else:
@@ -307,9 +306,14 @@ class AutoencoderModel:
     exponential moving average for the reconstruction error threshold.
     """
 
-    def __init__(self, hidden_dim=AE_HIDDEN_DIM, latent_dim=AE_LATENT_DIM,
-                 learning_rate=AE_LEARNING_RATE, train_steps=AE_TRAIN_STEPS,
-                 ema_alpha=AE_EMA_ALPHA):
+    def __init__(
+        self,
+        hidden_dim=AE_HIDDEN_DIM,
+        latent_dim=AE_LATENT_DIM,
+        learning_rate=AE_LEARNING_RATE,
+        train_steps=AE_TRAIN_STEPS,
+        ema_alpha=AE_EMA_ALPHA,
+    ):
         self.hidden_dim = hidden_dim
         self.latent_dim = latent_dim
         self.learning_rate = learning_rate
@@ -332,14 +336,18 @@ class AutoencoderModel:
         if self.net is None:
             self.net = Autoencoder(input_dim, self.hidden_dim, self.latent_dim)
             self.net.train()
-            self.optimizer = torch.optim.Adam(self.net.parameters(), lr=self.learning_rate)
+            self.optimizer = torch.optim.Adam(
+                self.net.parameters(), lr=self.learning_rate
+            )
 
     def _prepare_input(self, data: dict) -> torch.Tensor:
         """Convert a dict of features to a scaled tensor."""
         # Filter to numeric features only
         numeric_data = {
-            k: v for k, v in data.items()
-            if isinstance(v, (int, float)) and not (isinstance(v, float) and math.isnan(v))
+            k: v
+            for k, v in data.items()
+            if isinstance(v, (int, float))
+            and not (isinstance(v, float) and math.isnan(v))
         }
 
         # Lock feature order on first call
@@ -369,7 +377,7 @@ class AutoencoderModel:
         if self.ema_loss is None:
             return 0.0
 
-        ema_var = self.ema_loss_sq - self.ema_loss ** 2
+        ema_var = self.ema_loss_sq - self.ema_loss**2
         ema_std = max(ema_var, 0.0) ** 0.5
 
         if ema_std < 1e-8:
@@ -391,8 +399,10 @@ class AutoencoderModel:
         if not self.feature_order:
             # First call — lock feature order
             numeric_data = {
-                k: v for k, v in data.items()
-                if isinstance(v, (int, float)) and not (isinstance(v, float) and math.isnan(v))
+                k: v
+                for k, v in data.items()
+                if isinstance(v, (int, float))
+                and not (isinstance(v, float) and math.isnan(v))
             }
             self.feature_order = sorted(numeric_data.keys())
 
@@ -412,10 +422,12 @@ class AutoencoderModel:
         mse = loss.item()
         if self.ema_loss is None:
             self.ema_loss = mse
-            self.ema_loss_sq = mse ** 2
+            self.ema_loss_sq = mse**2
         else:
             self.ema_loss = (1 - self.ema_alpha) * self.ema_loss + self.ema_alpha * mse
-            self.ema_loss_sq = (1 - self.ema_alpha) * self.ema_loss_sq + self.ema_alpha * (mse ** 2)
+            self.ema_loss_sq = (
+                1 - self.ema_alpha
+            ) * self.ema_loss_sq + self.ema_alpha * (mse**2)
 
 
 def create_pipeline():
