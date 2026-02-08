@@ -617,7 +617,8 @@ def fetch_latest_data():
 
     for attempt in range(RETRY_MAX_ATTEMPTS):
         try:
-            response = requests.get(query_url, params={"query": query}, timeout=10)
+            # Use POST to avoid URL length limits with many sensors
+            response = requests.post(query_url, data={"query": query}, timeout=10)
             if response.status_code != 200:
                 last_error = f"HTTP {response.status_code}: {response.text[:100]}"
                 if attempt < RETRY_MAX_ATTEMPTS - 1:
