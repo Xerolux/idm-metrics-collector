@@ -223,7 +223,7 @@ _net_sec_cache = {
 # AI Status Cache
 _ai_status_lock = threading.Lock()
 _ai_status_cache = {
-    "service": "ml-service (River/HST)",
+    "service": "ml-service (PyTorch/Autoencoder)",
     "online": False,
     "score": 0.0,
     "is_anomaly": False,
@@ -255,7 +255,7 @@ def _update_ai_status_once():
             return
 
         new_status = {
-            "service": "ml-service (River/HST)",
+            "service": "ml-service (PyTorch/Autoencoder)",
             "online": False,
             "score": 0.0,
             "is_anomaly": False,
