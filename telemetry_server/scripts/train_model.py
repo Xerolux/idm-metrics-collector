@@ -4,7 +4,7 @@
 Community Model Training Script for IDM Telemetry Server.
 
 This script fetches telemetry data from VictoriaMetrics and trains
-a River-based anomaly detection model that can be distributed to
+a PyTorch Autoencoder anomaly detection model that can be distributed to
 eligible community members.
 
 Usage:
@@ -18,13 +18,14 @@ import logging
 import argparse
 import sys
 import os
+import math
 from datetime import datetime, timedelta
 from typing import Generator, Dict, Any
 
 import requests
-from river import anomaly
-from river import compose
-from river import preprocessing
+import torch
+import torch.nn as nn
+import numpy as np
 
 # Configuration
 VM_EXPORT_URL = os.environ.get("VM_EXPORT_URL", "http://localhost:8428/api/v1/export")
@@ -51,10 +52,166 @@ TRAINING_FEATURES = [
     "compressor_frequency",
 ]
 
+# Autoencoder hyperparameters
+AE_HIDDEN_DIM = int(os.environ.get("AE_HIDDEN_DIM", "32"))
+AE_LATENT_DIM = int(os.environ.get("AE_LATENT_DIM", "8"))
+AE_LEARNING_RATE = float(os.environ.get("AE_LEARNING_RATE", "0.001"))
+AE_EPOCHS = int(os.environ.get("AE_EPOCHS", "50"))
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger("train_model")
+
+
+class Autoencoder(nn.Module):
+    """Simple feedforward autoencoder for anomaly detection."""
+
+    def __init__(self, input_dim, hidden_dim=AE_HIDDEN_DIM, latent_dim=AE_LATENT_DIM):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, latent_dim),
+            nn.ReLU(),
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(latent_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, input_dim),
+        )
+
+    def forward(self, x):
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return decoded
+
+
+class OnlineStandardScaler:
+    """Standard scaler for batch training data."""
+
+    def __init__(self):
+        self.n = 0
+        self.means = {}
+        self.m2 = {}
+        self.vars = {}
+
+    def partial_fit(self, data: dict):
+        """Update running statistics with a single sample."""
+        self.n += 1
+        for key, value in data.items():
+            if not isinstance(value, (int, float)):
+                continue
+            if key not in self.means:
+                self.means[key] = 0.0
+                self.m2[key] = 0.0
+                self.vars[key] = 0.0
+            delta = value - self.means[key]
+            self.means[key] += delta / self.n
+            delta2 = value - self.means[key]
+            self.m2[key] += delta * delta2
+            self.vars[key] = self.m2[key] / self.n if self.n > 1 else 0.0
+
+    def transform(self, data: dict, feature_order: list) -> list:
+        """Scale features using running stats."""
+        result = []
+        for key in feature_order:
+            value = data.get(key, 0.0)
+            if not isinstance(value, (int, float)):
+                value = 0.0
+            mean = self.means.get(key, 0.0)
+            var = self.vars.get(key, 0.0)
+            std = var ** 0.5
+            if std > 1e-6:
+                result.append((value - mean) / std)
+            else:
+                result.append(0.0)
+        return result
+
+
+class AutoencoderModel:
+    """
+    Wrapper providing streaming interface around PyTorch Autoencoder.
+    Compatible with the ml_service runtime.
+    """
+
+    def __init__(self, hidden_dim=AE_HIDDEN_DIM, latent_dim=AE_LATENT_DIM,
+                 learning_rate=AE_LEARNING_RATE, train_steps=3, ema_alpha=0.01):
+        self.hidden_dim = hidden_dim
+        self.latent_dim = latent_dim
+        self.learning_rate = learning_rate
+        self.train_steps = train_steps
+        self.ema_alpha = ema_alpha
+
+        self.scaler = OnlineStandardScaler()
+        self.feature_order = []
+        self.net = None
+        self.optimizer = None
+        self.criterion = nn.MSELoss()
+        self.ema_loss = None
+        self.ema_loss_sq = None
+        self.steps = {}
+
+    def _ensure_net(self, input_dim):
+        if self.net is None:
+            self.net = Autoencoder(input_dim, self.hidden_dim, self.latent_dim)
+            self.net.train()
+            self.optimizer = torch.optim.Adam(self.net.parameters(), lr=self.learning_rate)
+
+    def _prepare_input(self, data: dict) -> torch.Tensor:
+        numeric_data = {
+            k: v for k, v in data.items()
+            if isinstance(v, (int, float)) and not (isinstance(v, float) and math.isnan(v))
+        }
+        if not self.feature_order:
+            self.feature_order = sorted(numeric_data.keys())
+        scaled = self.scaler.transform(numeric_data, self.feature_order)
+        return torch.tensor([scaled], dtype=torch.float32)
+
+    def score_one(self, data: dict) -> float:
+        if not self.feature_order:
+            return 0.0
+        self._ensure_net(len(self.feature_order))
+        self.net.eval()
+        with torch.no_grad():
+            x = self._prepare_input(data)
+            x_hat = self.net(x)
+            mse = torch.mean((x - x_hat) ** 2).item()
+        if self.ema_loss is None:
+            return 0.0
+        ema_var = self.ema_loss_sq - self.ema_loss ** 2
+        ema_std = max(ema_var, 0.0) ** 0.5
+        if ema_std < 1e-8:
+            score = min(mse / (self.ema_loss + 1e-8), 1.0)
+        else:
+            z = (mse - self.ema_loss) / ema_std
+            score = 1.0 / (1.0 + math.exp(-z))
+        return float(score)
+
+    def learn_one(self, data: dict):
+        self.scaler.partial_fit(data)
+        if not self.feature_order:
+            numeric_data = {
+                k: v for k, v in data.items()
+                if isinstance(v, (int, float)) and not (isinstance(v, float) and math.isnan(v))
+            }
+            self.feature_order = sorted(numeric_data.keys())
+        self._ensure_net(len(self.feature_order))
+        self.net.train()
+        x = self._prepare_input(data)
+        for _ in range(self.train_steps):
+            self.optimizer.zero_grad()
+            x_hat = self.net(x)
+            loss = self.criterion(x_hat, x)
+            loss.backward()
+            self.optimizer.step()
+        mse = loss.item()
+        if self.ema_loss is None:
+            self.ema_loss = mse
+            self.ema_loss_sq = mse ** 2
+        else:
+            self.ema_loss = (1 - self.ema_alpha) * self.ema_loss + self.ema_alpha * mse
+            self.ema_loss_sq = (1 - self.ema_alpha) * self.ema_loss_sq + self.ema_alpha * (mse ** 2)
 
 
 def fetch_data_stats(model_name: str) -> Dict[str, Any]:
@@ -122,7 +279,6 @@ def stream_training_data(
     start_time = end_time - timedelta(days=lookback_days)
 
     # Export format for VictoriaMetrics
-    # match[] uses regex to select all heatpump metrics for this model
     params = {
         "match[]": f'{{__name__=~"heatpump_metrics_.*", model="{safe_model}"}}',
         "start": int(start_time.timestamp()),
@@ -139,7 +295,6 @@ def stream_training_data(
             return
 
         # VictoriaMetrics export returns JSON lines
-        # Each line is a series: {"metric": {...}, "values": [...], "timestamps": [...]}
         for line in response.iter_lines():
             if not line:
                 continue
@@ -151,7 +306,6 @@ def stream_training_data(
                 timestamps = series.get("timestamps", [])
 
                 # Extract field name from metric
-                # In VM/Influx, metric name is usually measurement_field
                 field_name = metric_info.get("__name__", "").replace(
                     "heatpump_metrics_", ""
                 )
@@ -220,7 +374,7 @@ def train_model(
     lookback_days: int = 30,
 ) -> bool:
     """
-    Train a River anomaly detection model on community data.
+    Train a PyTorch Autoencoder anomaly detection model on community data.
 
     Returns True if training was successful.
     """
@@ -243,11 +397,11 @@ def train_model(
         )
         return False
 
-    # Setup River Pipeline
-    # HalfSpaceTrees is good for anomaly detection in streaming data
-    model = compose.Pipeline(
-        preprocessing.MinMaxScaler(),
-        anomaly.HalfSpaceTrees(n_trees=50, height=6, window_size=250, seed=42),
+    # Setup PyTorch Autoencoder model
+    model = AutoencoderModel(
+        hidden_dim=AE_HIDDEN_DIM,
+        latent_dim=AE_LATENT_DIM,
+        learning_rate=AE_LEARNING_RATE,
     )
 
     # Training loop
@@ -264,7 +418,7 @@ def train_model(
             features = {k: v for k, v in sample.items() if k in TRAINING_FEATURES}
 
             if len(features) >= 3:  # Minimum features required
-                # Learn from the sample (anomaly score is computed internally)
+                # Learn from the sample
                 model.learn_one(features)
                 samples_processed += 1
 
@@ -298,6 +452,9 @@ def train_model(
         "installations": stats["installations"],
         "lookback_days": lookback_days,
         "features": TRAINING_FEATURES,
+        "architecture": "pytorch_autoencoder",
+        "hidden_dim": AE_HIDDEN_DIM,
+        "latent_dim": AE_LATENT_DIM,
     }
     metadata_file = output_file.replace(".pkl", "_metadata.json")
     with open(metadata_file, "w") as f:

@@ -35,7 +35,7 @@ const privacyDialog = ref(null)
                   Detailliertes Logging & Visualisierung (VictoriaMetrics + integriertes Dashboard)
                 </li>
                 <li>Intelligente Steuerung via Modbus TCP</li>
-                <li>AI Anomalie-Erkennung (Echtzeit-Überwachung mit River)</li>
+                <li>AI Anomalie-Erkennung (Echtzeit-Überwachung mit PyTorch Autoencoder)</li>
                 <li>Techniker-Tools (Code Generator)</li>
                 <li>Benachrichtigungssystem (Signal Messenger)</li>
               </ul>
@@ -83,7 +83,7 @@ const privacyDialog = ref(null)
                 >
                 <span
                   class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium"
-                  >River (Online ML)</span
+                  >PyTorch (Autoencoder ML)</span
                 >
                 <span
                   class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium"

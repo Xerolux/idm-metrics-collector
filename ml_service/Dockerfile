@@ -5,6 +5,7 @@ WORKDIR /app
 # Copy ML service requirements and install
 COPY ml_service/requirements.txt .
 RUN pip install --upgrade pip && \
+    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy the idm_logger package (needed for imports)

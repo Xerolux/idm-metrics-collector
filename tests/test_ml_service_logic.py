@@ -34,13 +34,19 @@ class TestMLServiceLogic(unittest.TestCase):
             self.skipTest("ML Service dependencies not met")
 
         self.main.SENSORS = ["sensor1", "sensor2", "status_heat_pump"]
-        # Mock models
+        # Mock models with AutoencoderModel-like interface
         self.main.models = {
             "heating": MagicMock(),
             "cooling": MagicMock(),
             "water": MagicMock(),
             "standby": MagicMock(),
         }
+        # Add scaler attribute to mocked models for get_top_features compatibility
+        for mode_model in self.main.models.values():
+            mode_model.scaler = MagicMock()
+            mode_model.scaler.means = {}
+            mode_model.scaler.vars = {}
+            mode_model.steps = {}
         self.main.logger = MagicMock()
         self.main.last_data_points = {}
         self.main.consecutive_anomalies = 0
@@ -144,25 +150,6 @@ class TestMLServiceLogic(unittest.TestCase):
             self.main.models["standby"].score_one.return_value = 0.0
 
             # Run enough times to exceed WARMUP_UPDATES=5
-            # We need update_counter > 5.
-            # It starts at 0.
-            # 0 -> 1
-            # 1 -> 2
-            # 2 -> 3
-            # 3 -> 4
-            # 4 -> 5
-            # 5 -> 6 (Now it satisfies > 5)
-
-            # But the check happens BEFORE increment.
-            # So:
-            # call 1 (cnt=0): check 0>5 (False), inc -> 1
-            # call 2 (cnt=1): check 1>5 (False), inc -> 2
-            # call 3 (cnt=2): check 2>5 (False), inc -> 3
-            # call 4 (cnt=3): check 3>5 (False), inc -> 4
-            # call 5 (cnt=4): check 4>5 (False), inc -> 5
-            # call 6 (cnt=5): check 5>5 (False), inc -> 6
-            # call 7 (cnt=6): check 6>5 (True), inc -> 7
-
             for _ in range(7):
                 self.main.job()
 
@@ -225,6 +212,61 @@ class TestMLServiceLogic(unittest.TestCase):
             with patch("os.path.exists", return_value=True):
                 self.main._save_worker(b"data", "/path/to/model")
                 mock_remove.assert_called_with(expected_temp)
+
+    def test_autoencoder_model_score_learn(self):
+        """Test that AutoencoderModel score_one and learn_one work correctly."""
+        model = self.main.AutoencoderModel(hidden_dim=8, latent_dim=4, train_steps=1)
+
+        data = {"sensor1": 10.0, "sensor2": 20.0, "sensor3": 30.0}
+
+        # First score should return 0.0 (no feature order yet)
+        score = model.score_one(data)
+        self.assertEqual(score, 0.0)
+
+        # Learn from data
+        model.learn_one(data)
+
+        # After learning, feature_order should be set
+        self.assertEqual(model.feature_order, ["sensor1", "sensor2", "sensor3"])
+
+        # Score after learning should return a value
+        score = model.score_one(data)
+        self.assertIsInstance(score, float)
+
+    def test_autoencoder_model_online_scaler(self):
+        """Test that the OnlineStandardScaler tracks statistics correctly."""
+        scaler = self.main.OnlineStandardScaler()
+
+        # Fit with some data
+        scaler.partial_fit({"a": 10.0, "b": 20.0})
+        scaler.partial_fit({"a": 20.0, "b": 40.0})
+
+        # Check means
+        self.assertAlmostEqual(scaler.means["a"], 15.0)
+        self.assertAlmostEqual(scaler.means["b"], 30.0)
+
+        # Check that transform produces scaled values
+        scaled = scaler.transform({"a": 15.0, "b": 30.0}, ["a", "b"])
+        # Mean values should scale to ~0
+        self.assertAlmostEqual(scaled[0], 0.0, places=1)
+        self.assertAlmostEqual(scaled[1], 0.0, places=1)
+
+    def test_get_top_features_with_autoencoder(self):
+        """Test get_top_features works with AutoencoderModel's scaler."""
+        model = MagicMock()
+        model.scaler = MagicMock()
+        model.scaler.means = {"sensor1": 10.0, "sensor2": 20.0}
+        model.scaler.vars = {"sensor1": 4.0, "sensor2": 9.0}
+
+        data = {"sensor1": 14.0, "sensor2": 23.0}
+
+        result = self.main.get_top_features(model, data, n=2)
+
+        self.assertEqual(len(result), 2)
+        # sensor1 has z-score = |14-10|/2 = 2.0
+        # sensor2 has z-score = |23-20|/3 = 1.0
+        self.assertEqual(result[0]["feature"], "sensor1")
+        self.assertAlmostEqual(result[0]["score"], 2.0)
 
 
 if __name__ == "__main__":

@@ -78,11 +78,14 @@ services:
       # ML Configuration
       - ANOMALY_THRESHOLD=0.7
       - MIN_DATA_RATIO=0.4
-      - MODEL_N_TREES=15
-      - MODEL_HEIGHT=10
-      - MODEL_WINDOW_SIZE=10
       - MODEL_SAVE_INTERVAL=60
       - MODEL_PATH=/app/data/model_state.pkl
+      # Autoencoder Configuration
+      - AE_HIDDEN_DIM=32
+      - AE_LATENT_DIM=8
+      - AE_LEARNING_RATE=0.001
+      - AE_TRAIN_STEPS=3
+      - AE_EMA_ALPHA=0.01
       # Alert settings
       - ENABLE_ALERTS=true
       - ALERT_COOLDOWN=3600

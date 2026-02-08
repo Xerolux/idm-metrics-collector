@@ -7,11 +7,13 @@ import requests
 import schedule
 import threading
 from datetime import datetime
-from river import anomaly
-from river import preprocessing
-from river import compose
 from flask import Flask, jsonify, request
 import sys
+import math
+
+import torch
+import torch.nn as nn
+import numpy as np
 
 # Use joblib for safer model serialization (no arbitrary code execution)
 try:
@@ -45,9 +47,6 @@ UPDATE_INTERVAL = int(os.environ.get("UPDATE_INTERVAL", 30))
 # ML Configuration
 ANOMALY_THRESHOLD = float(os.environ.get("ANOMALY_THRESHOLD", "0.7"))
 MIN_DATA_RATIO = float(os.environ.get("MIN_DATA_RATIO", "0.1"))
-MODEL_N_TREES = int(os.environ.get("MODEL_N_TREES", "25"))
-MODEL_HEIGHT = int(os.environ.get("MODEL_HEIGHT", "15"))
-MODEL_WINDOW_SIZE = int(os.environ.get("MODEL_WINDOW_SIZE", "250"))
 MODEL_SAVE_INTERVAL = int(
     os.environ.get("MODEL_SAVE_INTERVAL", "300")
 )  # Save every 5 minutes
@@ -60,6 +59,13 @@ WARMUP_UPDATES = int(
 ALARM_CONSECUTIVE_HITS = int(os.environ.get("ALARM_CONSECUTIVE_HITS", "3"))
 IDM_LOGGER_URL = os.environ.get("IDM_LOGGER_URL", "http://idm-logger:5000")
 INTERNAL_API_KEY = os.environ.get("INTERNAL_API_KEY")
+
+# Autoencoder Configuration
+AE_HIDDEN_DIM = int(os.environ.get("AE_HIDDEN_DIM", "32"))
+AE_LATENT_DIM = int(os.environ.get("AE_LATENT_DIM", "8"))
+AE_LEARNING_RATE = float(os.environ.get("AE_LEARNING_RATE", "0.001"))
+AE_TRAIN_STEPS = int(os.environ.get("AE_TRAIN_STEPS", "3"))
+AE_EMA_ALPHA = float(os.environ.get("AE_EMA_ALPHA", "0.01"))
 
 # Connection retry configuration
 RETRY_BASE_DELAY = float(os.environ.get("RETRY_BASE_DELAY", "1.0"))
@@ -148,11 +154,6 @@ def upload_model():
         if file.filename == "":
             return jsonify({"error": "No selected file"}), 400
 
-        # Optional: Check secret header if supplied by client
-        # secret = request.headers.get("X-Internal-Secret")
-        # if INTERNAL_API_KEY and secret != INTERNAL_API_KEY:
-        #    return jsonify({"error": "Unauthorized"}), 401
-
         logger.info("Receiving new model file via API...")
 
         # Save to temporary location first to avoid corruption
@@ -228,22 +229,209 @@ if "status_heat_pump" not in SENSORS:
     SENSORS.append("status_heat_pump")
 
 
+# --- PyTorch Autoencoder ---
+
+
+class Autoencoder(nn.Module):
+    """
+    Simple feedforward autoencoder for anomaly detection.
+    Anomaly score is based on reconstruction error (MSE).
+    """
+
+    def __init__(self, input_dim, hidden_dim=AE_HIDDEN_DIM, latent_dim=AE_LATENT_DIM):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, latent_dim),
+            nn.ReLU(),
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(latent_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, input_dim),
+        )
+
+    def forward(self, x):
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return decoded
+
+
+class OnlineStandardScaler:
+    """Incremental standard scaler using Welford's algorithm."""
+
+    def __init__(self):
+        self.n = 0
+        self.means = {}
+        self.m2 = {}
+        self.vars = {}
+
+    def partial_fit(self, data: dict):
+        """Update running statistics with a single sample."""
+        self.n += 1
+        for key, value in data.items():
+            if not isinstance(value, (int, float)):
+                continue
+            if key not in self.means:
+                self.means[key] = 0.0
+                self.m2[key] = 0.0
+                self.vars[key] = 0.0
+            delta = value - self.means[key]
+            self.means[key] += delta / self.n
+            delta2 = value - self.means[key]
+            self.m2[key] += delta * delta2
+            self.vars[key] = self.m2[key] / self.n if self.n > 1 else 0.0
+
+    def transform(self, data: dict, feature_order: list) -> list:
+        """Scale features using running stats. Returns list in feature_order."""
+        result = []
+        for key in feature_order:
+            value = data.get(key, 0.0)
+            if not isinstance(value, (int, float)):
+                value = 0.0
+            mean = self.means.get(key, 0.0)
+            var = self.vars.get(key, 0.0)
+            std = var ** 0.5
+            if std > 1e-6:
+                result.append((value - mean) / std)
+            else:
+                result.append(0.0)
+        return result
+
+
+class AutoencoderModel:
+    """
+    Wrapper that provides a streaming interface (score_one / learn_one)
+    around a PyTorch Autoencoder. Uses online standardization and
+    exponential moving average for the reconstruction error threshold.
+    """
+
+    def __init__(self, hidden_dim=AE_HIDDEN_DIM, latent_dim=AE_LATENT_DIM,
+                 learning_rate=AE_LEARNING_RATE, train_steps=AE_TRAIN_STEPS,
+                 ema_alpha=AE_EMA_ALPHA):
+        self.hidden_dim = hidden_dim
+        self.latent_dim = latent_dim
+        self.learning_rate = learning_rate
+        self.train_steps = train_steps
+        self.ema_alpha = ema_alpha
+
+        self.scaler = OnlineStandardScaler()
+        self.feature_order = []  # Locked after first sample
+        self.net = None  # Initialized lazily on first sample
+        self.optimizer = None
+        self.criterion = nn.MSELoss()
+
+        # EMA of reconstruction error (used to normalize scores to 0-1)
+        self.ema_loss = None
+        self.ema_loss_sq = None  # For variance estimation
+        self.steps = {}  # Keep for compatibility with get_top_features
+
+    def _ensure_net(self, input_dim):
+        """Lazily initialize the network once we know the input dimension."""
+        if self.net is None:
+            self.net = Autoencoder(input_dim, self.hidden_dim, self.latent_dim)
+            self.net.train()
+            self.optimizer = torch.optim.Adam(self.net.parameters(), lr=self.learning_rate)
+
+    def _prepare_input(self, data: dict) -> torch.Tensor:
+        """Convert a dict of features to a scaled tensor."""
+        # Filter to numeric features only
+        numeric_data = {
+            k: v for k, v in data.items()
+            if isinstance(v, (int, float)) and not (isinstance(v, float) and math.isnan(v))
+        }
+
+        # Lock feature order on first call
+        if not self.feature_order:
+            self.feature_order = sorted(numeric_data.keys())
+
+        scaled = self.scaler.transform(numeric_data, self.feature_order)
+        return torch.tensor([scaled], dtype=torch.float32)
+
+    def score_one(self, data: dict) -> float:
+        """
+        Compute anomaly score for a single sample.
+        Returns a score roughly in [0, 1] where higher = more anomalous.
+        """
+        if not self.feature_order:
+            return 0.0
+
+        self._ensure_net(len(self.feature_order))
+
+        self.net.eval()
+        with torch.no_grad():
+            x = self._prepare_input(data)
+            x_hat = self.net(x)
+            mse = torch.mean((x - x_hat) ** 2).item()
+
+        # Normalize MSE to a 0-1 score using EMA statistics
+        if self.ema_loss is None:
+            return 0.0
+
+        ema_var = self.ema_loss_sq - self.ema_loss ** 2
+        ema_std = max(ema_var, 0.0) ** 0.5
+
+        if ema_std < 1e-8:
+            # Not enough variance info yet — use simple ratio
+            score = min(mse / (self.ema_loss + 1e-8), 1.0)
+        else:
+            # Z-score based: how many std deviations above mean error
+            z = (mse - self.ema_loss) / ema_std
+            # Sigmoid-like mapping to [0, 1]
+            score = 1.0 / (1.0 + math.exp(-z))
+
+        return float(score)
+
+    def learn_one(self, data: dict):
+        """Train the autoencoder on a single sample (online learning)."""
+        # Always update scaler first
+        self.scaler.partial_fit(data)
+
+        if not self.feature_order:
+            # First call — lock feature order
+            numeric_data = {
+                k: v for k, v in data.items()
+                if isinstance(v, (int, float)) and not (isinstance(v, float) and math.isnan(v))
+            }
+            self.feature_order = sorted(numeric_data.keys())
+
+        self._ensure_net(len(self.feature_order))
+
+        self.net.train()
+        x = self._prepare_input(data)
+
+        for _ in range(self.train_steps):
+            self.optimizer.zero_grad()
+            x_hat = self.net(x)
+            loss = self.criterion(x_hat, x)
+            loss.backward()
+            self.optimizer.step()
+
+        # Update EMA of loss for score normalization
+        mse = loss.item()
+        if self.ema_loss is None:
+            self.ema_loss = mse
+            self.ema_loss_sq = mse ** 2
+        else:
+            self.ema_loss = (1 - self.ema_alpha) * self.ema_loss + self.ema_alpha * mse
+            self.ema_loss_sq = (1 - self.ema_alpha) * self.ema_loss_sq + self.ema_alpha * (mse ** 2)
+
+
 def create_pipeline():
-    """Create a new River anomaly detection pipeline."""
-    return compose.Pipeline(
-        preprocessing.StandardScaler(),
-        anomaly.HalfSpaceTrees(
-            n_trees=MODEL_N_TREES,
-            height=MODEL_HEIGHT,
-            window_size=MODEL_WINDOW_SIZE,
-            seed=42,
-        ),
+    """Create a new PyTorch Autoencoder anomaly detection model."""
+    return AutoencoderModel(
+        hidden_dim=AE_HIDDEN_DIM,
+        latent_dim=AE_LATENT_DIM,
+        learning_rate=AE_LEARNING_RATE,
+        train_steps=AE_TRAIN_STEPS,
+        ema_alpha=AE_EMA_ALPHA,
     )
 
 
-# Initialize River Models (one per mode)
+# Initialize Models (one per mode)
 logger.info(
-    f"Initializing models with: n_trees={MODEL_N_TREES}, height={MODEL_HEIGHT}, window_size={MODEL_WINDOW_SIZE}"
+    f"Initializing Autoencoder models with: hidden={AE_HIDDEN_DIM}, latent={AE_LATENT_DIM}, lr={AE_LEARNING_RATE}"
 )
 
 # Modes: heating, cooling, water, standby. (Defrost is excluded/skipped)
@@ -277,7 +465,7 @@ def save_model_state():
         # Snapshot state to memory (fast)
         with model_lock:
             # We use pickle because it's significantly faster (~10x) than joblib
-            # for serializing these River models, and allows us to release the lock quickly.
+            # for serializing these models, and allows us to release the lock quickly.
             # joblib.load can still read this pickle data.
             serialized = pickle.dumps(models)
 
@@ -312,11 +500,8 @@ def load_model_state():
                     logger.warning(
                         "Legacy model state found (single model). Starting fresh with multi-mode models."
                     )
-                    # We could try to migrate, but a generic model is bad for specific modes.
-                    # Better to start fresh.
 
                 # Assume if we loaded something valid, we have some training.
-                # Realistically, we should check per model, but this flag is for global health.
                 model_trained = True
             return True
         else:
@@ -375,19 +560,17 @@ def enrich_features(data: dict) -> dict:
     # Computed features (if sensors available)
     try:
         # Temperature difference (Spread)
-        # Try to find flow/return temps. Names vary by circuit but IDM usually has common ones.
         flow_temp = data.get("temp_heat_pump_flow") or data.get(
             "temp_flow_current_circuit_a"
         )
         return_temp = data.get("temp_heat_pump_return") or data.get(
             "temp_return_current_circuit_a"
-        )  # Note: return might not be per circuit
+        )
 
         if flow_temp is not None and return_temp is not None:
             data["temp_spread"] = flow_temp - return_temp
 
         # Efficiency approximation (COP)
-        # power_thermal = Heat Output, power_current = Electrical Input
         power_thermal = data.get("power_thermal")
         power_electrical = data.get("power_current")
 
@@ -544,13 +727,9 @@ def write_metrics(
 def get_top_features(model, data, n=3):
     """Identify top contributing features based on Z-score deviation."""
     try:
-        # Access scaler from pipeline
-        if "StandardScaler" not in model.steps:
-            return []
-
-        scaler = model["StandardScaler"]
-        # Check if scaler has stats
-        if not hasattr(scaler, "means") or not hasattr(scaler, "vars"):
+        # Access scaler from AutoencoderModel
+        scaler = model.scaler
+        if not hasattr(scaler, "means") or not scaler.means:
             return []
 
         contributions = []
@@ -683,8 +862,6 @@ def job():
                 logger.debug(
                     f"Missing sensors (first 10): {', '.join(missing_sensors[:10])}..."
                 )
-            # We do NOT return here anymore, to ensure graphs are not empty.
-            # River can handle sparse data (though accuracy might suffer).
 
         # Enrich with temporal and computed features
         data = enrich_features(data)
@@ -746,11 +923,6 @@ def job():
             if consecutive_anomalies >= ALARM_CONSECUTIVE_HITS:
                 top_features = get_top_features(active_model, data)
                 send_anomaly_alert(score, data, mode, top_features)
-                # Reset counter to avoid spamming every cycle after trigger?
-                # Or keep it high? If we reset, we might alert again in 3 cycles.
-                # Usually better to let cooldown handle the frequency limit.
-                # But to prevent "flickering" alarm states, we keep counting.
-                # The send_anomaly_alert has cooldown.
             else:
                 logger.info(
                     f"Anomaly suppressed (Debounce {consecutive_anomalies}/{ALARM_CONSECUTIVE_HITS})"
@@ -808,9 +980,10 @@ def wait_for_connection():
 
 def main():
     logger.info("=" * 60)
-    logger.info("Starting IDM ML Service (River/HalfSpaceTrees)")
+    logger.info("Starting IDM ML Service (PyTorch/Autoencoder)")
     logger.info("=" * 60)
     logger.info(f"Python {sys.version_info.major}.{sys.version_info.minor}")
+    logger.info(f"PyTorch {torch.__version__}")
     logger.info(f"Metrics URL: {METRICS_URL}")
     logger.info(f"Update Interval: {UPDATE_INTERVAL}s")
     logger.info(f"Anomaly Threshold: {ANOMALY_THRESHOLD}")
@@ -820,7 +993,7 @@ def main():
     if ML_ZONES:
         logger.info(f"Zones: {', '.join(map(str, ML_ZONES))}")
     logger.info(
-        f"Model: n_trees={MODEL_N_TREES}, height={MODEL_HEIGHT}, window={MODEL_WINDOW_SIZE}"
+        f"Autoencoder: hidden={AE_HIDDEN_DIM}, latent={AE_LATENT_DIM}, lr={AE_LEARNING_RATE}"
     )
     logger.info(f"Alerts: {'Enabled' if ENABLE_ALERTS else 'Disabled'}")
     logger.info("=" * 60)

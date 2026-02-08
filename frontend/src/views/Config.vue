@@ -581,8 +581,9 @@
                   <i class="pi pi-info-circle text-blue-400 text-xl mt-1"></i>
                   <div class="text-sm text-blue-200">
                     Die Anomalieerkennung läuft nun als eigenständiger
-                    <strong>ml-service</strong> Container. Er nutzt die "HalfSpaceTrees" Methode
-                    (via Python <code>river</code>), um kontinuierlich aus dem Datenstrom zu lernen.
+                    <strong>ml-service</strong> Container. Er nutzt einen PyTorch
+                    <code>Autoencoder</code>, um kontinuierlich aus dem Datenstrom zu lernen.
+                    Anomalien werden über den Rekonstruktionsfehler erkannt.
                   </div>
                 </div>
 
