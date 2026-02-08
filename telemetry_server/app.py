@@ -633,12 +633,9 @@ def _get_file_hash_sync(filepath: str) -> Optional[str]:
     """Synchronous internal function for hash calculation."""
     if not os.path.exists(filepath):
         return None
-    sha256_hash = hashlib.sha256()
     try:
         with open(filepath, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-        return sha256_hash.hexdigest()
+            return hashlib.file_digest(f, "sha256").hexdigest()
     except Exception:
         return None
 
@@ -1739,16 +1736,18 @@ async def list_available_models(request: Request, auth: None = Depends(verify_to
     model_dir = Path(MODEL_DIR)
 
     if model_dir.exists():
-        for model_file in model_dir.glob("*.enc"):
-            models.append(
-                {
-                    "name": model_file.stem.replace("_", " "),
-                    "filename": model_file.name,
-                    "size_bytes": model_file.stat().st_size,
-                    "hash": await get_file_hash(str(model_file)),
-                    "modified": model_file.stat().st_mtime,
-                }
-            )
+        async def _get_model_info(model_file):
+            return {
+                "name": model_file.stem.replace("_", " "),
+                "filename": model_file.name,
+                "size_bytes": model_file.stat().st_size,
+                "hash": await get_file_hash(str(model_file)),
+                "modified": model_file.stat().st_mtime,
+            }
+
+        tasks = [_get_model_info(f) for f in model_dir.glob("*.enc")]
+        if tasks:
+            models = await asyncio.gather(*tasks)
 
     return {
         "models": models,
@@ -1929,8 +1928,8 @@ async def admin_list_models(
     exists = await run_sync(model_dir.exists)
     if exists:
         model_files = await run_sync(lambda: list(model_dir.glob("*.enc")))
-        for mf in model_files:
-            models.append(await _get_model_details(mf))
+        if model_files:
+            models = await asyncio.gather(*[_get_model_details(mf) for mf in model_files])
 
     return {
         "models": sorted(models, key=lambda x: x["modified"], reverse=True),
