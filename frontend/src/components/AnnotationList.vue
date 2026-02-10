@@ -38,6 +38,7 @@
               text
               severity="secondary"
               class="p-1"
+              aria-label="Bearbeiten"
             />
             <Button
               @click="confirmDelete(annotation)"
@@ -46,6 +47,7 @@
               text
               severity="danger"
               class="p-1"
+              aria-label="Löschen"
             />
           </div>
         </div>

@@ -1629,6 +1629,7 @@
                             severity="info"
                             @click="openPermissionDialog(admin)"
                             v-tooltip="'Edit Permissions'"
+                            aria-label="Edit Permissions"
                           />
                         </td>
                       </tr>
@@ -1661,6 +1662,7 @@
                     size="small"
                     @click="fetchTrainingInfo"
                     v-tooltip="'Refresh'"
+                    aria-label="Refresh Training Info"
                   />
                 </div>
 
