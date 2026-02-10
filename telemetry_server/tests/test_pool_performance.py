@@ -2,7 +2,7 @@ import pytest
 import time
 import asyncio
 import json
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from app import app
 
 @pytest.mark.asyncio
