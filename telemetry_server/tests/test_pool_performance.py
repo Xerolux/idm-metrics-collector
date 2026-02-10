@@ -5,6 +5,7 @@ import json
 from unittest.mock import MagicMock, AsyncMock
 from app import app
 
+
 @pytest.mark.asyncio
 async def test_pool_stats_parallel(client):
     """
@@ -16,6 +17,7 @@ async def test_pool_stats_parallel(client):
 
     # Ensure cache miss
     import app as app_module
+
     app_module._pool_stats_cache = (None, 0)
 
     # Define behavior with delay to simulate network latency
@@ -29,7 +31,7 @@ async def test_pool_stats_parallel(client):
         # Data structure matching VM response
         data = {
             "status": "success",
-            "data": {"result": [{"value": [1234567890, "100"]}]}
+            "data": {"result": [{"value": [1234567890, "100"]}]},
         }
 
         # We need both .json() (if old code used it) and .content (for orjson)
