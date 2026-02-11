@@ -1,13 +1,17 @@
 <script setup>
 // Xerolux 2026
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
+import Select from 'primevue/select'
 import AppFooter from '../components/AppFooter.vue'
 import ErrorDisplay from '../components/ErrorDisplay.vue'
+
+const { t, locale } = useI18n()
 
 const password = ref('')
 const error = ref('')
@@ -17,9 +21,27 @@ const auth = useAuthStore()
 const router = useRouter()
 const loading = ref(false)
 
+const languages = ref([
+  { label: 'Deutsch', value: 'de' },
+  { label: 'English', value: 'en' },
+  { label: 'Français', value: 'fr' },
+  { label: 'Italiano', value: 'it' },
+  { label: 'Español', value: 'es' },
+  { label: 'Nederlands', value: 'nl' },
+  { label: 'Polski', value: 'pl' },
+  { label: 'Čeština', value: 'cs' },
+  { label: 'Norsk', value: 'no' },
+  { label: 'Svenska', value: 'sv' }
+])
+const currentLang = ref(locale.value)
+
+watch(currentLang, (newLang) => {
+  locale.value = newLang
+})
+
 const passwordError = computed(() => {
-  if (!password.value) return 'Passwort ist erforderlich'
-  if (password.value.length < 1) return 'Passwort ist zu kurz'
+  if (!password.value) return t('password_required')
+  if (password.value.length < 1) return t('password_too_short')
   return ''
 })
 
@@ -34,7 +56,7 @@ const isValid = computed(() => {
 const handleLogin = async () => {
   touched.value = true
   if (!isValid.value) {
-    error.value = 'Bitte geben Sie ein gültiges Passwort ein'
+    error.value = t('valid_password_required')
     return
   }
 
@@ -45,7 +67,7 @@ const handleLogin = async () => {
   if (success) {
     router.push('/')
   } else {
-    error.value = 'Ungültiges Passwort'
+    error.value = t('invalid_password')
   }
 }
 </script>
@@ -55,17 +77,29 @@ const handleLogin = async () => {
     <Card
       class="w-full max-w-sm sm:max-w-md bg-gray-800 border-gray-700 text-white mb-auto mt-auto shadow-semantic-lg"
     >
-      <template #title>idm-metrics-collector</template>
+      <template #title>
+        <div class="flex justify-between items-center">
+          <span>idm-metrics-collector</span>
+        </div>
+      </template>
       <template #content>
         <div class="flex flex-col gap-4">
           <div class="flex flex-col gap-2">
-            <label for="password" class="text-sm font-medium text-white">Passwort</label>
+            <Select
+              v-model="currentLang"
+              :options="languages"
+              optionLabel="label"
+              optionValue="value"
+              class="w-full !text-sm mb-2"
+              size="small"
+            />
+            <label for="password" class="text-sm font-medium text-white">{{ t('password') }}</label>
             <div class="p-inputgroup w-full">
               <InputText
                 id="password"
                 v-model="password"
                 :type="showPassword ? 'text' : 'password'"
-                placeholder="Passwort eingeben"
+                :placeholder="t('password_placeholder')"
                 :class="{
                   'border-error-500': showPasswordError,
                   'border-gray-600': !showPasswordError
@@ -80,7 +114,7 @@ const handleLogin = async () => {
                 severity="secondary"
                 type="button"
                 @click="showPassword = !showPassword"
-                :aria-label="showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'"
+                :aria-label="showPassword ? t('hide_password') : t('show_password')"
               />
             </div>
             <div
@@ -95,7 +129,7 @@ const handleLogin = async () => {
           </div>
           <ErrorDisplay v-if="error" :error="error" @dismiss="error = null" />
           <Button
-            label="Login"
+            :label="t('login')"
             @click="handleLogin"
             :loading="loading"
             :disabled="!isValid"

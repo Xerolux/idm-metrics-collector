@@ -14,6 +14,14 @@ import './style.css'
 
 import de from './locales/de.json'
 import en from './locales/en.json'
+import fr from './locales/fr.json'
+import it from './locales/it.json'
+import es from './locales/es.json'
+import nl from './locales/nl.json'
+import pl from './locales/pl.json'
+import cs from './locales/cs.json'
+import no from './locales/no.json'
+import sv from './locales/sv.json'
 
 const i18n = createI18n({
   legacy: false, // use Composition API
@@ -21,7 +29,15 @@ const i18n = createI18n({
   fallbackLocale: 'en',
   messages: {
     de,
-    en
+    en,
+    fr,
+    it,
+    es,
+    nl,
+    pl,
+    cs,
+    no,
+    sv
   }
 })
 

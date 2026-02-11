@@ -35,5 +35,13 @@
   "error": "Error",
   "success": "Success",
   "toggle_theme": "Toggle Theme",
-  "language": "Language"
+  "language": "Language",
+  "password": "Password",
+  "password_placeholder": "Enter password",
+  "password_required": "Password is required",
+  "password_too_short": "Password is too short",
+  "show_password": "Show password",
+  "hide_password": "Hide password",
+  "invalid_password": "Invalid password",
+  "valid_password_required": "Please enter a valid password"
 }

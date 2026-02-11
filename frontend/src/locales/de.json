@@ -35,5 +35,13 @@
   "error": "Fehler",
   "success": "Erfolg",
   "toggle_theme": "Design umschalten",
-  "language": "Sprache"
+  "language": "Sprache",
+  "password": "Passwort",
+  "password_placeholder": "Passwort eingeben",
+  "password_required": "Passwort ist erforderlich",
+  "password_too_short": "Passwort ist zu kurz",
+  "show_password": "Passwort anzeigen",
+  "hide_password": "Passwort verbergen",
+  "invalid_password": "Ungültiges Passwort",
+  "valid_password_required": "Bitte geben Sie ein gültiges Passwort ein"
 }

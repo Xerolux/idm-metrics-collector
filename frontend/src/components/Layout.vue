@@ -28,7 +28,15 @@ const editModeSeverity = computed(() => (ui.editMode ? 'success' : 'secondary'))
 
 const languages = ref([
   { label: 'Deutsch', value: 'de' },
-  { label: 'English', value: 'en' }
+  { label: 'English', value: 'en' },
+  { label: 'Français', value: 'fr' },
+  { label: 'Italiano', value: 'it' },
+  { label: 'Español', value: 'es' },
+  { label: 'Nederlands', value: 'nl' },
+  { label: 'Polski', value: 'pl' },
+  { label: 'Čeština', value: 'cs' },
+  { label: 'Norsk', value: 'no' },
+  { label: 'Svenska', value: 'sv' }
 ])
 const currentLang = ref('de')
 
