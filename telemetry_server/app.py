@@ -647,30 +647,18 @@ async def get_file_hash(
     # Security: Ensure path is absolute and within MODEL_DIR
     try:
         # Use resolve() to handle symlinks and relative paths
-        abs_path = Path(filepath).resolve()
-        abs_model_dir = Path(MODEL_DIR).resolve()
+        safe_path = Path(filepath).resolve()
+        model_dir = Path(MODEL_DIR).resolve()
 
-        # Check if path is within MODEL_DIR using is_relative_to (Python 3.9+)
-        # Fallback for older python: check if it starts with parent AND separator to avoid /data vs /data_backup confusion
-        is_safe = False
-        try:
-            is_safe = abs_path.is_relative_to(abs_model_dir)
-        except AttributeError:
-            # Python < 3.9 fallback
-            try:
-                abs_path.relative_to(abs_model_dir)
-                is_safe = True
-            except ValueError:
-                is_safe = False
-
-        if not is_safe:
+        # Check containment
+        if not safe_path.is_relative_to(model_dir):
             logger.warning("path_traversal_attempt", path=filepath)
             return None
 
-        # Use the validated absolute path for all subsequent operations
-        safe_filepath = str(abs_path)
+        # Convert back to string for os operations
+        safe_filepath = str(safe_path)
 
-    except Exception:
+    except (ValueError, RuntimeError):
         return None
 
     if not os.path.exists(safe_filepath):
@@ -687,13 +675,16 @@ async def get_file_hash(
 
     now = time.time()
 
-    # Check cache (use safe_filepath as key)
+    # Check cache
     if safe_filepath in _file_hash_cache:
         cached_hash, cached_mtime, cached_size, _ = _file_hash_cache[safe_filepath]
-        # Verify freshness using mtime and size instead of TTL
         if cached_mtime == mtime and cached_size == size:
-            # Update last accessed
-            _file_hash_cache[safe_filepath] = (cached_hash, cached_mtime, cached_size, now)
+            _file_hash_cache[safe_filepath] = (
+                cached_hash,
+                cached_mtime,
+                cached_size,
+                now,
+            )
             return cached_hash
 
     # Calculate new hash
