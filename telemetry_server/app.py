@@ -644,6 +644,21 @@ async def get_file_hash(
     filepath: str, mtime: Optional[float] = None, size: Optional[int] = None
 ) -> Optional[str]:
     """Calculate SHA256 hash of a file with caching."""
+    # Security: Ensure path is absolute and within MODEL_DIR
+    try:
+        # Use resolve() to handle symlinks and relative paths
+        abs_path = Path(filepath).resolve()
+        abs_model_dir = Path(MODEL_DIR).resolve()
+
+        # Check if path is within MODEL_DIR
+        if not str(abs_path).startswith(str(abs_model_dir)):
+            # Allow exceptions for specific safe paths if needed in future
+            # For now, strictly enforce MODEL_DIR for hashed files
+            logger.warning("path_traversal_attempt", path=filepath)
+            return None
+    except Exception:
+        return None
+
     if not os.path.exists(filepath):
         return None
 
