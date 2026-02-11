@@ -15,7 +15,7 @@
     "@tailwindcss/postcss": "^4.1.18",
     "@vueuse/core": "^14.1.0",
     "autoprefixer": "^10.4.23",
-    "axios": "^1.13.2",
+    "axios": "^1.13.5",
     "chart.js": "^4.5.1",
     "chartjs-adapter-date-fns": "^3.0.0",
     "chartjs-chart-matrix": "^2.0.1",
