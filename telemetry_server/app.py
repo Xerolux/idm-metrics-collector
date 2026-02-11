@@ -169,8 +169,8 @@ _redis_client = None  # Will be initialized on startup if USE_REDIS is True
 
 # Cache stores
 _file_hash_cache: Dict[
-    str, Tuple[Optional[str], float]
-] = {}  # {path: (hash, timestamp)}
+    str, Tuple[Optional[str], float, int, float]
+] = {}  # {path: (hash, mtime, size, last_accessed)}
 _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
     None,
     0,
@@ -238,8 +238,8 @@ async def cleanup_rate_limits_and_bans():
 
             # Clean file hash cache
             expired_hashes = []
-            for path, (_, timestamp) in list(_file_hash_cache.items()):
-                if now - timestamp >= HASH_CACHE_TTL:
+            for path, (_, _, _, last_accessed) in list(_file_hash_cache.items()):
+                if now - last_accessed >= HASH_CACHE_TTL:
                     expired_hashes.append(path)
 
             for path in expired_hashes:
@@ -640,14 +640,31 @@ def _get_file_hash_sync(filepath: str) -> Optional[str]:
         return None
 
 
-async def get_file_hash(filepath: str) -> Optional[str]:
+async def get_file_hash(
+    filepath: str, mtime: Optional[float] = None, size: Optional[int] = None
+) -> Optional[str]:
     """Calculate SHA256 hash of a file with caching."""
+    if not os.path.exists(filepath):
+        return None
+
+    # Get file stats if not provided
+    if mtime is None or size is None:
+        try:
+            stat = os.stat(filepath)
+            mtime = stat.st_mtime
+            size = stat.st_size
+        except OSError:
+            return None
+
     now = time.time()
 
     # Check cache
     if filepath in _file_hash_cache:
-        cached_hash, timestamp = _file_hash_cache[filepath]
-        if now - timestamp < HASH_CACHE_TTL:
+        cached_hash, cached_mtime, cached_size, _ = _file_hash_cache[filepath]
+        # Verify freshness using mtime and size instead of TTL
+        if cached_mtime == mtime and cached_size == size:
+            # Update last accessed
+            _file_hash_cache[filepath] = (cached_hash, cached_mtime, cached_size, now)
             return cached_hash
 
     # Calculate new hash
@@ -656,7 +673,7 @@ async def get_file_hash(filepath: str) -> Optional[str]:
 
     # Cache it
     if hash_val:
-        _file_hash_cache[filepath] = (hash_val, now)
+        _file_hash_cache[filepath] = (hash_val, mtime, size, now)
 
     return hash_val
 
@@ -1738,12 +1755,16 @@ async def list_available_models(request: Request, auth: None = Depends(verify_to
     if model_dir.exists():
 
         async def _get_model_info(model_file):
+            # Optimize: Get stat once
+            stat = model_file.stat()
             return {
                 "name": model_file.stem.replace("_", " "),
                 "filename": model_file.name,
-                "size_bytes": model_file.stat().st_size,
-                "hash": await get_file_hash(str(model_file)),
-                "modified": model_file.stat().st_mtime,
+                "size_bytes": stat.st_size,
+                "hash": await get_file_hash(
+                    str(model_file), mtime=stat.st_mtime, size=stat.st_size
+                ),
+                "modified": stat.st_mtime,
             }
 
         tasks = [_get_model_info(f) for f in model_dir.glob("*.enc")]
@@ -1921,7 +1942,9 @@ async def admin_list_models(
             "modified_formatted": time.strftime(
                 "%Y-%m-%d %H:%M:%S", time.localtime(stat.st_mtime)
             ),
-            "hash": await get_file_hash(str(model_file)),
+            "hash": await get_file_hash(
+                str(model_file), mtime=stat.st_mtime, size=stat.st_size
+            ),
             "download_count": download_count,
         }
 
