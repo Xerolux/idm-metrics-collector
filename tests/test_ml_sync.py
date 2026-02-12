@@ -7,28 +7,12 @@ import logging
 # Add project root to path
 sys.path.insert(0, os.getcwd())
 
-# Create mocks for dependencies
+# Create mocks for external dependencies not present in CI root environment
 mock_torch = MagicMock()
 sys.modules["torch"] = mock_torch
 sys.modules["torch.nn"] = MagicMock()
 sys.modules["schedule"] = MagicMock()
 sys.modules["joblib"] = MagicMock()
-
-# Mock idm_logger structure BEFORE importing ml_service.main
-mock_idm_logger = MagicMock()
-sys.modules["idm_logger"] = mock_idm_logger
-
-mock_sensor_addresses = MagicMock()
-sys.modules["idm_logger.sensor_addresses"] = mock_sensor_addresses
-mock_sensor_addresses.COMMON_SENSORS = []
-mock_sensor_addresses.BINARY_SENSOR_ADDRESSES = {}
-mock_sensor_addresses.heating_circuit_sensors = MagicMock(return_value=[])
-mock_sensor_addresses.zone_sensors = MagicMock(return_value=[])
-mock_sensor_addresses.HeatingCircuit = MagicMock()
-
-mock_const = MagicMock()
-sys.modules["idm_logger.const"] = mock_const
-mock_const.HeatPumpStatus = MagicMock()
 
 # Set env vars
 os.environ["ANOMALY_THRESHOLD"] = "0.7"
@@ -39,14 +23,6 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 # Import ml_service.main
 try:
-    # We need to make sure we import from the file path because it's not a package
-    # But sys.path has cwd, so 'ml_service.main' should be importable if ml_service is a package
-    # Check if ml_service has __init__.py
-    if not os.path.exists("ml_service/__init__.py"):
-        # Create empty __init__.py to make it a package for import
-        with open("ml_service/__init__.py", "w") as f:
-            pass
-
     import ml_service.main as ml_main
 except ImportError as e:
     print(f"ImportError: {e}")
