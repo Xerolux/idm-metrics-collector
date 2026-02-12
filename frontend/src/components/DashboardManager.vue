@@ -273,16 +273,18 @@
         </draggable>
 
         <!-- Add Chart Button in Edit Mode -->
-        <div
+        <button
           v-if="editMode"
-          class="mt-3 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-teal-500 hover:bg-teal-50 cursor-pointer transition-colors"
+          type="button"
+          class="mt-3 h-32 w-full border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-teal-500 hover:bg-teal-50 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
           @click="showAddChartDialog = true"
+          aria-label="Neuen Chart hinzufügen"
         >
           <div class="text-center text-gray-500">
             <i class="pi pi-plus text-4xl mb-2"></i>
             <p class="font-medium">Chart manuell hinzufügen</p>
           </div>
-        </div>
+        </button>
       </div>
     </div>
 

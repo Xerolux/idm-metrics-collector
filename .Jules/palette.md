@@ -21,3 +21,7 @@
 ## 2026-03-05 - Implicit Contrast Assumptions
 **Learning:** Headers in dark-themed sections (like `bg-surface-900`) without explicit text color classes often rely on inherited styles. This fails when the global text color defaults to a dark value, rendering the text invisible against the dark background.
 **Action:** Always explicitly define text color (e.g., `text-gray-100`) for headings within sections that enforce a specific background color, rather than relying on inheritance or dark mode variants alone.
+
+## 2026-03-12 - Clickable Div Anti-Pattern
+**Learning:** Found critical actions (adding charts) implemented as clickable `div`s with `@click` but no keyboard support (`tabindex`, `role="button"`, `keydown` handlers). This excludes keyboard-only and screen reader users.
+**Action:** Always use native `<button>` elements for actions. If custom styling is needed, use utility classes to remove default button styles (`appearance-none`, `bg-transparent`, etc.) rather than reinventing the wheel with `div`s.

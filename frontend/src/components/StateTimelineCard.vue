@@ -7,6 +7,7 @@
         @click="openConfig"
         class="p-1.5 bg-white hover:bg-gray-100 rounded shadow text-gray-600"
         title="Bearbeiten"
+        aria-label="Bearbeiten"
       >
         <i class="pi pi-pencil text-xs"></i>
       </button>
@@ -14,6 +15,7 @@
         @click="confirmDelete"
         class="p-1.5 bg-white hover:bg-red-50 rounded shadow text-red-500"
         title="Löschen"
+        aria-label="Löschen"
       >
         <i class="pi pi-trash text-xs"></i>
       </button>
@@ -25,7 +27,12 @@
         <span class="text-xs text-gray-500">Status-Verlauf - letzte {{ displayHours }}</span>
       </div>
       <div class="flex items-center gap-1">
-        <button @click="toggleFullscreen" class="text-gray-400 hover:text-gray-600">
+        <button
+          @click="toggleFullscreen"
+          class="text-gray-400 hover:text-gray-600"
+          title="Vollbild umschalten"
+          aria-label="Vollbild umschalten"
+        >
           <i :class="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-expand'" class="text-xs"></i>
         </button>
       </div>
@@ -40,7 +47,12 @@
       }"
     >
       <div v-if="isFullscreen" class="absolute top-4 right-4 z-50">
-        <button @click="toggleFullscreen" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full">
+        <button
+          @click="toggleFullscreen"
+          class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full"
+          title="Vollbild verlassen"
+          aria-label="Vollbild verlassen"
+        >
           <i class="pi pi-times text-lg"></i>
         </button>
       </div>

@@ -7,6 +7,7 @@
         @click="openConfig"
         class="p-1.5 bg-white hover:bg-gray-100 rounded shadow text-gray-600"
         title="Bearbeiten"
+        aria-label="Bearbeiten"
       >
         <i class="pi pi-pencil text-xs"></i>
       </button>
@@ -14,6 +15,7 @@
         @click="confirmDelete"
         class="p-1.5 bg-white hover:bg-red-50 rounded shadow text-red-500"
         title="Löschen"
+        aria-label="Löschen"
       >
         <i class="pi pi-trash text-xs"></i>
       </button>
@@ -25,7 +27,12 @@
         <span class="text-xs text-gray-500">Tabelle - letzte {{ displayHours }}</span>
       </div>
       <div class="flex items-center gap-1">
-        <button @click="toggleFullscreen" class="text-gray-400 hover:text-gray-600">
+        <button
+          @click="toggleFullscreen"
+          class="text-gray-400 hover:text-gray-600"
+          title="Vollbild umschalten"
+          aria-label="Vollbild umschalten"
+        >
           <i :class="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-expand'" class="text-xs"></i>
         </button>
       </div>
@@ -40,14 +47,24 @@
       }"
     >
       <div v-if="isFullscreen" class="absolute top-4 right-4 z-50">
-        <button @click="toggleFullscreen" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full">
+        <button
+          @click="toggleFullscreen"
+          class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full"
+          title="Vollbild verlassen"
+          aria-label="Vollbild verlassen"
+        >
           <i class="pi pi-times text-lg"></i>
         </button>
       </div>
 
       <!-- Controls -->
       <div class="flex items-center gap-2 mb-2 flex-shrink-0">
-        <InputText v-model="filterText" placeholder="Filtern..." class="text-sm w-48" />
+        <InputText
+          v-model="filterText"
+          placeholder="Filtern..."
+          class="text-sm w-48"
+          aria-label="Tabelle filtern"
+        />
         <Select
           v-model="sortBy"
           :options="sortOptions"
@@ -55,6 +72,7 @@
           optionValue="value"
           class="text-sm w-40"
           placeholder="Sortieren"
+          aria-label="Tabelle sortieren"
         />
         <Button
           @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
@@ -62,6 +80,7 @@
           size="small"
           severity="secondary"
           text
+          aria-label="Sortierreihenfolge ändern"
         />
       </div>
 
@@ -75,6 +94,10 @@
                 :key="column.key"
                 @click="sortBy = column.key"
                 class="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                role="button"
+                tabindex="0"
+                @keydown.enter="sortBy = column.key"
+                :aria-label="'Sortieren nach ' + column.label"
               >
                 {{ column.label }}
                 <i
@@ -117,6 +140,7 @@
             size="small"
             severity="secondary"
             text
+            aria-label="Vorherige Seite"
           />
           <span class="text-xs text-gray-600 px-2">{{ currentPage }} / {{ totalPages }}</span>
           <Button
@@ -126,6 +150,7 @@
             size="small"
             severity="secondary"
             text
+            aria-label="Nächste Seite"
           />
         </div>
       </div>
