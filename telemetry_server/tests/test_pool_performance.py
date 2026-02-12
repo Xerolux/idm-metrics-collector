@@ -1,10 +1,10 @@
-
 import pytest
 import time
 import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi.testclient import TestClient
 from app import app
+
 
 @pytest.mark.asyncio
 async def test_pool_status_performance_parallel():
@@ -23,12 +23,12 @@ async def test_pool_status_performance_parallel():
 
     # Define a slow async mock for client.get
     async def slow_get(*args, **kwargs):
-        await asyncio.sleep(0.1) # 100ms delay
+        await asyncio.sleep(0.1)  # 100ms delay
         return mock_response
 
     # Define a slow mock for run_sync
     async def slow_run_sync(func, *args):
-        await asyncio.sleep(0.1) # 100ms delay
+        await asyncio.sleep(0.1)  # 100ms delay
         return ["Model A", "Model B"]
 
     # Patch dependencies
@@ -38,7 +38,6 @@ async def test_pool_status_performance_parallel():
         mock_instance.aclose = AsyncMock()
 
         with patch("app.run_sync", side_effect=slow_run_sync):
-
             with TestClient(app) as client:
                 start_time = time.time()
 
@@ -52,4 +51,6 @@ async def test_pool_status_performance_parallel():
                 print(f"\nExecution duration: {duration:.4f}s")
 
                 # Should be significantly faster than 0.3s
-                assert duration < 0.2, f"Execution too slow ({duration:.4f}s), expected parallel behavior < 0.2s"
+                assert duration < 0.2, (
+                    f"Execution too slow ({duration:.4f}s), expected parallel behavior < 0.2s"
+                )
