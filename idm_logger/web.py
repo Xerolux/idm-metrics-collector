@@ -1332,10 +1332,9 @@ def ml_config_endpoint():
         # Clamp threshold to [0.1, 0.99] just in case
         threshold = max(0.1, min(0.99, threshold))
 
-        return jsonify({
-            "sensitivity": sensitivity,
-            "threshold": round(threshold, 4)
-        }), 200
+        return jsonify(
+            {"sensitivity": sensitivity, "threshold": round(threshold, 4)}
+        ), 200
 
     except Exception as e:
         logger.error(f"Failed to process ML config request: {e}")
