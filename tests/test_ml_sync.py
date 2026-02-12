@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 import sys
 import os
-import json
+import logging
 
 # Add project root to path
 sys.path.insert(0, os.getcwd())
@@ -122,6 +122,6 @@ class TestMLSync(unittest.TestCase):
         # Verify fetch_remote_config was called
         mock_fetch_config.assert_called_once()
 
-import logging
+
 if __name__ == '__main__':
     unittest.main()
