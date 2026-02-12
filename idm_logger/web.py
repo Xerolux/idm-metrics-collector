@@ -1299,6 +1299,49 @@ def ml_alert_endpoint():
         return jsonify({"error": "Failed to process alert"}), 500
 
 
+@app.route("/api/internal/ml_config", methods=["GET"])
+@limiter.limit("60 per minute")
+def ml_config_endpoint():
+    """
+    Internal endpoint for ML service to fetch configuration.
+    Protected by shared secret if configured.
+    """
+    import hmac
+
+    # Security Check
+    internal_key = config.get("internal_api_key")
+    if not internal_key:
+        logger.error("INTERNAL_API_KEY not configured - rejecting ML config request")
+        return jsonify({"error": "Configuration Error: INTERNAL_API_KEY not set"}), 503
+
+    auth_header = request.headers.get("X-Internal-Secret")
+    # Use constant-time comparison to prevent timing attacks
+    if not auth_header or not hmac.compare_digest(auth_header, internal_key):
+        logger.warning(
+            f"Unauthorized access attempt to ml_config from {request.remote_addr}"
+        )
+        return jsonify({"error": "Unauthorized"}), 401
+
+    try:
+        sensitivity = config.data.get("ai", {}).get("sensitivity", 3.0)
+        # Calculate threshold based on sensitivity
+        # Sensitivity 1 (Low) -> Threshold 0.95
+        # Sensitivity 10 (High) -> Threshold 0.55
+        # Formula: threshold = 0.994 - 0.044 * sensitivity
+        threshold = 0.994 - (0.044 * sensitivity)
+        # Clamp threshold to [0.1, 0.99] just in case
+        threshold = max(0.1, min(0.99, threshold))
+
+        return jsonify({
+            "sensitivity": sensitivity,
+            "threshold": round(threshold, 4)
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Failed to process ML config request: {e}")
+        return jsonify({"error": "Failed to process request"}), 500
+
+
 @app.route("/api/health")
 def health_check():
     """Health check endpoint for Docker/Kubernetes."""

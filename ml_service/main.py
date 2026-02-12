@@ -850,11 +850,41 @@ def send_anomaly_alert(score: float, data: dict, mode: str, top_features: list):
             return
 
 
+def fetch_remote_config():
+    """Fetch ML configuration from IDM Logger."""
+    global ANOMALY_THRESHOLD
+
+    url = f"{IDM_LOGGER_URL}/api/internal/ml_config"
+    headers = {}
+    if INTERNAL_API_KEY:
+        headers["X-Internal-Secret"] = INTERNAL_API_KEY
+
+    try:
+        # Short timeout to not delay the main loop significantly
+        response = requests.get(url, headers=headers, timeout=2)
+        if response.status_code == 200:
+            data = response.json()
+            new_threshold = data.get("threshold")
+            if new_threshold is not None:
+                new_threshold = float(new_threshold)
+                if abs(new_threshold - ANOMALY_THRESHOLD) > 0.001:
+                    logger.info(
+                        f"Updated ANOMALY_THRESHOLD from {ANOMALY_THRESHOLD} to {new_threshold} (Sensitivity: {data.get('sensitivity')})"
+                    )
+                    ANOMALY_THRESHOLD = new_threshold
+    except Exception as e:
+        # Debug level to avoid log spam during startup/restarts
+        logger.debug(f"Failed to fetch remote config: {e}")
+
+
 def job():
     """
     Main job loop - fetch data, process with model, detect anomalies.
     """
     global last_score, model_trained, update_counter, last_model_save
+
+    # Sync config
+    fetch_remote_config()
 
     start = time.time()
 
