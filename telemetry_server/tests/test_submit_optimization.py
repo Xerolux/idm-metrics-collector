@@ -1,17 +1,12 @@
 
-import pytest
-import time
 import uuid
 import sys
 import os
-from unittest.mock import Mock
 
 # Add telemetry_server to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import TelemetryPayload, _process_telemetry_payload, run_sync
-# Note: _process_telemetry_payload is not yet in app.py, so this test will fail until step 2.
-# But we need it to verify the logic.
+from app import TelemetryPayload, _process_telemetry_payload
 
 def test_process_telemetry_payload_optimization():
     """Verify optimized payload processing logic."""
