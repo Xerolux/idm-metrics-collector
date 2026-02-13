@@ -588,6 +588,18 @@
                 </div>
 
                 <div class="bg-gray-800 p-4 rounded border border-gray-700 mt-4">
+                  <div class="flex justify-between mb-2">
+                    <label class="font-bold text-sm text-gray-300">Empfindlichkeit (1-10)</label>
+                    <span class="font-mono font-bold text-blue-400">{{ config.ai.sensitivity }}</span>
+                  </div>
+                  <Slider v-model="config.ai.sensitivity" :min="1" :max="10" :step="0.5" class="w-full" />
+                  <div class="flex justify-between text-xs text-gray-500 mt-2">
+                    <span>Gering (Weniger Alarme)</span>
+                    <span>Hoch (Mehr Alarme)</span>
+                  </div>
+                </div>
+
+                <div class="bg-gray-800 p-4 rounded border border-gray-700 mt-4">
                   <h4 class="font-bold text-lg mb-2 flex items-center gap-2">
                     <i class="pi pi-chart-line"></i> Service Status
                   </h4>
