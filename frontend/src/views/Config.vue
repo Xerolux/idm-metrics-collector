@@ -609,7 +609,8 @@
                     <div class="text-xs text-gray-500 mt-1">
                       Werte wie 0.11 oder 0.15 ermöglichen sehr feine Abstimmungen.
                       <br />
-                      0 = Sehr geringe Empfindlichkeit (Weniger Alarme), 10 = Sehr hohe Empfindlichkeit (Mehr Alarme).
+                      0 = Sehr geringe Empfindlichkeit (Weniger Alarme), 10 = Sehr hohe
+                      Empfindlichkeit (Mehr Alarme).
                     </div>
                   </div>
                 </div>
@@ -2011,16 +2012,40 @@
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
           <label class="font-bold text-sm text-gray-300">Neues Passwort</label>
-          <InputText v-model="newPassword" type="password" class="w-full" />
+          <div class="p-inputgroup w-full">
+            <InputText
+              v-model="newPassword"
+              :type="showNewPassword ? 'text' : 'password'"
+              class="w-full"
+              placeholder="Neues Passwort"
+            />
+            <Button
+              :icon="showNewPassword ? 'pi pi-eye-slash' : 'pi pi-eye'"
+              severity="secondary"
+              type="button"
+              @click="showNewPassword = !showNewPassword"
+              :aria-label="showNewPassword ? 'Passwort verbergen' : 'Passwort anzeigen'"
+            />
+          </div>
         </div>
         <div class="flex flex-col gap-2">
           <label class="font-bold text-sm text-gray-300">Bestätigen</label>
-          <InputText
-            v-model="confirmPassword"
-            type="password"
-            class="w-full"
-            :class="{ 'p-invalid': passwordMismatch }"
-          />
+          <div class="p-inputgroup w-full">
+            <InputText
+              v-model="confirmPassword"
+              :type="showConfirmPassword ? 'text' : 'password'"
+              class="w-full"
+              :class="{ 'p-invalid': passwordMismatch }"
+              placeholder="Passwort bestätigen"
+            />
+            <Button
+              :icon="showConfirmPassword ? 'pi pi-eye-slash' : 'pi pi-eye'"
+              severity="secondary"
+              type="button"
+              @click="showConfirmPassword = !showConfirmPassword"
+              :aria-label="showConfirmPassword ? 'Passwort verbergen' : 'Passwort anzeigen'"
+            />
+          </div>
           <small v-if="passwordMismatch" class="text-red-500"
             >Passwörter stimmen nicht überein</small
           >
@@ -2390,6 +2415,8 @@ const categories = computed(() => {
 const showPasswordDialog = ref(false)
 const newPassword = ref('')
 const confirmPassword = ref('')
+const showNewPassword = ref(false)
+const showConfirmPassword = ref(false)
 const mqttPassword = ref('')
 const emailPassword = ref('')
 const webdavPassword = ref('')
