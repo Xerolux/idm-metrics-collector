@@ -9,3 +9,7 @@
 ## 2025-05-24 - Unused WebSocket Logic
 **Learning:** The `broadcast_metric_update` method existed but was never called, and client subscriptions lacked `join_room` logic, rendering real-time updates non-functional. The frontend relied on frequent polling (5s) as a result.
 **Action:** Implemented `join_room` in subscription handler and hooked `broadcast_metrics` into the main data update loop. Converted `SensorValues` to use WebSocket push updates, reducing polling to 60s fallback.
+
+## 2026-02-13 - Python Boolean Type Inheritance
+**Learning:** In Python, `isinstance(True, int)` returns `True` because `bool` inherits from `int`. Checking `isinstance(value, (int, float))` BEFORE `isinstance(value, bool)` makes the boolean check unreachable, causing booleans to be formatted as integers/strings (e.g., `True` vs `true`) if logic differs.
+**Action:** Always check `isinstance(value, bool)` *before* checking `isinstance(value, int)` when handling mixed types, or use strict type checking (`type(value) is bool`) if appropriate.

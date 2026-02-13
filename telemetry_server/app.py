@@ -1081,6 +1081,56 @@ async def retrieve_credentials(
         )
 
 
+# Pre-compiled boolean map for faster lookup
+_BOOL_MAP = {True: "true", False: "false"}
+
+
+def _process_telemetry_payload(payload: TelemetryPayload) -> str:
+    """
+    Optimized processing of telemetry payload into InfluxDB Line Protocol.
+
+    Optimizations:
+    1. Pre-calculate static tags prefix.
+    2. Use boolean map for faster string conversion.
+    3. Check boolean type first (subclass of int) to ensure correct formatting.
+    """
+    lines = []
+
+    # Tags common to all points in this batch
+    tags = f"installation_id={payload.installation_id},model={payload.heatpump_model.replace(' ', '_')},version={payload.version}"
+    prefix = f"heatpump_metrics,{tags} "
+
+    for record in payload.data:
+        timestamp = record.get("timestamp")
+        if not timestamp:
+            continue
+
+        # Timestamp in nanoseconds for Influx/VM Line Protocol
+        ts_ns = int(timestamp * 1e9)
+
+        # Fields
+        fields = []
+        for key, value in record.items():
+            if key == "timestamp":
+                continue
+
+            # Check bool first because bool is a subclass of int in Python
+            # This ensures booleans are formatted as "true"/"false" instead of "True"/"False" (str(bool))
+            # And it's faster for bools than str(value).lower()
+            if isinstance(value, bool):
+                fields.append(f"{key}={_BOOL_MAP[value]}")
+            elif isinstance(value, (int, float)):
+                fields.append(f"{key}={value}")
+
+        if fields:
+            # Line Protocol: measurement,tags fields timestamp
+            # Use pre-calculated prefix
+            line = f"{prefix}{','.join(fields)} {ts_ns}"
+            lines.append(line)
+
+    return "\n".join(lines)
+
+
 @app.post("/api/v1/submit")
 async def submit_telemetry(
     payload: TelemetryPayload,
@@ -1142,37 +1192,11 @@ async def submit_telemetry(
         )
 
     try:
-        lines = []
+        # Offload heavy string processing to thread pool to unblock event loop
+        data = await run_sync(_process_telemetry_payload, payload)
 
-        # Tags common to all points in this batch
-        tags = f"installation_id={payload.installation_id},model={payload.heatpump_model.replace(' ', '_')},version={payload.version}"
-
-        for record in payload.data:
-            timestamp = record.get("timestamp")
-            if not timestamp:
-                continue
-
-            # Timestamp in nanoseconds for Influx/VM Line Protocol
-            ts_ns = int(timestamp * 1e9)
-
-            # Fields
-            fields = []
-            for key, value in record.items():
-                if key == "timestamp":
-                    continue
-                if isinstance(value, (int, float)):
-                    fields.append(f"{key}={value}")
-                elif isinstance(value, bool):
-                    fields.append(f"{key}={str(value).lower()}")  # bool as boolean
-
-            if fields:
-                # Line Protocol: measurement,tags fields timestamp
-                line = f"heatpump_metrics,{tags} {','.join(fields)} {ts_ns}"
-                lines.append(line)
-
-        if lines:
+        if data:
             # Batch write to VictoriaMetrics using pooled client
-            data = "\n".join(lines)
             client = request.app.state.http_client
             # Use content=data for raw body to avoid form-encoding overhead/issues
             response = await client.post(VM_WRITE_URL, content=data)
@@ -1185,10 +1209,13 @@ async def submit_telemetry(
                 )
                 raise HTTPException(status_code=502, detail="Database Write Failed")
 
+            # Count lines by counting newlines + 1 (if not empty)
+            processed_count = data.count("\n") + 1 if data else 0
+
             logger.info(
                 "telemetry_ingested",
                 installation_id=payload.installation_id,
-                points=len(lines),
+                points=processed_count,
                 ip=client_ip,
             )
 
@@ -1197,10 +1224,13 @@ async def submit_telemetry(
                 data_submissions_total.labels(
                     heatpump_model=payload.heatpump_model
                 ).inc()
-                data_points_submitted_total.inc(len(lines))
+                data_points_submitted_total.inc(processed_count)
+        else:
+            processed_count = 0
 
         return JSONResponse(
-            {"status": "success", "processed": len(lines)}, headers=rate_limit_headers
+            {"status": "success", "processed": processed_count},
+            headers=rate_limit_headers,
         )
 
     except HTTPException:
