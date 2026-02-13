@@ -590,7 +590,7 @@
                 <div class="bg-gray-800 p-4 rounded border border-gray-700 mt-4">
                   <div class="flex flex-col gap-2">
                     <label class="font-bold text-sm text-gray-300">Empfindlichkeit (0-10)</label>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                       <InputNumber
                         v-model="config.ai.sensitivity"
                         :min="0"
@@ -602,7 +602,7 @@
                         buttonLayout="horizontal"
                         decrementButtonIcon="pi pi-minus"
                         incrementButtonIcon="pi pi-plus"
-                        class="w-40"
+                        class="w-full sm:w-40"
                       />
                       <span class="text-sm text-gray-400 italic">Empfehlung: 3.0 (Standard)</span>
                     </div>
