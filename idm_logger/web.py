@@ -1698,11 +1698,11 @@ def config_page():
             if "ai_sensitivity" in data:
                 try:
                     sens = float(data["ai_sensitivity"])
-                    if 1.0 <= sens <= 10.0:
+                    if 0.0 <= sens <= 10.0:
                         config.data["ai"]["sensitivity"] = sens
                     else:
                         return jsonify(
-                            {"error": "AI Sensitivität muss zwischen 1.0 und 10.0 sein"}
+                            {"error": "AI Sensitivität muss zwischen 0.0 und 10.0 sein"}
                         ), 400
                 except ValueError:
                     return jsonify(

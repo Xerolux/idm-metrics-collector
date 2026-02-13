@@ -588,14 +588,29 @@
                 </div>
 
                 <div class="bg-gray-800 p-4 rounded border border-gray-700 mt-4">
-                  <div class="flex justify-between mb-2">
-                    <label class="font-bold text-sm text-gray-300">Empfindlichkeit (1-10)</label>
-                    <span class="font-mono font-bold text-blue-400">{{ config.ai.sensitivity }}</span>
-                  </div>
-                  <Slider v-model="config.ai.sensitivity" :min="1" :max="10" :step="0.5" class="w-full" />
-                  <div class="flex justify-between text-xs text-gray-500 mt-2">
-                    <span>Gering (Weniger Alarme)</span>
-                    <span>Hoch (Mehr Alarme)</span>
+                  <div class="flex flex-col gap-2">
+                    <label class="font-bold text-sm text-gray-300">Empfindlichkeit (0-10)</label>
+                    <div class="flex items-center gap-2">
+                      <InputNumber
+                        v-model="config.ai.sensitivity"
+                        :min="0"
+                        :max="10"
+                        :minFractionDigits="2"
+                        :maxFractionDigits="2"
+                        :step="0.1"
+                        showButtons
+                        buttonLayout="horizontal"
+                        decrementButtonIcon="pi pi-minus"
+                        incrementButtonIcon="pi pi-plus"
+                        class="w-40"
+                      />
+                      <span class="text-sm text-gray-400 italic">Empfehlung: 3.0 (Standard)</span>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">
+                      Werte wie 0.11 oder 0.15 ermöglichen sehr feine Abstimmungen.
+                      <br />
+                      0 = Sehr geringe Empfindlichkeit (Weniger Alarme), 10 = Sehr hohe Empfindlichkeit (Mehr Alarme).
+                    </div>
                   </div>
                 </div>
 
@@ -2306,7 +2321,6 @@ import ConfirmDialog from 'primevue/confirmdialog'
 import Dialog from 'primevue/dialog'
 import SelectButton from 'primevue/selectbutton'
 import Dropdown from 'primevue/dropdown'
-import Slider from 'primevue/slider'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { copyToClipboard } from '../utils/clipboard'
