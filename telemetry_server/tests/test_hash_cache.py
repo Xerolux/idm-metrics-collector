@@ -1,11 +1,6 @@
 import pytest
-import time
-import os
-import asyncio
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-# Import from app
-import app
 from app import get_file_hash, _file_hash_cache
 
 @pytest.fixture(autouse=True)
@@ -54,4 +49,5 @@ async def test_smart_caching_logic():
             # 5. Call with DIFFERENT size
             # TTL is expired, AND size mismatch -> Re-hash
             h4 = await get_file_hash(filepath, mtime=mtime + 1, size=size + 10)
+            assert h4 == "hash_123"
             assert mock_hash.call_count == 3, "Should re-hash when size changes"
