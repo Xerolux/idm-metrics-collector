@@ -169,8 +169,8 @@ _redis_client = None  # Will be initialized on startup if USE_REDIS is True
 
 # Cache stores
 _file_hash_cache: Dict[
-    str, Tuple[Optional[str], float]
-] = {}  # {path: (hash, timestamp)}
+    str, Tuple[Optional[str], float, Optional[float], Optional[int]]
+] = {}  # {path: (hash, timestamp, mtime, size)}
 _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
     None,
     0,
@@ -238,7 +238,8 @@ async def cleanup_rate_limits_and_bans():
 
             # Clean file hash cache
             expired_hashes = []
-            for path, (_, timestamp) in list(_file_hash_cache.items()):
+            for path, entry in list(_file_hash_cache.items()):
+                timestamp = entry[1]
                 if now - timestamp >= HASH_CACHE_TTL:
                     expired_hashes.append(path)
 
@@ -640,15 +641,36 @@ def _get_file_hash_sync(filepath: str) -> Optional[str]:
         return None
 
 
-async def get_file_hash(filepath: str) -> Optional[str]:
-    """Calculate SHA256 hash of a file with caching."""
+async def get_file_hash(
+    filepath: str, mtime: Optional[float] = None, size: Optional[int] = None
+) -> Optional[str]:
+    """Calculate SHA256 hash of a file with smart caching."""
     now = time.time()
 
     # Check cache
     if filepath in _file_hash_cache:
-        cached_hash, timestamp = _file_hash_cache[filepath]
-        if now - timestamp < HASH_CACHE_TTL:
-            return cached_hash
+        entry = _file_hash_cache[filepath]
+        cached_hash = entry[0]
+        cached_time = entry[1]
+        # Handle older cache entries safely
+        cached_mtime = entry[2] if len(entry) > 2 else None
+        cached_size = entry[3] if len(entry) > 3 else None
+
+        # Smart validation: If mtime/size provided, use them
+        if mtime is not None and size is not None:
+            if cached_mtime == mtime and cached_size == size:
+                # Update timestamp to prevent cleanup (LRU-like behavior)
+                _file_hash_cache[filepath] = (cached_hash, now, mtime, size)
+                return cached_hash
+
+        # Standard TTL validation (fallback)
+        if now - cached_time < HASH_CACHE_TTL:
+            # If we have mtime provided but it doesn't match cached_mtime (and we are within TTL),
+            # it means file CHANGED recently. We must re-hash.
+            if mtime is not None and cached_mtime is not None and mtime != cached_mtime:
+                pass  # Fall through to re-hash
+            else:
+                return cached_hash
 
     # Calculate new hash
     loop = asyncio.get_event_loop()
@@ -656,7 +678,16 @@ async def get_file_hash(filepath: str) -> Optional[str]:
 
     # Cache it
     if hash_val:
-        _file_hash_cache[filepath] = (hash_val, now)
+        # If mtime/size not provided, try to get them now to populate the cache effectively
+        if mtime is None or size is None:
+            try:
+                stat = await loop.run_in_executor(None, os.stat, filepath)
+                mtime = stat.st_mtime
+                size = stat.st_size
+            except Exception:
+                pass  # Can't get stat, just cache without it
+
+        _file_hash_cache[filepath] = (hash_val, now, mtime, size)
 
     return hash_val
 
@@ -1738,12 +1769,15 @@ async def list_available_models(request: Request, auth: None = Depends(verify_to
     if model_dir.exists():
 
         async def _get_model_info(model_file):
+            stat = model_file.stat()
             return {
                 "name": model_file.stem.replace("_", " "),
                 "filename": model_file.name,
-                "size_bytes": model_file.stat().st_size,
-                "hash": await get_file_hash(str(model_file)),
-                "modified": model_file.stat().st_mtime,
+                "size_bytes": stat.st_size,
+                "hash": await get_file_hash(
+                    str(model_file), mtime=stat.st_mtime, size=stat.st_size
+                ),
+                "modified": stat.st_mtime,
             }
 
         tasks = [_get_model_info(f) for f in model_dir.glob("*.enc")]
@@ -1921,7 +1955,9 @@ async def admin_list_models(
             "modified_formatted": time.strftime(
                 "%Y-%m-%d %H:%M:%S", time.localtime(stat.st_mtime)
             ),
-            "hash": await get_file_hash(str(model_file)),
+            "hash": await get_file_hash(
+                str(model_file), mtime=stat.st_mtime, size=stat.st_size
+            ),
             "download_count": download_count,
         }
 
