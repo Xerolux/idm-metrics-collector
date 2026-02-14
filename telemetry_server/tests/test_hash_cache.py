@@ -3,11 +3,13 @@ from unittest.mock import patch
 
 from app import get_file_hash, _file_hash_cache
 
+
 @pytest.fixture(autouse=True)
 def clean_cache():
     _file_hash_cache.clear()
     yield
     _file_hash_cache.clear()
+
 
 @pytest.mark.asyncio
 async def test_smart_caching_logic():
@@ -38,7 +40,9 @@ async def test_smart_caching_logic():
             h2 = await get_file_hash(filepath, mtime=mtime, size=size)
 
             assert h2 == "hash_123"
-            assert mock_hash.call_count == 1, "Should use cache when mtime/size match, even if TTL expired"
+            assert mock_hash.call_count == 1, (
+                "Should use cache when mtime/size match, even if TTL expired"
+            )
 
             # 4. Call with DIFFERENT mtime
             # TTL is expired, AND mtime mismatch -> Re-hash
