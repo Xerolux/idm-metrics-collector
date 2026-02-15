@@ -169,8 +169,8 @@ _redis_client = None  # Will be initialized on startup if USE_REDIS is True
 
 # Cache stores
 _file_hash_cache: Dict[
-    str, Tuple[Optional[str], float]
-] = {}  # {path: (hash, timestamp)}
+    str, Tuple[Optional[str], float, float, int]
+] = {}  # {path: (hash, timestamp, mtime, size)}
 _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
     None,
     0,
@@ -238,7 +238,8 @@ async def cleanup_rate_limits_and_bans():
 
             # Clean file hash cache
             expired_hashes = []
-            for path, (_, timestamp) in list(_file_hash_cache.items()):
+            for path, val in list(_file_hash_cache.items()):
+                timestamp = val[1]
                 if now - timestamp >= HASH_CACHE_TTL:
                     expired_hashes.append(path)
 
@@ -640,23 +641,46 @@ def _get_file_hash_sync(filepath: str) -> Optional[str]:
         return None
 
 
+def _get_file_stat_sync(filepath: str) -> Optional[Tuple[float, int]]:
+    """Synchronous internal function to get file stats."""
+    try:
+        stat = os.stat(filepath)
+        return stat.st_mtime, stat.st_size
+    except OSError:
+        return None
+
+
 async def get_file_hash(filepath: str) -> Optional[str]:
     """Calculate SHA256 hash of a file with caching."""
     now = time.time()
-
-    # Check cache
-    if filepath in _file_hash_cache:
-        cached_hash, timestamp = _file_hash_cache[filepath]
-        if now - timestamp < HASH_CACHE_TTL:
-            return cached_hash
-
-    # Calculate new hash
     loop = asyncio.get_event_loop()
+
+    # Get file stats first (check existence and metadata)
+    stats = await loop.run_in_executor(None, _get_file_stat_sync, filepath)
+    if not stats:
+        return None
+
+    mtime, size = stats
+
+    # Check cache validity using metadata
+    if filepath in _file_hash_cache:
+        # Cache format: (hash, timestamp, mtime, size)
+        cached_val = _file_hash_cache[filepath]
+        # Handle backward compatibility if tuple size differs (during rolling update/test)
+        if len(cached_val) == 4:
+            cached_hash, _, cached_mtime, cached_size = cached_val
+            if cached_mtime == mtime and cached_size == size:
+                # Metadata matches, file hasn't changed.
+                # Update timestamp to prevent TTL expiration while active
+                _file_hash_cache[filepath] = (cached_hash, now, mtime, size)
+                return cached_hash
+
+    # Calculate new hash (cache miss or file changed)
     hash_val = await loop.run_in_executor(None, _get_file_hash_sync, filepath)
 
     # Cache it
     if hash_val:
-        _file_hash_cache[filepath] = (hash_val, now)
+        _file_hash_cache[filepath] = (hash_val, now, mtime, size)
 
     return hash_val
 
