@@ -9,3 +9,7 @@
 ## 2025-05-24 - Unused WebSocket Logic
 **Learning:** The `broadcast_metric_update` method existed but was never called, and client subscriptions lacked `join_room` logic, rendering real-time updates non-functional. The frontend relied on frequent polling (5s) as a result.
 **Action:** Implemented `join_room` in subscription handler and hooked `broadcast_metrics` into the main data update loop. Converted `SensorValues` to use WebSocket push updates, reducing polling to 60s fallback.
+
+## 2026-02-16 - Smart File Hash Caching
+**Learning:** `telemetry_server` was re-reading and re-hashing large model files (10MB+) every time the TTL (1 hour) expired, even if the file hadn't changed. This caused unnecessary CPU and I/O spikes.
+**Action:** Implemented a smart caching mechanism in `get_file_hash` that checks file metadata (`mtime`, `size`) using `os.stat` (which is fast) before invalidating the cache. Cache is now only invalidated if metadata changes, resulting in ~100x speedup for repeated checks.

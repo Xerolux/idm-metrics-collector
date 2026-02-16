@@ -169,8 +169,8 @@ _redis_client = None  # Will be initialized on startup if USE_REDIS is True
 
 # Cache stores
 _file_hash_cache: Dict[
-    str, Tuple[Optional[str], float]
-] = {}  # {path: (hash, timestamp)}
+    str, Tuple[Optional[str], float, float, int]
+] = {}  # {path: (hash, timestamp, mtime, size)}
 _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
     None,
     0,
@@ -238,7 +238,9 @@ async def cleanup_rate_limits_and_bans():
 
             # Clean file hash cache
             expired_hashes = []
-            for path, (_, timestamp) in list(_file_hash_cache.items()):
+            for path, val in list(_file_hash_cache.items()):
+                # Handle variable tuple length for backward compatibility/robustness
+                timestamp = val[1]
                 if now - timestamp >= HASH_CACHE_TTL:
                     expired_hashes.append(path)
 
@@ -641,22 +643,38 @@ def _get_file_hash_sync(filepath: str) -> Optional[str]:
 
 
 async def get_file_hash(filepath: str) -> Optional[str]:
-    """Calculate SHA256 hash of a file with caching."""
+    """Calculate SHA256 hash of a file with smart caching based on mtime/size."""
     now = time.time()
+    loop = asyncio.get_event_loop()
+
+    # Get file stats to check for modifications
+    try:
+        # Use executor for stat as it touches disk
+        stat = await loop.run_in_executor(None, os.stat, filepath)
+        mtime = stat.st_mtime
+        size = stat.st_size
+    except Exception:
+        # File doesn't exist or permission denied
+        return None
 
     # Check cache
     if filepath in _file_hash_cache:
-        cached_hash, timestamp = _file_hash_cache[filepath]
-        if now - timestamp < HASH_CACHE_TTL:
-            return cached_hash
+        cached_val = _file_hash_cache[filepath]
+        # Ensure we have the new 4-tuple format: (hash, timestamp, mtime, size)
+        if len(cached_val) == 4:
+            cached_hash, _, cached_mtime, cached_size = cached_val
+            # If file hasn't changed (mtime and size match), return cached hash
+            if mtime == cached_mtime and size == cached_size:
+                # Update timestamp to keep entry fresh (LRU behavior)
+                _file_hash_cache[filepath] = (cached_hash, now, mtime, size)
+                return cached_hash
 
-    # Calculate new hash
-    loop = asyncio.get_event_loop()
+    # Calculate new hash (cache miss or file changed)
     hash_val = await loop.run_in_executor(None, _get_file_hash_sync, filepath)
 
     # Cache it
     if hash_val:
-        _file_hash_cache[filepath] = (hash_val, now)
+        _file_hash_cache[filepath] = (hash_val, now, mtime, size)
 
     return hash_val
 
