@@ -4,15 +4,45 @@ from fastapi.testclient import TestClient
 import os
 import sys
 import asyncio
+import tempfile
+import shutil
 
 # Ensure telemetry_server is in path
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-# Set env vars for testing
+# Create temporary directories for testing
+test_dir = tempfile.mkdtemp()
+os.environ["TOKEN_STORAGE_DIR"] = os.path.join(test_dir, "tokens")
+os.environ["AUDIT_LOG_DIR"] = os.path.join(test_dir, "audit")
+os.environ["PERMISSION_STORAGE_DIR"] = os.path.join(test_dir, "permissions")
+os.environ["INSTALLATION_STORAGE_DIR"] = os.path.join(test_dir, "installations")
+os.environ["TASK_STORAGE_DIR"] = os.path.join(test_dir, "tasks")
+os.environ["MODEL_DIR"] = os.path.join(test_dir, "models")
 os.environ["AUTH_TOKEN"] = "test-token"
 os.environ["TELEMETRY_ENCRYPTION_KEY"] = "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA="
 
-from app import app
+# Ensure directories exist
+for var in [
+    "TOKEN_STORAGE_DIR",
+    "AUDIT_LOG_DIR",
+    "PERMISSION_STORAGE_DIR",
+    "INSTALLATION_STORAGE_DIR",
+    "TASK_STORAGE_DIR",
+    "MODEL_DIR",
+]:
+    os.makedirs(os.environ[var], exist_ok=True)
+
+from app import app  # noqa: E402
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_test_env():
+    yield
+    # Cleanup after session
+    try:
+        shutil.rmtree(test_dir)
+    except Exception:
+        pass
 
 
 @pytest.fixture

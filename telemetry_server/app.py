@@ -169,8 +169,8 @@ _redis_client = None  # Will be initialized on startup if USE_REDIS is True
 
 # Cache stores
 _file_hash_cache: Dict[
-    str, Tuple[Optional[str], float]
-] = {}  # {path: (hash, timestamp)}
+    str, Tuple[Optional[str], float, float, int]
+] = {}  # {path: (hash, timestamp, mtime, size)}
 _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
     None,
     0,
@@ -238,7 +238,10 @@ async def cleanup_rate_limits_and_bans():
 
             # Clean file hash cache
             expired_hashes = []
-            for path, (_, timestamp) in list(_file_hash_cache.items()):
+            for path, val in list(_file_hash_cache.items()):
+                timestamp = val[
+                    1
+                ]  # Works for both (hash, ts) and (hash, ts, mtime, size)
                 if now - timestamp >= HASH_CACHE_TTL:
                     expired_hashes.append(path)
 
@@ -641,22 +644,51 @@ def _get_file_hash_sync(filepath: str) -> Optional[str]:
 
 
 async def get_file_hash(filepath: str) -> Optional[str]:
-    """Calculate SHA256 hash of a file with caching."""
+    """
+    Calculate SHA256 hash of a file with smart caching.
+    Uses mtime/size validation to avoid re-hashing large files.
+    """
     now = time.time()
 
-    # Check cache
-    if filepath in _file_hash_cache:
-        cached_hash, timestamp = _file_hash_cache[filepath]
-        if now - timestamp < HASH_CACHE_TTL:
+    # Check cache (Fast Hit)
+    cached_data = _file_hash_cache.get(filepath)
+    if cached_data:
+        # Handle tuple unpacking safely
+        if len(cached_data) >= 4:
+            cached_hash, timestamp, cached_mtime, cached_size = cached_data
+            if now - timestamp < HASH_CACHE_TTL:
+                return cached_hash
+        elif len(cached_data) == 2:  # Legacy/Fallback
+            cached_hash, timestamp = cached_data
+            cached_mtime, cached_size = None, None
+            if now - timestamp < HASH_CACHE_TTL:
+                return cached_hash
+        else:
+            cached_mtime, cached_size = None, None
+
+    # Get current file stats (async to avoid blocking)
+    loop = asyncio.get_event_loop()
+    try:
+        stat_result = await loop.run_in_executor(None, os.stat, filepath)
+        mtime = stat_result.st_mtime
+        size = stat_result.st_size
+    except Exception:
+        return None
+
+    # Smart Cache Check: If metadata matches, reuse hash even if TTL expired
+    if cached_data and len(cached_data) >= 4:
+        cached_hash, _, cached_mtime, cached_size = cached_data
+        if cached_mtime == mtime and cached_size == size:
+            # Update timestamp to prevent cleanup
+            _file_hash_cache[filepath] = (cached_hash, now, mtime, size)
             return cached_hash
 
-    # Calculate new hash
-    loop = asyncio.get_event_loop()
+    # Calculate new hash (Miss - heavy I/O)
     hash_val = await loop.run_in_executor(None, _get_file_hash_sync, filepath)
 
     # Cache it
     if hash_val:
-        _file_hash_cache[filepath] = (hash_val, now)
+        _file_hash_cache[filepath] = (hash_val, now, mtime, size)
 
     return hash_val
 
