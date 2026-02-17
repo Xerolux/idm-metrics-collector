@@ -589,9 +589,12 @@
 
                 <div class="bg-gray-800 p-4 rounded border border-gray-700 mt-4">
                   <div class="flex flex-col gap-2">
-                    <label class="font-bold text-sm text-gray-300">Empfindlichkeit (0-10)</label>
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <label for="ai-sensitivity" class="font-bold text-sm text-gray-300"
+                      >Empfindlichkeit (0-10)</label
+                    >
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-4">
                       <InputNumber
+                        inputId="ai-sensitivity"
                         v-model="config.ai.sensitivity"
                         :min="0"
                         :max="10"
@@ -602,10 +605,18 @@
                         buttonLayout="horizontal"
                         decrementButtonIcon="pi pi-minus"
                         incrementButtonIcon="pi pi-plus"
-                        class="w-full sm:w-40"
+                        class="w-full sm:w-40 flex-shrink-0"
                       />
-                      <span class="text-sm text-gray-400 italic">Empfehlung: 3.0 (Standard)</span>
+                      <Slider
+                        v-model="config.ai.sensitivity"
+                        :min="0"
+                        :max="10"
+                        :step="0.1"
+                        class="w-full"
+                        aria-label="Empfindlichkeit Schieberegler"
+                      />
                     </div>
+                    <span class="text-sm text-gray-400 italic">Empfehlung: 3.0 (Standard)</span>
                     <div class="text-xs text-gray-500 mt-1">
                       Werte wie 0.11 oder 0.15 ermöglichen sehr feine Abstimmungen.
                       <br />
@@ -2313,6 +2324,7 @@ import axios from 'axios'
 import Fieldset from 'primevue/fieldset'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
+import Slider from 'primevue/slider'
 import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
 import Textarea from 'primevue/textarea'
