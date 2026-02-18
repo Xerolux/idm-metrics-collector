@@ -267,15 +267,30 @@ const fetchData = async () => {
 
     const allData = []
 
-    for (const query of props.queries) {
-      const response = await axios.get('/api/query', {
-        params: {
-          query: query.query,
-          start: start,
-          end: end,
-          step: calculateStep()
-        }
-      })
+    const step = calculateStep()
+
+    // ⚡ Bolt: Fetch all queries in parallel for performance
+    const promises = props.queries.map(async (query) => {
+      try {
+        const response = await axios.get('/api/query', {
+          params: {
+            query: query.query,
+            start: start,
+            end: end,
+            step: step
+          }
+        })
+        return { query, response }
+      } catch (err) {
+        console.error(`Failed to fetch data for ${query.label || query.query}:`, err)
+        return { query, response: null }
+      }
+    })
+
+    const results = await Promise.all(promises)
+
+    for (const { query, response } of results) {
+      if (!response || !response.data) continue
 
       const data = response.data.data
       if (data && data.values) {
