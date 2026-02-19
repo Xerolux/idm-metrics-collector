@@ -14,6 +14,7 @@ except ImportError:
     sys.path.append("telemetry_server")
     import app
 
+
 @pytest.mark.asyncio
 async def test_smart_caching_logic():
     filepath = "/tmp/test_smart_cache.enc"
@@ -23,9 +24,12 @@ async def test_smart_caching_logic():
     mock_stat.st_mtime = 1000.0
     mock_stat.st_size = 1024
 
-    with patch("os.stat", return_value=mock_stat), \
-         patch("app._get_file_hash_sync") as mock_calc_hash:
-
+    # Patch MODEL_DIR so the security check allows access to /tmp
+    with (
+        patch("os.stat", return_value=mock_stat),
+        patch("app._get_file_hash_sync") as mock_calc_hash,
+        patch("app.MODEL_DIR", "/tmp"),
+    ):
         mock_calc_hash.return_value = "hash_v1"
 
         # Clear cache
@@ -46,9 +50,9 @@ async def test_smart_caching_logic():
         entry = app._file_hash_cache[filepath]
         expired_time = time.time() - app.HASH_CACHE_TTL - 100
 
-        if len(entry) == 3: # New format (hash, timestamp, key)
+        if len(entry) == 3:  # New format (hash, timestamp, key)
             app._file_hash_cache[filepath] = (entry[0], expired_time, entry[2])
-        else: # Old format (hash, timestamp)
+        else:  # Old format (hash, timestamp)
             app._file_hash_cache[filepath] = (entry[0], expired_time)
 
         h3 = await app.get_file_hash(filepath)
@@ -57,7 +61,9 @@ async def test_smart_caching_logic():
         # KEY ASSERTION:
         # In current code: this fails because it re-calculates (call_count becomes 2)
         # In new code: this passes because stat matches (call_count stays 1)
-        assert mock_calc_hash.call_count == 1, "Should verify via stat and skip hash calculation"
+        assert mock_calc_hash.call_count == 1, (
+            "Should verify via stat and skip hash calculation"
+        )
 
         # 4. Fourth call: File Changed (mtime changed) -> Calculate
         mock_stat.st_mtime = 2000.0

@@ -645,7 +645,15 @@ async def get_file_hash(filepath: str) -> Optional[str]:
     """Calculate SHA256 hash of a file with smart caching based on mtime/size."""
     now = time.time()
 
+    # Security check: Ensure file is within allowed model directory
+    # This prevents path traversal even if upstream validation fails
     try:
+        model_dir_abs = os.path.realpath(MODEL_DIR)
+        file_abs = os.path.realpath(filepath)
+        if not file_abs.startswith(model_dir_abs):
+            logger.warning("access_denied_path_traversal", path=filepath)
+            return None
+
         stat = os.stat(filepath)
         key = (stat.st_mtime, stat.st_size)
     except OSError:
