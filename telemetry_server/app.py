@@ -169,8 +169,8 @@ _redis_client = None  # Will be initialized on startup if USE_REDIS is True
 
 # Cache stores
 _file_hash_cache: Dict[
-    str, Tuple[Optional[str], float]
-] = {}  # {path: (hash, timestamp)}
+    str, Tuple[Optional[str], float, Tuple[float, int]]
+] = {}  # {path: (hash, timestamp, (mtime, size))}
 _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
     None,
     0,
@@ -238,7 +238,8 @@ async def cleanup_rate_limits_and_bans():
 
             # Clean file hash cache
             expired_hashes = []
-            for path, (_, timestamp) in list(_file_hash_cache.items()):
+            # Unpack 3-tuple: hash, timestamp, (mtime, size)
+            for path, (_, timestamp, _) in list(_file_hash_cache.items()):
                 if now - timestamp >= HASH_CACHE_TTL:
                     expired_hashes.append(path)
 
@@ -641,13 +642,21 @@ def _get_file_hash_sync(filepath: str) -> Optional[str]:
 
 
 async def get_file_hash(filepath: str) -> Optional[str]:
-    """Calculate SHA256 hash of a file with caching."""
+    """Calculate SHA256 hash of a file with smart caching based on mtime/size."""
     now = time.time()
+
+    try:
+        stat = os.stat(filepath)
+        key = (stat.st_mtime, stat.st_size)
+    except OSError:
+        return None
 
     # Check cache
     if filepath in _file_hash_cache:
-        cached_hash, timestamp = _file_hash_cache[filepath]
-        if now - timestamp < HASH_CACHE_TTL:
+        cached_hash, _, cached_key = _file_hash_cache[filepath]
+        if cached_key == key:
+            # Update last access time to prevent cleanup
+            _file_hash_cache[filepath] = (cached_hash, now, cached_key)
             return cached_hash
 
     # Calculate new hash
@@ -656,7 +665,7 @@ async def get_file_hash(filepath: str) -> Optional[str]:
 
     # Cache it
     if hash_val:
-        _file_hash_cache[filepath] = (hash_val, now)
+        _file_hash_cache[filepath] = (hash_val, now, key)
 
     return hash_val
 
