@@ -677,7 +677,7 @@ async def get_file_hash(filepath: str) -> Optional[str]:
 
     # Calculate new hash
     loop = asyncio.get_event_loop()
-    hash_val = await loop.run_in_executor(None, _get_file_hash_sync, filepath)
+    hash_val = await loop.run_in_executor(None, _get_file_hash_sync, file_abs)
 
     # Cache it
     if hash_val:
