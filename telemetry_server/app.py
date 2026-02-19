@@ -650,11 +650,19 @@ async def get_file_hash(filepath: str) -> Optional[str]:
     try:
         model_dir_abs = os.path.realpath(MODEL_DIR)
         file_abs = os.path.realpath(filepath)
-        if not file_abs.startswith(model_dir_abs):
+
+        # Check if file is inside model directory using commonpath
+        try:
+            common = os.path.commonpath([model_dir_abs, file_abs])
+        except ValueError:
+            # Different drives on Windows
+            return None
+
+        if common != model_dir_abs:
             logger.warning("access_denied_path_traversal", path=filepath)
             return None
 
-        stat = os.stat(filepath)
+        stat = os.stat(file_abs)
         key = (stat.st_mtime, stat.st_size)
     except OSError:
         return None
