@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from app import app
 
+
 @pytest.mark.asyncio
 async def test_installation_stats_caching(client):
     """Verify that installation stats are cached."""
@@ -10,6 +11,7 @@ async def test_installation_stats_caching(client):
 
     # Reset cache before test
     import app as app_module
+
     app_module._installation_stats_cache = (None, 0)
 
     # Mock response for list query and time query
@@ -34,6 +36,7 @@ async def test_installation_stats_caching(client):
 
         # Enable orjson.loads
         import json
+
         mock_response.content = json.dumps(data).encode("utf-8")
         mock_response.json.return_value = data
         return mock_response
@@ -43,25 +46,32 @@ async def test_installation_stats_caching(client):
     headers = {"Authorization": "Bearer test-token"}
 
     # patch verify_admin
-    with patch("app.verify_admin", return_value="admin-id"), \
-         patch("app.has_permission", return_value=True):
-
+    with (
+        patch("app.verify_admin", return_value="admin-id"),
+        patch("app.has_permission", return_value=True),
+    ):
         # First call: Should trigger fetches
         client.get("/api/v1/admin/installations", headers=headers)
 
         # Count calls to list query
-        list_calls_1 = len([
-            c for c in mock_client.get.mock_calls
-            if "params" in c.kwargs and "count by" in c.kwargs["params"]["query"]
-        ])
+        list_calls_1 = len(
+            [
+                c
+                for c in mock_client.get.mock_calls
+                if "params" in c.kwargs and "count by" in c.kwargs["params"]["query"]
+            ]
+        )
         assert list_calls_1 == 1
 
         # Second call: Should use cache
         client.get("/api/v1/admin/installations", headers=headers)
 
-        list_calls_2 = len([
-            c for c in mock_client.get.mock_calls
-            if "params" in c.kwargs and "count by" in c.kwargs["params"]["query"]
-        ])
+        list_calls_2 = len(
+            [
+                c
+                for c in mock_client.get.mock_calls
+                if "params" in c.kwargs and "count by" in c.kwargs["params"]["query"]
+            ]
+        )
         # Should still be 1
         assert list_calls_2 == 1
