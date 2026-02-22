@@ -649,16 +649,18 @@ async def get_file_hash(filepath: str) -> Optional[str]:
 
     # Security: Ensure path is within MODEL_DIR
     try:
-        # Resolve absolute path
-        abs_path = os.path.abspath(filepath)
+        # Resolve absolute path using pathlib (handles symlinks and ..)
+        path_obj = Path(filepath).resolve()
+        model_dir_obj = Path(MODEL_DIR).resolve()
+
         # Check if path is within MODEL_DIR
-        # Use commonpath to verify containment safely
-        if os.path.commonpath([abs_path, os.path.abspath(MODEL_DIR)]) != os.path.abspath(MODEL_DIR):
+        # is_relative_to is available in Python 3.9+
+        if not path_obj.is_relative_to(model_dir_obj):
             logger.warning("path_traversal_attempt", path=filepath)
             return None
 
         # Use the sanitized absolute path for operations
-        filepath = abs_path
+        filepath = str(path_obj)
     except Exception as e:
         logger.warning("path_validation_failed", path=filepath, error=str(e))
         return None
