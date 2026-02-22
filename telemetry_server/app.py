@@ -169,8 +169,8 @@ _redis_client = None  # Will be initialized on startup if USE_REDIS is True
 
 # Cache stores
 _file_hash_cache: Dict[
-    str, Tuple[Optional[str], float]
-] = {}  # {path: (hash, timestamp)}
+    str, Tuple[Optional[str], float, float, int]
+] = {}  # {path: (hash, timestamp, mtime, size)}
 _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
     None,
     0,
@@ -238,7 +238,10 @@ async def cleanup_rate_limits_and_bans():
 
             # Clean file hash cache
             expired_hashes = []
-            for path, (_, timestamp) in list(_file_hash_cache.items()):
+            for path, val in list(_file_hash_cache.items()):
+                # val is (hash, timestamp) or (hash, timestamp, mtime, size)
+                # Use index 1 for timestamp
+                timestamp = val[1]
                 if now - timestamp >= HASH_CACHE_TTL:
                     expired_hashes.append(path)
 
@@ -644,19 +647,47 @@ async def get_file_hash(filepath: str) -> Optional[str]:
     """Calculate SHA256 hash of a file with caching."""
     now = time.time()
 
+    # Smart Caching: Check file stats first to avoid expensive hashing
+    try:
+        stat_result = os.stat(filepath)
+        mtime = stat_result.st_mtime
+        size = stat_result.st_size
+    except OSError:
+        # File doesn't exist or permission error
+        if filepath in _file_hash_cache:
+            del _file_hash_cache[filepath]
+        return None
+
     # Check cache
     if filepath in _file_hash_cache:
-        cached_hash, timestamp = _file_hash_cache[filepath]
-        if now - timestamp < HASH_CACHE_TTL:
-            return cached_hash
+        val = _file_hash_cache[filepath]
+        # Handle backward compatibility with tuple size
+        if len(val) == 4:
+            cached_hash, timestamp, cached_mtime, cached_size = val
 
-    # Calculate new hash
+            # If file hasn't changed (based on mtime and size)
+            if cached_mtime == mtime and cached_size == size:
+                # If expired by TTL, renew it because file is verified unchanged
+                if now - timestamp >= HASH_CACHE_TTL:
+                    _file_hash_cache[filepath] = (cached_hash, now, mtime, size)
+
+                # Return cached hash
+                return cached_hash
+
+        elif len(val) == 2:
+            # Legacy cache entry (hash, timestamp)
+            cached_hash, timestamp = val
+            if now - timestamp < HASH_CACHE_TTL:
+                # If not expired, assume valid for now, but upgrade structure next time
+                return cached_hash
+
+    # Calculate new hash (cache miss or file changed)
     loop = asyncio.get_event_loop()
     hash_val = await loop.run_in_executor(None, _get_file_hash_sync, filepath)
 
-    # Cache it
+    # Cache it with stats
     if hash_val:
-        _file_hash_cache[filepath] = (hash_val, now)
+        _file_hash_cache[filepath] = (hash_val, now, mtime, size)
 
     return hash_val
 
