@@ -647,6 +647,22 @@ async def get_file_hash(filepath: str) -> Optional[str]:
     """Calculate SHA256 hash of a file with caching."""
     now = time.time()
 
+    # Security: Ensure path is within MODEL_DIR
+    try:
+        # Resolve absolute path
+        abs_path = os.path.abspath(filepath)
+        # Check if path is within MODEL_DIR
+        # Use commonpath to verify containment safely
+        if os.path.commonpath([abs_path, os.path.abspath(MODEL_DIR)]) != os.path.abspath(MODEL_DIR):
+            logger.warning("path_traversal_attempt", path=filepath)
+            return None
+
+        # Use the sanitized absolute path for operations
+        filepath = abs_path
+    except Exception as e:
+        logger.warning("path_validation_failed", path=filepath, error=str(e))
+        return None
+
     # Smart Caching: Check file stats first to avoid expensive hashing
     try:
         stat_result = os.stat(filepath)
