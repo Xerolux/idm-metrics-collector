@@ -647,22 +647,15 @@ async def get_file_hash(filepath: str) -> Optional[str]:
     """Calculate SHA256 hash of a file with caching."""
     now = time.time()
 
-    # Security: Ensure path is within MODEL_DIR
+    # Security: Sanitization
+    # We only allow accessing files directly inside MODEL_DIR.
+    # By stripping the directory component and re-joining with the trusted MODEL_DIR,
+    # we effectively neutralize any path traversal attempts (e.g., "../etc/passwd").
     try:
-        # Resolve absolute path using pathlib (handles symlinks and ..)
-        path_obj = Path(filepath).resolve()
-        model_dir_obj = Path(MODEL_DIR).resolve()
-
-        # Check if path is within MODEL_DIR
-        # is_relative_to is available in Python 3.9+
-        if not path_obj.is_relative_to(model_dir_obj):
-            logger.warning("path_traversal_attempt", path=filepath)
-            return None
-
-        # Use the sanitized absolute path for operations
-        filepath = str(path_obj)
+        filename = os.path.basename(filepath)
+        filepath = os.path.join(MODEL_DIR, filename)
     except Exception as e:
-        logger.warning("path_validation_failed", path=filepath, error=str(e))
+        logger.warning("path_sanitization_failed", path=filepath, error=str(e))
         return None
 
     # Smart Caching: Check file stats first to avoid expensive hashing
