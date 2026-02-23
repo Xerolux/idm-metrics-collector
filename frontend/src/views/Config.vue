@@ -609,7 +609,8 @@
                     <div class="text-xs text-gray-500 mt-1">
                       Werte wie 0.11 oder 0.15 ermöglichen sehr feine Abstimmungen.
                       <br />
-                      0 = Sehr geringe Empfindlichkeit (Weniger Alarme), 10 = Sehr hohe Empfindlichkeit (Mehr Alarme).
+                      0 = Sehr geringe Empfindlichkeit (Weniger Alarme), 10 = Sehr hohe
+                      Empfindlichkeit (Mehr Alarme).
                     </div>
                   </div>
                 </div>

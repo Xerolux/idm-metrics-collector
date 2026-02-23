@@ -2,31 +2,31 @@
   <div
     class="bg-white rounded-lg p-2 h-full flex flex-col shadow-sm border border-gray-200 relative"
   >
-    <div v-if="editMode" class="absolute top-2 right-2 z-10 flex gap-1">
-      <button
-        @click="openConfig"
-        class="p-1.5 bg-white hover:bg-gray-100 rounded shadow text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
-        title="Bearbeiten"
-        aria-label="Bearbeiten"
-      >
-        <i class="pi pi-pencil text-xs"></i>
-      </button>
-      <button
-        @click="confirmDelete"
-        class="p-1.5 bg-white hover:bg-red-50 rounded shadow text-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500"
-        title="Löschen"
-        aria-label="Löschen"
-      >
-        <i class="pi pi-trash text-xs"></i>
-      </button>
-    </div>
-
     <div class="flex justify-between items-start mb-1 px-1 flex-shrink-0">
       <div>
         <h3 class="text-gray-900 font-bold text-sm leading-tight pr-16">{{ title }}</h3>
         <span class="text-xs text-gray-500">Verlauf - letzte {{ displayHours }}</span>
       </div>
       <div class="flex items-center gap-1">
+        <template v-if="editMode">
+          <button
+            @click="openConfig"
+            class="p-1.5 hover:bg-gray-100 rounded text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
+            title="Bearbeiten"
+            aria-label="Bearbeiten"
+          >
+            <i class="pi pi-pencil text-xs"></i>
+          </button>
+          <button
+            @click="confirmDelete"
+            class="p-1.5 hover:bg-red-50 rounded text-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500"
+            title="Löschen"
+            aria-label="Löschen"
+          >
+            <i class="pi pi-trash text-xs"></i>
+          </button>
+          <div class="w-px h-3 bg-gray-300 mx-1"></div>
+        </template>
         <button
           @click="resetZoom"
           class="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
