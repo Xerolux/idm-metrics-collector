@@ -1,4 +1,3 @@
-
 import sys
 import os
 
@@ -7,10 +6,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app import _process_telemetry_batch
 
+
 def test_process_batch_valid_data():
     data = [
         {"timestamp": 1234567890.0, "temp": 20.5, "active": True},
-        {"timestamp": 1234567891.0, "pressure": 1.2}
+        {"timestamp": 1234567891.0, "pressure": 1.2},
     ]
     tags = "installation_id=test,model=AERO,version=1.0"
 
@@ -32,10 +32,11 @@ def test_process_batch_valid_data():
     assert "pressure=1.2" in lines[1]
     assert lines[1].endswith("1234567891000000000")
 
+
 def test_process_batch_missing_timestamp():
     data = [
-        {"temp": 20.5}, # Missing timestamp
-        {"timestamp": 1234567890.0, "temp": 21.0}
+        {"temp": 20.5},  # Missing timestamp
+        {"timestamp": 1234567890.0, "temp": 21.0},
     ]
     tags = "tag=value"
 
@@ -46,6 +47,7 @@ def test_process_batch_missing_timestamp():
     assert "temp=21.0" in result
     assert "temp=20.5" not in result
 
+
 def test_process_batch_empty():
     data = []
     tags = "tag=value"
@@ -54,6 +56,7 @@ def test_process_batch_empty():
 
     assert count == 0
     assert result is None
+
 
 def test_process_batch_only_timestamp():
     data = [{"timestamp": 1234567890.0}]
@@ -64,6 +67,7 @@ def test_process_batch_only_timestamp():
     # Should be skipped because no fields
     assert count == 0
     assert result is None
+
 
 def test_process_batch_ignores_non_metric_types():
     # Only int, float, bool are supported as fields in this implementation
