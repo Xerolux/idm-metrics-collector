@@ -180,6 +180,44 @@ _community_avg_cache: Dict[
 ] = {}  # {cache_key: (result, timestamp)} - cache_key = f"{model}:{metrics}"
 
 
+def _process_telemetry_batch(
+    data: List[Dict[str, Any]], tags: str
+) -> Tuple[Optional[str], int]:
+    """
+    Process telemetry data into Influx Line Protocol format.
+    Run this in a thread pool to avoid blocking the event loop.
+    """
+    lines = []
+    for record in data:
+        timestamp = record.get("timestamp")
+        if not timestamp:
+            continue
+
+        # Timestamp in nanoseconds for Influx/VM Line Protocol
+        ts_ns = int(timestamp * 1e9)
+
+        # Fields
+        fields = []
+        for key, value in record.items():
+            if key == "timestamp":
+                continue
+            # Check bool first because bool is a subclass of int in Python
+            if isinstance(value, bool):
+                fields.append(f"{key}={str(value).lower()}")
+            elif isinstance(value, (int, float)):
+                fields.append(f"{key}={value}")
+
+        if fields:
+            # Line Protocol: measurement,tags fields timestamp
+            line = f"heatpump_metrics,{tags} {','.join(fields)} {ts_ns}"
+            lines.append(line)
+
+    if not lines:
+        return None, 0
+
+    return "\n".join(lines), len(lines)
+
+
 async def run_sync(func, *args):
     """Run a synchronous function in the default executor."""
     loop = asyncio.get_event_loop()
@@ -1142,40 +1180,19 @@ async def submit_telemetry(
         )
 
     try:
-        lines = []
-
         # Tags common to all points in this batch
         tags = f"installation_id={payload.installation_id},model={payload.heatpump_model.replace(' ', '_')},version={payload.version}"
 
-        for record in payload.data:
-            timestamp = record.get("timestamp")
-            if not timestamp:
-                continue
+        # Offload string processing to thread pool to avoid blocking event loop
+        data_str, processed_count = await run_sync(
+            _process_telemetry_batch, payload.data, tags
+        )
 
-            # Timestamp in nanoseconds for Influx/VM Line Protocol
-            ts_ns = int(timestamp * 1e9)
-
-            # Fields
-            fields = []
-            for key, value in record.items():
-                if key == "timestamp":
-                    continue
-                if isinstance(value, (int, float)):
-                    fields.append(f"{key}={value}")
-                elif isinstance(value, bool):
-                    fields.append(f"{key}={str(value).lower()}")  # bool as boolean
-
-            if fields:
-                # Line Protocol: measurement,tags fields timestamp
-                line = f"heatpump_metrics,{tags} {','.join(fields)} {ts_ns}"
-                lines.append(line)
-
-        if lines:
+        if data_str:
             # Batch write to VictoriaMetrics using pooled client
-            data = "\n".join(lines)
             client = request.app.state.http_client
-            # Use content=data for raw body to avoid form-encoding overhead/issues
-            response = await client.post(VM_WRITE_URL, content=data)
+            # Use content=data_str for raw body to avoid form-encoding overhead/issues
+            response = await client.post(VM_WRITE_URL, content=data_str)
 
             if response.status_code != 204:  # VM returns 204 on success
                 logger.error(
@@ -1188,7 +1205,7 @@ async def submit_telemetry(
             logger.info(
                 "telemetry_ingested",
                 installation_id=payload.installation_id,
-                points=len(lines),
+                points=processed_count,
                 ip=client_ip,
             )
 
@@ -1197,10 +1214,11 @@ async def submit_telemetry(
                 data_submissions_total.labels(
                     heatpump_model=payload.heatpump_model
                 ).inc()
-                data_points_submitted_total.inc(len(lines))
+                data_points_submitted_total.inc(processed_count)
 
         return JSONResponse(
-            {"status": "success", "processed": len(lines)}, headers=rate_limit_headers
+            {"status": "success", "processed": processed_count},
+            headers=rate_limit_headers,
         )
 
     except HTTPException:
