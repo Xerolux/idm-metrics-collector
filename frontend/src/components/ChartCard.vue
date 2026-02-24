@@ -687,35 +687,41 @@ const handleMetricUpdate = (data) => {
 
   let updated = false
 
-  // ⚡ Bolt: Helper to process a single point, handling both single and batched updates
-  const processPoint = (point) => {
+  // ⚡ Bolt: Helper to process a single point for a specific dataset
+  const updateDataset = (dataset, point) => {
     if (!point || !point.metric) return
 
-    const metric = point.metric
     const value = point.value
     const timestamp = point.timestamp * 1000 // Convert to milliseconds
 
-    // Find dataset that corresponds to this metric
-    const dataset = chartData.value.datasets.find((ds) => ds._query === metric)
+    // Add new data point
+    dataset.data.push({ x: timestamp, y: value })
 
-    if (dataset) {
-      // Add new data point
-      dataset.data.push({ x: timestamp, y: value })
-
-      // Remove old data points to prevent memory leak (keep last 1000 points)
-      if (dataset.data.length > 1000) {
-        dataset.data.shift()
-      }
-      updated = true
+    // Remove old data points to prevent memory leak (keep last 1000 points)
+    if (dataset.data.length > 1000) {
+      dataset.data.shift()
     }
+    updated = true
   }
 
   // Check if batch (map) or single
   if (data.metric) {
-    processPoint(data)
+    // Single point update
+    const dataset = chartData.value.datasets.find((ds) => ds._query === data.metric)
+    if (dataset) {
+      updateDataset(dataset, data)
+    }
   } else {
-    // Assume batch map from wsClient
-    Object.values(data).forEach((point) => processPoint(point))
+    // Batch update from wsClient
+    // ⚡ Bolt Optimization: Iterate over OUR datasets and look up in the batch
+    // instead of iterating the entire batch (which might contain hundreds of unrelated metrics).
+    // Complexity: O(Datasets) instead of O(BatchSize).
+    chartData.value.datasets.forEach((dataset) => {
+      const point = data[dataset._query]
+      if (point) {
+        updateDataset(dataset, point)
+      }
+    })
   }
 
   if (updated) {
