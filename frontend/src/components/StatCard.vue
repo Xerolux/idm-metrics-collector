@@ -3,7 +3,7 @@
     class="bg-white rounded-lg p-4 shadow-sm border border-gray-200 h-full flex flex-col justify-center"
   >
     <div v-if="loading" class="flex items-center justify-center h-full">
-      <i class="pi pi-spinner pi-spin text-gray-400"></i>
+      <LoadingSpinner />
     </div>
     <div v-else-if="error" class="flex flex-col items-center justify-center h-full text-center">
       <i class="pi pi-exclamation-triangle text-red-400 text-2xl mb-2"></i>
@@ -75,6 +75,7 @@
 // Xerolux 2026
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
+import LoadingSpinner from './LoadingSpinner.vue'
 
 const props = defineProps({
   title: { type: String, required: true },

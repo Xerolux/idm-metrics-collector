@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-3 overflow-y-auto">
     <div v-if="loading" class="text-center py-8 text-gray-500">
-      <i class="pi pi-spin pi-spinner text-2xl"></i>
+      <LoadingSpinner size="2xl" />
     </div>
 
     <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
@@ -51,6 +51,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import axios from 'axios'
 import { useWebSocket } from '../utils/websocket.js'
+import LoadingSpinner from './LoadingSpinner.vue'
 
 const emit = defineEmits(['sensor-drag-start'])
 

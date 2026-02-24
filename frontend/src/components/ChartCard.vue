@@ -71,7 +71,8 @@
         <!-- No Data Message -->
         <div
           v-if="!hasData && !isLoading"
-          class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm"
+          class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm"
+          role="status"
         >
           <div class="text-center">
             <i class="pi pi-info-circle text-2xl mb-2"></i>
@@ -84,9 +85,9 @@
         <!-- Loading State -->
         <div
           v-if="isLoading"
-          class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm"
+          class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm"
         >
-          <i class="pi pi-spin pi-spinner text-2xl"></i>
+          <LoadingSpinner size="2xl" />
         </div>
         <Line
           v-if="!isLoading"
@@ -158,6 +159,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import axios from 'axios'
 import { wsClient } from '../utils/websocket.js'
+import LoadingSpinner from './LoadingSpinner.vue'
 import ChartConfigDialog from './ChartConfigDialog.vue'
 import ConfirmDialog from 'primevue/confirmdialog'
 
