@@ -160,6 +160,7 @@ import axios from 'axios'
 import { wsClient } from '../utils/websocket.js'
 import ChartConfigDialog from './ChartConfigDialog.vue'
 import ConfirmDialog from 'primevue/confirmdialog'
+import LoadingSpinner from './LoadingSpinner.vue'
 
 ChartJS.register(
   CategoryScale,

@@ -22,10 +22,11 @@ const sizeClasses = {
 </script>
 
 <template>
-  <div class="flex items-center justify-center">
-    <div :class="['animate-spin text-primary-500', sizeClasses[props.size]]">
+  <div class="flex items-center justify-center" role="status" aria-live="polite">
+    <div :class="['animate-spin text-primary-500', sizeClasses[props.size]]" aria-hidden="true">
       <i class="pi pi-spinner"></i>
     </div>
     <span v-if="text" class="ml-2 text-gray-400">{{ text }}</span>
+    <span v-else class="sr-only">Laden...</span>
   </div>
 </template>
