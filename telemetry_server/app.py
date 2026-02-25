@@ -647,22 +647,27 @@ def _get_file_hash_sync(filepath: str) -> Optional[str]:
 
 async def get_file_hash(filepath: str) -> Optional[str]:
     """Calculate SHA256 hash of a file with smart caching based on mtime/size."""
-    # Security: Ensure path is within MODEL_DIR
+    # Security: Ensure path is strictly within MODEL_DIR (no subdirectories)
+    # We construct the path from the trusted MODEL_DIR and the basename of the input.
     try:
         model_dir_abs = os.path.abspath(MODEL_DIR)
-        file_abs = os.path.abspath(filepath)
-        # Use commonpath for secure containment check
-        if os.path.commonpath([model_dir_abs, file_abs]) != model_dir_abs:
-            logger.warning("security_path_traversal_attempt", path=filepath)
+        file_name = os.path.basename(filepath)
+        safe_path = os.path.join(model_dir_abs, file_name)
+
+        # Verify that the constructed safe path matches the intended input path
+        # This rejects paths with directory components (e.g. "subdir/model.enc")
+        # and paths with traversal attempts (e.g. "../etc/passwd")
+        if os.path.abspath(filepath) != safe_path:
+            logger.warning("security_path_validation_failed", path=filepath, safe=safe_path)
             return None
     except Exception:
         return None
 
     now = time.time()
 
-    # Get current file stats using the sanitized absolute path
+    # Get current file stats using the constructed safe path
     try:
-        stat = os.stat(file_abs)
+        stat = os.stat(safe_path)
         current_mtime = stat.st_mtime
         current_size = stat.st_size
     except OSError:
