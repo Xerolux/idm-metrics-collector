@@ -4,13 +4,23 @@ from fastapi.testclient import TestClient
 import os
 import sys
 import asyncio
+import tempfile
 
 # Ensure telemetry_server is in path
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-# Set env vars for testing
+# Set env vars for testing BEFORE importing app
 os.environ["AUTH_TOKEN"] = "test-token"
 os.environ["TELEMETRY_ENCRYPTION_KEY"] = "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA="
+
+# Use temp directories for storage to avoid PermissionErrors
+tmp_dir = tempfile.gettempdir()
+os.environ["TOKEN_STORAGE_DIR"] = os.path.join(tmp_dir, "tokens")
+os.environ["MODEL_DIR"] = os.path.join(tmp_dir, "models")
+os.environ["AUDIT_LOG_DIR"] = os.path.join(tmp_dir, "audit")
+os.environ["TASK_STORAGE_DIR"] = os.path.join(tmp_dir, "tasks")
+os.environ["PERMISSION_STORAGE_DIR"] = os.path.join(tmp_dir, "permissions")
+os.environ["INSTALLATION_STORAGE_DIR"] = os.path.join(tmp_dir, "installations")
 
 from app import app
 

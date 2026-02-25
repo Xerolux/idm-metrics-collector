@@ -169,8 +169,8 @@ _redis_client = None  # Will be initialized on startup if USE_REDIS is True
 
 # Cache stores
 _file_hash_cache: Dict[
-    str, Tuple[Optional[str], float]
-] = {}  # {path: (hash, timestamp)}
+    str, Tuple[Optional[str], float, float, int]
+] = {}  # {path: (hash, timestamp, mtime, size)}
 _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
     None,
     0,
@@ -237,10 +237,14 @@ async def cleanup_rate_limits_and_bans():
                 logger.info("ip_ban_cleanup", expired=len(expired_bans))
 
             # Clean file hash cache
-            expired_hashes = []
-            for path, (_, timestamp) in list(_file_hash_cache.items()):
-                if now - timestamp >= HASH_CACHE_TTL:
-                    expired_hashes.append(path)
+            # We use a longer retention for cache cleanup to allow smart re-validation via mtime
+            # Entries are cleaned only if not accessed/validated for 24 hours * TTL
+            CACHE_RETENTION = HASH_CACHE_TTL * 24
+            for path, entry in list(_file_hash_cache.items()):
+                if len(entry) >= 2:
+                    timestamp = entry[1]
+                    if now - timestamp >= CACHE_RETENTION:
+                        expired_hashes.append(path)
 
             for path in expired_hashes:
                 del _file_hash_cache[path]
@@ -641,14 +645,42 @@ def _get_file_hash_sync(filepath: str) -> Optional[str]:
 
 
 async def get_file_hash(filepath: str) -> Optional[str]:
-    """Calculate SHA256 hash of a file with caching."""
+    """Calculate SHA256 hash of a file with smart caching based on mtime/size."""
     now = time.time()
+
+    # Get current file stats
+    try:
+        stat = os.stat(filepath)
+        current_mtime = stat.st_mtime
+        current_size = stat.st_size
+    except OSError:
+        return None
 
     # Check cache
     if filepath in _file_hash_cache:
-        cached_hash, timestamp = _file_hash_cache[filepath]
-        if now - timestamp < HASH_CACHE_TTL:
-            return cached_hash
+        # Check if cache entry is compatible (tuple length 4)
+        entry = _file_hash_cache[filepath]
+        if len(entry) == 4:
+            cached_hash, timestamp, cached_mtime, cached_size = entry
+
+            # Use cached if TTL valid OR (mtime and size match)
+            if (now - timestamp < HASH_CACHE_TTL) or (
+                cached_mtime == current_mtime and cached_size == current_size
+            ):
+                # If using extended life via mtime check, update timestamp to reset TTL window
+                if now - timestamp >= HASH_CACHE_TTL:
+                    _file_hash_cache[filepath] = (
+                        cached_hash,
+                        now,
+                        current_mtime,
+                        current_size,
+                    )
+                return cached_hash
+        elif len(entry) == 2:
+            # Legacy cache entry (hash, timestamp) - handle gracefully or ignore
+            cached_hash, timestamp = entry
+            if now - timestamp < HASH_CACHE_TTL:
+                return cached_hash
 
     # Calculate new hash
     loop = asyncio.get_event_loop()
@@ -656,7 +688,7 @@ async def get_file_hash(filepath: str) -> Optional[str]:
 
     # Cache it
     if hash_val:
-        _file_hash_cache[filepath] = (hash_val, now)
+        _file_hash_cache[filepath] = (hash_val, now, current_mtime, current_size)
 
     return hash_val
 
