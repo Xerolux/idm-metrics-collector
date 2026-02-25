@@ -1,4 +1,3 @@
-
 import pytest
 import os
 import sys
@@ -11,6 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 # We need to mock environment variables before importing app
 with patch.dict(os.environ, {"MODEL_DIR": "/tmp/models", "HASH_CACHE_TTL": "3600"}):
     from app import get_file_hash, _file_hash_cache, HASH_CACHE_TTL
+
 
 @pytest.mark.asyncio
 async def test_get_file_hash_smart_caching():
@@ -51,12 +51,13 @@ async def test_get_file_hash_smart_caching():
     # The env var set at import implies app.MODEL_DIR is "/tmp/models".
 
     # 1. First call: Should calculate hash (Cold Cache)
-    with patch("os.path.exists", return_value=True), \
-         patch("os.stat", return_value=mock_stat_initial), \
-         patch("builtins.open", MagicMock()), \
-         patch("hashlib.file_digest", return_value=mock_hash_obj) as mock_digest, \
-         patch("time.time", return_value=start_time):
-
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("os.stat", return_value=mock_stat_initial),
+        patch("builtins.open", MagicMock()),
+        patch("hashlib.file_digest", return_value=mock_hash_obj) as mock_digest,
+        patch("time.time", return_value=start_time),
+    ):
         # We need to ensure os.path.abspath works as expected for the security check
         # Since we use /tmp/models which is absolute, it should work fine.
 
@@ -74,29 +75,31 @@ async def test_get_file_hash_smart_caching():
         assert _file_hash_cache[filepath][0] == "hash_v1"
 
     # 2. Second call: Within TTL (Warm Cache)
-    with patch("os.path.exists", return_value=True), \
-         patch("os.stat", return_value=mock_stat_initial), \
-         patch("builtins.open", MagicMock()) as mock_open, \
-         patch("hashlib.file_digest", return_value=mock_hash_obj) as mock_digest, \
-         patch("time.time", return_value=start_time + 10): # +10 seconds
-
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("os.stat", return_value=mock_stat_initial),
+        patch("builtins.open", MagicMock()) as mock_open,
+        patch("hashlib.file_digest", return_value=mock_hash_obj) as mock_digest,
+        patch("time.time", return_value=start_time + 10),
+    ):  # +10 seconds
         with patch("app.MODEL_DIR", "/tmp/models"):
             hash2 = await get_file_hash(filepath)
 
         assert hash2 == "hash_v1"
-        assert mock_digest.call_count == 0 # Should use cache
+        assert mock_digest.call_count == 0  # Should use cache
         assert mock_open.call_count == 0
 
     # 3. Third call: AFTER TTL, but file UNCHANGED (Smart Cache Optimization)
 
     mock_digest.reset_mock()
 
-    with patch("os.path.exists", return_value=True), \
-         patch("os.stat", return_value=mock_stat_initial), \
-         patch("builtins.open", MagicMock()) as mock_open, \
-         patch("hashlib.file_digest", return_value=mock_hash_obj) as mock_digest, \
-         patch("time.time", return_value=start_time + HASH_CACHE_TTL + 10): # Expired TTL
-
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("os.stat", return_value=mock_stat_initial),
+        patch("builtins.open", MagicMock()) as mock_open,
+        patch("hashlib.file_digest", return_value=mock_hash_obj) as mock_digest,
+        patch("time.time", return_value=start_time + HASH_CACHE_TTL + 10),
+    ):  # Expired TTL
         with patch("app.MODEL_DIR", "/tmp/models"):
             hash3 = await get_file_hash(filepath)
 
@@ -104,8 +107,12 @@ async def test_get_file_hash_smart_caching():
 
         # KEY ASSERTION:
         # If optimization works: call_count should be 0 (reused hash because stat match)
-        assert mock_digest.call_count == 0, "Optimization failed: Re-hashed file even though mtime/size unchanged"
-        assert mock_open.call_count == 0, "Optimization failed: Opened file even though mtime/size unchanged"
+        assert mock_digest.call_count == 0, (
+            "Optimization failed: Re-hashed file even though mtime/size unchanged"
+        )
+        assert mock_open.call_count == 0, (
+            "Optimization failed: Opened file even though mtime/size unchanged"
+        )
 
     # 4. Fourth call: Within NEW TTL (Warm Cache from Smart Update)
     # This verifies the timestamp was updated
@@ -115,10 +122,11 @@ async def test_get_file_hash_smart_caching():
     mock_stat_check.st_mtime = 1000.0
     mock_stat_check.st_size = 500
 
-    with patch("os.path.exists", return_value=True), \
-         patch("os.stat", return_value=mock_stat_check) as mock_stat, \
-         patch("time.time", return_value=start_time + HASH_CACHE_TTL + 20):
-
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("os.stat", return_value=mock_stat_check) as mock_stat,
+        patch("time.time", return_value=start_time + HASH_CACHE_TTL + 20),
+    ):
         with patch("app.MODEL_DIR", "/tmp/models"):
             hash4 = await get_file_hash(filepath)
 
@@ -141,6 +149,7 @@ async def test_get_file_hash_smart_caching():
         # "Get current file stats... except OSError... Check cache"
         assert mock_stat.call_count == 1
 
+
 @pytest.mark.asyncio
 async def test_get_file_hash_changed_file():
     """Test that if file actually changes, it IS re-hashed even with smart caching."""
@@ -158,31 +167,33 @@ async def test_get_file_hash_changed_file():
     mock_hash_v1.hexdigest.return_value = "hash_v1"
 
     # Populate cache (v1)
-    with patch("os.path.exists", return_value=True), \
-         patch("os.stat", return_value=mock_stat_v1), \
-         patch("builtins.open", MagicMock()), \
-         patch("hashlib.file_digest", return_value=mock_hash_v1), \
-         patch("time.time", return_value=start_time):
-
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("os.stat", return_value=mock_stat_v1),
+        patch("builtins.open", MagicMock()),
+        patch("hashlib.file_digest", return_value=mock_hash_v1),
+        patch("time.time", return_value=start_time),
+    ):
         with patch("app.MODEL_DIR", "/tmp/models"):
             await get_file_hash(filepath)
 
     # Now simulate file change + TTL expiry
     mock_stat_v2 = MagicMock()
-    mock_stat_v2.st_mtime = 2000.0 # Changed mtime
-    mock_stat_v2.st_size = 500     # Same size (or diff, doesn't matter)
+    mock_stat_v2.st_mtime = 2000.0  # Changed mtime
+    mock_stat_v2.st_size = 500  # Same size (or diff, doesn't matter)
 
     mock_hash_v2 = MagicMock()
     mock_hash_v2.hexdigest.return_value = "hash_v2"
 
-    with patch("os.path.exists", return_value=True), \
-         patch("os.stat", return_value=mock_stat_v2), \
-         patch("builtins.open", MagicMock()), \
-         patch("hashlib.file_digest", return_value=mock_hash_v2) as mock_digest, \
-         patch("time.time", return_value=start_time + HASH_CACHE_TTL + 10):
-
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("os.stat", return_value=mock_stat_v2),
+        patch("builtins.open", MagicMock()),
+        patch("hashlib.file_digest", return_value=mock_hash_v2) as mock_digest,
+        patch("time.time", return_value=start_time + HASH_CACHE_TTL + 10),
+    ):
         with patch("app.MODEL_DIR", "/tmp/models"):
             hash_new = await get_file_hash(filepath)
 
         assert hash_new == "hash_v2"
-        assert mock_digest.call_count == 1 # Must re-hash
+        assert mock_digest.call_count == 1  # Must re-hash

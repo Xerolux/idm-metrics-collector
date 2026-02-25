@@ -651,7 +651,8 @@ async def get_file_hash(filepath: str) -> Optional[str]:
     try:
         model_dir_abs = os.path.abspath(MODEL_DIR)
         file_abs = os.path.abspath(filepath)
-        if not file_abs.startswith(model_dir_abs):
+        # Use commonpath for secure containment check
+        if os.path.commonpath([model_dir_abs, file_abs]) != model_dir_abs:
             logger.warning("security_path_traversal_attempt", path=filepath)
             return None
     except Exception:
@@ -659,9 +660,9 @@ async def get_file_hash(filepath: str) -> Optional[str]:
 
     now = time.time()
 
-    # Get current file stats
+    # Get current file stats using the sanitized absolute path
     try:
-        stat = os.stat(filepath)
+        stat = os.stat(file_abs)
         current_mtime = stat.st_mtime
         current_size = stat.st_size
     except OSError:
