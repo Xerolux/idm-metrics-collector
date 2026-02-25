@@ -240,6 +240,7 @@ async def cleanup_rate_limits_and_bans():
             # We use a longer retention for cache cleanup to allow smart re-validation via mtime
             # Entries are cleaned only if not accessed/validated for 24 hours * TTL
             CACHE_RETENTION = HASH_CACHE_TTL * 24
+            expired_hashes = []
             for path, entry in list(_file_hash_cache.items()):
                 if len(entry) >= 2:
                     timestamp = entry[1]
@@ -646,6 +647,16 @@ def _get_file_hash_sync(filepath: str) -> Optional[str]:
 
 async def get_file_hash(filepath: str) -> Optional[str]:
     """Calculate SHA256 hash of a file with smart caching based on mtime/size."""
+    # Security: Ensure path is within MODEL_DIR
+    try:
+        model_dir_abs = os.path.abspath(MODEL_DIR)
+        file_abs = os.path.abspath(filepath)
+        if not file_abs.startswith(model_dir_abs):
+            logger.warning("security_path_traversal_attempt", path=filepath)
+            return None
+    except Exception:
+        return None
+
     now = time.time()
 
     # Get current file stats

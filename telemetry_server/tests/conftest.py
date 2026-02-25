@@ -22,7 +22,7 @@ os.environ["TASK_STORAGE_DIR"] = os.path.join(tmp_dir, "tasks")
 os.environ["PERMISSION_STORAGE_DIR"] = os.path.join(tmp_dir, "permissions")
 os.environ["INSTALLATION_STORAGE_DIR"] = os.path.join(tmp_dir, "installations")
 
-from app import app
+from app import app  # noqa: E402
 
 
 @pytest.fixture
