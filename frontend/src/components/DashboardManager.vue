@@ -306,8 +306,13 @@
           >
             <template #value="slotProps">
               <div v-if="slotProps.value" class="flex items-center gap-2">
-                <i :class="slotProps.option.icon" class="text-lg"></i>
-                <span>{{ slotProps.option.label }}</span>
+                <i
+                  :class="chartTypeOptions.find((o) => o.value === slotProps.value)?.icon"
+                  class="text-lg"
+                ></i>
+                <span>{{
+                  chartTypeOptions.find((o) => o.value === slotProps.value)?.label
+                }}</span>
               </div>
               <span v-else>{{ slotProps.placeholder }}</span>
             </template>
@@ -350,6 +355,7 @@
           @click="addChart"
           label="Hinzufügen"
           severity="primary"
+          :loading="isAddingChart"
           :disabled="!newChart.title || !newChart.type"
         />
       </template>
@@ -535,6 +541,7 @@ const showAddVariableDialog = ref(false)
 const showCssEditor = ref(false)
 const pendingSensors = ref([])
 const isDraggingSensor = ref(false)
+const isAddingChart = ref(false)
 const dashboardElement = ref(null)
 const variables = ref([])
 const editingVariable = ref(null)
@@ -831,6 +838,7 @@ const handleCssSave = async (css) => {
 }
 
 const addChart = async () => {
+  isAddingChart.value = true
   const queries =
     pendingSensors.value.length > 0
       ? pendingSensors.value.map((s, i) => {
@@ -877,6 +885,8 @@ const addChart = async () => {
       detail: 'Chart konnte nicht hinzugefügt werden',
       life: 5000
     })
+  } finally {
+    isAddingChart.value = false
   }
 }
 

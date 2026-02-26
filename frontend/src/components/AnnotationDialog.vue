@@ -74,11 +74,19 @@
 
     <template #footer>
       <Button @click="visible = false" label="Abbrechen" severity="secondary" text />
-      <Button @click="handleDelete" v-if="annotation" label="Löschen" severity="danger" text />
+      <Button
+        @click="handleDelete"
+        v-if="annotation"
+        label="Löschen"
+        severity="danger"
+        text
+        :loading="deleting"
+      />
       <Button
         @click="handleSave"
         label="Speichern"
         severity="primary"
+        :loading="saving"
         :disabled="!localAnnotation.text"
       />
     </template>
@@ -107,6 +115,8 @@ const emit = defineEmits(['update:modelValue', 'saved'])
 
 const toast = useToast()
 const visible = ref(props.modelValue)
+const saving = ref(false)
+const deleting = ref(false)
 const localAnnotation = ref({
   time: null,
   text: '',
@@ -136,6 +146,7 @@ const resetForm = () => {
 }
 
 const handleSave = async () => {
+  saving.value = true
   try {
     // Convert time to timestamp
     const timestamp = localAnnotation.value.time
@@ -169,10 +180,13 @@ const handleSave = async () => {
       detail: 'Annotation konnte nicht gespeichert werden',
       life: 5000
     })
+  } finally {
+    saving.value = false
   }
 }
 
 const handleDelete = async () => {
+  deleting.value = true
   try {
     await axios.delete(`/api/annotations/${props.annotation.id}`)
     emit('saved')
@@ -186,6 +200,8 @@ const handleDelete = async () => {
       detail: 'Annotation konnte nicht gelöscht werden',
       life: 5000
     })
+  } finally {
+    deleting.value = false
   }
 }
 
