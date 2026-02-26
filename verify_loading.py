@@ -1,5 +1,6 @@
 from playwright.sync_api import sync_playwright
 
+
 def verify_loading_states():
     with sync_playwright() as p:
         # Launch browser
@@ -15,53 +16,68 @@ def verify_loading_states():
         try:
             print("Setting up mocks...")
             # Mock Authentication Check to bypass Login
-            page.route("**/api/auth/check", lambda route: route.fulfill(
-                status=200,
-                body='{"authenticated": true}',
-                headers={"Content-Type": "application/json"}
-            ))
+            page.route(
+                "**/api/auth/check",
+                lambda route: route.fulfill(
+                    status=200,
+                    body='{"authenticated": true}',
+                    headers={"Content-Type": "application/json"},
+                ),
+            )
 
-             # Mock Config
-            page.route("**/api/config", lambda route: route.fulfill(
-                status=200,
-                body='{"hp_model": "test-model"}',
-                headers={"Content-Type": "application/json"}
-            ))
+            # Mock Config
+            page.route(
+                "**/api/config",
+                lambda route: route.fulfill(
+                    status=200,
+                    body='{"hp_model": "test-model"}',
+                    headers={"Content-Type": "application/json"},
+                ),
+            )
 
             # Mock Dashboards
-            page.route("**/api/dashboards", lambda route: route.fulfill(
-                status=200,
-                body='[{"id": "d1", "name": "Test Dashboard", "charts": []}]',
-                headers={"Content-Type": "application/json"}
-            ))
+            page.route(
+                "**/api/dashboards",
+                lambda route: route.fulfill(
+                    status=200,
+                    body='[{"id": "d1", "name": "Test Dashboard", "charts": []}]',
+                    headers={"Content-Type": "application/json"},
+                ),
+            )
 
             # Mock Variables
-            page.route("**/api/variables", lambda route: route.fulfill(
-                 status=200,
-                 body='[]',
-                 headers={"Content-Type": "application/json"}
-            ))
+            page.route(
+                "**/api/variables",
+                lambda route: route.fulfill(
+                    status=200, body="[]", headers={"Content-Type": "application/json"}
+                ),
+            )
 
             # Mock Annotations (List)
-            page.route("**/api/annotations*", lambda route: route.fulfill(
-                 status=200,
-                 body='[]',
-                 headers={"Content-Type": "application/json"}
-            ))
+            page.route(
+                "**/api/annotations*",
+                lambda route: route.fulfill(
+                    status=200, body="[]", headers={"Content-Type": "application/json"}
+                ),
+            )
 
             # Mock Version
-            page.route("**/api/version", lambda route: route.fulfill(
-                 status=200,
-                 body='{"version": "1.0.0"}',
-                 headers={"Content-Type": "application/json"}
-            ))
+            page.route(
+                "**/api/version",
+                lambda route: route.fulfill(
+                    status=200,
+                    body='{"version": "1.0.0"}',
+                    headers={"Content-Type": "application/json"},
+                ),
+            )
 
-             # Mock Metrics
-            page.route("**/api/metrics/*", lambda route: route.fulfill(
-                 status=200,
-                 body='{}',
-                 headers={"Content-Type": "application/json"}
-            ))
+            # Mock Metrics
+            page.route(
+                "**/api/metrics/*",
+                lambda route: route.fulfill(
+                    status=200, body="{}", headers={"Content-Type": "application/json"}
+                ),
+            )
 
             print("Navigating...")
             page.goto("http://localhost:5173")
@@ -75,15 +91,17 @@ def verify_loading_states():
             # Wait for the "Neuen Chart erstellen" button
             create_btn = page.locator('button[aria-label="Neuen Chart erstellen"]')
             if not create_btn.is_visible():
-                 # Fallback to text search if aria-label is missing (it shouldn't be, but primevue button uses label prop)
-                 create_btn = page.locator('button').filter(has_text="Neuen Chart erstellen")
+                # Fallback to text search if aria-label is missing (it shouldn't be, but primevue button uses label prop)
+                create_btn = page.locator("button").filter(
+                    has_text="Neuen Chart erstellen"
+                )
 
             print("Waiting for Create Button...")
             create_btn.wait_for(state="visible", timeout=10000)
 
             print("Clicking Create Button...")
             create_btn.click(force=True)
-            page.wait_for_timeout(500) # Wait for animation
+            page.wait_for_timeout(500)  # Wait for animation
 
             page.screenshot(path="debug_after_click.png")
 
@@ -97,6 +115,7 @@ def verify_loading_states():
 
             # Setup route holding for chart creation
             chart_route_holder = []
+
             def hold_chart_route(route):
                 print("Intercepted chart creation request")
                 chart_route_holder.append(route)
@@ -107,7 +126,7 @@ def verify_loading_states():
             print("Clicking Add...")
             add_btn = page.locator('button[aria-label="Hinzufügen"]')
             if not add_btn.is_visible():
-                add_btn = page.locator('button').filter(has_text="Hinzufügen")
+                add_btn = page.locator("button").filter(has_text="Hinzufügen")
 
             add_btn.click()
 
@@ -116,12 +135,15 @@ def verify_loading_states():
 
             # We verify that the button has the loading class
             try:
-                page.wait_for_function("""
+                page.wait_for_function(
+                    """
                     () => {
                         const btn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Hinzufügen'));
                         return btn && (btn.classList.contains('p-button-loading') || btn.querySelector('.p-button-loading-icon'));
                     }
-                """, timeout=5000)
+                """,
+                    timeout=5000,
+                )
                 print("✅ Chart Add button entered loading state")
             except Exception as e:
                 print("❌ Failed to detect loading state on Add button")
@@ -138,12 +160,12 @@ def verify_loading_states():
                 chart_route_holder[0].fulfill(
                     status=200,
                     body='{"id": "new-chart", "title": "Test Loading Chart", "type": "line", "queries": [], "hours": 24}',
-                    headers={"Content-Type": "application/json"}
+                    headers={"Content-Type": "application/json"},
                 )
             else:
-                 print("WARNING: No chart creation request intercepted!")
+                print("WARNING: No chart creation request intercepted!")
 
-            page.wait_for_timeout(1000) # Wait for dialog to close
+            page.wait_for_timeout(1000)  # Wait for dialog to close
 
             # --- Test 2: Annotation Loading State ---
             print("Test 2: Annotation Loading State")
@@ -151,7 +173,7 @@ def verify_loading_states():
             # Open Annotations dialog
             anno_btn = page.locator('button[aria-label="Annotations"]')
             if not anno_btn.is_visible():
-                 anno_btn = page.locator('button[title="Annotations"]')
+                anno_btn = page.locator('button[title="Annotations"]')
 
             anno_btn.click()
 
@@ -166,7 +188,7 @@ def verify_loading_states():
             dialog = page.locator('div[role="dialog"]')
             new_anno_btn = dialog.locator('button[aria-label="Neu"]')
             if not new_anno_btn.is_visible():
-                 new_anno_btn = dialog.locator('button').filter(has_text="Neu")
+                new_anno_btn = dialog.locator("button").filter(has_text="Neu")
 
             new_anno_btn.click()
 
@@ -175,10 +197,11 @@ def verify_loading_states():
 
             # Fill text
             print("Filling annotation...")
-            page.fill('textarea', "Test Annotation Loading")
+            page.fill("textarea", "Test Annotation Loading")
 
             # Hold route
             anno_route_holder = []
+
             def hold_anno_route(route):
                 print("Intercepted annotation save request")
                 anno_route_holder.append(route)
@@ -187,19 +210,22 @@ def verify_loading_states():
 
             # Click Save
             print("Clicking Save...")
-            save_btn = page.locator('button').filter(has_text="Speichern").last
+            save_btn = page.locator("button").filter(has_text="Speichern").last
             save_btn.click()
 
             # Check loading
             print("Checking annotation loading state...")
             try:
-                page.wait_for_function("""
+                page.wait_for_function(
+                    """
                     () => {
                         const btns = Array.from(document.querySelectorAll('button'));
                         const saveBtn = btns.find(b => b.textContent.includes('Speichern'));
                         return saveBtn && (saveBtn.classList.contains('p-button-loading') || saveBtn.querySelector('.p-button-loading-icon'));
                     }
-                """, timeout=5000)
+                """,
+                    timeout=5000,
+                )
                 print("✅ Annotation Save button entered loading state")
             except Exception as e:
                 print("❌ Failed to detect loading state on Annotation Save button")
@@ -212,7 +238,7 @@ def verify_loading_states():
                 anno_route_holder[0].fulfill(
                     status=200,
                     body='{"id": "a1", "text": "Test Annotation Loading", "time": 1234567890}',
-                    headers={"Content-Type": "application/json"}
+                    headers={"Content-Type": "application/json"},
                 )
 
             print("ALL TESTS PASSED")
@@ -223,6 +249,7 @@ def verify_loading_states():
             raise e
         finally:
             browser.close()
+
 
 if __name__ == "__main__":
     verify_loading_states()
