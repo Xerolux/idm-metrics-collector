@@ -25,7 +25,7 @@ import hmac
 import tempfile
 from cryptography.fernet import Fernet
 from pathlib import Path
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from analysis import get_community_averages
 import structlog
 import orjson
@@ -131,7 +131,7 @@ MAX_PAYLOAD_SIZE = int(
 )  # 10 MB default
 
 # Simple in-memory rate limiting with endpoint-specific limits
-_rate_limit_store: Dict[str, List[float]] = OrderedDict()
+_rate_limit_store: Dict[str, deque] = OrderedDict()
 _rate_limit_lock = threading.Lock()  # Protect in-memory store
 RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))  # seconds
 MAX_RATE_LIMIT_ENTRIES = int(
@@ -208,14 +208,12 @@ async def cleanup_rate_limits_and_bans():
             # Clean rate limit entries
             with _rate_limit_lock:
                 for ip, timestamps in list(_rate_limit_store.items()):
-                    # Filter out old timestamps first
-                    valid_timestamps = [
-                        t for t in timestamps if now - t < RATE_LIMIT_WINDOW
-                    ]
-                    if not valid_timestamps:
+                    # Remove old timestamps from left (deque)
+                    while timestamps and now - timestamps[0] >= RATE_LIMIT_WINDOW:
+                        timestamps.popleft()
+
+                    if not timestamps:
                         keys_to_remove.append(ip)
-                    else:
-                        _rate_limit_store[ip] = valid_timestamps
 
                 for k in keys_to_remove:
                     if k in _rate_limit_store:
@@ -511,27 +509,24 @@ def check_rate_limit(
                     break
             logger.warning("rate_limit_eviction", evicted=evicted_count)
 
-        # Initialize list if new key (since OrderedDict doesn't support default_factory)
+        # Initialize deque if new key
         if compound_key not in _rate_limit_store:
-            _rate_limit_store[compound_key] = []
+            _rate_limit_store[compound_key] = deque()
 
-        # Clean old entries
-        _rate_limit_store[compound_key] = [
-            t for t in _rate_limit_store[compound_key] if now - t < RATE_LIMIT_WINDOW
-        ]
+        dq = _rate_limit_store[compound_key]
+
+        # Clean old entries from left (oldest)
+        while dq and now - dq[0] >= RATE_LIMIT_WINDOW:
+            dq.popleft()
 
         # Mark as recently used
         _rate_limit_store.move_to_end(compound_key)
 
-        remaining = max(0, rate_limit - len(_rate_limit_store[compound_key]))
-        reset_time = int(
-            max(_rate_limit_store[compound_key]) + RATE_LIMIT_WINDOW
-            if _rate_limit_store[compound_key]
-            else now + RATE_LIMIT_WINDOW
-        )
+        remaining = max(0, rate_limit - len(dq))
+        reset_time = int(dq[-1] + RATE_LIMIT_WINDOW if dq else now + RATE_LIMIT_WINDOW)
 
         # Check limit
-        if len(_rate_limit_store[compound_key]) >= rate_limit:
+        if len(dq) >= rate_limit:
             logger.warning(
                 "rate_limit_exceeded_memory",
                 ip=mask_ip(client_ip),
@@ -544,7 +539,7 @@ def check_rate_limit(
                 "Retry-After": str(RATE_LIMIT_WINDOW),
             }
 
-        _rate_limit_store[compound_key].append(now)
+        dq.append(now)
     return True, {
         "X-RateLimit-Limit": str(rate_limit),
         "X-RateLimit-Remaining": str(remaining - 1),
