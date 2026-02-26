@@ -1,7 +1,5 @@
-import pytest
 from collections import deque
-from telemetry_server.app import check_rate_limit, _rate_limit_store, _rate_limit_lock, RATE_LIMITS, RATE_LIMIT_WINDOW
-import time
+from telemetry_server.app import check_rate_limit, _rate_limit_store, RATE_LIMITS, RATE_LIMIT_WINDOW
 from unittest.mock import patch
 
 def test_check_rate_limit_deque_logic():

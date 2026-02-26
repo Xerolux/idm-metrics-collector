@@ -2,7 +2,6 @@
 import time
 import collections
 from typing import List, Dict
-import random
 
 # Mock constants
 RATE_LIMIT_WINDOW = 60
