@@ -1,4 +1,3 @@
-
 import time
 import collections
 from typing import List, Dict
@@ -6,6 +5,7 @@ from typing import List, Dict
 # Mock constants
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT = 100
+
 
 # Current Implementation
 def check_rate_limit_list(store: Dict[str, List[float]], key: str, now: float):
@@ -20,6 +20,7 @@ def check_rate_limit_list(store: Dict[str, List[float]], key: str, now: float):
 
     store[key].append(now)
     return True
+
 
 # Optimized Implementation
 def check_rate_limit_deque(store: Dict[str, collections.deque], key: str, now: float):
@@ -37,6 +38,7 @@ def check_rate_limit_deque(store: Dict[str, collections.deque], key: str, now: f
     dq.append(now)
     return True
 
+
 def run_benchmark():
     iterations = 100_000
     store_list = {}
@@ -53,7 +55,7 @@ def run_benchmark():
 
     # Benchmark List
     t0 = time.time()
-    current_time = start_time + 60 # Start shifting window
+    current_time = start_time + 60  # Start shifting window
     for i in range(iterations):
         # Advance time slightly to trigger sliding window effects
         current_time += 0.01
@@ -69,6 +71,7 @@ def run_benchmark():
         check_rate_limit_deque(store_deque, key, current_time)
     t1 = time.time()
     print(f"Deque Implementation: {t1 - t0:.4f} seconds")
+
 
 if __name__ == "__main__":
     run_benchmark()

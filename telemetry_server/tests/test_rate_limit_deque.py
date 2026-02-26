@@ -1,6 +1,12 @@
 from collections import deque
-from telemetry_server.app import check_rate_limit, _rate_limit_store, RATE_LIMITS, RATE_LIMIT_WINDOW
+from telemetry_server.app import (
+    check_rate_limit,
+    _rate_limit_store,
+    RATE_LIMITS,
+    RATE_LIMIT_WINDOW,
+)
 from unittest.mock import patch
+
 
 def test_check_rate_limit_deque_logic():
     # Reset store
@@ -38,7 +44,8 @@ def test_check_rate_limit_deque_logic():
         allowed, headers = check_rate_limit(ip, endpoint)
         assert allowed is True
         # Should have popped all old entries actually, since they were all at start_time
-        assert len(_rate_limit_store[key]) == 1 # Just the new one
+        assert len(_rate_limit_store[key]) == 1  # Just the new one
+
 
 def test_check_rate_limit_sliding_window():
     _rate_limit_store.clear()
