@@ -48,6 +48,8 @@
             v-for="color in presetColors"
             :key="color"
             @click="localAnnotation.color = color"
+            :aria-label="'Farbe ' + color + ' auswählen'"
+            :title="'Farbe ' + color + ' auswählen'"
             :class="[
               'w-8 h-8 rounded-full border-2 transition-all',
               localAnnotation.color === color
@@ -55,7 +57,6 @@
                 : 'border-gray-300 hover:border-gray-400'
             ]"
             :style="{ backgroundColor: color }"
-            :title="color"
           />
         </div>
       </div>

@@ -12,6 +12,7 @@
         <div class="grid grid-cols-2 gap-3">
           <button
             @click="exportType = 'visual'"
+            aria-label="Export-Typ Visuell (PNG / PDF Screenshot)"
             :class="[
               'p-3 rounded-lg border-2 text-center transition-all',
               exportType === 'visual'
@@ -25,6 +26,7 @@
           </button>
           <button
             @click="exportType = 'data'"
+            aria-label="Export-Typ Daten (CSV / Excel / JSON)"
             :class="[
               'p-3 rounded-lg border-2 text-center transition-all',
               exportType === 'data'
@@ -45,6 +47,7 @@
         <div v-if="exportType === 'visual'" class="grid grid-cols-2 gap-3">
           <button
             @click="selectedFormat = 'png'"
+            aria-label="Format PNG Bild auswählen"
             :class="[
               'p-4 rounded-lg border-2 text-center transition-all',
               selectedFormat === 'png'
@@ -58,6 +61,7 @@
           </button>
           <button
             @click="selectedFormat = 'pdf'"
+            aria-label="Format PDF Dokument auswählen"
             :class="[
               'p-4 rounded-lg border-2 text-center transition-all',
               selectedFormat === 'pdf'
@@ -73,6 +77,7 @@
         <div v-else class="grid grid-cols-3 gap-3">
           <button
             @click="selectedFormat = 'csv'"
+            aria-label="Format CSV Tabelle auswählen"
             :class="[
               'p-4 rounded-lg border-2 text-center transition-all',
               selectedFormat === 'csv'
@@ -86,6 +91,7 @@
           </button>
           <button
             @click="selectedFormat = 'excel'"
+            aria-label="Format Excel Kalkulationstabelle auswählen"
             :class="[
               'p-4 rounded-lg border-2 text-center transition-all',
               selectedFormat === 'excel'
@@ -99,6 +105,7 @@
           </button>
           <button
             @click="selectedFormat = 'json'"
+            aria-label="Format JSON Daten auswählen"
             :class="[
               'p-4 rounded-lg border-2 text-center transition-all',
               selectedFormat === 'json'

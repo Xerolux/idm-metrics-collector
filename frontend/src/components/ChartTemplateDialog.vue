@@ -14,6 +14,7 @@
             v-for="cat in categories"
             :key="cat.id"
             @click="selectedCategory = cat.id"
+            :aria-label="'Kategorie ' + cat.name + ' auswählen'"
             :class="[
               'px-4 py-2 rounded-lg text-sm font-medium transition-all',
               selectedCategory === cat.id

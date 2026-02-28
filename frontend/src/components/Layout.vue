@@ -194,6 +194,7 @@ onUnmounted(() => {
         @click.stop="dismissUpdateBanner"
         class="p-1 hover:bg-blue-500 rounded transition-colors"
         title="Ausblenden"
+        aria-label="Update-Hinweis ausblenden"
       >
         <i class="pi pi-times"></i>
       </button>
