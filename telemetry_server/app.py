@@ -8,7 +8,7 @@ from fastapi.responses import (
     Response,
 )
 from pydantic import BaseModel, validator
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any, Tuple, Deque
 from urllib.parse import urlparse
 import os
 import httpx
@@ -25,7 +25,7 @@ import hmac
 import tempfile
 from cryptography.fernet import Fernet
 from pathlib import Path
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from analysis import get_community_averages
 import structlog
 import orjson
@@ -131,7 +131,7 @@ MAX_PAYLOAD_SIZE = int(
 )  # 10 MB default
 
 # Simple in-memory rate limiting with endpoint-specific limits
-_rate_limit_store: Dict[str, List[float]] = OrderedDict()
+_rate_limit_store: Dict[str, Deque[float]] = OrderedDict()
 _rate_limit_lock = threading.Lock()  # Protect in-memory store
 RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))  # seconds
 MAX_RATE_LIMIT_ENTRIES = int(
@@ -209,13 +209,10 @@ async def cleanup_rate_limits_and_bans():
             with _rate_limit_lock:
                 for ip, timestamps in list(_rate_limit_store.items()):
                     # Filter out old timestamps first
-                    valid_timestamps = [
-                        t for t in timestamps if now - t < RATE_LIMIT_WINDOW
-                    ]
-                    if not valid_timestamps:
+                    while timestamps and now - timestamps[0] >= RATE_LIMIT_WINDOW:
+                        timestamps.popleft()
+                    if not timestamps:
                         keys_to_remove.append(ip)
-                    else:
-                        _rate_limit_store[ip] = valid_timestamps
 
                 for k in keys_to_remove:
                     if k in _rate_limit_store:
@@ -513,19 +510,21 @@ def check_rate_limit(
 
         # Initialize list if new key (since OrderedDict doesn't support default_factory)
         if compound_key not in _rate_limit_store:
-            _rate_limit_store[compound_key] = []
+            _rate_limit_store[compound_key] = deque()
 
         # Clean old entries
-        _rate_limit_store[compound_key] = [
-            t for t in _rate_limit_store[compound_key] if now - t < RATE_LIMIT_WINDOW
-        ]
+        while (
+            _rate_limit_store[compound_key]
+            and now - _rate_limit_store[compound_key][0] >= RATE_LIMIT_WINDOW
+        ):
+            _rate_limit_store[compound_key].popleft()
 
         # Mark as recently used
         _rate_limit_store.move_to_end(compound_key)
 
         remaining = max(0, rate_limit - len(_rate_limit_store[compound_key]))
         reset_time = int(
-            max(_rate_limit_store[compound_key]) + RATE_LIMIT_WINDOW
+            _rate_limit_store[compound_key][-1] + RATE_LIMIT_WINDOW
             if _rate_limit_store[compound_key]
             else now + RATE_LIMIT_WINDOW
         )
