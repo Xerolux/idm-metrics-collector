@@ -55,8 +55,9 @@ class TestMLServiceLogic(unittest.TestCase):
             mode_model.steps = {}
         self.main.logger = MagicMock()
         self.main.last_data_points = {}
-        self.main.consecutive_anomalies = 0
+        self.main.consecutive_anomalies = {}
         self.main.update_counter = 0
+        self.main.model_trained = False
 
     def tearDown(self):
         self.env_patcher.stop()
@@ -132,17 +133,17 @@ class TestMLServiceLogic(unittest.TestCase):
             # Hit 1
             self.main.job()
             mock_alert.assert_not_called()
-            self.assertEqual(self.main.consecutive_anomalies, 1)
+            self.assertEqual(self.main.consecutive_anomalies.get("heating", 0), 1)
 
             # Hit 2
             self.main.job()
             mock_alert.assert_not_called()
-            self.assertEqual(self.main.consecutive_anomalies, 2)
+            self.assertEqual(self.main.consecutive_anomalies.get("heating", 0), 2)
 
             # Hit 3 (Threshold is 3)
             self.main.job()
             mock_alert.assert_called()
-            self.assertEqual(self.main.consecutive_anomalies, 3)
+            self.assertEqual(self.main.consecutive_anomalies.get("heating", 0), 3)
 
     def test_warmup_logic(self):
         # We need to force update_counter to match what we expect.
