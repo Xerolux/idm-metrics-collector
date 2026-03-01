@@ -44,7 +44,7 @@ MEASUREMENT_NAME = os.environ.get("MEASUREMENT_NAME", "idm_heatpump")
 UPDATE_INTERVAL = int(os.environ.get("UPDATE_INTERVAL", 30))
 
 # ML Configuration
-ANOMALY_THRESHOLD = float(os.environ.get("ANOMALY_THRESHOLD", "0.7"))
+ANOMALY_THRESHOLD = float(os.environ.get("ANOMALY_THRESHOLD", "0.85"))
 MIN_DATA_RATIO = float(os.environ.get("MIN_DATA_RATIO", "0.1"))
 MODEL_SAVE_INTERVAL = int(
     os.environ.get("MODEL_SAVE_INTERVAL", "300")
@@ -53,9 +53,9 @@ MODEL_PATH = os.environ.get("MODEL_PATH", "/app/data/model_state.pkl")
 ENABLE_ALERTS = os.environ.get("ENABLE_ALERTS", "true").lower() == "true"
 ALERT_COOLDOWN = int(os.environ.get("ALERT_COOLDOWN", "3600"))  # 1 hour between alerts
 WARMUP_UPDATES = int(
-    os.environ.get("WARMUP_UPDATES", "120")
-)  # Default 1 hour (30s * 120)
-ALARM_CONSECUTIVE_HITS = int(os.environ.get("ALARM_CONSECUTIVE_HITS", "3"))
+    os.environ.get("WARMUP_UPDATES", "200")
+)  # Default ~1.7 hours (30s * 200)
+ALARM_CONSECUTIVE_HITS = int(os.environ.get("ALARM_CONSECUTIVE_HITS", "5"))
 IDM_LOGGER_URL = os.environ.get("IDM_LOGGER_URL", "http://idm-logger:5000")
 INTERNAL_API_KEY = os.environ.get("INTERNAL_API_KEY")
 
@@ -64,7 +64,7 @@ AE_HIDDEN_DIM = int(os.environ.get("AE_HIDDEN_DIM", "32"))
 AE_LATENT_DIM = int(os.environ.get("AE_LATENT_DIM", "8"))
 AE_LEARNING_RATE = float(os.environ.get("AE_LEARNING_RATE", "0.001"))
 AE_TRAIN_STEPS = int(os.environ.get("AE_TRAIN_STEPS", "3"))
-AE_EMA_ALPHA = float(os.environ.get("AE_EMA_ALPHA", "0.01"))
+AE_EMA_ALPHA = float(os.environ.get("AE_EMA_ALPHA", "0.02"))
 
 # Connection retry configuration
 RETRY_BASE_DELAY = float(os.environ.get("RETRY_BASE_DELAY", "1.0"))
@@ -92,8 +92,9 @@ last_alert_time = 0
 update_counter = 0
 last_model_save = time.time()
 current_mode = "unknown"
+last_mode = "unknown"
 last_data_points = {}  # Store previous values for delta calculation
-consecutive_anomalies = 0
+consecutive_anomalies = {}  # Per-mode anomaly counter
 model_lock = threading.Lock()
 
 # Connection health tracking
@@ -115,9 +116,19 @@ health_app = Flask(__name__)
 @health_app.route("/health")
 def health():
     """Health check endpoint for monitoring."""
-    # Determine overall health status
     is_healthy = connection_stats["metrics_connected"] or update_counter > 0
     status = "healthy" if is_healthy else "degraded"
+
+    # Per-model statistics
+    model_stats = {}
+    with model_lock:
+        for mode, model in models.items():
+            model_stats[mode] = {
+                "samples": getattr(model, "sample_count", 0),
+                "features": len(model.feature_order) if model.feature_order else 0,
+                "ema_loss": round(model.ema_loss, 6) if model.ema_loss else None,
+                "consecutive_anomalies": consecutive_anomalies.get(mode, 0),
+            }
 
     return jsonify(
         {
@@ -130,6 +141,7 @@ def health():
             "update_interval": UPDATE_INTERVAL,
             "anomaly_threshold": ANOMALY_THRESHOLD,
             "updates_processed": update_counter,
+            "models": model_stats,
             "connection": {
                 "metrics_connected": connection_stats["metrics_connected"],
                 "metrics_failures": connection_stats["metrics_consecutive_failures"],
@@ -233,21 +245,24 @@ if "status_heat_pump" not in SENSORS:
 
 class Autoencoder(nn.Module):
     """
-    Simple feedforward autoencoder for anomaly detection.
+    Feedforward autoencoder for anomaly detection with batch normalization.
     Anomaly score is based on reconstruction error (MSE).
+    Uses LeakyReLU to avoid dying neurons.
     """
 
     def __init__(self, input_dim, hidden_dim=AE_HIDDEN_DIM, latent_dim=AE_LATENT_DIM):
         super().__init__()
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
-            nn.ReLU(),
+            nn.BatchNorm1d(hidden_dim),
+            nn.LeakyReLU(0.1),
             nn.Linear(hidden_dim, latent_dim),
-            nn.ReLU(),
+            nn.LeakyReLU(0.1),
         )
         self.decoder = nn.Sequential(
             nn.Linear(latent_dim, hidden_dim),
-            nn.ReLU(),
+            nn.BatchNorm1d(hidden_dim),
+            nn.LeakyReLU(0.1),
             nn.Linear(hidden_dim, input_dim),
         )
 
@@ -330,6 +345,7 @@ class AutoencoderModel:
         self.ema_loss = None
         self.ema_loss_sq = None  # For variance estimation
         self.steps = {}  # Keep for compatibility with get_top_features
+        self.sample_count = 0  # Track samples for early-learning suppression
 
     def _ensure_net(self, input_dim):
         """Lazily initialize the network once we know the input dimension."""
@@ -361,8 +377,19 @@ class AutoencoderModel:
         """
         Compute anomaly score for a single sample.
         Returns a score roughly in [0, 1] where higher = more anomalous.
+
+        Scoring methodology:
+        - Uses z-score of reconstruction error compared to EMA statistics
+        - Applies a shifted sigmoid to map to [0, 1]
+        - Centered so z=2 (2 std deviations) maps to score ~0.5
+        - z=3 maps to ~0.73, z=4 maps to ~0.88
+        - Returns 0 during early learning (<50 samples) to avoid false positives
         """
         if not self.feature_order:
+            return 0.0
+
+        # Suppress scores during early learning
+        if self.sample_count < 50:
             return 0.0
 
         self._ensure_net(len(self.feature_order))
@@ -373,7 +400,6 @@ class AutoencoderModel:
             x_hat = self.net(x)
             mse = torch.mean((x - x_hat) ** 2).item()
 
-        # Normalize MSE to a 0-1 score using EMA statistics
         if self.ema_loss is None:
             return 0.0
 
@@ -381,18 +407,17 @@ class AutoencoderModel:
         ema_std = max(ema_var, 0.0) ** 0.5
 
         if ema_std < 1e-8:
-            # Not enough variance info yet — use simple ratio
-            score = min(mse / (self.ema_loss + 1e-8), 1.0)
+            score = min(mse / (self.ema_loss + 1e-8) / 3.0, 1.0)
         else:
-            # Z-score based: how many std deviations above mean error
             z = (mse - self.ema_loss) / ema_std
-            # Sigmoid-like mapping to [0, 1]
-            score = 1.0 / (1.0 + math.exp(-z))
+            z_shifted = z - 2.0
+            score = 1.0 / (1.0 + math.exp(-z_shifted))
 
-        return float(score)
+        return float(max(0.0, min(1.0, score)))
 
     def learn_one(self, data: dict):
         """Train the autoencoder on a single sample (online learning)."""
+        self.sample_count += 1
         # Always update scaler first
         self.scaler.partial_fit(data)
 
@@ -507,6 +532,10 @@ def load_model_state():
 
                 if isinstance(loaded, dict) and all(k in loaded for k in MODES):
                     models = loaded
+                    # Ensure loaded models have sample_count set to avoid false positives
+                    for mode, model in models.items():
+                        if hasattr(model, "sample_count") and model.sample_count < 100:
+                            model.sample_count = 100
                     logger.info(f"Multi-mode model state loaded from {MODEL_PATH}")
                 else:
                     logger.warning(
@@ -558,16 +587,16 @@ def enrich_features(data: dict) -> dict:
     data["is_weekend"] = 1 if now.weekday() >= 5 else 0
 
     # Delta features (Rate of change)
-    # We track deltas for all float sensors
     # Use list(data.items()) to allow modifying data during iteration
     for key, value in list(data.items()):
         if isinstance(value, (int, float)) and key in last_data_points:
-            # Calculate delta per minute (approx, assuming 30s interval)
-            # Just raw delta is fine as interval is constant-ish
             data[f"{key}_delta"] = value - last_data_points[key]
-
-        # Update last value
         last_data_points[key] = value
+
+    # Cleanup: Only keep keys that are in current data (prevents memory growth)
+    keys_to_remove = [k for k in last_data_points if k not in data]
+    for k in keys_to_remove:
+        del last_data_points[k]
 
     # Computed features (if sensors available)
     try:
@@ -946,16 +975,21 @@ def job():
         # Determine anomaly flag and Debounce
         is_anomaly = score > ANOMALY_THRESHOLD
 
-        global consecutive_anomalies
+        global consecutive_anomalies, last_mode
+        if mode != last_mode:
+            consecutive_anomalies[mode] = 0
+            last_mode = mode
         if is_anomaly:
-            consecutive_anomalies += 1
+            consecutive_anomalies[mode] = consecutive_anomalies.get(mode, 0) + 1
         else:
-            consecutive_anomalies = 0
+            consecutive_anomalies[mode] = 0
+
+        mode_consecutive = consecutive_anomalies.get(mode, 0)
 
         processing_time = time.time() - start
 
         logger.info(
-            f"Mode: {mode} | Score: {score:.4f} | Anomaly: {is_anomaly} ({consecutive_anomalies}/{ALARM_CONSECUTIVE_HITS}) | Features: {len(data)}"
+            f"Mode: {mode} | Score: {score:.4f} | Anomaly: {is_anomaly} ({mode_consecutive}/{ALARM_CONSECUTIVE_HITS}) | Features: {len(data)}"
         )
 
         # Write metrics
@@ -963,12 +997,12 @@ def job():
 
         # Send alert if anomaly detected AND confirmed (debounce) AND warmed up
         if is_anomaly and model_trained:
-            if consecutive_anomalies >= ALARM_CONSECUTIVE_HITS:
+            if mode_consecutive >= ALARM_CONSECUTIVE_HITS:
                 top_features = get_top_features(active_model, data)
                 send_anomaly_alert(score, data, mode, top_features)
             else:
                 logger.info(
-                    f"Anomaly suppressed (Debounce {consecutive_anomalies}/{ALARM_CONSECUTIVE_HITS})"
+                    f"Anomaly suppressed (Debounce {mode_consecutive}/{ALARM_CONSECUTIVE_HITS})"
                 )
 
         last_score = score

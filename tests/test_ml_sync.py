@@ -15,7 +15,7 @@ sys.modules["schedule"] = MagicMock()
 sys.modules["joblib"] = MagicMock()
 
 # Set env vars
-os.environ["ANOMALY_THRESHOLD"] = "0.7"
+os.environ["ANOMALY_THRESHOLD"] = "0.85"
 os.environ["IDM_LOGGER_URL"] = "http://test-logger"
 os.environ["INTERNAL_API_KEY"] = "test-key"
 # Prevent GPU usage or other side effects if torch was real
@@ -32,7 +32,7 @@ except ImportError as e:
 class TestMLSync(unittest.TestCase):
     def setUp(self):
         # Reset global threshold
-        ml_main.ANOMALY_THRESHOLD = 0.7
+        ml_main.ANOMALY_THRESHOLD = 0.85
         # Ensure logger is configured to not spam
         ml_main.logger.setLevel(logging.CRITICAL)
 
@@ -44,14 +44,14 @@ class TestMLSync(unittest.TestCase):
         # Mock response
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"sensitivity": 5.0, "threshold": 0.774}
+        mock_response.json.return_value = {"sensitivity": 5.0, "threshold": 0.85}
         mock_get.return_value = mock_response
 
         # Call function
         ml_main.fetch_remote_config()
 
         # Check if threshold updated
-        self.assertAlmostEqual(ml_main.ANOMALY_THRESHOLD, 0.774, places=3)
+        self.assertAlmostEqual(ml_main.ANOMALY_THRESHOLD, 0.85, places=3)
 
         # Verify request
         mock_get.assert_called_with(
@@ -71,7 +71,7 @@ class TestMLSync(unittest.TestCase):
         ml_main.fetch_remote_config()
 
         # Check threshold remains unchanged
-        self.assertEqual(ml_main.ANOMALY_THRESHOLD, 0.7)
+        self.assertEqual(ml_main.ANOMALY_THRESHOLD, 0.85)
 
     @patch("ml_service.main.requests.get")
     def test_fetch_remote_config_exception(self, mock_get):
@@ -82,7 +82,7 @@ class TestMLSync(unittest.TestCase):
         ml_main.fetch_remote_config()
 
         # Check threshold remains unchanged
-        self.assertEqual(ml_main.ANOMALY_THRESHOLD, 0.7)
+        self.assertEqual(ml_main.ANOMALY_THRESHOLD, 0.85)
 
     @patch("ml_service.main.fetch_remote_config")
     @patch("ml_service.main.fetch_latest_data")

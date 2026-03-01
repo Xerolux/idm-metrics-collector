@@ -330,7 +330,7 @@ class Config:
                 "username": "",
                 "password": "",
             },
-            "ai": {"enabled": False, "sensitivity": 3.0},
+            "ai": {"enabled": False, "sensitivity": 5.0},
             "updates": {
                 "enabled": False,
                 "interval_hours": 12,

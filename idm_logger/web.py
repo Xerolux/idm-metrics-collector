@@ -1325,12 +1325,16 @@ def ml_config_endpoint():
     try:
         sensitivity = config.data.get("ai", {}).get("sensitivity", 3.0)
         # Calculate threshold based on sensitivity
-        # Sensitivity 1 (Low) -> Threshold 0.95
-        # Sensitivity 10 (High) -> Threshold 0.55
-        # Formula: threshold = 0.994 - 0.044 * sensitivity
-        threshold = 0.994 - (0.044 * sensitivity)
-        # Clamp threshold to [0.1, 0.99] just in case
-        threshold = max(0.1, min(0.99, threshold))
+        # With shifted sigmoid scoring (z=2 -> score=0.5):
+        # Sensitivity 1 (Low)  -> Threshold 0.95 (z > 4.3 to trigger)
+        # Sensitivity 3 (Normal) -> Threshold 0.90 (z > 3.2 to trigger)
+        # Sensitivity 5 (High)  -> Threshold 0.85 (z > 2.5 to trigger)
+        # Sensitivity 7 (Very High) -> Threshold 0.80 (z > 2.0 to trigger)
+        # Sensitivity 10 (Max)  -> Threshold 0.72 (z > 1.4 to trigger)
+        # Formula: threshold = 0.975 - 0.025 * sensitivity
+        threshold = 0.975 - (0.025 * sensitivity)
+        # Clamp threshold to [0.5, 0.99] just in case
+        threshold = max(0.5, min(0.99, threshold))
 
         return jsonify(
             {"sensitivity": sensitivity, "threshold": round(threshold, 4)}
