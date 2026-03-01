@@ -279,25 +279,38 @@ const fetchData = async () => {
 
     const allData = []
 
-    for (const query of props.queries) {
-      const response = await axios.get('/api/query', {
-        params: {
-          query: query.query,
-          start: start,
-          end: end,
-          step: calculateStep()
-        }
-      })
-
-      const data = response.data.data
-      if (data && data.values) {
-        // Convert to table rows
-        data.values.forEach(([timestamp, value]) => {
-          allData.push({
-            timestamp: timestamp,
-            [query.label || query.query]: value
-          })
+    // Fetch all queries concurrently to reduce overall loading time
+    const promises = props.queries.map(async (query) => {
+      try {
+        const response = await axios.get('/api/query', {
+          params: {
+            query: query.query,
+            start: start,
+            end: end,
+            step: calculateStep()
+          }
         })
+        return { query, response }
+      } catch (error) {
+        console.error(`Failed to fetch data for query ${query.query}:`, error)
+        return { query, response: null }
+      }
+    })
+
+    const results = await Promise.all(promises)
+
+    for (const { query, response } of results) {
+      if (response && response.data && response.data.data) {
+        const data = response.data.data
+        if (data.values) {
+          // Convert to table rows
+          data.values.forEach(([timestamp, value]) => {
+            allData.push({
+              timestamp: timestamp,
+              [query.label || query.query]: value
+            })
+          })
+        }
       }
     }
 
