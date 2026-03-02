@@ -9,7 +9,7 @@
  * - Browser-specific exploits (-moz-binding, behavior)
  */
 
-import DOMPurify from 'dompurify';
+import DOMPurify from 'dompurify'
 
 // Dangerous patterns that could execute code or load external resources
 const DANGEROUS_PATTERNS = [
@@ -39,7 +39,7 @@ const DANGEROUS_PATTERNS = [
 
   // Unicode escapes that might bypass filters (more comprehensive)
   /\\[0-9a-fA-F]{1,6}/g, // Any unicode escape
-  /\\0/g, // Null byte escape
+  /\\0/g // Null byte escape
 ]
 
 // Patterns for external URLs (warn but allow with sanitization)
@@ -72,22 +72,22 @@ export function sanitizeCss(css, options = {}) {
       FORCE_BODY: true,
       ALLOWED_TAGS: ['style'],
       ALLOWED_ATTR: []
-    });
+    })
 
     // Extract text content using browser DOM if available
     if (typeof document !== 'undefined') {
-      const div = document.createElement('div');
-      div.innerHTML = cleanHtml;
+      const div = document.createElement('div')
+      div.innerHTML = cleanHtml
       // Use textContent to get the pure CSS (decodes entities)
-      sanitized = div.textContent || '';
+      sanitized = div.textContent || ''
     } else {
       // Fallback for non-browser environments (e.g. tests)
       // Extract content from <style> tags manually if DOM not available
-      const match = cleanHtml.match(/<style>([\s\S]*)<\/style>/i);
-      sanitized = match ? match[1] : '';
+      const match = cleanHtml.match(/<style>([\s\S]*)<\/style>/i)
+      sanitized = match ? match[1] : ''
     }
   } catch (e) {
-    warnings.push('DOMPurify sanitization failed: ' + e.message);
+    warnings.push('DOMPurify sanitization failed: ' + e.message)
     // Fallback to original input but warn
   }
 

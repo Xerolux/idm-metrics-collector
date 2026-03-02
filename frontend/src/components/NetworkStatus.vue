@@ -99,14 +99,16 @@ watch([isBrowserOnline, isBackendOnline], () => {
   </Transition>
 
   <!-- Connection Status Indicator -->
-  <div class="fixed bottom-4 right-4 z-40">
+  <div class="fixed bottom-4 right-4 z-40" role="status" aria-live="polite">
     <div
       :class="[
         'w-3 h-3 rounded-full border-2 border-gray-700',
         isOnline ? 'bg-success-500' : isBrowserOnline ? 'bg-warning-500' : 'bg-error-500'
       ]"
       :title="getStatusText()"
-    ></div>
+    >
+      <span class="sr-only">{{ getStatusText() }}</span>
+    </div>
   </div>
 </template>
 

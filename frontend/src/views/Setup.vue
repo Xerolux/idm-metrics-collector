@@ -107,9 +107,14 @@
               <label for="telemetry" class="font-bold">Community Daten & KI (Empfohlen)</label>
             </div>
             <p class="text-sm text-gray-100 ml-8">
-              Aktiviere die Übermittlung anonymisierter Daten, um das Community-Modell zur Anomalie-Erkennung zu nutzen.
-              Dies verbessert die Genauigkeit der KI für alle.
-              <a href="#" @click.prevent="privacyDialog.open()" class="text-blue-300 hover:text-blue-200 underline font-medium">Mehr Infos</a>
+              Aktiviere die Übermittlung anonymisierter Daten, um das Community-Modell zur
+              Anomalie-Erkennung zu nutzen. Dies verbessert die Genauigkeit der KI für alle.
+              <a
+                href="#"
+                @click.prevent="privacyDialog.open()"
+                class="text-blue-300 hover:text-blue-200 underline font-medium"
+                >Mehr Infos</a
+              >
             </p>
           </div>
 
@@ -117,7 +122,11 @@
             <Checkbox v-model="privacyAccepted" binary inputId="privacy" />
             <label for="privacy" class="text-sm text-gray-100">
               Ich stimme den
-              <a href="#" @click.prevent="privacyDialog.open()" class="text-blue-300 hover:text-blue-200 underline font-medium">
+              <a
+                href="#"
+                @click.prevent="privacyDialog.open()"
+                class="text-blue-300 hover:text-blue-200 underline font-medium"
+              >
                 Datenschutz- und Lizenzbedingungen
               </a>
               zu.
