@@ -1,2 +1,5 @@
-
 Responsive Forms/Learning/Use `flex-col sm:flex-row` and `w-full sm:w-auto` for form inputs to ensure they stack correctly on mobile while maintaining a horizontal layout on desktop.
+
+## 2025-03-04 - Accessible Icon-Only Buttons
+**Learning:** This repo's standard for icon-only buttons includes explicit German localizations for `title` and `aria-label`, along with consistent Tailwind ring utility classes (`focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500` - with color variations per button context) to ensure accessible keyboard navigation focus states.
+**Action:** When adding new interactive elements or verifying existing ones, ensure icon-only buttons have screen-reader text (`aria-label`), visible tooltips (`title`), and explicit `focus-visible` states that match the established repo conventions.

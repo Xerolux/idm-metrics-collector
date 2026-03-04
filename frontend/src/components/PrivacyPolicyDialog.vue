@@ -12,16 +12,15 @@
         <h3 class="font-bold text-lg mb-2 text-white">Datenschutzerklärung</h3>
         <p class="mb-2">
           Wir nehmen den Schutz Ihrer persönlichen Daten sehr ernst. Diese Software sammelt Daten
-          ausschließlich zum Zweck der Überwachung, Analyse und Optimierung Ihrer
-          Wärmepumpenanlage.
+          ausschließlich zum Zweck der Überwachung, Analyse und Optimierung Ihrer Wärmepumpenanlage.
         </p>
 
         <h4 class="font-bold mt-3 mb-1">1. Datenerfassung</h4>
         <p class="mb-2">
-          <strong>Installation ID:</strong> Bei der Ersteinrichtung wird eine zufällige "Installation
-          ID" (UUID) generiert. Diese dient ausschließlich dazu, Ihre Installation technisch zu
-          identifizieren (z.B. bei Support-Anfragen oder beim Teilen von Logs). Sie ist nicht mit
-          personenbezogenen Daten (wie Name, Adresse) verknüpft.
+          <strong>Installation ID:</strong> Bei der Ersteinrichtung wird eine zufällige
+          "Installation ID" (UUID) generiert. Diese dient ausschließlich dazu, Ihre Installation
+          technisch zu identifizieren (z.B. bei Support-Anfragen oder beim Teilen von Logs). Sie ist
+          nicht mit personenbezogenen Daten (wie Name, Adresse) verknüpft.
         </p>
         <p class="mb-2">
           <strong>Wärmepumpen-Daten:</strong> Es werden technische Messwerte (Temperaturen, Drücke,
@@ -35,33 +34,35 @@
           Log" Funktion).
         </p>
         <p class="mb-2">
-          Wenn Sie Logs teilen ("Share Log"), werden ausgewählte Log-Daten sowie Ihre Installation ID
-          und das Wärmepumpen-Modell temporär an einen Paste-Service (MicroBin) gesendet, um einen
-          Link zum Teilen zu generieren.
+          Wenn Sie Logs teilen ("Share Log"), werden ausgewählte Log-Daten sowie Ihre Installation
+          ID und das Wärmepumpen-Modell temporär an einen Paste-Service (MicroBin) gesendet, um
+          einen Link zum Teilen zu generieren.
         </p>
 
         <h4 class="font-bold mt-3 mb-1">3. Community Telemetrie (Optional)</h4>
         <p class="mb-2">
-          Wenn Sie die <strong>Community-Daten</strong> Funktion aktivieren, werden täglich aggregierte
-          Betriebsdaten an unseren zentralen Telemetrie-Server (collector.xerolux.de) gesendet.
+          Wenn Sie die <strong>Community-Daten</strong> Funktion aktivieren, werden täglich
+          aggregierte Betriebsdaten an unseren zentralen Telemetrie-Server (collector.xerolux.de)
+          gesendet.
         </p>
         <ul class="list-disc ml-5 mb-2 space-y-1">
           <li>
-            <strong>Zweck:</strong> Training eines KI-Modells zur Anomalie-Erkennung ("Community Model").
-            Dieses Modell hilft, Fehler frühzeitig zu erkennen.
+            <strong>Zweck:</strong> Training eines KI-Modells zur Anomalie-Erkennung ("Community
+            Model"). Dieses Modell hilft, Fehler frühzeitig zu erkennen.
           </li>
           <li>
-            <strong>Anonymisierung:</strong> Ihre IP-Adresse wird auf dem Server automatisch maskiert
-            (z.B. 192.168.xxx.xxx). Es werden keine persönlichen Daten übertragen.
+            <strong>Anonymisierung:</strong> Ihre IP-Adresse wird auf dem Server automatisch
+            maskiert (z.B. 192.168.xxx.xxx). Es werden keine persönlichen Daten übertragen.
           </li>
           <li>
             <strong>Voraussetzung:</strong> Das Community-Modell wird erst generiert, wenn Daten von
-            mindestens <strong>5 verschiedenen Anlagen</strong> vorliegen. Dies stellt sicher, dass das
-            Modell robust ist und nicht auf Einzeldaten basiert.
+            mindestens <strong>5 verschiedenen Anlagen</strong> vorliegen. Dies stellt sicher, dass
+            das Modell robust ist und nicht auf Einzeldaten basiert.
           </li>
           <li>
-            <strong>Nutzen:</strong> Als Teilnehmer erhalten Sie Zugriff auf das trainierte Community-Modell,
-            welches oft genauer ist als ein nur lokal trainiertes Modell (besonders in der ersten Woche).
+            <strong>Nutzen:</strong> Als Teilnehmer erhalten Sie Zugriff auf das trainierte
+            Community-Modell, welches oft genauer ist als ein nur lokal trainiertes Modell
+            (besonders in der ersten Woche).
           </li>
         </ul>
       </section>
@@ -77,22 +78,29 @@
 
         <h4 class="font-bold mt-3 mb-1">Privatnutzung (Open Source)</h4>
         <p class="mb-2">
-          Für die private, nicht-kommerzielle Nutzung ist diese Software <strong>kostenlos</strong>
-          und quelloffen unter den Bedingungen der <strong>MIT Lizenz</strong> verfügbar. Sie
-          dürfen den Code einsehen, modifizieren und für eigene Zwecke nutzen.
+          Für die private, nicht-kommerzielle Nutzung ist diese Software
+          <strong>kostenlos</strong> und quelloffen unter den Bedingungen der
+          <strong>MIT Lizenz</strong> verfügbar. Sie dürfen den Code einsehen, modifizieren und für
+          eigene Zwecke nutzen.
         </p>
 
         <h4 class="font-bold mt-3 mb-1">Kommerzielle Nutzung</h4>
         <p class="mb-2">
-          Jegliche gewerbliche oder kommerzielle Nutzung (z.B. durch Heizungsbauer,
-          Energieberater, Service-Anbieter) ist <strong>nicht gestattet</strong> ohne eine gültige
-          kommerzielle Lizenz. Bitte kontaktieren Sie uns für eine Lizenzierung.
+          Jegliche gewerbliche oder kommerzielle Nutzung (z.B. durch Heizungsbauer, Energieberater,
+          Service-Anbieter) ist <strong>nicht gestattet</strong> ohne eine gültige kommerzielle
+          Lizenz. Bitte kontaktieren Sie uns für eine Lizenzierung.
         </p>
       </section>
     </div>
 
     <template #footer>
-      <Button label="Schließen" icon="pi pi-times" @click="visible = false" text severity="secondary" />
+      <Button
+        label="Schließen"
+        icon="pi pi-times"
+        @click="visible = false"
+        text
+        severity="secondary"
+      />
     </template>
   </Dialog>
 </template>
