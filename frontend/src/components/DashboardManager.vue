@@ -1006,9 +1006,7 @@ const acknowledgeAnomaly = async (anomaly) => {
       acknowledged: true
     })
     // Remove from local list
-    unacknowledgedAnomalies.value = unacknowledgedAnomalies.value.filter(
-      (a) => a.id !== anomaly.id
-    )
+    unacknowledgedAnomalies.value = unacknowledgedAnomalies.value.filter((a) => a.id !== anomaly.id)
 
     if (unacknowledgedAnomalies.value.length === 0) {
       showAlarmDialog.value = false

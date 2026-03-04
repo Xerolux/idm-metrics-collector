@@ -279,7 +279,9 @@ const fetchData = async () => {
 
     const allData = []
 
-    for (const query of props.queries) {
+    // ⚡ Bolt: Execute queries concurrently instead of sequentially (N+1 fix)
+    // Reduces total wait time from sum(t1, t2, ..., tn) to max(t1, t2, ..., tn)
+    const promises = props.queries.map(async (query) => {
       const response = await axios.get('/api/query', {
         params: {
           query: query.query,
@@ -288,8 +290,13 @@ const fetchData = async () => {
           step: calculateStep()
         }
       })
+      return { query, data: response.data.data }
+    })
 
-      const data = response.data.data
+    const results = await Promise.all(promises)
+
+    for (const result of results) {
+      const { query, data } = result
       if (data && data.values) {
         // Convert to table rows
         data.values.forEach(([timestamp, value]) => {
