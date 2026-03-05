@@ -485,7 +485,11 @@ class BackupManager:
                 conn = db.get_connection()
                 cursor = conn.cursor()
                 cursor.execute("SELECT key, value FROM settings")
-                for row in cursor.fetchall():
+
+                # Bolt Optimization: Iterating directly over the SQLite cursor instead of calling fetchall()
+                # Impact: Reduces peak memory consumption by O(N) where N is the number of settings.
+                # Instead of loading all rows into a list first, they are yielded one by one.
+                for row in cursor:
                     key, value = row
 
                     # Handle scheduler_rules specifically

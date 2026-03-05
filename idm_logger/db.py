@@ -268,7 +268,9 @@ class Database:
             with self._get_locked_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT * FROM alerts")
-                return [dict(row) for row in cursor.fetchall()]
+                # Bolt Optimization: List comprehension directly on cursor avoids creating
+                # an intermediate list of all sqlite3.Row objects in memory (O(N) memory save).
+                return [dict(row) for row in cursor]
         except sqlite3.Error as e:
             logger.error(f"Failed to retrieve alerts: {e}", exc_info=True)
             return []
