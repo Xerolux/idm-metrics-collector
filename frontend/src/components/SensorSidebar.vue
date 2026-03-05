@@ -2,7 +2,13 @@
   <div class="bg-white rounded-lg p-3 shadow-sm border border-gray-200 overflow-y-auto">
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-gray-900 font-bold text-sm">Verfügbare Sensoren</h3>
-      <button @click="refreshMetrics" class="p-1 hover:bg-gray-100 rounded" :disabled="loading">
+      <button
+        @click="refreshMetrics"
+        class="p-1 hover:bg-gray-100 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-teal-500"
+        :disabled="loading"
+        title="Sensoren aktualisieren"
+        aria-label="Sensoren aktualisieren"
+      >
         <i :class="loading ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" class="text-gray-500"></i>
       </button>
     </div>
@@ -35,7 +41,7 @@
               v-for="metric in metrics"
               :key="metric.name"
               @click="selectSensor(metric)"
-              class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-teal-50 hover:text-teal-700 transition-colors flex items-center gap-2"
+              class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-teal-50 hover:text-teal-700 transition-colors flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-teal-500"
             >
               <i class="pi pi-chart-line text-teal-600"></i>
               <span>{{ metric.display }}</span>
@@ -54,14 +60,19 @@
           class="inline-flex items-center gap-1 px-2 py-1 bg-teal-100 text-teal-800 rounded text-xs"
         >
           {{ sensor.display }}
-          <button @click="removeSensor(sensor)" class="hover:text-teal-900">
+          <button
+            @click="removeSensor(sensor)"
+            class="hover:text-teal-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-teal-500 rounded-sm"
+            title="Sensor entfernen"
+            aria-label="Sensor entfernen"
+          >
             <i class="pi pi-times text-xs"></i>
           </button>
         </span>
       </div>
       <button
         @click="addToChart"
-        class="w-full mt-3 bg-teal-600 hover:bg-teal-700 text-white py-2 px-3 rounded text-sm font-medium transition-colors"
+        class="w-full mt-3 bg-teal-600 hover:bg-teal-700 text-white py-2 px-3 rounded text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
         :disabled="!canAddToChart"
       >
         <i class="pi pi-plus mr-1"></i>

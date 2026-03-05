@@ -93,9 +93,7 @@ const privacyDialog = ref(null)
             </div>
 
             <!-- Disclaimer -->
-            <div
-              class="bg-gray-800 p-4 rounded border border-gray-700 text-sm text-gray-100"
-            >
+            <div class="bg-gray-800 p-4 rounded border border-gray-700 text-sm text-gray-100">
               <h4 class="font-bold mb-1 text-white">Haftungsausschluss / Disclaimer</h4>
               <p class="italic">
                 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
