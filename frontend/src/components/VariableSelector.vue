@@ -1,9 +1,9 @@
 <template>
   <div class="variable-selector">
     <div v-for="variable in variables" :key="variable.id" class="mb-3">
-      <label class="block text-xs font-medium text-gray-600 mb-1">
+      <div :id="`label-${variable.id}`" class="block text-xs font-medium text-gray-600 mb-1">
         {{ variable.name }}
-      </label>
+      </div>
       <Select
         v-if="!variable.multi"
         v-model="selectedValues[variable.id]"
@@ -12,6 +12,7 @@
         optionValue="value"
         :placeholder="`Wähle ${variable.name}...`"
         class="w-full text-sm"
+        :aria-labelledby="`label-${variable.id}`"
         @change="onValueChange(variable.id)"
       />
       <MultiSelect
@@ -22,6 +23,7 @@
         optionValue="value"
         :placeholder="`Wähle ${variable.name}...`"
         class="w-full text-sm"
+        :aria-labelledby="`label-${variable.id}`"
         @change="onValueChange(variable.id)"
       />
     </div>
