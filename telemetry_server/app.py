@@ -168,16 +168,16 @@ USE_REDIS = REDIS_AVAILABLE and bool(REDIS_URL)
 _redis_client = None  # Will be initialized on startup if USE_REDIS is True
 
 # Cache stores
-_file_hash_cache: Dict[str, Tuple[Optional[str], float]] = (
-    {}
-)  # {path: (hash, timestamp)}
+_file_hash_cache: Dict[
+    str, Tuple[Optional[str], float]
+] = {}  # {path: (hash, timestamp)}
 _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
     None,
     0,
 )  # (stats, timestamp)
-_community_avg_cache: Dict[str, Tuple[Dict[str, Any], float]] = (
-    {}
-)  # {cache_key: (result, timestamp)} - cache_key = f"{model}:{metrics}"
+_community_avg_cache: Dict[
+    str, Tuple[Dict[str, Any], float]
+] = {}  # {cache_key: (result, timestamp)} - cache_key = f"{model}:{metrics}"
 
 
 async def run_sync(func, *args):
