@@ -9,3 +9,7 @@
 ## 2025-05-24 - Unused WebSocket Logic
 **Learning:** The `broadcast_metric_update` method existed but was never called, and client subscriptions lacked `join_room` logic, rendering real-time updates non-functional. The frontend relied on frequent polling (5s) as a result.
 **Action:** Implemented `join_room` in subscription handler and hooked `broadcast_metrics` into the main data update loop. Converted `SensorValues` to use WebSocket push updates, reducing polling to 60s fallback.
+
+## 2025-03-07 - get_data_pool_stats Synchronous Blocking
+**Learning:** `get_data_pool_stats` was executing queries and checking available models on disk synchronously, compounding wait times.
+**Action:** Utilized `asyncio.gather()` to make network HTTP API calls (to VictoriaMetrics) and disk reads for available models concurrently, effectively reducing the endpoint latency to match the length of the longest individual task.
