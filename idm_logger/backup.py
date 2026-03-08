@@ -489,7 +489,6 @@ class BackupManager:
                 # Iterating directly over the cursor prevents O(N) memory consumption
                 # from loading the entire result set into an intermediate list via fetchall()
                 for key, value in cursor:
-
                     # Handle scheduler_rules specifically
                     if key == "scheduler_rules":
                         try:
