@@ -168,16 +168,16 @@ USE_REDIS = REDIS_AVAILABLE and bool(REDIS_URL)
 _redis_client = None  # Will be initialized on startup if USE_REDIS is True
 
 # Cache stores
-_file_hash_cache: Dict[
-    str, Tuple[Optional[str], float]
-] = {}  # {path: (hash, timestamp)}
+_file_hash_cache: Dict[str, Tuple[Optional[str], float]] = (
+    {}
+)  # {path: (hash, timestamp)}
 _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
     None,
     0,
 )  # (stats, timestamp)
-_community_avg_cache: Dict[
-    str, Tuple[Dict[str, Any], float]
-] = {}  # {cache_key: (result, timestamp)} - cache_key = f"{model}:{metrics}"
+_community_avg_cache: Dict[str, Tuple[Dict[str, Any], float]] = (
+    {}
+)  # {cache_key: (result, timestamp)} - cache_key = f"{model}:{metrics}"
 
 
 async def run_sync(func, *args):
@@ -268,8 +268,10 @@ async def cleanup_rate_limits_and_bans():
 
             # Run audit log cleanup once per day (every 288 iterations)
             if cleanup_rate_limits_and_bans._cleanup_counter >= 288:
-                audit_logger.cleanup_old_logs()
-                training_queue.cleanup_old_tasks(max_age_days=30)
+                await asyncio.to_thread(audit_logger.cleanup_old_logs)
+                await asyncio.to_thread(
+                    training_queue.cleanup_old_tasks, max_age_days=30
+                )
                 cleanup_rate_limits_and_bans._cleanup_counter = 0
 
         except Exception as e:
@@ -2289,11 +2291,13 @@ async def admin_list_installations(
                             "installation_id": inst_id,
                             "data_points": count,
                             "last_seen": last_seen,
-                            "last_seen_formatted": time.strftime(
-                                "%Y-%m-%d %H:%M:%S", time.localtime(last_seen)
-                            )
-                            if last_seen
-                            else "Unknown",
+                            "last_seen_formatted": (
+                                time.strftime(
+                                    "%Y-%m-%d %H:%M:%S", time.localtime(last_seen)
+                                )
+                                if last_seen
+                                else "Unknown"
+                            ),
                             "is_admin": inst_id.lower() in ADMIN_IDS,
                         }
                     )
@@ -2464,12 +2468,16 @@ async def admin_installation_details(
         return {
             "installation_id": target_id,
             "heatpump_model": heatpump_model,
-            "first_seen": datetime.fromtimestamp(first_seen, timezone.utc).isoformat()
-            if first_seen
-            else None,
-            "last_seen": datetime.fromtimestamp(last_seen, timezone.utc).isoformat()
-            if last_seen
-            else None,
+            "first_seen": (
+                datetime.fromtimestamp(first_seen, timezone.utc).isoformat()
+                if first_seen
+                else None
+            ),
+            "last_seen": (
+                datetime.fromtimestamp(last_seen, timezone.utc).isoformat()
+                if last_seen
+                else None
+            ),
             "total_submissions": total_submissions,
             "data_quality_score": round(data_quality_score, 2),
             "model_downloads": model_downloads,
@@ -2757,11 +2765,17 @@ async def admin_get_audit_log(
 
         # Get events based on filters
         if action:
-            events = audit_logger.get_events_by_action(action, limit=limit)
+            events = await asyncio.to_thread(
+                audit_logger.get_events_by_action, action, limit=limit
+            )
         elif admin_filter:
-            events = audit_logger.get_events_by_admin(admin_filter, limit=limit)
+            events = await asyncio.to_thread(
+                audit_logger.get_events_by_admin, admin_filter, limit=limit
+            )
         else:
-            events = audit_logger.get_recent_events(limit=limit)
+            events = await asyncio.to_thread(
+                audit_logger.get_recent_events, limit=limit
+            )
 
         return {
             "events": events,
