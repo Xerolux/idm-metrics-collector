@@ -13,3 +13,7 @@
 ## 2026-03-08 - SQLite Cursor Iteration
 **Learning:** Iterating directly over SQLite cursors (e.g. `for row in cursor:`) prevents O(N) memory consumption from loading entire result sets via `fetchall()`, which is especially important for jobs and alerts.
 **Action:** Use cursor iteration or `list(cursor)` to unpack rows rather than `fetchall()` to optimize memory usage.
+
+## 2026-03-09 - Blocking File I/O in Async APIs
+**Learning:** Synchronous file I/O operations (like reading/writing JSON files) in asynchronous endpoints block the entire asyncio event loop, severely degrading concurrent request handling capabilities.
+**Action:** Always offload expensive or synchronous blocking file operations to a background thread using `asyncio.to_thread` in FastAPI/asyncio contexts.
