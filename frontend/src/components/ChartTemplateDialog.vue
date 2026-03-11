@@ -11,11 +11,12 @@
         <label class="block text-sm font-medium text-gray-700 mb-2">Kategorie</label>
         <div class="flex flex-wrap gap-2">
           <button
+            type="button"
             v-for="cat in categories"
             :key="cat.id"
             @click="selectedCategory = cat.id"
             :class="[
-              'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+              'px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500',
               selectedCategory === cat.id
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

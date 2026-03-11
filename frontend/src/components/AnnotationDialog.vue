@@ -45,17 +45,19 @@
         <label class="block text-sm font-medium text-gray-700 mb-2">Farbe</label>
         <div class="flex gap-2 flex-wrap">
           <button
+            type="button"
             v-for="color in presetColors"
             :key="color"
             @click="localAnnotation.color = color"
             :class="[
-              'w-8 h-8 rounded-full border-2 transition-all',
+              'w-8 h-8 rounded-full border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500',
               localAnnotation.color === color
                 ? 'border-gray-900 scale-110'
                 : 'border-gray-300 hover:border-gray-400'
             ]"
             :style="{ backgroundColor: color }"
             :title="color"
+            :aria-label="`Farbe ${color} auswählen`"
           />
         </div>
       </div>
