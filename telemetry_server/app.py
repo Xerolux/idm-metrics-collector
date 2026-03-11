@@ -159,6 +159,9 @@ POOL_STATS_CACHE_TTL = int(os.environ.get("POOL_STATS_CACHE_TTL", "60"))  # 1 mi
 COMMUNITY_AVG_CACHE_TTL = int(
     os.environ.get("COMMUNITY_AVG_CACHE_TTL", "300")
 )  # 5 minutes
+CONTRIBUTION_RANK_CACHE_TTL = int(
+    os.environ.get("CONTRIBUTION_RANK_CACHE_TTL", "300")
+)  # 5 minutes
 
 # Redis configuration (optional, for persistent rate limiting)
 REDIS_URL = os.environ.get(
@@ -178,6 +181,7 @@ _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
 _community_avg_cache: Dict[
     str, Tuple[Dict[str, Any], float]
 ] = {}  # {cache_key: (result, timestamp)} - cache_key = f"{model}:{metrics}"
+_contribution_rank_cache: Tuple[Optional[List[Tuple[str, int]]], float] = (None, 0)
 
 
 async def run_sync(func, *args):
@@ -199,6 +203,7 @@ app = FastAPI(
 
 async def cleanup_rate_limits_and_bans():
     """Background task to clean up stale rate limit entries and expired bans."""
+    global _contribution_rank_cache
     while True:
         await asyncio.sleep(300)  # Clean every 5 minutes
         try:
@@ -258,6 +263,14 @@ async def cleanup_rate_limits_and_bans():
                 logger.info(
                     "community_avg_cache_cleanup", expired=len(expired_avg_cache)
                 )
+
+            # Clean contribution rank cache
+            if (
+                _contribution_rank_cache[0] is not None
+                and now - _contribution_rank_cache[1] >= CONTRIBUTION_RANK_CACHE_TTL
+            ):
+                _contribution_rank_cache = (None, 0)
+                logger.info("contribution_rank_cache_cleanup")
 
             # Clean old audit logs (run once per day)
             # Check if we should run daily cleanup (every ~288 iterations of 5min = 24h)
@@ -2325,6 +2338,7 @@ async def admin_installation_details(
     installation_id: Optional[str] = None,
 ):
     """Admin: Get detailed information about a specific installation."""
+    global _contribution_rank_cache
     await check_admin_rate_limit(request)
     await verify_admin(authorization, installation_id)
 
@@ -2353,14 +2367,33 @@ async def admin_installation_details(
             "group by(installation_id) (count by (installation_id))"
         )
 
+        # Check cache validity
+        now = time.time()
+        cache_valid = (
+            _contribution_rank_cache[0] is not None
+            and now - _contribution_rank_cache[1] < CONTRIBUTION_RANK_CACHE_TTL
+        )
+
         # Execute all queries in parallel
-        response, count_resp, first_resp, last_resp, rank_resp = await asyncio.gather(
+        gather_tasks = [
             client.get(VM_QUERY_URL, params={"query": metrics_query}),
             client.get(VM_QUERY_URL, params={"query": timestamps_query}),
             client.get(VM_QUERY_URL, params={"query": first_seen_query}),
             client.get(VM_QUERY_URL, params={"query": last_seen_query}),
-            client.get(VM_QUERY_URL, params={"query": all_installations_query}),
-        )
+        ]
+
+        if not cache_valid:
+            gather_tasks.append(
+                client.get(VM_QUERY_URL, params={"query": all_installations_query})
+            )
+
+        gather_results = await asyncio.gather(*gather_tasks)
+
+        response = gather_results[0]
+        count_resp = gather_results[1]
+        first_resp = gather_results[2]
+        last_resp = gather_results[3]
+        rank_resp = gather_results[4] if not cache_valid else None
 
         # Process Results
 
@@ -2441,7 +2474,11 @@ async def admin_installation_details(
         # 5. Process Contribution Rank
 
         contribution_rank = "Unknown"
-        if rank_resp.status_code == 200:
+        counts = None
+
+        if cache_valid:
+            counts = _contribution_rank_cache[0]
+        elif rank_resp and rank_resp.status_code == 200:
             rank_data = rank_resp.json()
             if rank_data.get("data") and rank_data["data"].get("result"):
                 counts = [
@@ -2450,20 +2487,22 @@ async def admin_installation_details(
                     if r.get("value")
                 ]
                 counts.sort(key=lambda x: x[1], reverse=True)
+                _contribution_rank_cache = (counts, now)
 
-                total_installs = len(counts)
-                for idx, (inst_id, _) in enumerate(counts):
-                    if inst_id == target_id:
-                        percentile = ((idx + 1) / total_installs) * 100
-                        if percentile <= 10:
-                            contribution_rank = "Top 10%"
-                        elif percentile <= 25:
-                            contribution_rank = "Top 25%"
-                        elif percentile <= 50:
-                            contribution_rank = "Top 50%"
-                        else:
-                            contribution_rank = f"Top {int(percentile)}%"
-                        break
+        if counts:
+            total_installs = len(counts)
+            for idx, (inst_id, _) in enumerate(counts):
+                if inst_id == target_id:
+                    percentile = ((idx + 1) / total_installs) * 100
+                    if percentile <= 10:
+                        contribution_rank = "Top 10%"
+                    elif percentile <= 25:
+                        contribution_rank = "Top 25%"
+                    elif percentile <= 50:
+                        contribution_rank = "Top 50%"
+                    else:
+                        contribution_rank = f"Top {int(percentile)}%"
+                    break
 
         return {
             "installation_id": target_id,
