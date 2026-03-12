@@ -71,6 +71,8 @@
         <Button
           @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
           :icon="sortOrder === 'asc' ? 'pi pi-sort-amount-up' : 'pi pi-sort-amount-down'"
+          :title="sortOrder === 'asc' ? 'Aufsteigend sortieren' : 'Absteigend sortieren'"
+          :aria-label="sortOrder === 'asc' ? 'Aufsteigend sortieren' : 'Absteigend sortieren'"
           size="small"
           severity="secondary"
           text
@@ -126,6 +128,8 @@
             @click="currentPage--"
             :disabled="currentPage === 1"
             icon="pi pi-chevron-left"
+            title="Vorherige Seite"
+            aria-label="Vorherige Seite"
             size="small"
             severity="secondary"
             text
@@ -135,6 +139,8 @@
             @click="currentPage++"
             :disabled="currentPage === totalPages"
             icon="pi pi-chevron-right"
+            title="Nächste Seite"
+            aria-label="Nächste Seite"
             size="small"
             severity="secondary"
             text
