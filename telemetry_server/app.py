@@ -1745,20 +1745,28 @@ async def list_available_models(request: Request, auth: None = Depends(verify_to
     models = []
     model_dir = Path(MODEL_DIR)
 
-    if model_dir.exists():
+    def _get_files_and_stats():
+        """Run blocking filesystem operations synchronously."""
+        if not model_dir.exists():
+            return []
+        return [(f, f.stat()) for f in model_dir.glob("*.enc")]
 
-        async def _get_model_info(model_file):
-            return {
-                "name": model_file.stem.replace("_", " "),
-                "filename": model_file.name,
-                "size_bytes": model_file.stat().st_size,
-                "hash": await get_file_hash(str(model_file)),
-                "modified": model_file.stat().st_mtime,
-            }
+    # Offload synchronous filesystem access to thread pool
+    # to prevent event loop blocking when many model files exist
+    file_list = await run_sync(_get_files_and_stats)
 
-        tasks = [_get_model_info(f) for f in model_dir.glob("*.enc")]
-        if tasks:
-            models = await asyncio.gather(*tasks)
+    async def _get_model_info(model_file, stat):
+        return {
+            "name": model_file.stem.replace("_", " "),
+            "filename": model_file.name,
+            "size_bytes": stat.st_size,
+            "hash": await get_file_hash(str(model_file)),
+            "modified": stat.st_mtime,
+        }
+
+    if file_list:
+        tasks = [_get_model_info(f, stat) for f, stat in file_list]
+        models = await asyncio.gather(*tasks)
 
     return {
         "models": models,
