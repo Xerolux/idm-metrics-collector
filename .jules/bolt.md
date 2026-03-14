@@ -17,3 +17,6 @@
 ## 2026-03-09 - Blocking File I/O in Async APIs
 **Learning:** Synchronous file I/O operations (like reading/writing JSON files) in asynchronous endpoints block the entire asyncio event loop, severely degrading concurrent request handling capabilities.
 **Action:** Always offload expensive or synchronous blocking file operations to a background thread using `asyncio.to_thread` in FastAPI/asyncio contexts.
+## 2026-03-14 - [Contribution Rank Caching Optimization]
+**Learning:** The 'Contribution Rank' for an installation in `telemetry_server/app.py`'s `admin_installation_details` utilizes a global `_contribution_rank_cache` with a TTL to prevent an O(N) database load (`group by(installation_id) (count by (installation_id))`) on every request.
+**Action:** When implementing new expensive cross-installation analytical queries that do not require real-time accuracy, apply the global variable caching pattern (e.g., `(data, timestamp)` tuples) alongside `asyncio.gather()` dynamic task construction to minimize VictoriaMetrics load.

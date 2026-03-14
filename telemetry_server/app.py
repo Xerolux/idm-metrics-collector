@@ -159,6 +159,9 @@ POOL_STATS_CACHE_TTL = int(os.environ.get("POOL_STATS_CACHE_TTL", "60"))  # 1 mi
 COMMUNITY_AVG_CACHE_TTL = int(
     os.environ.get("COMMUNITY_AVG_CACHE_TTL", "300")
 )  # 5 minutes
+CONTRIBUTION_RANK_CACHE_TTL = int(
+    os.environ.get("CONTRIBUTION_RANK_CACHE_TTL", "3600")
+)  # 1 hour
 
 # Redis configuration (optional, for persistent rate limiting)
 REDIS_URL = os.environ.get(
@@ -178,6 +181,10 @@ _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
 _community_avg_cache: Dict[
     str, Tuple[Dict[str, Any], float]
 ] = {}  # {cache_key: (result, timestamp)} - cache_key = f"{model}:{metrics}"
+_contribution_rank_cache: Tuple[Optional[List[Tuple[str, int]]], float] = (
+    None,
+    0,
+)  # (sorted_counts, timestamp)
 
 
 async def run_sync(func, *args):
@@ -2357,18 +2364,34 @@ async def admin_installation_details(
         last_seen_query = f'last_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
 
         # 5. Contribution rank (all installations)
+        global _contribution_rank_cache
+        cached_rank_data, cache_timestamp = _contribution_rank_cache
+        now = time.time()
+
         all_installations_query = (
             "group by(installation_id) (count by (installation_id))"
         )
 
-        # Execute all queries in parallel
-        response, count_resp, first_resp, last_resp, rank_resp = await asyncio.gather(
+        gather_tasks = [
             client.get(VM_QUERY_URL, params={"query": metrics_query}),
             client.get(VM_QUERY_URL, params={"query": timestamps_query}),
             client.get(VM_QUERY_URL, params={"query": first_seen_query}),
             client.get(VM_QUERY_URL, params={"query": last_seen_query}),
-            client.get(VM_QUERY_URL, params={"query": all_installations_query}),
-        )
+        ]
+
+        if not cached_rank_data or now - cache_timestamp >= CONTRIBUTION_RANK_CACHE_TTL:
+            gather_tasks.append(
+                client.get(VM_QUERY_URL, params={"query": all_installations_query})
+            )
+
+        # Execute all queries in parallel
+        results = await asyncio.gather(*gather_tasks)
+
+        response = results[0]
+        count_resp = results[1]
+        first_resp = results[2]
+        last_resp = results[3]
+        rank_resp = results[4] if len(results) > 4 else None
 
         # Process Results
 
@@ -2449,7 +2472,9 @@ async def admin_installation_details(
         # 5. Process Contribution Rank
 
         contribution_rank = "Unknown"
-        if rank_resp.status_code == 200:
+        counts = cached_rank_data
+
+        if rank_resp and rank_resp.status_code == 200:
             rank_data = rank_resp.json()
             if rank_data.get("data") and rank_data["data"].get("result"):
                 counts = [
@@ -2458,20 +2483,22 @@ async def admin_installation_details(
                     if r.get("value")
                 ]
                 counts.sort(key=lambda x: x[1], reverse=True)
+                _contribution_rank_cache = (counts, now)
 
-                total_installs = len(counts)
-                for idx, (inst_id, _) in enumerate(counts):
-                    if inst_id == target_id:
-                        percentile = ((idx + 1) / total_installs) * 100
-                        if percentile <= 10:
-                            contribution_rank = "Top 10%"
-                        elif percentile <= 25:
-                            contribution_rank = "Top 25%"
-                        elif percentile <= 50:
-                            contribution_rank = "Top 50%"
-                        else:
-                            contribution_rank = f"Top {int(percentile)}%"
-                        break
+        if counts:
+            total_installs = len(counts)
+            for idx, (inst_id, _) in enumerate(counts):
+                if inst_id == target_id:
+                    percentile = ((idx + 1) / total_installs) * 100
+                    if percentile <= 10:
+                        contribution_rank = "Top 10%"
+                    elif percentile <= 25:
+                        contribution_rank = "Top 25%"
+                    elif percentile <= 50:
+                        contribution_rank = "Top 50%"
+                    else:
+                        contribution_rank = f"Top {int(percentile)}%"
+                    break
 
         return {
             "installation_id": target_id,
