@@ -17,3 +17,6 @@
 ## 2026-03-09 - Blocking File I/O in Async APIs
 **Learning:** Synchronous file I/O operations (like reading/writing JSON files) in asynchronous endpoints block the entire asyncio event loop, severely degrading concurrent request handling capabilities.
 **Action:** Always offload expensive or synchronous blocking file operations to a background thread using `asyncio.to_thread` in FastAPI/asyncio contexts.
+## 2026-03-16 - [Admin Installation Details Cache]
+**Learning:** The `admin_installation_details` endpoint in `telemetry_server/app.py` performs an O(N) cross-installation database aggregation query (`group by(installation_id) (count by (installation_id))`) just to calculate a single percentile rank for one user. This is a massive overhead on every single details request.
+**Action:** Introduced an in-memory TTL cache using a global `_contribution_rank_cache: Tuple[Optional[list], float]` alongside conditional appending in `asyncio.gather`. This eliminates the O(N) database load when the cache is valid, significantly improving admin portal performance.
