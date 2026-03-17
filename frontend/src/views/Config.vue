@@ -2470,6 +2470,7 @@ const adminAutoRefresh = ref(true)
 let adminAutoRefreshInterval = null
 // Installation Role/Ban Management
 const installationRoles = ref(null)
+const installationRolesError = ref(null)
 const roleDialogVisible = ref(false)
 const banDialogVisible = ref(false)
 const selectedInstallationForAction = ref(null)
@@ -2574,16 +2575,17 @@ const fetchAdminInstallations = async () => {
 // Installation Role/Ban Management Functions
 const fetchInstallationRoles = async () => {
   if (!telemetryStatus.value?.is_admin) return
+  installationRolesError.value = null
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const authToken = config.value.telemetry?.auth_token || ''
     const res = await axios.get(`${telemetryUrl}/api/v1/admin/installations/list`, {
       params: { installation_id: config.value.installation_id, limit: 200 },
-      headers: { Authorization: `Bearer ${authToken}` }
+      headers: getAdminHeaders()
     })
     installationRoles.value = res.data
   } catch (err) {
     console.error('Failed to fetch installation roles:', err)
+    installationRolesError.value = err.response?.data?.detail || err.message
   }
 }
 
@@ -2708,26 +2710,36 @@ const saveBan = async () => {
 const unbanInstallation = async (instId) => {
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const authToken = config.value.telemetry?.auth_token || ''
-    // Try to unban all types
+    // Try to unban all types; ignore 4xx (not banned with that type)
     const banTypes = ['full', 'upload', 'download']
+    let anySucceeded = false
     for (const bt of banTypes) {
       try {
         await axios.post(`${telemetryUrl}/api/v1/admin/installations/${instId}/unban`, null, {
           params: { installation_id: config.value.installation_id, ban_type: bt },
-          headers: { Authorization: `Bearer ${authToken}` }
+          headers: getAdminHeaders()
         })
+        anySucceeded = true
       } catch {
         /* ignore if not banned with this type */
       }
     }
-    toast.add({
-      severity: 'success',
-      summary: 'Erfolg',
-      detail: 'Installation entsperrt',
-      life: 3000
-    })
     await fetchInstallationRoles()
+    if (anySucceeded || !isInstallationBanned(instId)) {
+      toast.add({
+        severity: 'success',
+        summary: 'Erfolg',
+        detail: 'Installation entsperrt',
+        life: 3000
+      })
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'Fehler',
+        detail: 'Entsperren fehlgeschlagen',
+        life: 5000
+      })
+    }
   } catch (err) {
     toast.add({
       severity: 'error',
