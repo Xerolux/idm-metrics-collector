@@ -6,7 +6,8 @@ import base64
 import hmac
 import hashlib
 
-from idm_logger.telemetry import TelemetryManager, DEFAULT_ENCRYPTION_KEY
+from idm_logger.telemetry import TelemetryManager
+from idm_logger.telemetry_config import TelemetryClientConfig
 from idm_logger.config import config
 
 
@@ -44,8 +45,10 @@ class TestTelemetry(unittest.TestCase):
         self.tm.manual_downloads_today = 0
         self.tm.last_manual_download = 0
 
-    @patch("idm_logger.telemetry.requests")
-    def test_submit_data_success(self, mock_requests):
+    @patch("idm_logger.http_client.requests.Session")
+    def test_submit_data_success(self, mock_session):
+        mock_requests = mock_session.return_value
+        self.tm.http_client.session = mock_requests
         # Configure the mock config for this test
         self.mock_get.side_effect = lambda k, d=None: {
             "telemetry.enabled": True,
@@ -89,8 +92,10 @@ class TestTelemetry(unittest.TestCase):
         args, kwargs = mock_requests.post.call_args
         self.assertEqual(args[0], "http://test-server/api/v1/submit")
 
-    @patch("idm_logger.telemetry.requests")
-    def test_submit_data_batching(self, mock_requests):
+    @patch("idm_logger.http_client.requests.Session")
+    def test_submit_data_batching(self, mock_session):
+        mock_requests = mock_session.return_value
+        self.tm.http_client.session = mock_requests
         self.mock_get.side_effect = lambda k, d=None: {
             "telemetry.enabled": True,
             "telemetry.server_url": "http://test-server",
@@ -127,8 +132,10 @@ class TestTelemetry(unittest.TestCase):
         self.assertTrue(success)
         self.assertEqual(mock_requests.post.call_count, 2)
 
-    @patch("idm_logger.telemetry.requests")
-    def test_download_model_success(self, mock_requests):
+    @patch("idm_logger.http_client.requests.Session")
+    def test_download_model_success(self, mock_session):
+        mock_requests = mock_session.return_value
+        self.tm.http_client.session = mock_requests
         self.mock_get.side_effect = lambda k, d=None: {
             "installation_id": "uuid",
             "hp_model": "TestModel",
@@ -151,7 +158,7 @@ class TestTelemetry(unittest.TestCase):
         try:
             from cryptography.fernet import Fernet
 
-            key = DEFAULT_ENCRYPTION_KEY
+            key = TelemetryClientConfig.get_default_encryption_key()
             f = Fernet(key)
             original_data = b"serialized_model_data"
             encrypted_data = f.encrypt(original_data)
@@ -191,13 +198,15 @@ class TestTelemetry(unittest.TestCase):
         self.assertTrue(success)
 
     def test_rate_limit(self):
-        self.tm.manual_downloads_today = 3
+        self.tm.model_downloader._manual_downloads_today = 3
         with self.assertRaises(Exception) as cm:
             self.tm.download_and_install_model(manual=True)
         self.assertIn("Limit", str(cm.exception))
 
-    @patch("idm_logger.telemetry.requests")
-    def test_admin_status_update(self, mock_requests):
+    @patch("idm_logger.http_client.requests.Session")
+    def test_admin_status_update(self, mock_session):
+        mock_requests = mock_session.return_value
+        self.tm.http_client.session = mock_requests
         """Test that is_admin status is correctly updated from server response."""
         self.mock_get.side_effect = lambda k, d=None: {
             "installation_id": "uuid",
@@ -252,8 +261,10 @@ class TestTelemetry(unittest.TestCase):
         self.assertFalse(self.tm.is_admin)
         self.assertIsNone(self.tm.server_stats)
 
-    @patch("idm_logger.telemetry.requests")
-    def test_submit_data_large_records(self, mock_requests):
+    @patch("idm_logger.http_client.requests.Session")
+    def test_submit_data_large_records(self, mock_session):
+        mock_requests = mock_session.return_value
+        self.tm.http_client.session = mock_requests
         """Test with large records to verify dynamic batching."""
         self.mock_get.side_effect = lambda k, d=None: {
             "telemetry.enabled": True,

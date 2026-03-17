@@ -137,6 +137,7 @@ class HttpClient:
         data: Optional[Any] = None,
         headers: Optional[Dict[str, str]] = None,
         timeout: Optional[float] = None,
+        files: Optional[Dict[str, Any]] = None,
     ) -> requests.Response:
         """POST request with retry logic."""
         last_error: Optional[Exception] = None
@@ -149,6 +150,7 @@ class HttpClient:
                     data=data,
                     headers=headers,
                     timeout=timeout or self.default_timeout,
+                    files=files,
                 )
 
                 if response.status_code in retry_config.retryable_status_codes:

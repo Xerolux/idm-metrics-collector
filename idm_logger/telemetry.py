@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT
 import json
 import logging
-import os
 import threading
 import time
 from datetime import datetime
@@ -12,14 +11,12 @@ from .config import config
 from .update_manager import get_current_version
 from .telemetry_config import (
     telemetry_client_config,
-    model_download_config,
 )
 from .http_client import HttpClient
-from .batch_processor import DataBatcher, MetricsAggregator, BatchResult
+from .batch_processor import DataBatcher, MetricsAggregator
 from .model_downloader import (
     ModelDownloader,
     ModelCheckResult,
-    ModelVerificationResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -406,9 +403,14 @@ class TelemetryManager:
         installation_id = config.get("installation_id")
         hp_model = config.get("hp_model")
 
-        check_result = self.model_downloader.check_model_availability(
-            server_url, installation_id, hp_model
-        )
+        try:
+            check_result = self.model_downloader.check_model_availability(
+                server_url, installation_id, hp_model
+            )
+        except Exception as e:
+            if manual:
+                raise Exception(str(e))
+            return False
 
         config.set("telemetry.last_model_check", int(time.time()))
 
