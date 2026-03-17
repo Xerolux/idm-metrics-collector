@@ -11,9 +11,10 @@
         <label class="block text-sm font-medium text-gray-700 mb-2">Export-Typ</label>
         <div class="grid grid-cols-2 gap-3">
           <button
+            type="button"
             @click="exportType = 'visual'"
             :class="[
-              'p-3 rounded-lg border-2 text-center transition-all',
+              'p-3 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               exportType === 'visual'
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
@@ -24,9 +25,10 @@
             <div class="text-xs text-gray-500 mt-1">PNG / PDF Screenshot</div>
           </button>
           <button
+            type="button"
             @click="exportType = 'data'"
             :class="[
-              'p-3 rounded-lg border-2 text-center transition-all',
+              'p-3 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               exportType === 'data'
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
@@ -44,9 +46,10 @@
         <label class="block text-sm font-medium text-gray-700 mb-2">Format</label>
         <div v-if="exportType === 'visual'" class="grid grid-cols-2 gap-3">
           <button
+            type="button"
             @click="selectedFormat = 'png'"
             :class="[
-              'p-4 rounded-lg border-2 text-center transition-all',
+              'p-4 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               selectedFormat === 'png'
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
@@ -57,9 +60,10 @@
             <div class="text-xs text-gray-500 mt-1">Bild-Datei</div>
           </button>
           <button
+            type="button"
             @click="selectedFormat = 'pdf'"
             :class="[
-              'p-4 rounded-lg border-2 text-center transition-all',
+              'p-4 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               selectedFormat === 'pdf'
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
@@ -72,9 +76,10 @@
         </div>
         <div v-else class="grid grid-cols-3 gap-3">
           <button
+            type="button"
             @click="selectedFormat = 'csv'"
             :class="[
-              'p-4 rounded-lg border-2 text-center transition-all',
+              'p-4 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               selectedFormat === 'csv'
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
@@ -85,9 +90,10 @@
             <div class="text-xs text-gray-500 mt-1">Tabelle</div>
           </button>
           <button
+            type="button"
             @click="selectedFormat = 'excel'"
             :class="[
-              'p-4 rounded-lg border-2 text-center transition-all',
+              'p-4 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               selectedFormat === 'excel'
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
@@ -98,9 +104,10 @@
             <div class="text-xs text-gray-500 mt-1">Arbeitsmappe</div>
           </button>
           <button
+            type="button"
             @click="selectedFormat = 'json'"
             :class="[
-              'p-4 rounded-lg border-2 text-center transition-all',
+              'p-4 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               selectedFormat === 'json'
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
