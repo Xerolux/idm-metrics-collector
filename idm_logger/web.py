@@ -242,9 +242,7 @@ def _update_ai_status_once():
         base_url = metrics_url.replace("/write", "")
         query_url = f"{base_url}/api/v1/query"
 
-        query = (
-            'last_over_time({__name__=~"idm_anomaly_score.*|idm_anomaly_flag.*"}[2h])'
-        )
+        query = 'last_over_time({__name__=~"idm_anomaly_score|idm_anomaly_flag"}[2h])'
         try:
             response = requests.get(query_url, params={"query": query}, timeout=10)
         except requests.RequestException as e:

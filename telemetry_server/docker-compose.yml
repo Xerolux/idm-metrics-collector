@@ -14,8 +14,8 @@ services:
       - AUTH_TOKEN=COMMUNITY-CONTRIBUTOR-TOKEN-2026
       - ADMIN_INSTALLATION_IDS=${ADMIN_INSTALLATION_IDS:-}
       - MODEL_DIR=/app/models
-      - MIN_INSTALLATIONS=5
-      - MIN_DATA_POINTS=10000
+      - MIN_INSTALLATIONS=1
+      - MIN_DATA_POINTS=1000
     volumes:
       - model-data:/app/models
     depends_on:
