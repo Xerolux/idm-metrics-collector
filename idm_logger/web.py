@@ -1722,6 +1722,15 @@ def config_page():
                 if "telemetry" not in config.data:
                     config.data["telemetry"] = {}
                 config.data["telemetry"]["auth_token"] = data["telemetry_auth_token"]
+            if "telemetry_server_url" in data:
+                if "telemetry" not in config.data:
+                    config.data["telemetry"] = {}
+                url_val = data["telemetry_server_url"]
+                if url_val:
+                    valid, err = _validate_url(url_val)
+                    if not valid:
+                        return jsonify({"error": f"Telemetry Server URL: {err}"}), 400
+                config.data["telemetry"]["server_url"] = url_val
 
             # Updates
             if "updates_enabled" in data:

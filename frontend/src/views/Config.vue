@@ -212,14 +212,14 @@
 
                 <div class="flex flex-col gap-2">
                   <label class="font-bold text-sm text-gray-300">Telemetry Server URL</label>
-                  <div
-                    class="p-2 bg-gray-900 rounded border border-gray-700 font-mono text-gray-400"
-                  >
-                    https://collector.xerolux.de
-                  </div>
+                  <InputText
+                    v-model="config.telemetry.server_url"
+                    class="w-full font-mono"
+                    placeholder="https://collector.xerolux.de"
+                  />
                   <small class="text-gray-400"
-                    >Standard: https://collector.xerolux.de (Community Server). Dieser Wert ist fest
-                    eingestellt.</small
+                    >Standard: https://collector.xerolux.de – Nur ändern wenn du einen eigenen
+                    Server betreibst.</small
                   >
                 </div>
 
@@ -588,29 +588,46 @@
                 </div>
 
                 <div class="bg-gray-800 p-4 rounded border border-gray-700 mt-4">
-                  <div class="flex flex-col gap-2">
-                    <label class="font-bold text-sm text-gray-300">Empfindlichkeit (0-10)</label>
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <InputNumber
-                        v-model="config.ai.sensitivity"
-                        :min="0"
-                        :max="10"
-                        :minFractionDigits="2"
-                        :maxFractionDigits="2"
-                        :step="0.1"
-                        showButtons
-                        buttonLayout="horizontal"
-                        decrementButtonIcon="pi pi-minus"
-                        incrementButtonIcon="pi pi-plus"
-                        class="w-full sm:w-40"
+                  <div class="flex flex-col gap-4">
+                    <div class="flex flex-col gap-2">
+                      <label class="font-bold text-sm text-gray-300">KI-Modell</label>
+                      <Dropdown
+                        v-model="config.ai.model"
+                        :options="[
+                          { label: 'Rolling Window (Lokal, kontinuierliches Lernen)', value: 'rolling' },
+                          { label: 'Community Modell (Vortrainiert, für neue Installationen)', value: 'community' }
+                        ]"
+                        optionLabel="label"
+                        optionValue="value"
+                        class="w-full"
                       />
-                      <span class="text-sm text-gray-400 italic">Empfehlung: 3.0 (Standard)</span>
+                      <small class="text-gray-400">
+                        <strong>Rolling:</strong> Lernt kontinuierlich aus deinen eigenen Daten.
+                        <strong>Community:</strong> Nutzt das vortrainierte Modell vom Server.
+                      </small>
                     </div>
-                    <div class="text-xs text-gray-500 mt-1">
-                      Werte wie 0.11 oder 0.15 ermöglichen sehr feine Abstimmungen.
-                      <br />
-                      0 = Sehr geringe Empfindlichkeit (Weniger Alarme), 10 = Sehr hohe
-                      Empfindlichkeit (Mehr Alarme).
+                    <div class="flex flex-col gap-2">
+                      <label class="font-bold text-sm text-gray-300">Empfindlichkeit (0-10)</label>
+                      <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <InputNumber
+                          v-model="config.ai.sensitivity"
+                          :min="0"
+                          :max="10"
+                          :minFractionDigits="2"
+                          :maxFractionDigits="2"
+                          :step="0.1"
+                          showButtons
+                          buttonLayout="horizontal"
+                          decrementButtonIcon="pi pi-minus"
+                          incrementButtonIcon="pi pi-plus"
+                          class="w-full sm:w-40"
+                        />
+                        <span class="text-sm text-gray-400 italic">Empfehlung: 3.0 (Standard)</span>
+                      </div>
+                      <div class="text-xs text-gray-500 mt-1">
+                        0 = Sehr geringe Empfindlichkeit (Weniger Alarme) – 10 = Sehr hohe
+                        Empfindlichkeit (Mehr Alarme).
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1110,17 +1127,40 @@
             <Fieldset legend="Installation Management" :toggleable="true">
               <div class="flex justify-between items-center mb-3">
                 <div class="text-sm text-gray-400" v-if="adminInstallations">
-                  Showing {{ adminInstallations.showing }} of
-                  {{ adminInstallations.total }} installations
+                  {{ adminInstallations.showing }} von
+                  {{ adminInstallations.total }} Installationen angezeigt
+                </div>
+                <div class="text-sm text-gray-400" v-else-if="!adminInstallationsError">
+                  Installationen werden geladen...
                 </div>
                 <Button
-                  label="Refresh"
+                  label="Aktualisieren"
                   icon="pi pi-refresh"
                   size="small"
                   severity="secondary"
-                  @click="fetchInstallationRoles"
+                  @click="fetchAdminInstallations"
                 />
               </div>
+
+              <!-- Error State -->
+              <div
+                v-if="adminInstallationsError"
+                class="text-center py-6 bg-red-900/20 border border-red-700/50 rounded mb-3"
+              >
+                <i class="pi pi-exclamation-triangle text-red-400 text-2xl mb-2 block"></i>
+                <div class="text-red-300 font-medium">Installationen konnten nicht geladen werden</div>
+                <div class="text-red-400 text-xs mt-1 font-mono">{{ adminInstallationsError }}</div>
+                <Button
+                  label="Erneut versuchen"
+                  icon="pi pi-refresh"
+                  size="small"
+                  severity="danger"
+                  outlined
+                  class="mt-3"
+                  @click="fetchAdminInstallations"
+                />
+              </div>
+
               <div class="overflow-x-auto" v-if="adminInstallations">
                 <table class="w-full text-sm">
                   <thead>
@@ -1128,8 +1168,8 @@
                       <th class="text-left py-2 px-3">Installation ID</th>
                       <th class="text-center py-2 px-3">Rolle</th>
                       <th class="text-center py-2 px-3">Status</th>
-                      <th class="text-right py-2 px-3">Data Points</th>
-                      <th class="text-right py-2 px-3">Last Seen</th>
+                      <th class="text-right py-2 px-3">Datenpunkte</th>
+                      <th class="text-right py-2 px-3">Zuletzt gesehen</th>
                       <th class="text-center py-2 px-3">Aktionen</th>
                     </tr>
                   </thead>
@@ -1143,6 +1183,7 @@
                         <button
                           @click="openInstallationDetails(inst.installation_id)"
                           class="text-blue-400 hover:text-blue-300 hover:underline text-left"
+                          :title="inst.installation_id"
                         >
                           {{ inst.installation_id.substring(0, 20) }}...
                         </button>
@@ -1169,8 +1210,8 @@
                       <td class="py-2 px-3 text-right">
                         {{ inst.data_points?.toLocaleString() || 0 }}
                       </td>
-                      <td class="py-2 px-3 text-right">
-                        {{ inst.last_seen_formatted || 'Unknown' }}
+                      <td class="py-2 px-3 text-right text-xs">
+                        {{ inst.last_seen_formatted || 'Unbekannt' }}
                       </td>
                       <td class="py-2 px-3 text-center">
                         <div class="flex gap-1 justify-center">
@@ -1180,7 +1221,7 @@
                             size="small"
                             outlined
                             @click="openRoleDialog(inst.installation_id)"
-                            v-tooltip="'Rolle aendern'"
+                            v-tooltip="'Rolle ändern'"
                             aria-label="Rolle ändern"
                           />
                           <Button
@@ -1215,14 +1256,19 @@
                         </div>
                       </td>
                     </tr>
+                    <tr v-if="adminInstallations.installations?.length === 0">
+                      <td colspan="6" class="py-6 text-center text-gray-500 italic">
+                        Keine Installationen gefunden
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
               <div
-                v-else
+                v-else-if="!adminInstallationsError"
                 class="text-center py-8 text-gray-400 italic bg-gray-900/30 rounded border border-gray-800 border-dashed"
               >
-                <i class="pi pi-spin pi-spinner mr-2"></i> Loading installations...
+                <i class="pi pi-spin pi-spinner mr-2"></i> Installationen werden geladen...
               </div>
             </Fieldset>
 
@@ -2484,13 +2530,19 @@ const copyId = async () => {
 
 // ==================== ADMIN FUNCTIONS ====================
 
+const getAdminHeaders = () => {
+  const authToken = config.value.telemetry?.auth_token || ''
+  return authToken ? { Authorization: `Bearer ${authToken}` } : {}
+}
+
 const fetchAdminHealth = async () => {
   if (!telemetryStatus.value?.is_admin) return
 
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const res = await axios.get(`${telemetryUrl}/api/v1/admin/health`, {
-      params: { installation_id: config.value.installation_id }
+      params: { installation_id: config.value.installation_id },
+      headers: getAdminHeaders()
     })
     adminHealth.value = res.data
   } catch (err) {
@@ -2498,19 +2550,24 @@ const fetchAdminHealth = async () => {
   }
 }
 
+const adminInstallationsError = ref(null)
+
 const fetchAdminInstallations = async () => {
   if (!telemetryStatus.value?.is_admin) return
+  adminInstallationsError.value = null
 
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const res = await axios.get(`${telemetryUrl}/api/v1/admin/installations`, {
-      params: { installation_id: config.value.installation_id, limit: 50 }
+      params: { installation_id: config.value.installation_id, limit: 50 },
+      headers: getAdminHeaders()
     })
     adminInstallations.value = res.data
     // Also fetch roles data
     await fetchInstallationRoles()
   } catch (err) {
     console.error('Failed to fetch admin installations:', err)
+    adminInstallationsError.value = err.response?.data?.detail || err.message
   }
 }
 
@@ -2518,7 +2575,7 @@ const fetchAdminInstallations = async () => {
 const fetchInstallationRoles = async () => {
   if (!telemetryStatus.value?.is_admin) return
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const authToken = config.value.telemetry?.auth_token || ''
     const res = await axios.get(`${telemetryUrl}/api/v1/admin/installations/list`, {
       params: { installation_id: config.value.installation_id, limit: 200 },
@@ -2573,7 +2630,7 @@ const saveRole = async () => {
   if (!selectedInstallationForAction.value) return
   savingRole.value = true
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const authToken = config.value.telemetry?.auth_token || ''
     await axios.post(
       `${telemetryUrl}/api/v1/admin/installations/${selectedInstallationForAction.value}/role`,
@@ -2614,7 +2671,7 @@ const saveBan = async () => {
   }
   savingBan.value = true
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const authToken = config.value.telemetry?.auth_token || ''
     const params = {
       installation_id: config.value.installation_id,
@@ -2650,7 +2707,7 @@ const saveBan = async () => {
 
 const unbanInstallation = async (instId) => {
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const authToken = config.value.telemetry?.auth_token || ''
     // Try to unban all types
     const banTypes = ['full', 'upload', 'download']
@@ -2685,9 +2742,10 @@ const fetchAdminModels = async () => {
   if (!telemetryStatus.value?.is_admin) return
 
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const res = await axios.get(`${telemetryUrl}/api/v1/admin/models`, {
-      params: { installation_id: config.value.installation_id }
+      params: { installation_id: config.value.installation_id },
+      headers: getAdminHeaders()
     })
     adminModels.value = res.data
 
@@ -2778,9 +2836,10 @@ const fetchAdminMetrics = async () => {
   if (!telemetryStatus.value?.is_admin) return
 
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const res = await axios.get(`${telemetryUrl}/api/v1/admin/metrics`, {
-      params: { installation_id: config.value.installation_id }
+      params: { installation_id: config.value.installation_id },
+      headers: getAdminHeaders()
     })
     adminMetrics.value = res.data
   } catch (err) {
@@ -2803,7 +2862,7 @@ const fetchCommunityAverages = async () => {
   communityStats.value = null
 
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const headers = {}
     if (config.value.telemetry?.auth_token) {
       headers['Authorization'] = `Bearer ${config.value.telemetry.auth_token}`
@@ -2834,9 +2893,10 @@ const fetchCommunityAverages = async () => {
 const fetchAuditLog = async () => {
   if (!telemetryStatus.value?.is_admin) return
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const res = await axios.get(`${telemetryUrl}/api/v1/admin/audit-log`, {
-      params: { installation_id: config.value.installation_id, limit: 100 }
+      params: { installation_id: config.value.installation_id, limit: 100 },
+      headers: getAdminHeaders()
     })
     adminAuditLog.value = res.data.events || []
   } catch (err) {
@@ -2847,13 +2907,16 @@ const fetchAuditLog = async () => {
 const fetchTrainingInfo = async () => {
   if (!telemetryStatus.value?.is_admin) return
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
+    const headers = getAdminHeaders()
     const [currentRes, historyRes] = await Promise.all([
       axios.get(`${telemetryUrl}/api/v1/admin/training/current`, {
-        params: { installation_id: config.value.installation_id }
+        params: { installation_id: config.value.installation_id },
+        headers
       }),
       axios.get(`${telemetryUrl}/api/v1/admin/training/history`, {
-        params: { installation_id: config.value.installation_id, limit: 20 }
+        params: { installation_id: config.value.installation_id, limit: 20 },
+        headers
       })
     ])
 
@@ -2869,9 +2932,10 @@ const fetchTrainingInfo = async () => {
 const fetchPermissions = async () => {
   if (!telemetryStatus.value?.is_admin) return
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const res = await axios.get(`${telemetryUrl}/api/v1/admin/permissions`, {
-      params: { installation_id: config.value.installation_id }
+      params: { installation_id: config.value.installation_id },
+      headers: getAdminHeaders()
     })
 
     // Transform object to array
@@ -2887,9 +2951,10 @@ const fetchPermissions = async () => {
 const cancelTraining = async (taskId) => {
   cancellingTraining.value = true
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     await axios.post(`${telemetryUrl}/api/v1/admin/training/cancel/${taskId}`, null, {
-      params: { installation_id: config.value.installation_id }
+      params: { installation_id: config.value.installation_id },
+      headers: getAdminHeaders()
     })
     toast.add({
       severity: 'success',
@@ -2921,12 +2986,14 @@ const savePermissions = async () => {
   savingPermissions.value = true
 
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const admin = adminPermissions.value.find((a) => a.id === selectedAdminId.value)
     if (!admin) return
 
     const currentPerms = new Set(admin.permissions)
     const newPerms = new Set(selectedAdminPermissions.value)
+
+    const headers = getAdminHeaders()
 
     // Grant new permissions
     for (const perm of newPerms) {
@@ -2936,7 +3003,8 @@ const savePermissions = async () => {
             installation_id: config.value.installation_id,
             target_admin_id: selectedAdminId.value,
             permission: perm
-          }
+          },
+          headers
         })
       }
     }
@@ -2949,7 +3017,8 @@ const savePermissions = async () => {
             installation_id: config.value.installation_id,
             target_admin_id: selectedAdminId.value,
             permission: perm
-          }
+          },
+          headers
         })
       }
     }
@@ -2981,13 +3050,14 @@ const grantNewAdmin = async () => {
 
   try {
     // Just grant admin:view to start
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     await axios.post(`${telemetryUrl}/api/v1/admin/permissions/grant`, null, {
       params: {
         installation_id: config.value.installation_id,
         target_admin_id: newAdminId.value,
         permission: 'admin:view'
-      }
+      },
+      headers: getAdminHeaders()
     })
 
     toast.add({
@@ -3019,15 +3089,18 @@ const openInstallationDetails = async (installationId) => {
   installationHistory.value = null
 
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
 
+    const headers = getAdminHeaders()
     // Fetch details and history in parallel
     const [detailsRes, historyRes] = await Promise.all([
       axios.get(`${telemetryUrl}/api/v1/admin/installations/${installationId}/details`, {
-        params: { installation_id: config.value.installation_id }
+        params: { installation_id: config.value.installation_id },
+        headers
       }),
       axios.get(`${telemetryUrl}/api/v1/admin/installations/${installationId}/history`, {
-        params: { installation_id: config.value.installation_id, limit: 20 }
+        params: { installation_id: config.value.installation_id, limit: 20 },
+        headers
       })
     ])
 
@@ -3064,9 +3137,10 @@ const deleteModel = async (modelName) => {
     accept: async () => {
       modelDeleting.value = true
       try {
-        const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+        const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
         await axios.delete(`${telemetryUrl}/api/v1/admin/models/${encodeURIComponent(modelName)}`, {
-          params: { installation_id: config.value.installation_id }
+          params: { installation_id: config.value.installation_id },
+          headers: getAdminHeaders()
         })
 
         toast.add({
@@ -3097,9 +3171,10 @@ const deleteModel = async (modelName) => {
 const triggerTraining = async () => {
   trainingInProgress.value = true
   try {
-    const telemetryUrl = config.value.telemetry?.url || 'https://collector.xerolux.de'
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const res = await axios.post(`${telemetryUrl}/api/v1/admin/models/trigger-training`, null, {
-      params: { installation_id: config.value.installation_id }
+      params: { installation_id: config.value.installation_id },
+      headers: getAdminHeaders()
     })
 
     if (res.data.success) {
