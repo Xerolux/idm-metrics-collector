@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 import json
 import logging
-from typing import Dict, List, Any, Iterator, Tuple
+from typing import Dict, List, Any, Iterator
 from dataclasses import dataclass
 
 from .telemetry_config import batch_config

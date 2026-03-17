@@ -18,8 +18,9 @@ class TelemetryClientConfig:
     hp_model: Optional[str] = field(default=None)
 
     enabled: bool = field(
-        default_factory=lambda: os.environ.get("TELEMETRY_ENABLED", "true").lower()
-        in ("true", "1", "yes")
+        default_factory=lambda: (
+            os.environ.get("TELEMETRY_ENABLED", "true").lower() in ("true", "1", "yes")
+        )
     )
 
     submit_hours: int = field(

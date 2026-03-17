@@ -1,7 +1,7 @@
 import threading
 import time
 from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from .config import rate_limit_config, security_config
 
