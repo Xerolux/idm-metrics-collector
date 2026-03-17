@@ -137,42 +137,15 @@
 </template>
 
 <script setup>
-// Xerolux 2026
 import { ref, shallowRef, onMounted, onUnmounted, watch, computed } from 'vue'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  TimeScale
-} from 'chart.js'
-import 'chartjs-adapter-date-fns'
-import zoomPlugin from 'chartjs-plugin-zoom'
-import annotationPlugin from 'chartjs-plugin-annotation'
 import { Line } from 'vue-chartjs'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import axios from 'axios'
 import { wsClient } from '../utils/websocket.js'
+import { isDarkMode, getChartColors } from '../utils/chartConfig.js'
 import ChartConfigDialog from './ChartConfigDialog.vue'
 import ConfirmDialog from 'primevue/confirmdialog'
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  TimeScale,
-  zoomPlugin,
-  annotationPlugin
-)
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -224,184 +197,89 @@ const hasData = computed(() => chartData.value.datasets.length > 0)
 
 const chartOptions = computed(() => {
   const isDual = props.yAxisMode === 'dual' && props.queries.length > 1
-  const isDark = document.documentElement.classList.contains('my-app-dark')
+  const isDark = isDarkMode()
+  const colors = getChartColors(isDark)
+
+  const tooltipCallbacks = {
+    title: (context) => {
+      if (context[0]?.parsed.x) {
+        return new Date(context[0].parsed.x).toLocaleString('de-DE', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        })
+      }
+      return ''
+    },
+    label: (context) => {
+      const label = context.dataset.label || ''
+      return label ? `${label}: ${context.parsed.y?.toFixed(2) ?? ''}` : ''
+    }
+  }
+
+  const thresholdAnnotations = props.alertThresholds.reduce((acc, t, i) => {
+    acc[`threshold-${i}`] = {
+      type: 'line',
+      yMin: t.value,
+      yMax: t.value,
+      borderColor: t.color || 'red',
+      borderWidth: 2,
+      borderDash: [6, 6],
+      label: { display: true, content: t.label || `Threshold: ${t.value}`, position: 'end', backgroundColor: t.color || 'red', font: { size: 10 } }
+    }
+    return acc
+  }, {})
+
+  const timeAnnotations = annotations.value.reduce((acc, a, i) => {
+    if (!a.time || isNaN(a.time) || a.tags?.includes('anomaly')) return acc
+    acc[`annotation-${i}`] = {
+      type: 'line',
+      xMin: a.time * 1000,
+      xMax: a.time * 1000,
+      borderColor: a.color,
+      borderWidth: 2,
+      borderDash: [4, 4],
+      label: { display: true, content: a.text, position: 'start', backgroundColor: a.color, color: '#fff', font: { size: 10 }, xAdjust: 5, yAdjust: -10 }
+    }
+    return acc
+  }, {})
 
   return {
     responsive: true,
     maintainAspectRatio: false,
-    interaction: {
-      mode: 'index',
-      intersect: false
-    },
+    interaction: { mode: 'index', intersect: false },
     plugins: {
-      legend: {
-        display: false
-      },
+      legend: { display: false },
       tooltip: {
-        mode: 'index',
-        intersect: false,
-        backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-        titleColor: isDark ? '#f3f4f6' : '#1f2937',
-        bodyColor: isDark ? '#d1d5db' : '#4b5563',
-        borderColor: isDark ? '#374151' : '#e5e7eb',
+        mode: 'index', intersect: false,
+        backgroundColor: colors.background,
+        titleColor: colors.title,
+        bodyColor: colors.body,
+        borderColor: colors.border,
         borderWidth: 1,
         padding: 12,
         displayColors: true,
         boxPadding: 4,
         usePointStyle: true,
-        callbacks: {
-          title: function (context) {
-            if (context[0] && context[0].parsed.x) {
-              const date = new Date(context[0].parsed.x)
-              return date.toLocaleString('de-DE', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })
-            }
-            return ''
-          },
-          label: function (context) {
-            let label = context.dataset.label || ''
-            if (label) {
-              label += ': '
-            }
-            if (context.parsed.y !== null) {
-              label += context.parsed.y.toFixed(2)
-            }
-            return label
-          }
-        }
+        callbacks: tooltipCallbacks
       },
       zoom: {
-        zoom: {
-          wheel: {
-            enabled: false
-          },
-          pinch: {
-            enabled: true
-          },
-          drag: {
-            enabled: true
-          }
-        },
-        pan: {
-          enabled: true,
-          mode: 'x'
-        }
+        zoom: { wheel: { enabled: false }, pinch: { enabled: true }, drag: { enabled: true } },
+        pan: { enabled: true, mode: 'x' }
       },
-      annotation: {
-        annotations: {
-          // Alert thresholds (horizontal lines)
-          ...props.alertThresholds.reduce((acc, threshold, index) => {
-            acc[`threshold-${index}`] = {
-              type: 'line',
-              yMin: threshold.value,
-              yMax: threshold.value,
-              borderColor: threshold.color || 'red',
-              borderWidth: 2,
-              borderDash: [6, 6],
-              label: {
-                display: true,
-                content: threshold.label || `Threshold: ${threshold.value}`,
-                position: 'end',
-                backgroundColor: threshold.color || 'red',
-                font: { size: 10 }
-              }
-            }
-            return acc
-          }, {}),
-          // Time-based annotations (vertical lines)
-          ...annotations.value.reduce((acc, annotation, index) => {
-            if (!annotation.time || isNaN(annotation.time)) return acc
-            // Don't show anomalies in the chart
-            if (annotation.tags && annotation.tags.includes('anomaly')) return acc
-
-            acc[`annotation-${index}`] = {
-              type: 'line',
-              xMin: annotation.time * 1000, // Chart.js uses milliseconds
-              xMax: annotation.time * 1000,
-              borderColor: annotation.color,
-              borderWidth: 2,
-              borderDash: [4, 4],
-              label: {
-                display: true,
-                content: annotation.text,
-                position: 'start',
-                backgroundColor: annotation.color,
-                color: '#fff',
-                font: { size: 10 },
-                xAdjust: 5,
-                yAdjust: -10
-              }
-            }
-            return acc
-          }, {})
-        }
-      }
+      annotation: { annotations: { ...thresholdAnnotations, ...timeAnnotations } }
     },
     scales: {
       x: {
         display: true,
         type: 'time',
-        time: {
-          tooltipFormat: 'dd.MM.yyyy HH:mm',
-          displayFormats: {
-            hour: 'HH:mm',
-            day: 'dd.MM'
-          }
-        },
-        grid: {
-          display: true,
-          color: isDark ? '#374151' : '#f0f0f0'
-        },
-        ticks: {
-          maxTicksLimit: 8,
-          maxRotation: 0,
-          color: isDark ? '#9ca3af' : '#666',
-          font: { size: 10 }
-        }
+        time: { tooltipFormat: 'dd.MM.yyyy HH:mm', displayFormats: { hour: 'HH:mm', day: 'dd.MM' } },
+        grid: { display: true, color: colors.grid },
+        ticks: { maxTicksLimit: 8, maxRotation: 0, color: colors.ticks, font: { size: 10 } }
       },
-      y: {
-        display: true,
-        position: 'left',
-        grid: {
-          color: isDark ? '#374151' : '#f0f0f0'
-        },
-        ticks: {
-          color: isDark ? '#9ca3af' : '#666',
-          font: { size: 10 }
-        }
-      },
-      ...(isDual
-        ? {
-            y1: {
-              display: true,
-              position: 'right',
-              grid: {
-                drawOnChartArea: false
-              },
-              ticks: {
-                color: isDark ? '#9ca3af' : '#666',
-                font: { size: 10 }
-              }
-            }
-          }
-        : {})
+      y: { display: true, position: 'left', grid: { color: colors.grid }, ticks: { color: colors.ticks, font: { size: 10 } } },
+      ...(isDual ? { y1: { display: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: colors.ticks, font: { size: 10 } } } } : {})
     },
-    elements: {
-      point: {
-        radius: 2,
-        hitRadius: 10,
-        hoverRadius: 4
-      },
-      line: {
-        tension: 0.4,
-        borderWidth: 2
-      }
-    }
+    elements: { point: { radius: 2, hitRadius: 10, hoverRadius: 4 }, line: { tension: 0.4, borderWidth: 2 } }
   }
 })
 
@@ -777,21 +655,3 @@ watch(
 )
 watch(() => props.dashboardId, loadAnnotations)
 </script>
-
-<style scoped>
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-</style>

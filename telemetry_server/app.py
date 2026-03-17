@@ -29,6 +29,7 @@ from collections import OrderedDict
 from analysis import get_community_averages
 import structlog
 import orjson
+import redis
 from audit_log import (
     audit_logger,
     log_model_delete,
@@ -59,33 +60,20 @@ from installation_manager import (
     ROLE_FEATURES,
 )
 from training_queue import training_queue
-
-# Redis (optional, for persistent rate limiting)
-try:
-    import redis
-
-    REDIS_AVAILABLE = True
-except ImportError:
-    REDIS_AVAILABLE = False
-    redis = None
-
-# Configuration
-# VictoriaMetrics Import Endpoint (Influx Line Protocol)
-VM_WRITE_URL = os.environ.get("VM_WRITE_URL", "http://victoriametrics:8428/write")
-VM_QUERY_URL = os.environ.get(
-    "VM_QUERY_URL", "http://victoriametrics:8428/api/v1/query"
+from .config import config, rate_limit_config, cache_config, security_config
+from .rate_limit import rate_limiter
+from .cache import (
+    file_hash_cache,
+    pool_stats_cache,
+    community_avg_cache,
+    cleanup_all_caches,
 )
-AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "change-me-to-something-secure")
-
-# Shared encryption key for backward compatibility
-# Per-installation keys are preferred (see token_manager.py)
-_encryption_key_str = os.environ.get(
-    "TELEMETRY_ENCRYPTION_KEY", "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA="
-)
-DEFAULT_ENCRYPTION_KEY = (
-    _encryption_key_str.encode()
-    if isinstance(_encryption_key_str, str)
-    else _encryption_key_str
+from .security import (
+    mask_ip,
+    mask_id,
+    validate_installation_id,
+    validate_model_name,
+    get_client_ip,
 )
 
 # Setup Structured Logging
@@ -107,7 +95,6 @@ structlog.configure(
 )
 logger = structlog.get_logger("telemetry-server")
 
-# Admin IDs (comma separated UUIDs)
 raw_admin_ids = os.environ.get("ADMIN_INSTALLATION_IDS", "")
 ADMIN_IDS = {x.strip().lower() for x in raw_admin_ids.split(",") if x.strip()}
 
@@ -118,66 +105,38 @@ if not ADMIN_IDS and raw_admin_ids:
         message="ADMIN_INSTALLATION_IDS was present but parsed to empty list. Check delimiters.",
     )
 
-# Model storage directory
-MODEL_DIR = os.environ.get("MODEL_DIR", "/app/models")
+VM_WRITE_URL = config.vm_write_url
+VM_QUERY_URL = config.vm_query_url
+AUTH_TOKEN = config.auth_token
+MODEL_DIR = config.model_dir
+MIN_INSTALLATIONS_FOR_MODEL = config.min_installations
+MIN_DATA_POINTS_FOR_MODEL = config.min_data_points
+MAX_PAYLOAD_SIZE = config.max_payload_size
 
-# Cold start configuration
-MIN_INSTALLATIONS_FOR_MODEL = int(os.environ.get("MIN_INSTALLATIONS", "5"))
-MIN_DATA_POINTS_FOR_MODEL = int(os.environ.get("MIN_DATA_POINTS", "10000"))
+RATE_LIMIT_WINDOW = rate_limit_config.window
+MAX_RATE_LIMIT_ENTRIES = rate_limit_config.max_entries
+RATE_LIMITS = rate_limit_config.limits
 
-# Request size limit
-MAX_PAYLOAD_SIZE = int(
-    os.environ.get("MAX_PAYLOAD_SIZE", str(10 * 1024 * 1024))
-)  # 10 MB default
+DEFAULT_BAN_DURATION = security_config.default_ban_duration
+DEFAULT_ENCRYPTION_KEY = security_config.encryption_key
+USE_REDIS = security_config.use_redis
+_redis_client = security_config.redis_client
+REDIS_URL = security_config.redis_url
+REDIS_AVAILABLE = security_config.use_redis
+_encryption_key_str = os.environ.get(
+    "TELEMETRY_ENCRYPTION_KEY", "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA="
+)
 
-# Simple in-memory rate limiting with endpoint-specific limits
+HASH_CACHE_TTL = cache_config.hash_ttl
+POOL_STATS_CACHE_TTL = cache_config.pool_stats_ttl
+COMMUNITY_AVG_CACHE_TTL = cache_config.community_avg_ttl
+
 _rate_limit_store: Dict[str, List[float]] = OrderedDict()
-_rate_limit_lock = threading.Lock()  # Protect in-memory store
-RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))  # seconds
-MAX_RATE_LIMIT_ENTRIES = int(
-    os.environ.get("MAX_RATE_LIMIT_ENTRIES", "10000")
-)  # Max IPs to track
-
-# Endpoint-specific rate limits (requests per window)
-RATE_LIMITS = {
-    "default": int(os.environ.get("RATE_LIMIT_DEFAULT", "100")),
-    "submit": int(os.environ.get("RATE_LIMIT_SUBMIT", "60")),  # Telemetry submission
-    "status": int(os.environ.get("RATE_LIMIT_STATUS", "30")),  # Status checks
-    "model": int(os.environ.get("RATE_LIMIT_MODEL", "10")),  # Model downloads
-    "admin": int(os.environ.get("RATE_LIMIT_ADMIN", "20")),  # Admin operations
-}
-
-# IP Ban store
-_banned_ips: Dict[str, Tuple[float, int]] = {}  # {ip: (ban_time, duration)}
-DEFAULT_BAN_DURATION = int(
-    os.environ.get("DEFAULT_BAN_DURATION", "3600")
-)  # 1 hour default
-
-# Cache configurations
-HASH_CACHE_TTL = int(os.environ.get("HASH_CACHE_TTL", "3600"))  # 1 hour
-POOL_STATS_CACHE_TTL = int(os.environ.get("POOL_STATS_CACHE_TTL", "60"))  # 1 minute
-COMMUNITY_AVG_CACHE_TTL = int(
-    os.environ.get("COMMUNITY_AVG_CACHE_TTL", "300")
-)  # 5 minutes
-
-# Redis configuration (optional, for persistent rate limiting)
-REDIS_URL = os.environ.get(
-    "REDIS_URL", ""
-)  # e.g., "redis://localhost:6379/0" or "redis://:password@localhost:6379/0"
-USE_REDIS = REDIS_AVAILABLE and bool(REDIS_URL)
-_redis_client = None  # Will be initialized on startup if USE_REDIS is True
-
-# Cache stores
-_file_hash_cache: Dict[
-    str, Tuple[Optional[str], float]
-] = {}  # {path: (hash, timestamp)}
-_pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (
-    None,
-    0,
-)  # (stats, timestamp)
-_community_avg_cache: Dict[
-    str, Tuple[Dict[str, Any], float]
-] = {}  # {cache_key: (result, timestamp)} - cache_key = f"{model}:{metrics}"
+_rate_limit_lock = threading.Lock()
+_banned_ips: Dict[str, Tuple[float, int]] = {}
+_file_hash_cache: Dict[str, Tuple[Optional[str], float]] = {}
+_pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (None, 0)
+_community_avg_cache: Dict[str, Tuple[Dict[str, Any], float]] = {}
 
 
 async def run_sync(func, *args):

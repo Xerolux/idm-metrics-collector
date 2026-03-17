@@ -489,7 +489,6 @@
 </template>
 
 <script setup>
-// Xerolux 2026
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import axios from 'axios'
 import { useConfirm } from 'primevue/useconfirm'
@@ -1031,23 +1030,6 @@ const acknowledgeAnomaly = async (anomaly) => {
 </script>
 
 <style scoped>
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* Drag & Drop Styles */
 .ghost-card {
   opacity: 0.5;
   background: #f0f9ff;

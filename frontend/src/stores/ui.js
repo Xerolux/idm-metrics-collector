@@ -49,10 +49,11 @@ export const useUiStore = defineStore('ui', {
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(darkModeStorageKey, `${value}`)
       }
-      // Apply dark mode class to document
       if (value) {
-        document.documentElement.classList.add('dark')
+        document.documentElement.classList.add('my-app-dark')
+        document.documentElement.classList.remove('dark')
       } else {
+        document.documentElement.classList.remove('my-app-dark')
         document.documentElement.classList.remove('dark')
       }
     },

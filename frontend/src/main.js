@@ -11,6 +11,7 @@ import 'primeicons/primeicons.css'
 import App from './App.vue'
 import router from './router'
 import './style.css'
+import './utils/chartConfig'
 
 import de from './locales/de.json'
 import en from './locales/en.json'

@@ -74,27 +74,14 @@
 </template>
 
 <script setup>
-// Xerolux 2026
 import { ref, onMounted, watch, computed } from 'vue'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  TimeScale
-} from 'chart.js'
-import 'chartjs-adapter-date-fns'
 import { Bar } from 'vue-chartjs'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import axios from 'axios'
+import { isDarkMode, getChartColors } from '../utils/chartConfig.js'
 import BarConfigDialog from './BarConfigDialog.vue'
 import ConfirmDialog from 'primevue/confirmdialog'
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, TimeScale)
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -140,97 +127,57 @@ const displayHours = computed(() => {
 
 const chartOptions = computed(() => {
   const isHorizontal = props.barMode === 'horizontal'
-  const isDark = document.documentElement.classList.contains('my-app-dark')
+  const isDark = isDarkMode()
+  const colors = getChartColors(isDark)
+
+  const baseScales = {
+    x: {
+      display: true,
+      stacked: props.barMode === 'stacked',
+      grid: { color: colors.grid },
+      ticks: { color: colors.ticks, font: { size: 10 } }
+    },
+    y: {
+      display: true,
+      stacked: props.barMode === 'stacked',
+      grid: { color: colors.grid },
+      ticks: { color: colors.ticks, font: { size: 10 } }
+    }
+  }
+
+  if (!isHorizontal) {
+    baseScales.x.type = 'category'
+    baseScales.x.grid.display = true
+    baseScales.x.ticks.maxRotation = 45
+    baseScales.x.ticks.minRotation = 0
+    baseScales.y.beginAtZero = true
+  }
 
   return {
     responsive: true,
     maintainAspectRatio: false,
-    interaction: {
-      mode: 'index',
-      intersect: false
-    },
+    interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: {
         display: true,
         position: 'top',
-        labels: {
-          color: isDark ? '#f3f4f6' : '#1f2937',
-          font: { size: 10 },
-          boxWidth: 12
-        }
+        labels: { color: colors.title, font: { size: 10 }, boxWidth: 12 }
       },
       tooltip: {
         mode: 'index',
         intersect: false,
-        backgroundColor: isDark ? 'rgba(31, 41, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-        titleColor: isDark ? '#f3f4f6' : '#1f2937',
-        bodyColor: isDark ? '#d1d5db' : '#4b5563',
-        borderColor: isDark ? '#374151' : '#e5e7eb',
+        backgroundColor: colors.background,
+        titleColor: colors.title,
+        bodyColor: colors.body,
+        borderColor: colors.border,
         borderWidth: 1,
         padding: 12,
         displayColors: true,
         boxPadding: 4
       }
     },
-    scales: isHorizontal
-      ? {
-          x: {
-            display: true,
-            stacked: props.barMode === 'stacked',
-            grid: {
-              color: isDark ? '#374151' : '#f0f0f0'
-            },
-            ticks: {
-              color: isDark ? '#9ca3af' : '#666',
-              font: { size: 10 }
-            }
-          },
-          y: {
-            display: true,
-            stacked: props.barMode === 'stacked',
-            grid: {
-              color: isDark ? '#374151' : '#f0f0f0'
-            },
-            ticks: {
-              color: isDark ? '#9ca3af' : '#666',
-              font: { size: 10 }
-            }
-          }
-        }
-      : {
-          x: {
-            display: true,
-            type: 'category',
-            stacked: props.barMode === 'stacked',
-            grid: {
-              display: true,
-              color: isDark ? '#374151' : '#f0f0f0'
-            },
-            ticks: {
-              maxRotation: 45,
-              minRotation: 0,
-              color: isDark ? '#9ca3af' : '#666',
-              font: { size: 10 }
-            }
-          },
-          y: {
-            display: true,
-            stacked: props.barMode === 'stacked',
-            grid: {
-              color: isDark ? '#374151' : '#f0f0f0'
-            },
-            ticks: {
-              color: isDark ? '#9ca3af' : '#666',
-              font: { size: 10 }
-            },
-            beginAtZero: true
-          }
-        },
-    elements: {
-      bar: {
-        borderWidth: 0
-      }
-    }
+    scales: baseScales,
+    elements: { bar: { borderWidth: 0 } }
   }
 })
 

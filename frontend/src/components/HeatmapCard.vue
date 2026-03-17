@@ -83,11 +83,11 @@
 </template>
 
 <script setup>
-// Xerolux 2026
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import axios from 'axios'
+import Chart from 'chart.js/auto'
 import HeatmapConfigDialog from './HeatmapConfigDialog.vue'
 import ConfirmDialog from 'primevue/confirmdialog'
 
@@ -389,12 +389,4 @@ onUnmounted(() => {
     chartInstance.value.destroy()
   }
 })
-</script>
-
-<script>
-import { MatrixController, MatrixElement } from 'chartjs-chart-matrix'
-import Chart from 'chart.js/auto'
-
-// Register chartjs-chart-matrix
-Chart.register(MatrixController, MatrixElement)
 </script>
