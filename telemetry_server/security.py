@@ -1,8 +1,5 @@
-import hashlib
 import re
-import time
-from typing import Optional, Tuple
-from ipaddress import ip_address
+from typing import Optional
 
 
 def mask_ip(ip: str) -> str:

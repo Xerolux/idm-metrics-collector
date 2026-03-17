@@ -105,7 +105,7 @@ class ModelDownloader:
             )
 
         if age_hours < -24:
-            return False, f"Model timestamp is in the future! Possible replay attack."
+            return False, "Model timestamp is in the future! Possible replay attack."
 
         logger.info(f"Model age: {int(age_hours / 24)} days - timestamp valid")
         return True, ""

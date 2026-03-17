@@ -1036,7 +1036,9 @@ async def retrieve_credentials(
         )
 
 
-def _process_telemetry_batch(installation_id: str, heatpump_model: str, version: str, data: list) -> list[str]:
+def _process_telemetry_batch(
+    installation_id: str, heatpump_model: str, version: str, data: list
+) -> list[str]:
     """
     Synchronously format a batch of telemetry records into Influx Line Protocol.
     This CPU-intensive task is designed to be offloaded to a background thread.
@@ -1133,7 +1135,7 @@ async def submit_telemetry(
             payload.installation_id,
             payload.heatpump_model,
             payload.version,
-            payload.data
+            payload.data,
         )
 
         if lines:

@@ -39,8 +39,9 @@ class MLConfig:
     )
 
     enable_alerts: bool = field(
-        default_factory=lambda: os.environ.get("ENABLE_ALERTS", "true").lower()
-        == "true"
+        default_factory=lambda: (
+            os.environ.get("ENABLE_ALERTS", "true").lower() == "true"
+        )
     )
     alert_cooldown: int = field(
         default_factory=lambda: int(os.environ.get("ALERT_COOLDOWN", "3600"))
