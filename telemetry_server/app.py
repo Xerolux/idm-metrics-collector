@@ -2385,10 +2385,16 @@ async def admin_installation_details(
         results = data["data"]["result"]
 
         # Extract model from first metric (assuming all metrics have same model)
+        # Note: data is submitted with "model" tag (not "heatpump_model")
         heatpump_model = "Unknown"
         for result in results:
-            if "heatpump_model" in result.get("metric", {}):
-                heatpump_model = result["metric"]["heatpump_model"]
+            metric = result.get("metric", {})
+            # Check both "model" (current) and "heatpump_model" (legacy) labels
+            if "model" in metric:
+                heatpump_model = metric["model"]
+                break
+            if "heatpump_model" in metric:
+                heatpump_model = metric["heatpump_model"]
                 break
 
         # Calculate data quality score
