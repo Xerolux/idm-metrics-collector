@@ -1036,6 +1036,38 @@ async def retrieve_credentials(
         )
 
 
+def _process_telemetry_batch(
+    installation_id: str, heatpump_model: str, version: str, data: list
+) -> list[str]:
+    """
+    Synchronously format a batch of telemetry records into Influx Line Protocol.
+    This CPU-intensive task is designed to be offloaded to a background thread.
+    """
+    lines = []
+    tags = f"installation_id={installation_id},model={heatpump_model.replace(' ', '_')},version={version}"
+
+    for record in data:
+        timestamp = record.get("timestamp")
+        if not timestamp:
+            continue
+
+        ts_ns = int(timestamp * 1e9)
+        fields = []
+        for key, value in record.items():
+            if key == "timestamp":
+                continue
+            if isinstance(value, (int, float)):
+                fields.append(f"{key}={value}")
+            elif isinstance(value, bool):
+                fields.append(f"{key}={str(value).lower()}")
+
+        if fields:
+            line = f"heatpump_metrics,{tags} {','.join(fields)} {ts_ns}"
+            lines.append(line)
+
+    return lines
+
+
 @app.post("/api/v1/submit")
 async def submit_telemetry(
     payload: TelemetryPayload,
@@ -1097,33 +1129,14 @@ async def submit_telemetry(
         )
 
     try:
-        lines = []
-
-        # Tags common to all points in this batch
-        tags = f"installation_id={payload.installation_id},model={payload.heatpump_model.replace(' ', '_')},version={payload.version}"
-
-        for record in payload.data:
-            timestamp = record.get("timestamp")
-            if not timestamp:
-                continue
-
-            # Timestamp in nanoseconds for Influx/VM Line Protocol
-            ts_ns = int(timestamp * 1e9)
-
-            # Fields
-            fields = []
-            for key, value in record.items():
-                if key == "timestamp":
-                    continue
-                if isinstance(value, (int, float)):
-                    fields.append(f"{key}={value}")
-                elif isinstance(value, bool):
-                    fields.append(f"{key}={str(value).lower()}")  # bool as boolean
-
-            if fields:
-                # Line Protocol: measurement,tags fields timestamp
-                line = f"heatpump_metrics,{tags} {','.join(fields)} {ts_ns}"
-                lines.append(line)
+        # Offload synchronous formatting to a thread pool to avoid blocking the event loop
+        lines = await run_sync(
+            _process_telemetry_batch,
+            payload.installation_id,
+            payload.heatpump_model,
+            payload.version,
+            payload.data,
+        )
 
         if lines:
             # Batch write to VictoriaMetrics using pooled client
