@@ -37,7 +37,9 @@
               size="small"
               text
               severity="secondary"
-              class="p-1"
+              class="p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
+              aria-label="Bearbeiten"
+              title="Bearbeiten"
             />
             <Button
               @click="confirmDelete(annotation)"
@@ -45,7 +47,9 @@
               size="small"
               text
               severity="danger"
-              class="p-1"
+              class="p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
+              aria-label="Löschen"
+              title="Löschen"
             />
           </div>
         </div>

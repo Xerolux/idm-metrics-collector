@@ -74,6 +74,9 @@
           size="small"
           severity="secondary"
           text
+          class="focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
+          aria-label="Sortierreihenfolge umschalten"
+          title="Sortierreihenfolge umschalten"
         />
       </div>
 
@@ -129,6 +132,9 @@
             size="small"
             severity="secondary"
             text
+            class="focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
+            aria-label="Vorherige Seite"
+            title="Vorherige Seite"
           />
           <span class="text-xs text-gray-600 px-2">{{ currentPage }} / {{ totalPages }}</span>
           <Button
@@ -138,6 +144,9 @@
             size="small"
             severity="secondary"
             text
+            class="focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
+            aria-label="Nächste Seite"
+            title="Nächste Seite"
           />
         </div>
       </div>
