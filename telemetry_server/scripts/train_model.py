@@ -250,7 +250,12 @@ def fetch_data_stats(model_name: str) -> Dict[str, Any]:
 
         if response.status_code == 200:
             data = response.json()
-            if data.get("status") == "success" and data["data"]["result"]:
+            if (
+                data.get("status") == "success"
+                and data["data"]["result"]
+                and data["data"]["result"][0].get("value")
+                and len(data["data"]["result"][0]["value"]) > 1
+            ):
                 stats["total_points"] = int(
                     float(data["data"]["result"][0]["value"][1])
                 )
@@ -265,7 +270,12 @@ def fetch_data_stats(model_name: str) -> Dict[str, Any]:
 
         if response.status_code == 200:
             data = response.json()
-            if data.get("status") == "success" and data["data"]["result"]:
+            if (
+                data.get("status") == "success"
+                and data["data"]["result"]
+                and data["data"]["result"][0].get("value")
+                and len(data["data"]["result"][0]["value"]) > 1
+            ):
                 stats["installations"] = int(
                     float(data["data"]["result"][0]["value"][1])
                 )

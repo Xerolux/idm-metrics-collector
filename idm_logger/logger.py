@@ -138,14 +138,23 @@ def main():
                             # last_backup['created_at'] is isoformat
                             from datetime import datetime
 
-                            last_date = datetime.fromisoformat(
-                                last_backup["created_at"]
-                            )
-                            # Convert to timestamp
-                            last_ts = last_date.timestamp()
+                            try:
+                                # Try parsing with timezone info support
+                                last_date = datetime.fromisoformat(
+                                    last_backup["created_at"]
+                                )
+                            except (ValueError, TypeError) as e:
+                                logger.warning(
+                                    f"Failed to parse backup timestamp '{last_backup.get('created_at')}': {e}"
+                                )
+                                # If parsing fails, assume backup is needed
+                                should_run = True
+                            else:
+                                # Convert to timestamp
+                                last_ts = last_date.timestamp()
 
-                            if (now - last_ts) < (interval_hours * 3600):
-                                should_run = False
+                                if (now - last_ts) < (interval_hours * 3600):
+                                    should_run = False
 
                         if should_run:
                             logger.info("Starting scheduled backup...")

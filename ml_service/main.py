@@ -96,6 +96,7 @@ last_mode = "unknown"
 last_data_points = {}  # Store previous values for delta calculation
 consecutive_anomalies = {}  # Per-mode anomaly counter
 model_lock = threading.Lock()
+_save_threads = []  # Track background save threads for shutdown
 
 # Connection health tracking
 connection_stats = {
@@ -494,8 +495,13 @@ def _save_worker(serialized_data, filepath):
                 pass
 
 
-def save_model_state():
-    """Save model state to disk for persistence across restarts (non-blocking)."""
+def save_model_state(wait=False):
+    """Save model state to disk for persistence across restarts.
+
+    Args:
+        wait: If True, wait for save to complete before returning (for shutdown).
+              If False, save in background and return immediately.
+    """
     try:
         os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
 
@@ -506,16 +512,56 @@ def save_model_state():
             # joblib.load can still read this pickle data.
             serialized = pickle.dumps(models)
 
-        # Write to disk in background (slow I/O)
-        # daemon=False ensures we wait for completion on shutdown
-        threading.Thread(
-            target=_save_worker, args=(serialized, MODEL_PATH), daemon=False
-        ).start()
+        # Write to disk (background or sync based on wait parameter)
+        if wait:
+            # Synchronous save for shutdown
+            _save_worker(serialized, MODEL_PATH)
+        else:
+            # Background save for normal operation
+            thread = threading.Thread(
+                target=_save_worker, args=(serialized, MODEL_PATH), daemon=False
+            )
+            thread.start()
+            # Track thread for cleanup
+            global _save_threads
+            with model_lock:
+                _save_threads.append(thread)
+            # Clean up completed threads
+            _cleanup_save_threads()
 
         return True
     except Exception as e:
         logger.error(f"Failed to initiate model save: {e}")
         return False
+
+
+def _cleanup_save_threads():
+    """Remove completed save threads from tracking list."""
+    global _save_threads
+    with model_lock:
+        _save_threads = [t for t in _save_threads if t.is_alive()]
+
+
+def wait_for_saves(timeout=30):
+    """Wait for all pending save operations to complete.
+
+    Args:
+        timeout: Maximum seconds to wait for saves to complete.
+    """
+    global _save_threads
+    start = time.time()
+    while _save_threads:
+        with model_lock:
+            active_threads = _save_threads[:]
+        if not active_threads:
+            break
+        for thread in active_threads:
+            remaining = timeout - (time.time() - start)
+            if remaining <= 0:
+                logger.warning(f"Timeout waiting for {len(active_threads)} save threads")
+                return
+            thread.join(timeout=min(1, remaining))
+        _cleanup_save_threads()
 
 
 def load_model_state():
@@ -1106,8 +1152,10 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         logger.info("Received shutdown signal")
-        # Save model on exit
-        save_model_state()
+        # Save model on exit (wait for completion)
+        save_model_state(wait=True)
+        # Wait for any pending background saves
+        wait_for_saves(timeout=30)
         logger.info("ML Service stopped")
 
 

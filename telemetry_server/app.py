@@ -109,13 +109,21 @@ USE_REDIS = security_config.use_redis
 _redis_client = security_config.redis_client
 REDIS_URL = security_config.redis_url
 REDIS_AVAILABLE = security_config.use_redis
-_encryption_key_str = os.environ.get(
-    "TELEMETRY_ENCRYPTION_KEY", "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA="
-)
+_encryption_key_str = os.environ.get("TELEMETRY_ENCRYPTION_KEY")
+if not _encryption_key_str:
+    _encryption_key_str = "gR6xZ9jK3q2L5n8P7s4v1t0wY_mH-cJdKbNxVfZlQqA="
+    logger.warning(
+        "Using default encryption key - set TELEMETRY_ENCRYPTION_KEY environment variable for production"
+    )
 
 HASH_CACHE_TTL = cache_config.hash_ttl
 POOL_STATS_CACHE_TTL = cache_config.pool_stats_ttl
 COMMUNITY_AVG_CACHE_TTL = cache_config.community_avg_ttl
+
+# Cache size limits to prevent unbounded growth
+MAX_BANNED_IPS = 10000
+MAX_FILE_HASH_CACHE = 10000
+MAX_COMMUNITY_AVG_CACHE = 1000
 
 _rate_limit_store: Dict[str, List[float]] = OrderedDict()
 _rate_limit_lock = threading.Lock()
@@ -178,6 +186,19 @@ async def cleanup_rate_limits_and_bans():
             for ip in expired_bans:
                 del _banned_ips[ip]
 
+            # Enforce size limit on banned IPs (remove oldest if over limit)
+            if len(_banned_ips) > MAX_BANNED_IPS:
+                # Sort by ban time and remove oldest entries
+                sorted_bans = sorted(
+                    _banned_ips.items(), key=lambda x: x[1][0]
+                )  # Sort by ban_time
+                excess = len(_banned_ips) - MAX_BANNED_IPS
+                for ip, _ in sorted_bans[:excess]:
+                    del _banned_ips[ip]
+                logger.info(
+                    f"ip_ban_size_limit_enforced", removed=excess, remaining=MAX_BANNED_IPS
+                )
+
             if expired_bans:
                 logger.info("ip_ban_cleanup", expired=len(expired_bans))
 
@@ -190,6 +211,21 @@ async def cleanup_rate_limits_and_bans():
             for path in expired_hashes:
                 del _file_hash_cache[path]
 
+            # Enforce size limit on file hash cache (remove oldest if over limit)
+            if len(_file_hash_cache) > MAX_FILE_HASH_CACHE:
+                # Sort by timestamp and remove oldest entries
+                sorted_hashes = sorted(
+                    _file_hash_cache.items(), key=lambda x: x[1][1]
+                )  # Sort by timestamp
+                excess = len(_file_hash_cache) - MAX_FILE_HASH_CACHE
+                for path, _ in sorted_hashes[:excess]:
+                    del _file_hash_cache[path]
+                logger.info(
+                    f"file_hash_cache_size_limit_enforced",
+                    removed=excess,
+                    remaining=MAX_FILE_HASH_CACHE,
+                )
+
             # Clean community averages cache
             expired_avg_cache = []
             for cache_key, (_, timestamp) in list(_community_avg_cache.items()):
@@ -198,6 +234,21 @@ async def cleanup_rate_limits_and_bans():
 
             for cache_key in expired_avg_cache:
                 del _community_avg_cache[cache_key]
+
+            # Enforce size limit on community avg cache (remove oldest if over limit)
+            if len(_community_avg_cache) > MAX_COMMUNITY_AVG_CACHE:
+                # Sort by timestamp and remove oldest entries
+                sorted_avg = sorted(
+                    _community_avg_cache.items(), key=lambda x: x[1][1]
+                )  # Sort by timestamp
+                excess = len(_community_avg_cache) - MAX_COMMUNITY_AVG_CACHE
+                for cache_key, _ in sorted_avg[:excess]:
+                    del _community_avg_cache[cache_key]
+                logger.info(
+                    f"community_avg_cache_size_limit_enforced",
+                    removed=excess,
+                    remaining=MAX_COMMUNITY_AVG_CACHE,
+                )
 
             if expired_avg_cache:
                 logger.info(
@@ -693,14 +744,24 @@ async def get_data_pool_stats(request: Request) -> Dict[str, Any]:
 
         if resp_installations.status_code == 200:
             data = resp_installations.json()
-            if data.get("status") == "success" and data["data"]["result"]:
+            if (
+                data.get("status") == "success"
+                and data["data"]["result"]
+                and data["data"]["result"][0].get("value")
+                and len(data["data"]["result"][0]["value"]) > 1
+            ):
                 stats["total_installations"] = int(
                     data["data"]["result"][0]["value"][1]
                 )
 
         if resp_points.status_code == 200:
             data = resp_points.json()
-            if data.get("status") == "success" and data["data"]["result"]:
+            if (
+                data.get("status") == "success"
+                and data["data"]["result"]
+                and data["data"]["result"][0].get("value")
+                and len(data["data"]["result"][0]["value"]) > 1
+            ):
                 stats["total_data_points"] = int(
                     float(data["data"]["result"][0]["value"][1])
                 )
@@ -1234,7 +1295,12 @@ async def server_status(request: Request, auth: None = Depends(verify_token)):
         installations = 0
         if response.status_code == 200:
             data = response.json()
-            if data.get("status") == "success" and data["data"]["result"]:
+            if (
+                data.get("status") == "success"
+                and data["data"]["result"]
+                and data["data"]["result"][0].get("value")
+                and len(data["data"]["result"][0]["value"]) > 1
+            ):
                 installations = int(data["data"]["result"][0]["value"][1])
 
         return {
@@ -2367,7 +2433,7 @@ async def admin_installation_details(
                 total_submissions = sum(
                     int(float(r["value"][1]))
                     for r in count_data["data"]["result"]
-                    if r.get("value")
+                    if r.get("value") and len(r["value"]) > 1
                 )
 
         # 3. Process First Seen
@@ -2388,7 +2454,12 @@ async def admin_installation_details(
         last_seen = None
         if last_resp.status_code == 200:
             last_data = last_resp.json()
-            if last_data.get("data") and last_data["data"]["result"]:
+            if (
+                last_data.get("data")
+                and last_data["data"]["result"]
+                and last_data["data"]["result"][0].get("value")
+                and len(last_data["data"]["result"][0]["value"]) > 0
+            ):
                 last_seen = float(last_data["data"]["result"][0]["value"][0])
 
         # Get model download history (from audit log if available)
@@ -2419,7 +2490,7 @@ async def admin_installation_details(
                 counts = [
                     (r["metric"].get("installation_id"), int(r["value"][1]))
                     for r in rank_data["data"]["result"]
-                    if r.get("value")
+                    if r.get("value") and len(r["value"]) > 1
                 ]
                 counts.sort(key=lambda x: x[1], reverse=True)
 

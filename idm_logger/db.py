@@ -1,5 +1,6 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
+import atexit
 import sqlite3
 import logging
 import os
@@ -367,5 +368,30 @@ class Database:
             logger.error(f"Failed to bulk update alerts: {e}", exc_info=True)
             raise
 
+    def close(self):
+        """Close the database connection gracefully."""
+        with self._lock:
+            if self._conn is not None:
+                try:
+                    self._conn.close()
+                    logger.debug("Database connection closed")
+                except sqlite3.Error as e:
+                    logger.warning(f"Error closing database connection: {e}")
+                finally:
+                    self._conn = None
+
+    def __del__(self):
+        """Cleanup on object destruction."""
+        self.close()
+
 
 db = Database()
+
+
+def cleanup_db():
+    """Cleanup database connection on process exit."""
+    db.close()
+
+
+# Register cleanup function to be called on exit
+atexit.register(cleanup_db)

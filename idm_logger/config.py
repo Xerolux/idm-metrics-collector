@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 # Use DATA_DIR environment variable or current directory
 DATA_DIR = os.environ.get("DATA_DIR", ".")
 KEY_FILE = os.path.join(DATA_DIR, ".secret.key")
+FLASK_KEY_FILE = os.path.join(DATA_DIR, ".flask_secret.key")
 
 # Default values synchronized with docker-compose.yml
 DOCKER_DEFAULTS = {
@@ -26,6 +27,7 @@ class Config:
     def __init__(self):
         self.key = self._load_or_create_key()
         self.cipher = Fernet(self.key)
+        self._flask_secret_key = self._load_or_create_flask_key()
         self.data = self._load_data()
 
         # Ensure installation_id exists
@@ -46,6 +48,22 @@ class Config:
                 f.write(key)
             # Ensure restricted permissions
             os.chmod(KEY_FILE, 0o600)
+            return key
+
+    def _load_or_create_flask_key(self):
+        """Load or create a separate key for Flask session signing (key separation)."""
+        if os.path.exists(FLASK_KEY_FILE):
+            with open(FLASK_KEY_FILE, "rb") as f:
+                return f.read()
+        else:
+            # Generate a random 32-byte (256-bit) key for Flask
+            import secrets
+
+            key = secrets.token_bytes(32)
+            with open(FLASK_KEY_FILE, "wb") as f:
+                f.write(key)
+            # Ensure restricted permissions
+            os.chmod(FLASK_KEY_FILE, 0o600)
             return key
 
     def _encrypt(self, value):
@@ -235,9 +253,18 @@ class Config:
             )
         if os.environ.get("AI_SENSITIVITY"):
             try:
-                self.data["ai"]["sensitivity"] = float(os.environ["AI_SENSITIVITY"])
+                sensitivity = float(os.environ["AI_SENSITIVITY"])
+                # Validate range (typical values are 0.1 to 10.0)
+                if 0.01 <= sensitivity <= 100.0:
+                    self.data["ai"]["sensitivity"] = sensitivity
+                else:
+                    logger.warning(
+                        f"AI_SENSITIVITY value {sensitivity} out of range (0.01-100.0), using default"
+                    )
             except ValueError:
-                pass
+                logger.warning(
+                    f"Invalid AI_SENSITIVITY value '{os.environ['AI_SENSITIVITY']}', must be a float"
+                )
 
         # Internal API Key
         if os.environ.get("INTERNAL_API_KEY"):
@@ -475,9 +502,12 @@ class Config:
         self._apply_env_overrides()
 
     def get_flask_secret_key(self):
-        """Returns the stable secret key for Flask sessions."""
-        # Use the persistent Fernet key as the Flask secret key
-        return self.key
+        """Returns the stable secret key for Flask sessions.
+
+        Uses a separate key from the encryption key to follow the principle of
+        key separation - different cryptographic purposes should use different keys.
+        """
+        return self._flask_secret_key
 
 
 config = Config()

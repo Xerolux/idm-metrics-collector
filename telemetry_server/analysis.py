@@ -49,7 +49,12 @@ async def get_community_averages(
         )
         if response.status_code == 200:
             data = response.json()
-            if data.get("status") == "success" and data["data"]["result"]:
+            if (
+                data.get("status") == "success"
+                and data["data"]["result"]
+                and data["data"]["result"][0].get("value")
+                and len(data["data"]["result"][0]["value"]) > 1
+            ):
                 results["sample_size"] = int(data["data"]["result"][0]["value"][1])
 
         # If no data, return early
@@ -64,7 +69,12 @@ async def get_community_averages(
                 )
                 if res.status_code == 200:
                     d = res.json()
-                    if d.get("status") == "success" and d["data"]["result"]:
+                    if (
+                        d.get("status") == "success"
+                        and d["data"]["result"]
+                        and d["data"]["result"][0].get("value")
+                        and len(d["data"]["result"][0]["value"]) > 1
+                    ):
                         val = float(d["data"]["result"][0]["value"][1])
                         return metric, stat_type, round(val, 2)
             except Exception as e:

@@ -23,6 +23,8 @@ from .const import HEAT_PUMP_MODELS, HEAT_PUMP_MANUFACTURERS
 from .log_handler import memory_handler
 from .backup import backup_manager, BACKUP_DIR
 from .mqtt import mqtt_publisher
+from .modbus import ModbusClient
+from .scheduler import Scheduler
 from .signal_notifications import send_signal_message
 from .notifications import notification_manager
 from .update_manager import (
@@ -211,6 +213,7 @@ scheduler_instance = None
 metrics_writer_instance = None
 
 # Cache for network security objects to avoid re-parsing on every request
+_net_sec_cache_lock = threading.Lock()
 _net_sec_cache = {
     "whitelist_ref": None,
     "whitelist_nets": [],
@@ -389,77 +392,89 @@ def check_ip_whitelist():
     if not client_ip:
         return
 
-    # Performance: Check IP result cache first (O(1) lookup)
     now = time.time()
-    cached = _net_sec_cache["ip_results"].get(client_ip)
-    if cached:
-        allowed, cached_time = cached
-        if now - cached_time < _net_sec_cache["ip_cache_ttl"]:
-            if not allowed:
-                abort(403)
-            return
-        # Cache expired, remove entry
-        del _net_sec_cache["ip_results"][client_ip]
+
+    # Try fast path: check cache with minimal locking
+    with _net_sec_cache_lock:
+        cached = _net_sec_cache["ip_results"].get(client_ip)
+        if cached:
+            allowed, cached_time = cached
+            if now - cached_time < _net_sec_cache["ip_cache_ttl"]:
+                if not allowed:
+                    abort(403)
+                return
+            # Cache expired, remove entry
+            del _net_sec_cache["ip_results"][client_ip]
 
     ip = get_ip_obj(client_ip)
     if not ip:
         logger.warning(f"Invalid client IP: {client_ip}")
-        _net_sec_cache["ip_results"][client_ip] = (False, now)
+        with _net_sec_cache_lock:
+            _net_sec_cache["ip_results"][client_ip] = (False, now)
         abort(403)
 
     whitelist = config.get("network_security.whitelist", [])
     blacklist = config.get("network_security.blacklist", [])
 
-    # Update blacklist cache if needed
-    if blacklist is not _net_sec_cache["blacklist_ref"]:
-        new_blacklist_nets = []
-        for block in blacklist:
-            try:
-                new_blacklist_nets.append(
-                    (ipaddress.ip_network(block, strict=False), block)
+    # Update blacklist cache if needed (under lock)
+    with _net_sec_cache_lock:
+        if blacklist is not _net_sec_cache["blacklist_ref"]:
+            new_blacklist_nets = []
+            for block in blacklist:
+                try:
+                    new_blacklist_nets.append(
+                        (ipaddress.ip_network(block, strict=False), block)
+                    )
+                except ValueError:
+                    logger.error(f"Invalid blacklist entry: {block}")
+
+            _net_sec_cache["blacklist_nets"] = new_blacklist_nets
+            _net_sec_cache["blacklist_ref"] = blacklist
+
+        # Check blacklist first
+        for net, original_block in _net_sec_cache["blacklist_nets"]:
+            if ip in net:
+                logger.warning(
+                    f"Blocked IP {client_ip} (matched blacklist {original_block})"
                 )
-            except ValueError:
-                logger.error(f"Invalid blacklist entry: {block}")
+                _net_sec_cache["ip_results"][client_ip] = (False, now)
+                abort(403)
 
-        _net_sec_cache["blacklist_nets"] = new_blacklist_nets
-        _net_sec_cache["blacklist_ref"] = blacklist
+    # Update whitelist cache if needed (under lock)
+    with _net_sec_cache_lock:
+        if whitelist is not _net_sec_cache["whitelist_ref"]:
+            new_whitelist_nets = []
+            for allow in whitelist:
+                try:
+                    new_whitelist_nets.append(
+                        ipaddress.ip_network(allow, strict=False)
+                    )
+                except ValueError:
+                    logger.error(f"Invalid whitelist entry: {allow}")
 
-    # Check blacklist first
-    for net, original_block in _net_sec_cache["blacklist_nets"]:
-        if ip in net:
-            logger.warning(
-                f"Blocked IP {client_ip} (matched blacklist {original_block})"
-            )
-            _net_sec_cache["ip_results"][client_ip] = (False, now)
-            abort(403)
+            _net_sec_cache["whitelist_nets"] = new_whitelist_nets
+            _net_sec_cache["whitelist_ref"] = whitelist
 
-    # Update whitelist cache if needed
-    if whitelist is not _net_sec_cache["whitelist_ref"]:
-        new_whitelist_nets = []
-        for allow in whitelist:
-            try:
-                new_whitelist_nets.append(ipaddress.ip_network(allow, strict=False))
-            except ValueError:
-                logger.error(f"Invalid whitelist entry: {allow}")
+    # Check whitelist if it exists and is not empty (copy under lock, check outside)
+    with _net_sec_cache_lock:
+        whitelist_nets_copy = _net_sec_cache["whitelist_nets"][:]
 
-        _net_sec_cache["whitelist_nets"] = new_whitelist_nets
-        _net_sec_cache["whitelist_ref"] = whitelist
-
-    # Check whitelist if it exists and is not empty
     if whitelist:
         is_allowed = False
-        for net in _net_sec_cache["whitelist_nets"]:
+        for net in whitelist_nets_copy:
             if ip in net:
                 is_allowed = True
                 break
 
         if not is_allowed:
             logger.warning(f"Blocked IP {client_ip} (not in whitelist)")
-            _net_sec_cache["ip_results"][client_ip] = (False, now)
+            with _net_sec_cache_lock:
+                _net_sec_cache["ip_results"][client_ip] = (False, now)
             abort(403)
 
     # Cache successful result
-    _net_sec_cache["ip_results"][client_ip] = (True, now)
+    with _net_sec_cache_lock:
+        _net_sec_cache["ip_results"][client_ip] = (True, now)
 
 
 # Default CSP - can be overridden via config
@@ -1469,6 +1484,69 @@ def get_technician_code():
         return jsonify({"error": "Fehler beim Generieren der Codes"}), 500
 
 
+def restart_modbus_client():
+    """
+    Restart the Modbus client with current configuration.
+
+    This function closes the old client (if any) and creates a new one
+    with the current host and port settings from the config.
+    """
+    global modbus_client_instance, scheduler_instance
+
+    try:
+        # Get current config
+        new_host = config.get("idm.host")
+        new_port = config.get("idm.port")
+
+        if not new_host or not new_port:
+            logger.warning("Cannot restart Modbus client: host or port not configured")
+            return False
+
+        # Close old client if it exists
+        if modbus_client_instance:
+            try:
+                modbus_client_instance.close()
+                logger.info(f"Closed old Modbus client from {modbus_client_instance.host}:{modbus_client_instance.port}")
+            except Exception as e:
+                logger.warning(f"Error closing old Modbus client: {e}")
+
+        # Create new client
+        modbus_client_instance = ModbusClient(host=new_host, port=new_port)
+        logger.info(f"Created new Modbus client for {new_host}:{new_port}")
+
+        # Update MQTT publisher sensors if it's running
+        if mqtt_publisher and mqtt_publisher.running:
+            mqtt_publisher.set_sensors(
+                modbus_client_instance.sensors,
+                modbus_client_instance.binary_sensors
+            )
+            if config.get("web.write_enabled"):
+                mqtt_publisher.set_write_callback(modbus_client_instance.write_sensor)
+            logger.info("Updated MQTT publisher with new Modbus client sensors")
+
+        # Restart scheduler if it was running
+        if scheduler_instance:
+            was_running = scheduler_instance.running
+            if was_running:
+                scheduler_instance.stop()
+                logger.info("Stopped old scheduler")
+
+            # Create new scheduler with new modbus client
+            scheduler_instance = Scheduler(modbus_client_instance)
+
+            if config.get("web.write_enabled"):
+                scheduler_instance.start()
+                logger.info("Restarted scheduler with new Modbus client")
+            else:
+                logger.info("Created new scheduler (disabled due to write_enabled=False)")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to restart Modbus client: {e}", exc_info=True)
+        return False
+
+
 @app.route("/api/config", methods=["GET", "POST"])
 @login_required
 def config_page():
@@ -1497,22 +1575,39 @@ def config_page():
                     return jsonify({"error": "Ungültiges Wärmepumpen-Modell"}), 400
 
             # IDM Host - validate hostname/IP
+            modbus_needs_restart = False
             if "idm_host" in data:
                 valid, err = _validate_host(data["idm_host"])
                 if not valid:
                     return jsonify({"error": f"IDM Host: {err}"}), 400
+                old_host = config.data.get("idm", {}).get("host")
                 config.data["idm"]["host"] = data["idm_host"]
+                if old_host != data["idm_host"]:
+                    modbus_needs_restart = True
+                    logger.info(f"IDM host changed from {old_host} to {data['idm_host']}")
+
             if "idm_port" in data:
                 try:
                     port = int(data["idm_port"])
                     if 1 <= port <= 65535:
+                        old_port = config.data.get("idm", {}).get("port")
                         config.data["idm"]["port"] = port
+                        if old_port != port:
+                            modbus_needs_restart = True
+                            logger.info(f"IDM port changed from {old_port} to {port}")
                     else:
                         return jsonify(
                             {"error": "Port muss zwischen 1 und 65535 sein"}
                         ), 400
                 except ValueError:
                     return jsonify({"error": "Ungültige Portnummer"}), 400
+
+            # Restart Modbus client if host or port changed
+            if modbus_needs_restart:
+                logger.info("Restarting Modbus client due to configuration change")
+                if not restart_modbus_client():
+                    logger.error("Failed to restart Modbus client after configuration change")
+                    # Don't fail the config save, but log the error
 
             if "circuits" in data:
                 config.data["idm"]["circuits"] = data["circuits"]
