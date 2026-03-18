@@ -446,9 +446,7 @@ def check_ip_whitelist():
             new_whitelist_nets = []
             for allow in whitelist:
                 try:
-                    new_whitelist_nets.append(
-                        ipaddress.ip_network(allow, strict=False)
-                    )
+                    new_whitelist_nets.append(ipaddress.ip_network(allow, strict=False))
                 except ValueError:
                     logger.error(f"Invalid whitelist entry: {allow}")
 
@@ -1506,7 +1504,9 @@ def restart_modbus_client():
         if modbus_client_instance:
             try:
                 modbus_client_instance.close()
-                logger.info(f"Closed old Modbus client from {modbus_client_instance.host}:{modbus_client_instance.port}")
+                logger.info(
+                    f"Closed old Modbus client from {modbus_client_instance.host}:{modbus_client_instance.port}"
+                )
             except Exception as e:
                 logger.warning(f"Error closing old Modbus client: {e}")
 
@@ -1517,8 +1517,7 @@ def restart_modbus_client():
         # Update MQTT publisher sensors if it's running
         if mqtt_publisher and mqtt_publisher.running:
             mqtt_publisher.set_sensors(
-                modbus_client_instance.sensors,
-                modbus_client_instance.binary_sensors
+                modbus_client_instance.sensors, modbus_client_instance.binary_sensors
             )
             if config.get("web.write_enabled"):
                 mqtt_publisher.set_write_callback(modbus_client_instance.write_sensor)
@@ -1538,7 +1537,9 @@ def restart_modbus_client():
                 scheduler_instance.start()
                 logger.info("Restarted scheduler with new Modbus client")
             else:
-                logger.info("Created new scheduler (disabled due to write_enabled=False)")
+                logger.info(
+                    "Created new scheduler (disabled due to write_enabled=False)"
+                )
 
         return True
 
@@ -1584,7 +1585,9 @@ def config_page():
                 config.data["idm"]["host"] = data["idm_host"]
                 if old_host != data["idm_host"]:
                     modbus_needs_restart = True
-                    logger.info(f"IDM host changed from {old_host} to {data['idm_host']}")
+                    logger.info(
+                        f"IDM host changed from {old_host} to {data['idm_host']}"
+                    )
 
             if "idm_port" in data:
                 try:
@@ -1606,7 +1609,9 @@ def config_page():
             if modbus_needs_restart:
                 logger.info("Restarting Modbus client due to configuration change")
                 if not restart_modbus_client():
-                    logger.error("Failed to restart Modbus client after configuration change")
+                    logger.error(
+                        "Failed to restart Modbus client after configuration change"
+                    )
                     # Don't fail the config save, but log the error
 
             if "circuits" in data:
