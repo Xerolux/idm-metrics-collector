@@ -657,21 +657,12 @@ def login():
 
     if config.check_admin_password(password):
         session.permanent = True
-
-        # If the password is still the default "admin" and it hasn't been changed yet,
-        # signal to the frontend that a password change is required.
-        requires_password_change = False
-        if password == "admin" and "admin_password_hash" not in config.data["web"]:
-            requires_password_change = True
-            session["requires_password_change"] = True
-            session["logged_in"] = False
-        else:
-            session["logged_in"] = True
-            session.pop("requires_password_change", None)
+        session["logged_in"] = True
+        session.pop("requires_password_change", None)
 
         return jsonify({
             "success": True,
-            "requires_password_change": requires_password_change
+            "requires_password_change": False
         })
     else:
         logger.warning(f"Failed login attempt from {request.remote_addr}")
