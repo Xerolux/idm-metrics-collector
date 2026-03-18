@@ -7,6 +7,7 @@
  */
 
 import { io } from 'socket.io-client'
+import { WEBSOCKET_CONFIG } from './constants'
 
 export const ConnectionState = {
   DISCONNECTED: 'disconnected',
@@ -21,9 +22,9 @@ export class WebSocketClient {
     this.socket = null
     this.connectionState = ConnectionState.DISCONNECTED
     this.reconnectAttempts = 0
-    this.maxReconnectAttempts = 10
-    this.reconnectDelay = 1000
-    this.maxReconnectDelay = 30000
+    this.maxReconnectAttempts = WEBSOCKET_CONFIG.MAX_RECONNECT_ATTEMPTS
+    this.reconnectDelay = WEBSOCKET_CONFIG.RECONNECT_BACKOFF
+    this.maxReconnectDelay = WEBSOCKET_CONFIG.MAX_BACKOFF_DELAY
     this.listeners = new Map()
     this.subscriptions = new Set()
     this.dashboardId = null
@@ -61,17 +62,17 @@ export class WebSocketClient {
 
   _startPingMonitor() {
     this._stopPingMonitor()
-    
+
     this._pingInterval = setInterval(() => {
       if (this.socket?.connected) {
         const now = Date.now()
-        if (this._lastPongTime && now - this._lastPongTime > 60000) {
+        if (this._lastPongTime && now - this._lastPongTime > WEBSOCKET_CONFIG.MAX_BACKOFF_DELAY) {
           this._connectionQuality = 'poor'
           this._emit('quality_change', 'poor')
         }
         this.ping()
       }
-    }, 25000)
+    }, WEBSOCKET_CONFIG.PING_INTERVAL)
   }
 
   _stopPingMonitor() {

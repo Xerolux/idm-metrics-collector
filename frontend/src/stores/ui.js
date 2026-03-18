@@ -8,7 +8,8 @@ export const useUiStore = defineStore('ui', {
   state: () => ({
     editMode: false,
     darkMode: false,
-    initialized: false
+    initialized: false,
+    darkModeMediaQuery: null
   }),
   actions: {
     init() {
@@ -26,14 +27,22 @@ export const useUiStore = defineStore('ui', {
           this.darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
         }
 
-        // Listen for system preference changes
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        // Listen for system preference changes (store reference for cleanup)
+        this.darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+        this.darkModeMediaQuery.addEventListener('change', (e) => {
           if (window.localStorage.getItem(darkModeStorageKey) === null) {
             this.darkMode = e.matches
           }
         })
       }
       this.initialized = true
+    },
+    cleanup() {
+      // Remove event listener to prevent memory leak
+      if (this.darkModeMediaQuery) {
+        this.darkModeMediaQuery.removeEventListener('change', () => {})
+        this.darkModeMediaQuery = null
+      }
     },
     setEditMode(value) {
       this.editMode = value

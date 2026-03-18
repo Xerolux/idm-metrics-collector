@@ -1,9 +1,10 @@
 // Xerolux 2026
 import axios from 'axios'
+import { API_TIMEOUT, RETRY_CONFIG } from './constants'
 
 const api = axios.create({
   baseURL: '',
-  timeout: 15000,
+  timeout: API_TIMEOUT.DEFAULT,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -70,9 +71,9 @@ api.interceptors.response.use(
   }
 )
 
-export const retryRequest = async (requestFn, maxRetries = 3, delay = 1000) => {
+export const retryRequest = async (requestFn, maxRetries = RETRY_CONFIG.MAX_RETRIES, delay = RETRY_CONFIG.INITIAL_DELAY) => {
   let lastError
-  
+
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await requestFn()
@@ -86,11 +87,11 @@ export const retryRequest = async (requestFn, maxRetries = 3, delay = 1000) => {
       }
     }
   }
-  
+
   throw lastError
 }
 
-export const withTimeout = (promise, ms = 10000) => {
+export const withTimeout = (promise, ms = API_TIMEOUT.MEDIUM) => {
   return Promise.race([
     promise,
     new Promise((_, reject) =>
