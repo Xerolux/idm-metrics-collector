@@ -558,7 +558,9 @@ def wait_for_saves(timeout=30):
         for thread in active_threads:
             remaining = timeout - (time.time() - start)
             if remaining <= 0:
-                logger.warning(f"Timeout waiting for {len(active_threads)} save threads")
+                logger.warning(
+                    f"Timeout waiting for {len(active_threads)} save threads"
+                )
                 return
             thread.join(timeout=min(1, remaining))
         _cleanup_save_threads()

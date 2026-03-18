@@ -142,7 +142,7 @@ async def run_sync(func, *args):
 # Security: Disable Docs, ReDoc, and OpenAPI to prevent scanning
 app = FastAPI(
     title="IDM Telemetry Server",
-    version="1.0.5",
+    version="1.0.6",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -196,7 +196,9 @@ async def cleanup_rate_limits_and_bans():
                 for ip, _ in sorted_bans[:excess]:
                     del _banned_ips[ip]
                 logger.info(
-                    f"ip_ban_size_limit_enforced", removed=excess, remaining=MAX_BANNED_IPS
+                    "ip_ban_size_limit_enforced",
+                    removed=excess,
+                    remaining=MAX_BANNED_IPS,
                 )
 
             if expired_bans:
@@ -221,7 +223,7 @@ async def cleanup_rate_limits_and_bans():
                 for path, _ in sorted_hashes[:excess]:
                     del _file_hash_cache[path]
                 logger.info(
-                    f"file_hash_cache_size_limit_enforced",
+                    "file_hash_cache_size_limit_enforced",
                     removed=excess,
                     remaining=MAX_FILE_HASH_CACHE,
                 )
@@ -245,7 +247,7 @@ async def cleanup_rate_limits_and_bans():
                 for cache_key, _ in sorted_avg[:excess]:
                     del _community_avg_cache[cache_key]
                 logger.info(
-                    f"community_avg_cache_size_limit_enforced",
+                    "community_avg_cache_size_limit_enforced",
                     removed=excess,
                     remaining=MAX_COMMUNITY_AVG_CACHE,
                 )

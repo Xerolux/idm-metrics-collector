@@ -446,9 +446,7 @@ def check_ip_whitelist():
             new_whitelist_nets = []
             for allow in whitelist:
                 try:
-                    new_whitelist_nets.append(
-                        ipaddress.ip_network(allow, strict=False)
-                    )
+                    new_whitelist_nets.append(ipaddress.ip_network(allow, strict=False))
                 except ValueError:
                     logger.error(f"Invalid whitelist entry: {allow}")
 
@@ -658,12 +656,51 @@ def login():
     password = data.get("password")
 
     if config.check_admin_password(password):
-        session["logged_in"] = True
         session.permanent = True
-        return jsonify({"success": True})
+
+        # If the password is still the default "admin" and it hasn't been changed yet,
+        # signal to the frontend that a password change is required.
+        requires_password_change = False
+        if password == "admin" and "admin_password_hash" not in config.data["web"]:
+            requires_password_change = True
+            session["requires_password_change"] = True
+            session["logged_in"] = False
+        else:
+            session["logged_in"] = True
+            session.pop("requires_password_change", None)
+
+        return jsonify({
+            "success": True,
+            "requires_password_change": requires_password_change
+        })
     else:
         logger.warning(f"Failed login attempt from {request.remote_addr}")
         return jsonify({"success": False, "message": "Ungültiges Passwort"}), 401
+
+
+@app.route("/api/auth/change_password", methods=["POST"])
+def change_password():
+    if not session.get("logged_in") and not session.get("requires_password_change"):
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    new_password = data.get("new_password")
+
+    if not new_password or len(new_password) < 6:
+        return jsonify({"success": False, "message": "Passwort muss mindestens 6 Zeichen lang sein"}), 400
+
+    try:
+        config.set_admin_password(new_password)
+        config.data["setup_completed"] = True
+        config.save()
+
+        session["logged_in"] = True
+        session.pop("requires_password_change", None)
+
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"Failed to change password: {e}")
+        return jsonify({"success": False, "message": "Fehler beim Speichern des Passworts"}), 500
 
 
 @app.route("/api/auth/check")
@@ -1506,7 +1543,9 @@ def restart_modbus_client():
         if modbus_client_instance:
             try:
                 modbus_client_instance.close()
-                logger.info(f"Closed old Modbus client from {modbus_client_instance.host}:{modbus_client_instance.port}")
+                logger.info(
+                    f"Closed old Modbus client from {modbus_client_instance.host}:{modbus_client_instance.port}"
+                )
             except Exception as e:
                 logger.warning(f"Error closing old Modbus client: {e}")
 
@@ -1517,8 +1556,7 @@ def restart_modbus_client():
         # Update MQTT publisher sensors if it's running
         if mqtt_publisher and mqtt_publisher.running:
             mqtt_publisher.set_sensors(
-                modbus_client_instance.sensors,
-                modbus_client_instance.binary_sensors
+                modbus_client_instance.sensors, modbus_client_instance.binary_sensors
             )
             if config.get("web.write_enabled"):
                 mqtt_publisher.set_write_callback(modbus_client_instance.write_sensor)
@@ -1538,7 +1576,9 @@ def restart_modbus_client():
                 scheduler_instance.start()
                 logger.info("Restarted scheduler with new Modbus client")
             else:
-                logger.info("Created new scheduler (disabled due to write_enabled=False)")
+                logger.info(
+                    "Created new scheduler (disabled due to write_enabled=False)"
+                )
 
         return True
 
@@ -1584,7 +1624,9 @@ def config_page():
                 config.data["idm"]["host"] = data["idm_host"]
                 if old_host != data["idm_host"]:
                     modbus_needs_restart = True
-                    logger.info(f"IDM host changed from {old_host} to {data['idm_host']}")
+                    logger.info(
+                        f"IDM host changed from {old_host} to {data['idm_host']}"
+                    )
 
             if "idm_port" in data:
                 try:
@@ -1606,7 +1648,9 @@ def config_page():
             if modbus_needs_restart:
                 logger.info("Restarting Modbus client due to configuration change")
                 if not restart_modbus_client():
-                    logger.error("Failed to restart Modbus client after configuration change")
+                    logger.error(
+                        "Failed to restart Modbus client after configuration change"
+                    )
                     # Don't fail the config save, but log the error
 
             if "circuits" in data:

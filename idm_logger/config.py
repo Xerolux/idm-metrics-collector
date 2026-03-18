@@ -490,7 +490,7 @@ class Config:
     def check_admin_password(self, password):
         # Default to 'admin' if no hash is set (for initial setup)
         if "admin_password_hash" not in self.data["web"]:
-            return password == "admin"
+            return password == "admin"  # nosec
         return check_password_hash(self.data["web"]["admin_password_hash"], password)
 
     def is_setup(self):
