@@ -669,10 +669,9 @@ def login():
             session["logged_in"] = True
             session.pop("requires_password_change", None)
 
-        return jsonify({
-            "success": True,
-            "requires_password_change": requires_password_change
-        })
+        return jsonify(
+            {"success": True, "requires_password_change": requires_password_change}
+        )
     else:
         logger.warning(f"Failed login attempt from {request.remote_addr}")
         return jsonify({"success": False, "message": "Ungültiges Passwort"}), 401
@@ -687,7 +686,12 @@ def change_password():
     new_password = data.get("new_password")
 
     if not new_password or len(new_password) < 6:
-        return jsonify({"success": False, "message": "Passwort muss mindestens 6 Zeichen lang sein"}), 400
+        return jsonify(
+            {
+                "success": False,
+                "message": "Passwort muss mindestens 6 Zeichen lang sein",
+            }
+        ), 400
 
     try:
         config.set_admin_password(new_password)
@@ -700,7 +704,9 @@ def change_password():
         return jsonify({"success": True})
     except Exception as e:
         logger.error(f"Failed to change password: {e}")
-        return jsonify({"success": False, "message": "Fehler beim Speichern des Passworts"}), 500
+        return jsonify(
+            {"success": False, "message": "Fehler beim Speichern des Passworts"}
+        ), 500
 
 
 @app.route("/api/auth/check")
