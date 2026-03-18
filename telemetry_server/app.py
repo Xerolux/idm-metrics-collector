@@ -142,7 +142,7 @@ async def run_sync(func, *args):
 # Security: Disable Docs, ReDoc, and OpenAPI to prevent scanning
 app = FastAPI(
     title="IDM Telemetry Server",
-    version="1.0.5",
+    version="1.0.6",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
