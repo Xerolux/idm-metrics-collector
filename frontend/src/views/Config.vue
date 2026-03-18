@@ -594,8 +594,14 @@
                       <Dropdown
                         v-model="config.ai.model"
                         :options="[
-                          { label: 'Rolling Window (Lokal, kontinuierliches Lernen)', value: 'rolling' },
-                          { label: 'Community Modell (Vortrainiert, für neue Installationen)', value: 'community' }
+                          {
+                            label: 'Rolling Window (Lokal, kontinuierliches Lernen)',
+                            value: 'rolling'
+                          },
+                          {
+                            label: 'Community Modell (Vortrainiert, für neue Installationen)',
+                            value: 'community'
+                          }
                         ]"
                         optionLabel="label"
                         optionValue="value"
@@ -1127,8 +1133,8 @@
             <Fieldset legend="Installation Management" :toggleable="true">
               <div class="flex justify-between items-center mb-3">
                 <div class="text-sm text-gray-400" v-if="adminInstallations">
-                  {{ adminInstallations.showing }} von
-                  {{ adminInstallations.total }} Installationen angezeigt
+                  {{ adminInstallations.showing }} von {{ adminInstallations.total }} Installationen
+                  angezeigt
                 </div>
                 <div class="text-sm text-gray-400" v-else-if="!adminInstallationsError">
                   Installationen werden geladen...
@@ -1148,7 +1154,9 @@
                 class="text-center py-6 bg-red-900/20 border border-red-700/50 rounded mb-3"
               >
                 <i class="pi pi-exclamation-triangle text-red-400 text-2xl mb-2 block"></i>
-                <div class="text-red-300 font-medium">Installationen konnten nicht geladen werden</div>
+                <div class="text-red-300 font-medium">
+                  Installationen konnten nicht geladen werden
+                </div>
                 <div class="text-red-400 text-xs mt-1 font-mono">{{ adminInstallationsError }}</div>
                 <Button
                   label="Erneut versuchen"

@@ -83,7 +83,8 @@ const handlePasswordChange = async () => {
     showPasswordChangeDialog.value = false
     router.push('/')
   } catch (err) {
-    passwordChangeError.value = err.response?.data?.message || err.message || 'Fehler beim Passwortwechsel'
+    passwordChangeError.value =
+      err.response?.data?.message || err.message || 'Fehler beim Passwortwechsel'
   } finally {
     isChangingPassword.value = false
   }
@@ -153,7 +154,8 @@ const handlePasswordChange = async () => {
       :closable="false"
     >
       <p class="text-gray-300 mb-4">
-        Bitte ändern Sie das Standardpasswort in ein neues, sicheres Passwort (mindestens 6 Zeichen).
+        Bitte ändern Sie das Standardpasswort in ein neues, sicheres Passwort (mindestens 6
+        Zeichen).
       </p>
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
@@ -167,7 +169,9 @@ const handlePasswordChange = async () => {
           />
         </div>
         <div class="flex flex-col gap-2">
-          <label for="confirmPassword" class="text-sm font-medium text-white">Passwort bestätigen</label>
+          <label for="confirmPassword" class="text-sm font-medium text-white"
+            >Passwort bestätigen</label
+          >
           <InputText
             id="confirmPassword"
             v-model="confirmPassword"
@@ -176,7 +180,11 @@ const handlePasswordChange = async () => {
             @keyup.enter="handlePasswordChange"
           />
         </div>
-        <ErrorDisplay v-if="passwordChangeError" :error="passwordChangeError" @dismiss="passwordChangeError = null" />
+        <ErrorDisplay
+          v-if="passwordChangeError"
+          :error="passwordChangeError"
+          @dismiss="passwordChangeError = null"
+        />
       </div>
       <template #footer>
         <Button
