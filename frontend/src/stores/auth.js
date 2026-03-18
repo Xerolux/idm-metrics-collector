@@ -30,13 +30,24 @@ export const useAuthStore = defineStore('auth', {
       this.loading = true
       this.error = null
       try {
-        await api.post('/api/auth/login', { password })
+        const response = await api.post('/api/auth/login', { password })
+        if (response.data.requires_password_change) {
+          this.isAuthenticated = false
+          return {
+            success: true,
+            requiresPasswordChange: true
+          }
+        }
+
         this.isAuthenticated = true
-        return true
+        return {
+          success: true,
+          requiresPasswordChange: false
+        }
       } catch (e) {
         console.error('Login failed:', e)
         this.error = e.message
-        return false
+        return { success: false, requiresPasswordChange: false }
       } finally {
         this.loading = false
       }

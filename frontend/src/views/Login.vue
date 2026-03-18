@@ -8,6 +8,8 @@ import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
 import AppFooter from '../components/AppFooter.vue'
 import ErrorDisplay from '../components/ErrorDisplay.vue'
+import Dialog from 'primevue/dialog'
+import api from '../utils/api'
 
 const password = ref('')
 const error = ref('')
@@ -16,6 +18,12 @@ const showPassword = ref(false)
 const auth = useAuthStore()
 const router = useRouter()
 const loading = ref(false)
+
+const showPasswordChangeDialog = ref(false)
+const newPassword = ref('')
+const confirmPassword = ref('')
+const isChangingPassword = ref(false)
+const passwordChangeError = ref('')
 
 const passwordError = computed(() => {
   if (!password.value) return 'Passwort ist erforderlich'
@@ -40,12 +48,44 @@ const handleLogin = async () => {
 
   loading.value = true
   error.value = ''
-  const success = await auth.login(password.value)
+  const response = await auth.login(password.value)
   loading.value = false
-  if (success) {
-    router.push('/')
+  if (response.success) {
+    if (response.requiresPasswordChange) {
+      showPasswordChangeDialog.value = true
+    } else {
+      router.push('/')
+    }
   } else {
     error.value = 'Ungültiges Passwort'
+  }
+}
+
+const handlePasswordChange = async () => {
+  passwordChangeError.value = ''
+
+  if (newPassword.value.length < 6) {
+    passwordChangeError.value = 'Passwort muss mindestens 6 Zeichen lang sein'
+    return
+  }
+
+  if (newPassword.value !== confirmPassword.value) {
+    passwordChangeError.value = 'Passwörter stimmen nicht überein'
+    return
+  }
+
+  isChangingPassword.value = true
+  try {
+    await api.post('/api/auth/change_password', {
+      new_password: newPassword.value
+    })
+
+    showPasswordChangeDialog.value = false
+    router.push('/')
+  } catch (err) {
+    passwordChangeError.value = err.response?.data?.message || err.message || 'Fehler beim Passwortwechsel'
+  } finally {
+    isChangingPassword.value = false
   }
 }
 </script>
@@ -104,6 +144,50 @@ const handleLogin = async () => {
         </div>
       </template>
     </Card>
+
+    <Dialog
+      v-model:visible="showPasswordChangeDialog"
+      modal
+      header="Sicherheitsupdate erforderlich"
+      :style="{ width: '25rem' }"
+      :closable="false"
+    >
+      <p class="text-gray-300 mb-4">
+        Bitte ändern Sie das Standardpasswort in ein neues, sicheres Passwort (mindestens 6 Zeichen).
+      </p>
+      <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+          <label for="newPassword" class="text-sm font-medium text-white">Neues Passwort</label>
+          <InputText
+            id="newPassword"
+            v-model="newPassword"
+            type="password"
+            placeholder="Min. 6 Zeichen"
+            @keyup.enter="handlePasswordChange"
+          />
+        </div>
+        <div class="flex flex-col gap-2">
+          <label for="confirmPassword" class="text-sm font-medium text-white">Passwort bestätigen</label>
+          <InputText
+            id="confirmPassword"
+            v-model="confirmPassword"
+            type="password"
+            placeholder="Passwort wiederholen"
+            @keyup.enter="handlePasswordChange"
+          />
+        </div>
+        <ErrorDisplay v-if="passwordChangeError" :error="passwordChangeError" @dismiss="passwordChangeError = null" />
+      </div>
+      <template #footer>
+        <Button
+          label="Passwort speichern"
+          icon="pi pi-check"
+          @click="handlePasswordChange"
+          :loading="isChangingPassword"
+        />
+      </template>
+    </Dialog>
+
     <AppFooter />
   </div>
 </template>
