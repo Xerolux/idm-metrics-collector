@@ -25,6 +25,14 @@ const confirmPassword = ref('')
 const isChangingPassword = ref(false)
 const passwordChangeError = ref('')
 
+const showReset = ref(false)
+const resetHost = ref('')
+const resetPort = ref('502')
+const resetNewPassword = ref('')
+const resetError = ref('')
+const resetSuccess = ref('')
+const isResetting = ref(false)
+
 const passwordError = computed(() => {
   if (!password.value) return 'Passwort ist erforderlich'
   if (password.value.length < 1) return 'Passwort ist zu kurz'
@@ -88,6 +96,46 @@ const handlePasswordChange = async () => {
     isChangingPassword.value = false
   }
 }
+
+const handleReset = async () => {
+  resetError.value = ''
+  resetSuccess.value = ''
+
+  if (!resetHost.value || !resetPort.value || !resetNewPassword.value) {
+    resetError.value = 'Bitte alle Felder ausfüllen'
+    return
+  }
+
+  if (resetNewPassword.value.length < 6) {
+    resetError.value = 'Passwort muss mindestens 6 Zeichen lang sein'
+    return
+  }
+
+  isResetting.value = true
+  try {
+    const res = await api.post('/api/auth/reset_password', {
+      idm_host: resetHost.value,
+      idm_port: parseInt(resetPort.value),
+      new_password: resetNewPassword.value
+    })
+    if (res.data.success) {
+      resetSuccess.value = 'Passwort erfolgreich zurückgesetzt!'
+      setTimeout(() => {
+        showReset.value = false
+        resetSuccess.value = ''
+        resetHost.value = ''
+        resetPort.value = '502'
+        resetNewPassword.value = ''
+      }, 2500)
+    } else {
+      resetError.value = res.data.message || 'Fehler beim Zurücksetzen'
+    }
+  } catch (err) {
+    resetError.value = err.response?.data?.message || err.message || 'Fehler beim Zurücksetzen'
+  } finally {
+    isResetting.value = false
+  }
+}
 </script>
 
 <template>
@@ -134,13 +182,50 @@ const handlePasswordChange = async () => {
             </div>
           </div>
           <ErrorDisplay v-if="error" :error="error" @dismiss="error = null" />
-          <Button
-            label="Login"
-            @click="handleLogin"
-            :loading="loading"
-            :disabled="!isValid"
-            class="w-full"
-          />
+          <template v-if="!showReset">
+            <Button
+              label="Login"
+              @click="handleLogin"
+              :loading="loading"
+              :disabled="!isValid"
+              class="w-full"
+            />
+            <div class="text-center mt-2">
+              <a href="#" @click.prevent="showReset = true" class="text-sm text-blue-400 hover:text-blue-300">
+                Passwort vergessen?
+              </a>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="flex flex-col gap-3">
+              <p class="text-sm text-gray-300">
+                Geben Sie zur Sicherheit die IP/Host und den Port Ihrer konfigurierten IDM-Anlage ein.
+              </p>
+              <div class="flex flex-col gap-1">
+                <label for="resetHost" class="text-xs font-medium text-white">IDM Host / IP</label>
+                <InputText id="resetHost" v-model="resetHost" placeholder="z.B. 192.168.1.10" />
+              </div>
+              <div class="flex flex-col gap-1">
+                <label for="resetPort" class="text-xs font-medium text-white">IDM Port</label>
+                <InputText id="resetPort" v-model="resetPort" placeholder="502" />
+              </div>
+              <div class="flex flex-col gap-1">
+                <label for="resetNewPassword" class="text-xs font-medium text-white">Neues Passwort</label>
+                <InputText id="resetNewPassword" v-model="resetNewPassword" type="password" placeholder="Min. 6 Zeichen" />
+              </div>
+
+              <ErrorDisplay v-if="resetError" :error="resetError" @dismiss="resetError = null" />
+              <div v-if="resetSuccess" class="text-green-400 text-sm mb-2 text-center">
+                <i class="pi pi-check-circle mr-1"></i>{{ resetSuccess }}
+              </div>
+
+              <div class="flex justify-between gap-2 mt-2">
+                <Button label="Abbrechen" severity="secondary" @click="showReset = false" class="w-1/2" />
+                <Button label="Zurücksetzen" @click="handleReset" :loading="isResetting" class="w-1/2" />
+              </div>
+            </div>
+          </template>
         </div>
       </template>
     </Card>
