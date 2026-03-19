@@ -131,6 +131,10 @@ _banned_ips: Dict[str, Tuple[float, int]] = {}
 _file_hash_cache: Dict[str, Tuple[Optional[str], float]] = {}
 _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (None, 0)
 _community_avg_cache: Dict[str, Tuple[Dict[str, Any], float]] = {}
+_installation_stats_cache: Tuple[Optional[List[Dict[str, Any]]], float] = (None, 0)
+_contribution_rank_cache: Tuple[Optional[List[Tuple[str, int]]], float] = (None, 0)
+INSTALLATION_STATS_CACHE_TTL = 300
+CONTRIBUTION_RANK_CACHE_TTL = 300
 
 
 async def run_sync(func, *args):
@@ -2280,64 +2284,72 @@ async def admin_list_installations(
     await verify_admin(authorization, installation_id)
 
     try:
-        client = request.app.state.http_client
+        global _installation_stats_cache
+        now = time.time()
+        cached_stats, timestamp = _installation_stats_cache
 
-        # Optimized: Run batched queries instead of N+1 loop
+        if cached_stats and now - timestamp < INSTALLATION_STATS_CACHE_TTL:
+            installations = cached_stats
+        else:
+            client = request.app.state.http_client
 
-        # Query 1: Get list of installations and series counts (Original Query)
-        # This preserves the original semantics of 'data_points' being series count.
-        list_query = 'count by (installation_id) ({__name__=~"heatpump_metrics_.*"})'
+            # Optimized: Run batched queries instead of N+1 loop
 
-        # Query 2: Get last seen timestamp for all installations in last 30d
-        time_query = 'max(tlast_over_time({__name__=~"heatpump_metrics_.*"}[30d])) by (installation_id)'
+            # Query 1: Get list of installations and series counts (Original Query)
+            # This preserves the original semantics of 'data_points' being series count.
+            list_query = 'count by (installation_id) ({__name__=~"heatpump_metrics_.*"})'
 
-        # Execute in parallel
-        list_response, time_response = await asyncio.gather(
-            client.get(VM_QUERY_URL, params={"query": list_query}),
-            client.get(VM_QUERY_URL, params={"query": time_query}),
-        )
+            # Query 2: Get last seen timestamp for all installations in last 30d
+            time_query = 'max(tlast_over_time({__name__=~"heatpump_metrics_.*"}[30d])) by (installation_id)'
 
-        # Process Times
-        installation_times = {}
-        if time_response.status_code == 200:
-            data = orjson.loads(time_response.content)
-            if data.get("status") == "success":
-                for result in data["data"]["result"]:
-                    inst_id = result["metric"].get("installation_id", "unknown")
-                    # tlast_over_time returns timestamp as value
-                    ts = float(result["value"][1]) if result.get("value") else 0
-                    installation_times[inst_id] = ts
+            # Execute in parallel
+            list_response, time_response = await asyncio.gather(
+                client.get(VM_QUERY_URL, params={"query": list_query}),
+                client.get(VM_QUERY_URL, params={"query": time_query}),
+            )
 
-        installations = []
-        # Process List (Main Loop)
-        if list_response.status_code == 200:
-            data = orjson.loads(list_response.content)
-            if data.get("status") == "success":
-                for result in data["data"]["result"]:
-                    inst_id = result["metric"].get("installation_id", "unknown")
-                    # Original logic: count from value[1]
-                    count = int(result["value"][1]) if result.get("value") else 0
+            # Process Times
+            installation_times = {}
+            if time_response.status_code == 200:
+                data = orjson.loads(time_response.content)
+                if data.get("status") == "success":
+                    for result in data["data"]["result"]:
+                        inst_id = result["metric"].get("installation_id", "unknown")
+                        # tlast_over_time returns timestamp as value
+                        ts = float(result["value"][1]) if result.get("value") else 0
+                        installation_times[inst_id] = ts
 
-                    last_seen = installation_times.get(inst_id)
+            installations = []
+            # Process List (Main Loop)
+            if list_response.status_code == 200:
+                data = orjson.loads(list_response.content)
+                if data.get("status") == "success":
+                    for result in data["data"]["result"]:
+                        inst_id = result["metric"].get("installation_id", "unknown")
+                        # Original logic: count from value[1]
+                        count = int(result["value"][1]) if result.get("value") else 0
 
-                    installations.append(
-                        {
-                            "installation_id": inst_id,
-                            "data_points": count,
-                            "last_seen": last_seen,
-                            "last_seen_formatted": (
-                                time.strftime(
-                                    "%Y-%m-%d %H:%M:%S", time.localtime(last_seen)
-                                )
-                                if last_seen
-                                else "Unknown"
-                            ),
-                            "is_admin": inst_id.lower() in ADMIN_IDS,
-                        }
-                    )
+                        last_seen = installation_times.get(inst_id)
 
-        # Sort by last seen
-        installations.sort(key=lambda x: x.get("last_seen") or 0, reverse=True)
+                        installations.append(
+                            {
+                                "installation_id": inst_id,
+                                "data_points": count,
+                                "last_seen": last_seen,
+                                "last_seen_formatted": (
+                                    time.strftime(
+                                        "%Y-%m-%d %H:%M:%S", time.localtime(last_seen)
+                                    )
+                                    if last_seen
+                                    else "Unknown"
+                                ),
+                                "is_admin": inst_id.lower() in ADMIN_IDS,
+                            }
+                        )
+
+            # Sort by last seen
+            installations.sort(key=lambda x: x.get("last_seen") or 0, reverse=True)
+            _installation_stats_cache = (installations, now)
 
         return {
             "installations": installations[:limit],
@@ -2383,18 +2395,28 @@ async def admin_installation_details(
         last_seen_query = f'last_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
 
         # 5. Contribution rank (all installations)
+        global _contribution_rank_cache
+        now = time.time()
+        cached_rank, timestamp = _contribution_rank_cache
+        rank_query_needed = not (cached_rank and now - timestamp < CONTRIBUTION_RANK_CACHE_TTL)
+
         all_installations_query = (
             "group by(installation_id) (count by (installation_id))"
         )
 
         # Execute all queries in parallel
-        response, count_resp, first_resp, last_resp, rank_resp = await asyncio.gather(
+        tasks = [
             client.get(VM_QUERY_URL, params={"query": metrics_query}),
             client.get(VM_QUERY_URL, params={"query": timestamps_query}),
             client.get(VM_QUERY_URL, params={"query": first_seen_query}),
             client.get(VM_QUERY_URL, params={"query": last_seen_query}),
-            client.get(VM_QUERY_URL, params={"query": all_installations_query}),
-        )
+        ]
+        if rank_query_needed:
+            tasks.append(client.get(VM_QUERY_URL, params={"query": all_installations_query}))
+
+        results_gathered = await asyncio.gather(*tasks)
+        response, count_resp, first_resp, last_resp = results_gathered[:4]
+        rank_resp = results_gathered[4] if rank_query_needed else None
 
         # Process Results
 
@@ -2486,7 +2508,8 @@ async def admin_installation_details(
         # 5. Process Contribution Rank
 
         contribution_rank = "Unknown"
-        if rank_resp.status_code == 200:
+        counts = []
+        if rank_query_needed and rank_resp and rank_resp.status_code == 200:
             rank_data = rank_resp.json()
             if rank_data.get("data") and rank_data["data"].get("result"):
                 counts = [
@@ -2495,20 +2518,23 @@ async def admin_installation_details(
                     if r.get("value") and len(r["value"]) > 1
                 ]
                 counts.sort(key=lambda x: x[1], reverse=True)
+                _contribution_rank_cache = (counts, now)
+        elif not rank_query_needed and cached_rank:
+            counts = cached_rank
 
-                total_installs = len(counts)
-                for idx, (inst_id, _) in enumerate(counts):
-                    if inst_id == target_id:
-                        percentile = ((idx + 1) / total_installs) * 100
-                        if percentile <= 10:
-                            contribution_rank = "Top 10%"
-                        elif percentile <= 25:
-                            contribution_rank = "Top 25%"
-                        elif percentile <= 50:
-                            contribution_rank = "Top 50%"
-                        else:
-                            contribution_rank = f"Top {int(percentile)}%"
-                        break
+        total_installs = len(counts)
+        for idx, (inst_id, _) in enumerate(counts):
+            if inst_id == target_id:
+                percentile = ((idx + 1) / total_installs) * 100
+                if percentile <= 10:
+                    contribution_rank = "Top 10%"
+                elif percentile <= 25:
+                    contribution_rank = "Top 25%"
+                elif percentile <= 50:
+                    contribution_rank = "Top 50%"
+                else:
+                    contribution_rank = f"Top {int(percentile)}%"
+                break
 
         return {
             "installation_id": target_id,
