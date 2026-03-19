@@ -627,7 +627,7 @@ def index():
     return send_from_directory(app.static_folder, "index.html")
 
 
-@app.route("/login", methods=["POST"])
+@app.route("/api/auth/login", methods=["POST"])
 @limiter.limit("5 per minute")
 def login():
     """
