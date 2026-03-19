@@ -1,4 +1,3 @@
-
 import unittest
 from unittest.mock import MagicMock, patch
 import sys
@@ -8,14 +7,15 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Mock dependencies that are not available in the environment
-sys.modules['requests'] = MagicMock()
-sys.modules['torch'] = MagicMock()
-sys.modules['torch.nn'] = MagicMock()
-sys.modules['torch.nn.Module'] = MagicMock
-sys.modules['schedule'] = MagicMock()
-sys.modules['flask'] = MagicMock()
+sys.modules["requests"] = MagicMock()
+sys.modules["torch"] = MagicMock()
+sys.modules["torch.nn"] = MagicMock()
+sys.modules["torch.nn.Module"] = MagicMock
+sys.modules["schedule"] = MagicMock()
+sys.modules["flask"] = MagicMock()
 
-import ml_service.main as main
+import ml_service.main as main  # noqa: E402
+
 
 class TestMLServicePooling(unittest.TestCase):
     def test_http_session_initialized(self):
@@ -26,7 +26,10 @@ class TestMLServicePooling(unittest.TestCase):
     def test_fetch_latest_data_uses_session(self, mock_post):
         """Test that fetch_latest_data uses the global session."""
         mock_post.return_value.status_code = 200
-        mock_post.return_value.json.return_value = {"status": "success", "data": {"result": []}}
+        mock_post.return_value.json.return_value = {
+            "status": "success",
+            "data": {"result": []},
+        }
 
         main.SENSORS = ["sensor1"]
         main.fetch_latest_data()
@@ -66,7 +69,7 @@ class TestMLServicePooling(unittest.TestCase):
         mock_get.assert_called()
 
     @patch("ml_service.main.http_session.get")
-    @patch("time.sleep", side_effect=InterruptedError) # Break the loop
+    @patch("time.sleep", side_effect=InterruptedError)  # Break the loop
     def test_wait_for_connection_uses_session(self, mock_sleep, mock_get):
         """Test that wait_for_connection uses the global session."""
         mock_get.return_value.status_code = 200
@@ -77,6 +80,7 @@ class TestMLServicePooling(unittest.TestCase):
             pass
 
         mock_get.assert_called()
+
 
 if __name__ == "__main__":
     unittest.main()
