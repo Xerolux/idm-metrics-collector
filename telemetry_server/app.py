@@ -2297,7 +2297,9 @@ async def admin_list_installations(
 
             # Query 1: Get list of installations and series counts (Original Query)
             # This preserves the original semantics of 'data_points' being series count.
-            list_query = 'count by (installation_id) ({__name__=~"heatpump_metrics_.*"})'
+            list_query = (
+                'count by (installation_id) ({__name__=~"heatpump_metrics_.*"})'
+            )
 
             # Query 2: Get last seen timestamp for all installations in last 30d
             time_query = 'max(tlast_over_time({__name__=~"heatpump_metrics_.*"}[30d])) by (installation_id)'
@@ -2398,7 +2400,9 @@ async def admin_installation_details(
         global _contribution_rank_cache
         now = time.time()
         cached_rank, timestamp = _contribution_rank_cache
-        rank_query_needed = not (cached_rank and now - timestamp < CONTRIBUTION_RANK_CACHE_TTL)
+        rank_query_needed = not (
+            cached_rank and now - timestamp < CONTRIBUTION_RANK_CACHE_TTL
+        )
 
         all_installations_query = (
             "group by(installation_id) (count by (installation_id))"
@@ -2412,7 +2416,9 @@ async def admin_installation_details(
             client.get(VM_QUERY_URL, params={"query": last_seen_query}),
         ]
         if rank_query_needed:
-            tasks.append(client.get(VM_QUERY_URL, params={"query": all_installations_query}))
+            tasks.append(
+                client.get(VM_QUERY_URL, params={"query": all_installations_query})
+            )
 
         results_gathered = await asyncio.gather(*tasks)
         response, count_resp, first_resp, last_resp = results_gathered[:4]
