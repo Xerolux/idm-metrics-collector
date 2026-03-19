@@ -15,7 +15,7 @@ sys.modules['torch.nn.Module'] = MagicMock
 sys.modules['schedule'] = MagicMock()
 sys.modules['flask'] = MagicMock()
 
-import ml_service.main as main
+import ml_service.main as main  # noqa: E402
 
 class TestMLServicePooling(unittest.TestCase):
     def test_http_session_initialized(self):
