@@ -85,6 +85,7 @@ logging.basicConfig(
 logger = logging.getLogger("ml-service")
 
 # Global state
+http_session = requests.Session()
 start_time = time.time()
 last_score = 0.0
 model_trained = False  # Main trained flag (true if ANY model is trained)
@@ -695,7 +696,7 @@ def fetch_latest_data():
     for attempt in range(RETRY_MAX_ATTEMPTS):
         try:
             # Use POST to avoid URL length limits with many sensors
-            response = requests.post(query_url, data={"query": query}, timeout=10)
+            response = http_session.post(query_url, data={"query": query}, timeout=10)
             if response.status_code != 200:
                 last_error = f"HTTP {response.status_code}: {response.text[:100]}"
                 if attempt < RETRY_MAX_ATTEMPTS - 1:
@@ -737,7 +738,7 @@ def fetch_latest_data():
             connection_stats["metrics_consecutive_failures"] = 0
             return data_point
 
-        except requests.exceptions.ConnectionError as e:
+        except requests.exceptions.RequestException as e:
             last_error = str(e)
             if attempt < RETRY_MAX_ATTEMPTS - 1:
                 logger.debug(
@@ -785,7 +786,7 @@ def write_metrics(
 
     for attempt in range(RETRY_MAX_ATTEMPTS):
         try:
-            response = requests.post(write_url, data=data, timeout=5)
+            response = http_session.post(write_url, data=data, timeout=5)
             if response.status_code in (200, 204):
                 return  # Success
             if attempt < RETRY_MAX_ATTEMPTS - 1:
@@ -799,7 +800,7 @@ def write_metrics(
                 f"Failed to write metrics after {RETRY_MAX_ATTEMPTS} attempts: {response.status_code}"
             )
             connection_stats["total_write_errors"] += 1
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.RequestException:
             if attempt < RETRY_MAX_ATTEMPTS - 1:
                 time.sleep(delay)
                 delay = min(delay * RETRY_MULTIPLIER, RETRY_MAX_DELAY)
@@ -890,7 +891,7 @@ def send_anomaly_alert(score: float, data: dict, mode: str, top_features: list):
 
     for attempt in range(RETRY_MAX_ATTEMPTS):
         try:
-            response = requests.post(
+            response = http_session.post(
                 alert_url, json=payload, headers=headers, timeout=5
             )
             if response.status_code in (200, 201):
@@ -911,7 +912,7 @@ def send_anomaly_alert(score: float, data: dict, mode: str, top_features: list):
             )
             connection_stats["alert_consecutive_failures"] += 1
             connection_stats["total_alert_errors"] += 1
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.RequestException:
             if attempt < RETRY_MAX_ATTEMPTS - 1:
                 time.sleep(delay)
                 delay = min(delay * RETRY_MULTIPLIER, RETRY_MAX_DELAY)
@@ -938,7 +939,7 @@ def fetch_remote_config():
 
     try:
         # Short timeout to not delay the main loop significantly
-        response = requests.get(url, headers=headers, timeout=2)
+        response = http_session.get(url, headers=headers, timeout=2)
         if response.status_code == 200:
             data = response.json()
             new_threshold = data.get("threshold")
@@ -1079,7 +1080,7 @@ def wait_for_connection():
     while True:
         attempt += 1
         try:
-            response = requests.get(query_url, params={"query": "up"}, timeout=5)
+            response = http_session.get(query_url, params={"query": "up"}, timeout=5)
             if response.status_code == 200:
                 logger.info(
                     f"Successfully connected to VictoriaMetrics after {attempt} attempt(s)."
@@ -1090,7 +1091,7 @@ def wait_for_connection():
                 logger.warning(
                     f"VictoriaMetrics reachable but returned {response.status_code}. Retrying in {delay:.1f}s..."
                 )
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.RequestException:
             logger.warning(
                 f"Connection refused to {METRICS_URL}. VictoriaMetrics might be starting up. Retrying in {delay:.1f}s..."
             )
