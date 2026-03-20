@@ -3,6 +3,7 @@
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-gray-900 font-bold text-sm">Verfügbare Sensoren</h3>
       <button
+        type="button"
         @click="refreshMetrics"
         class="p-1 hover:bg-gray-100 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
         :disabled="loading"

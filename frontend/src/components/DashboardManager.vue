@@ -275,7 +275,11 @@
         <!-- Add Chart Button in Edit Mode -->
         <div
           v-if="editMode"
-          class="mt-3 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-teal-500 hover:bg-teal-50 cursor-pointer transition-colors"
+          role="button"
+          tabindex="0"
+          @keydown.enter="showAddChartDialog = true"
+          @keydown.space.prevent="showAddChartDialog = true"
+          class="mt-3 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-teal-500 hover:bg-teal-50 cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-teal-500 focus:outline-none"
           @click="showAddChartDialog = true"
         >
           <div class="text-center text-gray-500">

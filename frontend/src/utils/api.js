@@ -71,7 +71,11 @@ api.interceptors.response.use(
   }
 )
 
-export const retryRequest = async (requestFn, maxRetries = RETRY_CONFIG.MAX_RETRIES, delay = RETRY_CONFIG.INITIAL_DELAY) => {
+export const retryRequest = async (
+  requestFn,
+  maxRetries = RETRY_CONFIG.MAX_RETRIES,
+  delay = RETRY_CONFIG.INITIAL_DELAY
+) => {
   let lastError
 
   for (let i = 0; i < maxRetries; i++) {
@@ -94,9 +98,7 @@ export const retryRequest = async (requestFn, maxRetries = RETRY_CONFIG.MAX_RETR
 export const withTimeout = (promise, ms = API_TIMEOUT.MEDIUM) => {
   return Promise.race([
     promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Operation timed out')), ms)
-    )
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Operation timed out')), ms))
   ])
 }
 
