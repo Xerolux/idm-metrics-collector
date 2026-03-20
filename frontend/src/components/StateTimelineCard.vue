@@ -4,7 +4,6 @@
   >
     <div v-if="editMode" class="absolute top-2 right-2 z-10 flex gap-1">
       <button
-        type="button"
         @click="openConfig"
         class="p-1.5 bg-white hover:bg-gray-100 rounded shadow text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
         title="Bearbeiten"
@@ -13,7 +12,6 @@
         <i class="pi pi-pencil text-xs"></i>
       </button>
       <button
-        type="button"
         @click="confirmDelete"
         class="p-1.5 bg-white hover:bg-red-50 rounded shadow text-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500"
         title="Löschen"
@@ -30,7 +28,6 @@
       </div>
       <div class="flex items-center gap-1">
         <button
-          type="button"
           @click="toggleFullscreen"
           class="text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500 rounded p-0.5"
           title="Vollbild umschalten"
@@ -51,7 +48,6 @@
     >
       <div v-if="isFullscreen" class="absolute top-4 right-4 z-50">
         <button
-          type="button"
           @click="toggleFullscreen"
           class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
           title="Vollbild schließen"

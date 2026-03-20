@@ -594,14 +594,8 @@
                       <Dropdown
                         v-model="config.ai.model"
                         :options="[
-                          {
-                            label: 'Rolling Window (Lokal, kontinuierliches Lernen)',
-                            value: 'rolling'
-                          },
-                          {
-                            label: 'Community Modell (Vortrainiert, für neue Installationen)',
-                            value: 'community'
-                          }
+                          { label: 'Rolling Window (Lokal, kontinuierliches Lernen)', value: 'rolling' },
+                          { label: 'Community Modell (Vortrainiert, für neue Installationen)', value: 'community' }
                         ]"
                         optionLabel="label"
                         optionValue="value"
@@ -1133,8 +1127,8 @@
             <Fieldset legend="Installation Management" :toggleable="true">
               <div class="flex justify-between items-center mb-3">
                 <div class="text-sm text-gray-400" v-if="adminInstallations">
-                  {{ adminInstallations.showing }} von {{ adminInstallations.total }} Installationen
-                  angezeigt
+                  {{ adminInstallations.showing }} von
+                  {{ adminInstallations.total }} Installationen angezeigt
                 </div>
                 <div class="text-sm text-gray-400" v-else-if="!adminInstallationsError">
                   Installationen werden geladen...
@@ -1154,9 +1148,7 @@
                 class="text-center py-6 bg-red-900/20 border border-red-700/50 rounded mb-3"
               >
                 <i class="pi pi-exclamation-triangle text-red-400 text-2xl mb-2 block"></i>
-                <div class="text-red-300 font-medium">
-                  Installationen konnten nicht geladen werden
-                </div>
+                <div class="text-red-300 font-medium">Installationen konnten nicht geladen werden</div>
                 <div class="text-red-400 text-xs mt-1 font-mono">{{ adminInstallationsError }}</div>
                 <Button
                   label="Erneut versuchen"
@@ -2547,8 +2539,7 @@ const getAdminHeaders = () => {
 }
 
 const adminGet = (url, options = {}) => axios.get(url, { timeout: ADMIN_TIMEOUT, ...options })
-const adminPost = (url, data, options = {}) =>
-  axios.post(url, data, { timeout: ADMIN_TIMEOUT, ...options })
+const adminPost = (url, data, options = {}) => axios.post(url, data, { timeout: ADMIN_TIMEOUT, ...options })
 const adminDelete = (url, options = {}) => axios.delete(url, { timeout: ADMIN_TIMEOUT, ...options })
 
 const fetchAdminHealth = async () => {
@@ -2583,10 +2574,9 @@ const fetchAdminInstallations = async () => {
     await fetchInstallationRoles()
   } catch (err) {
     console.error('Failed to fetch admin installations:', err)
-    const msg =
-      err.code === 'ECONNABORTED'
-        ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
-        : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
+    const msg = err.code === 'ECONNABORTED'
+      ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
+      : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
     adminInstallationsError.value = msg
   }
 }
@@ -2604,10 +2594,9 @@ const fetchInstallationRoles = async () => {
     installationRoles.value = res.data
   } catch (err) {
     console.error('Failed to fetch installation roles:', err)
-    installationRolesError.value =
-      err.code === 'ECONNABORTED'
-        ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
-        : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
+    installationRolesError.value = err.code === 'ECONNABORTED'
+      ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
+      : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
   }
 }
 

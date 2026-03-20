@@ -91,16 +91,14 @@ export const createBaseOptions = (isDual = false, isDark = false) => {
         grid: { color: colors.grid },
         ticks: { color: colors.ticks, font: { size: 10 } }
       },
-      ...(isDual
-        ? {
-            y1: {
-              display: true,
-              position: 'right',
-              grid: { drawOnChartArea: false },
-              ticks: { color: colors.ticks, font: { size: 10 } }
-            }
-          }
-        : {})
+      ...(isDual ? {
+        y1: {
+          display: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: { color: colors.ticks, font: { size: 10 } }
+        }
+      } : {})
     },
     elements: {
       point: { radius: 2, hitRadius: 10, hoverRadius: 4 },
