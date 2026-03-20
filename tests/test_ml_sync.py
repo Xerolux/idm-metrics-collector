@@ -39,7 +39,7 @@ class TestMLSync(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @patch("ml_service.main.requests.get")
+    @patch("ml_service.main.http_session.get")
     def test_fetch_remote_config_success(self, mock_get):
         # Mock response
         mock_response = MagicMock()
@@ -60,7 +60,7 @@ class TestMLSync(unittest.TestCase):
             timeout=2,
         )
 
-    @patch("ml_service.main.requests.get")
+    @patch("ml_service.main.http_session.get")
     def test_fetch_remote_config_failure(self, mock_get):
         # Mock failure response
         mock_response = MagicMock()

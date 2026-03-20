@@ -18,6 +18,23 @@ import ml_service.main as main  # noqa: E402
 
 
 class TestMLServicePooling(unittest.TestCase):
+    def tearDown(self):
+        # Remove mocks from sys.modules so they don't break other tests
+        if "requests" in sys.modules and isinstance(sys.modules["requests"], MagicMock):
+            del sys.modules["requests"]
+        if "torch" in sys.modules and isinstance(sys.modules["torch"], MagicMock):
+            del sys.modules["torch"]
+        if "torch.nn" in sys.modules and isinstance(sys.modules["torch.nn"], MagicMock):
+            del sys.modules["torch.nn"]
+        if "torch.nn.Module" in sys.modules and isinstance(
+            sys.modules["torch.nn.Module"], MagicMock
+        ):
+            del sys.modules["torch.nn.Module"]
+        if "schedule" in sys.modules and isinstance(sys.modules["schedule"], MagicMock):
+            del sys.modules["schedule"]
+        if "flask" in sys.modules and isinstance(sys.modules["flask"], MagicMock):
+            del sys.modules["flask"]
+
     def test_http_session_initialized(self):
         """Test that the global http_session is initialized."""
         self.assertIsNotNone(main.http_session)

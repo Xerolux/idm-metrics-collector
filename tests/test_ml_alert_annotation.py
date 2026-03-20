@@ -29,9 +29,6 @@ class TestMLAlertAnnotation(unittest.TestCase):
             sys.modules,
             {
                 "idm_logger.db": mock_db_module,
-                "idm_logger.mqtt": MagicMock(),
-                "idm_logger.scheduler": MagicMock(),
-                "idm_logger.modbus": MagicMock(),
             },
         )
         self.modules_patcher.start()
@@ -62,13 +59,12 @@ class TestMLAlertAnnotation(unittest.TestCase):
         self.config_patcher.stop()
         self.modules_patcher.stop()
 
-        # Restore original modules
-        # We must preserve modules that were loaded during the test if needed,
-        # but for isolation it's better to revert to original state.
-        # However, simply assigning sys.modules doesn't work well if references are held.
-        # We need to update the dict in place.
-        sys.modules.clear()
-        sys.modules.update(self._original_modules)
+        # Iterate safely and remove mocks that were created during the test
+        for mod in list(sys.modules.keys()):
+            if mod.startswith("idm_logger") and mod not in self._original_modules:
+                del sys.modules[mod]
+            elif mod in self._original_modules:
+                sys.modules[mod] = self._original_modules[mod]
 
     def test_alert_creates_annotation(self):
         payload = {

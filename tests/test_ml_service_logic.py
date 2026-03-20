@@ -280,7 +280,7 @@ class TestMLServiceLogic(unittest.TestCase):
 
     def test_fetch_latest_data(self):
         """Test fetch_latest_data uses POST and parses response correctly."""
-        with patch("requests.post") as mock_post:
+        with patch("ml_service.main.http_session.post") as mock_post:
             mock_post.return_value.status_code = 200
             mock_post.return_value.json.return_value = {
                 "status": "success",
