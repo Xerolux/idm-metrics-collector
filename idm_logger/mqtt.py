@@ -78,19 +78,18 @@ class MQTTPublisher:
             # Configure TLS if enabled
             if config.get("mqtt.use_tls", False):
                 ca_cert = config.get("mqtt.tls_ca_cert", "")
-                tls_params = {
-                    "cert_reqs": ssl.CERT_REQUIRED,
-                    "tls_version": ssl.PROTOCOL_TLSv1_2,
-                }
+                tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                tls_context.minimum_version = ssl.TLSVersion.TLSv1_2
+                tls_context.check_hostname = False
+                tls_context.verify_mode = ssl.CERT_REQUIRED
 
-                # Add CA certificate path if provided (for self-signed certs)
                 if ca_cert and os.path.exists(ca_cert):
-                    tls_params["ca_certs"] = ca_cert
+                    tls_context.load_verify_locations(ca_cert)
                     logger.info(f"MQTT TLS encryption enabled with CA cert: {ca_cert}")
                 else:
                     logger.info("MQTT TLS encryption enabled with system CA certs")
 
-                self.client.tls_set(**tls_params)
+                self.client.tls_set_context(tls_context)
 
             logger.info(f"MQTT client configured for broker: {broker}")
 

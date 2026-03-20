@@ -2531,17 +2531,23 @@ const copyId = async () => {
 
 // ==================== ADMIN FUNCTIONS ====================
 
+const ADMIN_TIMEOUT = 15000
+
 const getAdminHeaders = () => {
   const authToken = config.value.telemetry?.auth_token || ''
   return authToken ? { Authorization: `Bearer ${authToken}` } : {}
 }
+
+const adminGet = (url, options = {}) => axios.get(url, { timeout: ADMIN_TIMEOUT, ...options })
+const adminPost = (url, data, options = {}) => axios.post(url, data, { timeout: ADMIN_TIMEOUT, ...options })
+const adminDelete = (url, options = {}) => axios.delete(url, { timeout: ADMIN_TIMEOUT, ...options })
 
 const fetchAdminHealth = async () => {
   if (!telemetryStatus.value?.is_admin) return
 
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const res = await axios.get(`${telemetryUrl}/api/v1/admin/health`, {
+    const res = await adminGet(`${telemetryUrl}/api/v1/admin/health`, {
       params: { installation_id: config.value.installation_id },
       headers: getAdminHeaders()
     })
@@ -2559,7 +2565,7 @@ const fetchAdminInstallations = async () => {
 
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const res = await axios.get(`${telemetryUrl}/api/v1/admin/installations`, {
+    const res = await adminGet(`${telemetryUrl}/api/v1/admin/installations`, {
       params: { installation_id: config.value.installation_id, limit: 50 },
       headers: getAdminHeaders()
     })
@@ -2568,7 +2574,10 @@ const fetchAdminInstallations = async () => {
     await fetchInstallationRoles()
   } catch (err) {
     console.error('Failed to fetch admin installations:', err)
-    adminInstallationsError.value = err.response?.data?.detail || err.message
+    const msg = err.code === 'ECONNABORTED'
+      ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
+      : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
+    adminInstallationsError.value = msg
   }
 }
 
@@ -2578,14 +2587,16 @@ const fetchInstallationRoles = async () => {
   installationRolesError.value = null
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const res = await axios.get(`${telemetryUrl}/api/v1/admin/installations/list`, {
+    const res = await adminGet(`${telemetryUrl}/api/v1/admin/installations/list`, {
       params: { installation_id: config.value.installation_id, limit: 200 },
       headers: getAdminHeaders()
     })
     installationRoles.value = res.data
   } catch (err) {
     console.error('Failed to fetch installation roles:', err)
-    installationRolesError.value = err.response?.data?.detail || err.message
+    installationRolesError.value = err.code === 'ECONNABORTED'
+      ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
+      : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
   }
 }
 
@@ -2634,7 +2645,7 @@ const saveRole = async () => {
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const authToken = config.value.telemetry?.auth_token || ''
-    await axios.post(
+    await adminPost(
       `${telemetryUrl}/api/v1/admin/installations/${selectedInstallationForAction.value}/role`,
       null,
       {
@@ -2643,7 +2654,7 @@ const saveRole = async () => {
           role: newRole.value,
           reason: roleReason.value || undefined
         },
-        headers: { Authorization: `Bearer ${authToken}` }
+        headers: getAdminHeaders()
       }
     )
     toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Rolle geaendert', life: 3000 })
@@ -2682,10 +2693,10 @@ const saveBan = async () => {
     }
     if (banDuration.value) params.duration_hours = banDuration.value
 
-    await axios.post(
+    await adminPost(
       `${telemetryUrl}/api/v1/admin/installations/${selectedInstallationForAction.value}/ban`,
       null,
-      { params, headers: { Authorization: `Bearer ${authToken}` } }
+      { params, headers: getAdminHeaders() }
     )
     toast.add({
       severity: 'success',
@@ -2715,7 +2726,7 @@ const unbanInstallation = async (instId) => {
     let anySucceeded = false
     for (const bt of banTypes) {
       try {
-        await axios.post(`${telemetryUrl}/api/v1/admin/installations/${instId}/unban`, null, {
+        await adminPost(`${telemetryUrl}/api/v1/admin/installations/${instId}/unban`, null, {
           params: { installation_id: config.value.installation_id, ban_type: bt },
           headers: getAdminHeaders()
         })
@@ -2755,7 +2766,7 @@ const fetchAdminModels = async () => {
 
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const res = await axios.get(`${telemetryUrl}/api/v1/admin/models`, {
+    const res = await adminGet(`${telemetryUrl}/api/v1/admin/models`, {
       params: { installation_id: config.value.installation_id },
       headers: getAdminHeaders()
     })
@@ -2849,7 +2860,7 @@ const fetchAdminMetrics = async () => {
 
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const res = await axios.get(`${telemetryUrl}/api/v1/admin/metrics`, {
+    const res = await adminGet(`${telemetryUrl}/api/v1/admin/metrics`, {
       params: { installation_id: config.value.installation_id },
       headers: getAdminHeaders()
     })
@@ -2906,7 +2917,7 @@ const fetchAuditLog = async () => {
   if (!telemetryStatus.value?.is_admin) return
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const res = await axios.get(`${telemetryUrl}/api/v1/admin/audit-log`, {
+    const res = await adminGet(`${telemetryUrl}/api/v1/admin/audit-log`, {
       params: { installation_id: config.value.installation_id, limit: 100 },
       headers: getAdminHeaders()
     })
@@ -2922,11 +2933,11 @@ const fetchTrainingInfo = async () => {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const headers = getAdminHeaders()
     const [currentRes, historyRes] = await Promise.all([
-      axios.get(`${telemetryUrl}/api/v1/admin/training/current`, {
+      adminGet(`${telemetryUrl}/api/v1/admin/training/current`, {
         params: { installation_id: config.value.installation_id },
         headers
       }),
-      axios.get(`${telemetryUrl}/api/v1/admin/training/history`, {
+      adminGet(`${telemetryUrl}/api/v1/admin/training/history`, {
         params: { installation_id: config.value.installation_id, limit: 20 },
         headers
       })
@@ -2945,7 +2956,7 @@ const fetchPermissions = async () => {
   if (!telemetryStatus.value?.is_admin) return
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const res = await axios.get(`${telemetryUrl}/api/v1/admin/permissions`, {
+    const res = await adminGet(`${telemetryUrl}/api/v1/admin/permissions`, {
       params: { installation_id: config.value.installation_id },
       headers: getAdminHeaders()
     })
@@ -2964,7 +2975,7 @@ const cancelTraining = async (taskId) => {
   cancellingTraining.value = true
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    await axios.post(`${telemetryUrl}/api/v1/admin/training/cancel/${taskId}`, null, {
+    await adminPost(`${telemetryUrl}/api/v1/admin/training/cancel/${taskId}`, null, {
       params: { installation_id: config.value.installation_id },
       headers: getAdminHeaders()
     })
@@ -3010,7 +3021,7 @@ const savePermissions = async () => {
     // Grant new permissions
     for (const perm of newPerms) {
       if (!currentPerms.has(perm)) {
-        await axios.post(`${telemetryUrl}/api/v1/admin/permissions/grant`, null, {
+        await adminPost(`${telemetryUrl}/api/v1/admin/permissions/grant`, null, {
           params: {
             installation_id: config.value.installation_id,
             target_admin_id: selectedAdminId.value,
@@ -3024,7 +3035,7 @@ const savePermissions = async () => {
     // Revoke removed permissions
     for (const perm of currentPerms) {
       if (!newPerms.has(perm)) {
-        await axios.post(`${telemetryUrl}/api/v1/admin/permissions/revoke`, null, {
+        await adminPost(`${telemetryUrl}/api/v1/admin/permissions/revoke`, null, {
           params: {
             installation_id: config.value.installation_id,
             target_admin_id: selectedAdminId.value,
@@ -3063,7 +3074,7 @@ const grantNewAdmin = async () => {
   try {
     // Just grant admin:view to start
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    await axios.post(`${telemetryUrl}/api/v1/admin/permissions/grant`, null, {
+    await adminPost(`${telemetryUrl}/api/v1/admin/permissions/grant`, null, {
       params: {
         installation_id: config.value.installation_id,
         target_admin_id: newAdminId.value,
@@ -3106,11 +3117,11 @@ const openInstallationDetails = async (installationId) => {
     const headers = getAdminHeaders()
     // Fetch details and history in parallel
     const [detailsRes, historyRes] = await Promise.all([
-      axios.get(`${telemetryUrl}/api/v1/admin/installations/${installationId}/details`, {
+      adminGet(`${telemetryUrl}/api/v1/admin/installations/${installationId}/details`, {
         params: { installation_id: config.value.installation_id },
         headers
       }),
-      axios.get(`${telemetryUrl}/api/v1/admin/installations/${installationId}/history`, {
+      adminGet(`${telemetryUrl}/api/v1/admin/installations/${installationId}/history`, {
         params: { installation_id: config.value.installation_id, limit: 20 },
         headers
       })
@@ -3150,7 +3161,7 @@ const deleteModel = async (modelName) => {
       modelDeleting.value = true
       try {
         const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-        await axios.delete(`${telemetryUrl}/api/v1/admin/models/${encodeURIComponent(modelName)}`, {
+        await adminDelete(`${telemetryUrl}/api/v1/admin/models/${encodeURIComponent(modelName)}`, {
           params: { installation_id: config.value.installation_id },
           headers: getAdminHeaders()
         })
@@ -3184,7 +3195,7 @@ const triggerTraining = async () => {
   trainingInProgress.value = true
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const res = await axios.post(`${telemetryUrl}/api/v1/admin/models/trigger-training`, null, {
+    const res = await adminPost(`${telemetryUrl}/api/v1/admin/models/trigger-training`, null, {
       params: { installation_id: config.value.installation_id },
       headers: getAdminHeaders()
     })

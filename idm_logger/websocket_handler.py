@@ -75,6 +75,12 @@ class WebSocketHandler:
             Args:
                 data: { 'metrics': ['metric1', 'metric2'], 'dashboard_id': '...' }
             """
+            if not isinstance(data, dict):
+                logger.warning(
+                    f"Invalid subscribe data from {request.sid}: expected dict"
+                )
+                return
+
             sid = request.sid
             metrics = data.get("metrics", [])
             dashboard_id = data.get("dashboard_id")
@@ -105,6 +111,12 @@ class WebSocketHandler:
             Args:
                 data: { 'metrics': ['metric1', 'metric2'], 'dashboard_id': '...' }
             """
+            if not isinstance(data, dict):
+                logger.warning(
+                    f"Invalid unsubscribe data from {request.sid}: expected dict"
+                )
+                return
+
             sid = request.sid
             metrics = data.get("metrics", [])
             dashboard_id = data.get("dashboard_id")
@@ -200,8 +212,13 @@ class WebSocketHandler:
         Returns:
             Dictionary with stats
         """
+        try:
+            total = len(self.socketio.manager.get_namespaces())
+        except AttributeError:
+            total = -1
+
         return {
-            "total_connections": len(self.socketio.manager.get_namespaces()),
+            "total_connections": total,
             "metric_subscriptions": {
                 metric: len(sids) for metric, sids in self.subscriptions.items()
             },

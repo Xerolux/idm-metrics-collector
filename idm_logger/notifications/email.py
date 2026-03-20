@@ -40,11 +40,22 @@ class EmailProvider(NotificationProvider):
             msg["Subject"] = kwargs.get("subject", "IDM Metrics Notification")
             msg.attach(MIMEText(message, "plain"))
 
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()
-                if username and password:
-                    server.login(username, password)
-                server.send_message(msg)
+            if smtp_port == 465:
+                with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+                    if username and password:
+                        server.login(username, password)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(smtp_server, smtp_port) as server:
+                    try:
+                        server.starttls()
+                    except smtplib.SMTPNotSupportedError:
+                        logger.warning(
+                            "SMTP server does not support STARTTLS, sending without encryption"
+                        )
+                    if username and password:
+                        server.login(username, password)
+                    server.send_message(msg)
             return True
         except Exception as e:
             logger.error(f"Failed to send email: {e}")

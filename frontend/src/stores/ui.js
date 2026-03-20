@@ -29,19 +29,20 @@ export const useUiStore = defineStore('ui', {
 
         // Listen for system preference changes (store reference for cleanup)
         this.darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-        this.darkModeMediaQuery.addEventListener('change', (e) => {
+        this._darkModeChangeListener = (e) => {
           if (window.localStorage.getItem(darkModeStorageKey) === null) {
             this.darkMode = e.matches
           }
-        })
+        }
+        this.darkModeMediaQuery.addEventListener('change', this._darkModeChangeListener)
       }
       this.initialized = true
     },
     cleanup() {
-      // Remove event listener to prevent memory leak
-      if (this.darkModeMediaQuery) {
-        this.darkModeMediaQuery.removeEventListener('change', () => {})
+      if (this.darkModeMediaQuery && this._darkModeChangeListener) {
+        this.darkModeMediaQuery.removeEventListener('change', this._darkModeChangeListener)
         this.darkModeMediaQuery = null
+        this._darkModeChangeListener = null
       }
     },
     setEditMode(value) {

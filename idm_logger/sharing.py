@@ -49,17 +49,14 @@ class ShareToken:
         self.last_accessed = None
 
     def _hash_password(self, password: str) -> str:
-        """Hash a password using secure bcrypt-based hashing."""
-        return generate_password_hash(password, method="pbkdf2:sha256:600000")
+        """Hash a password using secure hashing."""
+        return generate_password_hash(password)
 
     def check_password(self, password: str) -> bool:
         """Check if the provided password matches."""
         if not self.password_hash:
             return True
-        # Support legacy SHA256 hashes during migration
-        if self.password_hash.startswith("pbkdf2:"):
-            return check_password_hash(self.password_hash, password)
-        return False
+        return check_password_hash(self.password_hash, password)
 
     def is_expired(self) -> bool:
         """Check if the token has expired."""

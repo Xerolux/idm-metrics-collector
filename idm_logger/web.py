@@ -2040,6 +2040,13 @@ def config_page():
                 config.set_admin_password(new_pass)
 
             config.save()
+            if modbus_needs_restart:
+                return jsonify(
+                    {
+                        "success": True,
+                        "message": "Konfiguration gespeichert. Modbus-Verbindung wurde sofort neu gestartet.",
+                    }
+                )
             return jsonify(
                 {
                     "success": True,

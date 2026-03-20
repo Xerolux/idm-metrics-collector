@@ -74,10 +74,6 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
             raise ValueError(f"Unsupported unary operator: {op_type.__name__}")
         return self.UNARY_OPS[op_type](operand)
 
-    def visit_Num(self, node):
-        # Python 3.7 compatibility
-        return node.n
-
     def visit_Constant(self, node):
         # Python 3.8+ numbers
         if isinstance(node.value, (int, float)):
@@ -148,7 +144,7 @@ class ExpressionParser:
         """
         self.query_results = query_results
 
-    def validate_expression(self, expression: str) -> tuple[bool, str]:
+    def validate_expression(self, expression: str) -> "tuple[bool, str]":
         """
         Validate an expression for syntax errors.
 
@@ -249,7 +245,7 @@ class ExpressionParser:
         expr = expression
         for query_label, value in values.items():
             # Use word boundaries to avoid partial replacements
-            expr = re.sub(r"\b" + query_label + r"\b", str(value), expr)
+            expr = re.sub(r"\b" + re.escape(query_label) + r"\b", str(value), expr)
 
         # Removed regex-based function replacement to prevent ReDoS
         # Functions are now handled directly by SafeExpressionEvaluator

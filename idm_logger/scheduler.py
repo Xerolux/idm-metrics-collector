@@ -120,6 +120,8 @@ class Scheduler:
 
     def stop(self):
         self.running = False
+        if hasattr(self, "thread") and self.thread.is_alive():
+            self.thread.join(timeout=5.0)
 
     def run(self):
         logger.info("Scheduler started")
@@ -134,9 +136,8 @@ class Scheduler:
             current_time = now.strftime("%H:%M")
             current_day = now.strftime("%a")
 
-            updates = []
-
             with self.lock:
+                jobs_to_execute = []
                 for job in self.jobs:
                     if not job.get("enabled"):
                         continue
@@ -150,24 +151,20 @@ class Scheduler:
                         if last_run and (time.time() - last_run) < 65:
                             continue
 
-                        logger.info(
-                            f"Executing scheduled job: {job.get('sensor')} = {job.get('value')}"
-                        )
-                        try:
-                            self.modbus_client.write_sensor(
-                                job.get("sensor"), job.get("value")
-                            )
-                            # Update last run in Memory
-                            now_ts = time.time()
-                            job["last_run"] = now_ts
-                            # Collect for batch DB update
-                            updates.append((job["id"], now_ts))
-                        except Exception as e:
-                            logger.error(f"Scheduled job failed: {e}")
+                        jobs_to_execute.append(job)
 
-            # Batch update DB outside the loop (but still essentially part of the process)
-            if updates:
-                db.update_jobs_last_run(updates)
+            for job in jobs_to_execute:
+                try:
+                    self.modbus_client.write_sensor(job.get("sensor"), job.get("value"))
+                    now_ts = time.time()
+                    with self.lock:
+                        for j in self.jobs:
+                            if j.get("id") == job.get("id"):
+                                j["last_run"] = now_ts
+                                break
+                    db.update_jobs_last_run([(job["id"], now_ts)])
+                except Exception as e:
+                    logger.error(f"Scheduled job failed: {e}")
 
         except Exception as e:
             logger.error(f"Scheduler loop error: {e}")

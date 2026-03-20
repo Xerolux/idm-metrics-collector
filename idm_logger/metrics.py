@@ -85,8 +85,10 @@ class MetricsWriter:
                 if batch:
                     try:
                         self._send_data(batch)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(
+                            f"Error flushing metrics after worker error: {e}"
+                        )
                     batch = []
 
         # Flush remaining items on exit
@@ -100,7 +102,10 @@ class MetricsWriter:
         """Escape special characters for InfluxDB line protocol tags."""
         if not value:
             return "unknown"
-        return str(value).replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
+        s = str(value)
+        s = s.replace("\\", "\\\\").replace("\n", "\\n")
+        s = s.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
+        return s
 
     def _send_data(self, data: Union[Dict, List[Dict]]) -> bool:
         """Internal method to send data to VictoriaMetrics (executed in worker thread)."""
@@ -142,8 +147,8 @@ class MetricsWriter:
         payload = "\n".join(lines)
 
         try:
-            # VictoriaMetrics /write endpoint
-            response = self.session.post(self.url, data=payload, timeout=5)
+            url = str(self.url)
+            response = self.session.post(url, data=payload, timeout=5)
             if response.status_code in (200, 204):
                 return True
             else:
@@ -164,6 +169,10 @@ class MetricsWriter:
         }
 
     def stop(self):
-        """Stop the worker thread."""
+        """Stop the worker thread and flush remaining data."""
         self.stop_event.set()
-        self.worker_thread.join(timeout=2.0)
+        self.worker_thread.join(timeout=10.0)
+        if self.worker_thread.is_alive():
+            logger.warning(
+                "Metrics worker thread did not stop gracefully, some data may be lost"
+            )

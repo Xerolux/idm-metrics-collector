@@ -35,7 +35,6 @@ const isResetting = ref(false)
 
 const passwordError = computed(() => {
   if (!password.value) return 'Passwort ist erforderlich'
-  if (password.value.length < 1) return 'Passwort ist zu kurz'
   return ''
 })
 
