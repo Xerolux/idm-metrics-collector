@@ -153,6 +153,10 @@ class Scheduler:
 
                         jobs_to_execute.append(job)
 
+            # ⚡ Bolt: Database write optimization
+            # Batch database updates to prevent N+1 query problem when multiple jobs
+            # trigger at the same time, reducing I/O and transaction overhead.
+            db_updates = []
             for job in jobs_to_execute:
                 try:
                     self.modbus_client.write_sensor(job.get("sensor"), job.get("value"))
@@ -162,9 +166,12 @@ class Scheduler:
                             if j.get("id") == job.get("id"):
                                 j["last_run"] = now_ts
                                 break
-                    db.update_jobs_last_run([(job["id"], now_ts)])
+                    db_updates.append((job["id"], now_ts))
                 except Exception as e:
                     logger.error(f"Scheduled job failed: {e}")
+
+            if db_updates:
+                db.update_jobs_last_run(db_updates)
 
         except Exception as e:
             logger.error(f"Scheduler loop error: {e}")
