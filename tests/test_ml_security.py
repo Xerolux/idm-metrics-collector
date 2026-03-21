@@ -1,12 +1,15 @@
 # Xerolux 2026
 import unittest
 from unittest.mock import patch
+import idm_logger.web
+idm_logger.web.config.data["web"] = {"trust_proxies": False}
 from idm_logger.web import app
 from idm_logger.config import config
 
 
 class TestMLSecurity(unittest.TestCase):
     def setUp(self):
+        app.config["TESTING"] = True
         self.client = app.test_client()
         self.endpoint = "/api/internal/ml_alert"
 
@@ -16,6 +19,8 @@ class TestMLSecurity(unittest.TestCase):
         with patch.object(config, "get") as mock_get:
 
             def side_effect(key, default=None):
+                if key == "RATELIMIT_STRATEGY":
+                    return "fixed-window"
                 if key == "internal_api_key":
                     return None
                 return default
@@ -31,6 +36,8 @@ class TestMLSecurity(unittest.TestCase):
         with patch.object(config, "get") as mock_get:
 
             def side_effect(key, default=None):
+                if key == "RATELIMIT_STRATEGY":
+                    return "fixed-window"
                 if key == "internal_api_key":
                     return "secure-key"
                 return default
@@ -46,6 +53,8 @@ class TestMLSecurity(unittest.TestCase):
         with patch.object(config, "get") as mock_get:
 
             def side_effect(key, default=None):
+                if key == "RATELIMIT_STRATEGY":
+                    return "fixed-window"
                 if key == "internal_api_key":
                     return "secure-key"
                 return default

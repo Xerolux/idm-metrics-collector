@@ -87,6 +87,7 @@ class TestModbusOptimization(unittest.TestCase):
         mock_instance.read_holding_registers.return_value = mock_rr
 
         client = ModbusClient("localhost", 502)
+        client.client = mock_instance # IMPORTANT: Ensure client uses mocked instance
 
         # Use default sensors (COMMON_SENSORS)
         # There are about 80 sensors.

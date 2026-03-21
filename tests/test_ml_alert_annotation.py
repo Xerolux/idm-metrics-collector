@@ -45,13 +45,14 @@ class TestMLAlertAnnotation(unittest.TestCase):
         self.mock_config.get.side_effect = lambda k, d=None: (
             "secret" if k == "internal_api_key" else d
         )
-        self.mock_config.data = {}
+        self.mock_config.data = {"web": {"trust_proxies": False}}
 
         # Import web
         import idm_logger.web as web
 
         self.web = web
         self.app = web.app
+        self.app.config["TESTING"] = True
         self.client = self.app.test_client()
 
         # Patch managers

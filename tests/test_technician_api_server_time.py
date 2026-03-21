@@ -8,6 +8,9 @@ from idm_logger.web import app
 
 @pytest.fixture
 def client():
+    import idm_logger.web
+    idm_logger.web.config.data["web"] = {"trust_proxies": False}
+    from idm_logger.web import app
     app.config["TESTING"] = True
     with app.test_client() as client:
         with client.session_transaction() as sess:

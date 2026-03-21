@@ -6,6 +6,9 @@ from idm_logger.web import app, config
 
 @pytest.fixture
 def client():
+    import idm_logger.web
+    idm_logger.web.config.data["web"] = {"trust_proxies": False}
+    from idm_logger.web import app
     app.config["TESTING"] = True
     with app.test_client() as client:
         yield client

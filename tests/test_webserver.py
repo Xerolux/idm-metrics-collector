@@ -24,6 +24,8 @@ def test_webserver():
     print("=" * 60)
 
     # Import after path is set
+    import idm_logger.web
+    idm_logger.web.config.data["web"] = {"trust_proxies": False}
     from idm_logger.web import app
     from waitress import serve
 
