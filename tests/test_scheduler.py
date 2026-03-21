@@ -69,7 +69,11 @@ class TestScheduler(unittest.TestCase):
         updated_ids = set()
         for call_args in self.mock_db.update_jobs_last_run.call_args_list:
             updates = call_args[0][0]
-            if isinstance(updates, list) and len(updates) > 0 and isinstance(updates[0], tuple):
+            if (
+                isinstance(updates, list)
+                and len(updates) > 0
+                and isinstance(updates[0], tuple)
+            ):
                 # batched updates
                 for u in updates:
                     updated_ids.add(u[0])

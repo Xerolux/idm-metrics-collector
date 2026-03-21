@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 # Only mock missing packages, but keep 'flask' intact if installed
 # In the test environment, we might have flask installed.
 
+
 # DO NOT mock globally. We use patch.dict
 class TestMLServicePooling(unittest.TestCase):
     def setUp(self):
@@ -16,12 +17,13 @@ class TestMLServicePooling(unittest.TestCase):
             "torch": MagicMock(),
             "torch.nn": MagicMock(),
             "torch.nn.Module": MagicMock,
-            "schedule": MagicMock()
+            "schedule": MagicMock(),
         }
         self.module_patcher = patch.dict(sys.modules, self.mock_sys_modules)
         self.module_patcher.start()
 
         import ml_service.main as main
+
         self.main = main
 
     def tearDown(self):
@@ -82,6 +84,7 @@ class TestMLServicePooling(unittest.TestCase):
             pass
 
         mock_get.assert_called()
+
 
 if __name__ == "__main__":
     unittest.main()
