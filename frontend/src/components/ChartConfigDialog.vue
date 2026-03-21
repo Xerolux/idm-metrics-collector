@@ -91,6 +91,8 @@
                 size="small"
                 severity="danger"
                 text
+                aria-label="Query entfernen"
+                title="Query entfernen"
               />
             </div>
           </div>
@@ -135,6 +137,8 @@
                 size="small"
                 severity="danger"
                 text
+                aria-label="Schwellenwert entfernen"
+                title="Schwellenwert entfernen"
               />
             </div>
           </div>
