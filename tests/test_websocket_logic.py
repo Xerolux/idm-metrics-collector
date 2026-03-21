@@ -59,13 +59,9 @@ class TestWebSocketHandler:
 
         # Call the handler inside a request context
         with app.test_request_context("/"):
-            # Mock the sid which is accessed via request.sid
-            from flask import request as flask_request
-
-            flask_request.sid = "test_sid"
-            flask_request.namespace = "/"
-
-            subscribe_handler(data)
+            with patch("idm_logger.websocket_handler.request") as mock_request:
+                mock_request.sid = "test_sid"
+                subscribe_handler(data)
 
         # Verify join_room was called for each metric
         handler.mock_join_room.assert_any_call("metric1")

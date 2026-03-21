@@ -21,6 +21,8 @@ def mock_config():
                 return "idm/heatpump"
             if key == "mqtt.broker":
                 return "mock_broker"
+            if key == "mqtt.qos":
+                return 1
             return default
 
         mock.get.side_effect = config_get
