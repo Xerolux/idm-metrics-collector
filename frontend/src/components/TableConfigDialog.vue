@@ -72,6 +72,8 @@
               size="small"
               severity="danger"
               text
+              title="Spalte entfernen"
+              aria-label="Spalte entfernen"
             />
           </div>
         </div>
@@ -104,6 +106,8 @@
               size="small"
               severity="danger"
               text
+              title="Query entfernen"
+              aria-label="Query entfernen"
             />
           </div>
         </div>
