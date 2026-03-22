@@ -1,7 +1,7 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import numpy as np
 import random
 
