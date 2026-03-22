@@ -18,6 +18,7 @@ class TestSentinelAdminAuth:
 
         # Now we can safely import Config
         from idm_logger.config import Config
+
         cls.Config = Config
 
     @classmethod

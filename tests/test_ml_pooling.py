@@ -6,6 +6,7 @@ import os
 # Ensure the parent directory is in the path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+
 class TestMLServicePooling(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -25,6 +26,7 @@ class TestMLServicePooling(unittest.TestCase):
 
         # Import main after modules are patched
         import ml_service.main as main
+
         cls.main = main
 
     @classmethod

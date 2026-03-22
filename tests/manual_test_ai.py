@@ -18,6 +18,7 @@ class TestAIModels(unittest.TestCase):
         cls.patcher.start()
 
         from idm_logger.ai.models import RollingWindowStats, IsolationForestModel
+
         cls.RollingWindowStats = RollingWindowStats
         cls.IsolationForestModel = IsolationForestModel
 

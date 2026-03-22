@@ -7,6 +7,7 @@ import logging
 # Add project root to path
 sys.path.insert(0, os.getcwd())
 
+
 class TestMLSync(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -33,6 +34,7 @@ class TestMLSync(unittest.TestCase):
         # Import ml_service.main
         try:
             import ml_service.main as ml_main
+
             cls.ml_main = ml_main
         except ImportError as e:
             print(f"ImportError: {e}")
