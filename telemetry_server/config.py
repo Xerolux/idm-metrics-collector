@@ -78,6 +78,11 @@ class CacheConfig:
     community_avg_ttl: int = field(
         default_factory=lambda: int(os.environ.get("COMMUNITY_AVG_CACHE_TTL", "300"))
     )
+    contribution_rank_ttl: int = field(
+        default_factory=lambda: int(
+            os.environ.get("CONTRIBUTION_RANK_CACHE_TTL", "300")
+        )
+    )
 
 
 @dataclass

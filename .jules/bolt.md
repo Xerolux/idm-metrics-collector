@@ -17,3 +17,7 @@
 ## 2026-03-09 - Blocking File I/O in Async APIs
 **Learning:** Synchronous file I/O operations (like reading/writing JSON files) in asynchronous endpoints block the entire asyncio event loop, severely degrading concurrent request handling capabilities.
 **Action:** Always offload expensive or synchronous blocking file operations to a background thread using `asyncio.to_thread` in FastAPI/asyncio contexts.
+
+## 2026-03-10 - O(N) Database Load on Admin Endpoint
+**Learning:** The `admin_installation_details` endpoint was executing an expensive `group by(installation_id) (count by (installation_id))` query on every request to compute a simple contribution rank. This caused an O(N) database load, severely impacting backend performance.
+**Action:** Implement a global cache (e.g. `_contribution_rank_cache`) with a TTL. Avoid executing the expensive cross-installation analytical queries unless the cache is stale or missing. And when valid, remove the query from the batch `asyncio.gather` list.
