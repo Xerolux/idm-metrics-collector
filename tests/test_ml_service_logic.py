@@ -26,10 +26,17 @@ class TestMLServiceLogic(unittest.TestCase):
         self.env_patcher.start()
 
         # Mock torch if not installed
+        self.module_patcher = None
         if "torch" not in sys.modules:
-            sys.modules["torch"] = MagicMock()
-            sys.modules["torch.nn"] = MagicMock()
-            sys.modules["torch.nn.Module"] = MagicMock
+            self.module_patcher = patch.dict(
+                "sys.modules",
+                {
+                    "torch": MagicMock(),
+                    "torch.nn": MagicMock(),
+                    "torch.nn.Module": MagicMock,
+                }
+            )
+            self.module_patcher.start()
 
         try:
             import ml_service.main as main
@@ -52,6 +59,7 @@ class TestMLServiceLogic(unittest.TestCase):
             mode_model.scaler = MagicMock()
             mode_model.scaler.means = {}
             mode_model.scaler.vars = {}
+
             mode_model.steps = {}
         self.main.logger = MagicMock()
         self.main.last_data_points = {}
@@ -102,7 +110,8 @@ class TestMLServiceLogic(unittest.TestCase):
                 "sensor1": 10.0,
                 "status_heat_pump": HeatPumpStatus.HEATING.value,
             }
-            self.main.models["heating"].score_one.return_value = 0.1  # Low score
+            # mock score_one correctly depending on module
+            self.main.models["heating"].score_one = MagicMock(return_value=0.1)  # Low score
             self.main.models["heating"].steps = {}
 
             self.main.job()
@@ -126,7 +135,7 @@ class TestMLServiceLogic(unittest.TestCase):
             }
             self.main.models[
                 "heating"
-            ].score_one.return_value = 0.9  # High score (Anomaly)
+            ].score_one = MagicMock(return_value=0.95)  # High score -> Anomaly
             self.main.models["heating"].steps = {}
             self.main.model_trained = True  # Force trained
 
@@ -154,7 +163,7 @@ class TestMLServiceLogic(unittest.TestCase):
             patch.object(self.main, "write_metrics"),
         ):
             mock_fetch.return_value = {"sensor1": 10.0}
-            self.main.models["standby"].score_one.return_value = 0.0
+            self.main.models["standby"].score_one = MagicMock(return_value=0.0)
 
             # Run enough times to exceed WARMUP_UPDATES=5
             for _ in range(7):
@@ -280,7 +289,7 @@ class TestMLServiceLogic(unittest.TestCase):
 
     def test_fetch_latest_data(self):
         """Test fetch_latest_data uses POST and parses response correctly."""
-        with patch("requests.post") as mock_post:
+        with patch("ml_service.main.http_session.post") as mock_post:
             mock_post.return_value.status_code = 200
             mock_post.return_value.json.return_value = {
                 "status": "success",

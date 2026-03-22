@@ -6,21 +6,30 @@ import os
 # Ensure the parent directory is in the path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-# Mock dependencies that are not available in the environment
-sys.modules["requests"] = MagicMock()
-sys.modules["torch"] = MagicMock()
-sys.modules["torch.nn"] = MagicMock()
-sys.modules["torch.nn.Module"] = MagicMock
-sys.modules["schedule"] = MagicMock()
-sys.modules["flask"] = MagicMock()
-
-import ml_service.main as main  # noqa: E402
-
-
 class TestMLServicePooling(unittest.TestCase):
+    def setUp(self):
+        self.module_patcher = patch.dict(
+            "sys.modules",
+            {
+                "requests": MagicMock(),
+                "torch": MagicMock(),
+                "torch.nn": MagicMock(),
+                "torch.nn.Module": MagicMock,
+                "schedule": MagicMock(),
+                "flask": MagicMock(),
+            },
+        )
+        self.module_patcher.start()
+        # Import inside setUp after patching
+        import ml_service.main as main
+        self.main = main
+
+    def tearDown(self):
+        self.module_patcher.stop()
+
     def test_http_session_initialized(self):
         """Test that the global http_session is initialized."""
-        self.assertIsNotNone(main.http_session)
+        self.assertIsNotNone(self.main.http_session)
 
     @patch("ml_service.main.http_session.post")
     def test_fetch_latest_data_uses_session(self, mock_post):
@@ -31,8 +40,8 @@ class TestMLServicePooling(unittest.TestCase):
             "data": {"result": []},
         }
 
-        main.SENSORS = ["sensor1"]
-        main.fetch_latest_data()
+        self.main.SENSORS = ["sensor1"]
+        self.main.fetch_latest_data()
 
         mock_post.assert_called()
 
@@ -41,7 +50,7 @@ class TestMLServicePooling(unittest.TestCase):
         """Test that write_metrics uses the global session."""
         mock_post.return_value.status_code = 204
 
-        main.write_metrics(0.1, False, 1, 0.05, "standby")
+        self.main.write_metrics(0.1, False, 1, 0.05, "standby")
 
         mock_post.assert_called()
 
@@ -51,10 +60,10 @@ class TestMLServicePooling(unittest.TestCase):
         mock_post.return_value.status_code = 200
 
         # Ensure cooldown doesn't prevent call
-        main.last_alert_time = 0
-        main.ENABLE_ALERTS = True
+        self.main.last_alert_time = 0
+        self.main.ENABLE_ALERTS = True
 
-        main.send_anomaly_alert(0.9, {"sensor": 1}, "heating", [])
+        self.main.send_anomaly_alert(0.9, {"sensor": 1}, "heating", [])
 
         mock_post.assert_called()
 
@@ -64,7 +73,7 @@ class TestMLServicePooling(unittest.TestCase):
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = {"threshold": 0.8}
 
-        main.fetch_remote_config()
+        self.main.fetch_remote_config()
 
         mock_get.assert_called()
 
@@ -75,7 +84,7 @@ class TestMLServicePooling(unittest.TestCase):
         mock_get.return_value.status_code = 200
 
         try:
-            main.wait_for_connection()
+            self.main.wait_for_connection()
         except InterruptedError:
             pass
 
