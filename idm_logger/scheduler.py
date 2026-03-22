@@ -153,6 +153,7 @@ class Scheduler:
 
                         jobs_to_execute.append(job)
 
+            updates = []
             for job in jobs_to_execute:
                 try:
                     self.modbus_client.write_sensor(job.get("sensor"), job.get("value"))
@@ -162,9 +163,11 @@ class Scheduler:
                             if j.get("id") == job.get("id"):
                                 j["last_run"] = now_ts
                                 break
-                    db.update_jobs_last_run([(job["id"], now_ts)])
+                    updates.append((job["id"], now_ts))
                 except Exception as e:
                     logger.error(f"Scheduled job failed: {e}")
+            if updates:
+                db.update_jobs_last_run(updates)
 
         except Exception as e:
             logger.error(f"Scheduler loop error: {e}")

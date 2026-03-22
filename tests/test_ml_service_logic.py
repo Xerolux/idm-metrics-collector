@@ -26,10 +26,17 @@ class TestMLServiceLogic(unittest.TestCase):
         self.env_patcher.start()
 
         # Mock torch if not installed
+        self.modules_patcher = None
         if "torch" not in sys.modules:
-            sys.modules["torch"] = MagicMock()
-            sys.modules["torch.nn"] = MagicMock()
-            sys.modules["torch.nn.Module"] = MagicMock
+            self.modules_patcher = patch.dict(
+                sys.modules,
+                {
+                    "torch": MagicMock(),
+                    "torch.nn": MagicMock(),
+                    "torch.nn.Module": MagicMock,
+                },
+            )
+            self.modules_patcher.start()
 
         try:
             import ml_service.main as main
@@ -61,6 +68,8 @@ class TestMLServiceLogic(unittest.TestCase):
 
     def tearDown(self):
         self.env_patcher.stop()
+        if getattr(self, "modules_patcher", None):
+            self.modules_patcher.stop()
 
     def test_determine_mode(self):
         # Heating
@@ -280,7 +289,7 @@ class TestMLServiceLogic(unittest.TestCase):
 
     def test_fetch_latest_data(self):
         """Test fetch_latest_data uses POST and parses response correctly."""
-        with patch("requests.post") as mock_post:
+        with patch("ml_service.main.http_session.post") as mock_post:
             mock_post.return_value.status_code = 200
             mock_post.return_value.json.return_value = {
                 "status": "success",

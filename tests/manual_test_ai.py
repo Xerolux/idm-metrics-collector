@@ -8,16 +8,26 @@ import random
 # Mock the imports that might fail or are not needed for this isolated test
 import sys
 
-sys.modules["idm_logger.config"] = MagicMock()
-sys.modules["idm_logger.config"].DATA_DIR = "."
-
-from idm_logger.ai.models import RollingWindowStats, IsolationForestModel  # noqa: E402
-
 
 class TestAIModels(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        mock_config = MagicMock()
+        mock_config.DATA_DIR = "."
+        cls.patcher = patch.dict(sys.modules, {"idm_logger.config": mock_config})
+        cls.patcher.start()
+
+        from idm_logger.ai.models import RollingWindowStats, IsolationForestModel
+        cls.RollingWindowStats = RollingWindowStats
+        cls.IsolationForestModel = IsolationForestModel
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.patcher.stop()
+
     def test_rolling_window(self):
         print("\nTesting Rolling Window Stats...")
-        model = RollingWindowStats(window_size=50)
+        model = self.RollingWindowStats(window_size=50)
 
         # Train with "noisy" normal data (mean=10)
         # Adding slight noise ensures std != 0
@@ -44,7 +54,7 @@ class TestAIModels(unittest.TestCase):
             print("Skipping Isolation Forest test (sklearn not installed)")
             return
 
-        model = IsolationForestModel(buffer_size=200)
+        model = self.IsolationForestModel(buffer_size=200)
 
         # Train with normal data
         for _ in range(100):
