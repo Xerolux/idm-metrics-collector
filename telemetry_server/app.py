@@ -2403,7 +2403,9 @@ async def admin_installation_details(
             client.get(VM_QUERY_URL, params={"query": last_seen_query}),
         ]
         if not use_cache:
-            tasks.append(client.get(VM_QUERY_URL, params={"query": all_installations_query}))
+            tasks.append(
+                client.get(VM_QUERY_URL, params={"query": all_installations_query})
+            )
 
         # Execute all queries in parallel
         results_list = await asyncio.gather(*tasks)
