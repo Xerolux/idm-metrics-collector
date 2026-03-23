@@ -16,9 +16,16 @@ export const useAuthStore = defineStore('auth', {
       try {
         const authRes = await api.get('/api/auth/check')
         this.isAuthenticated = authRes.data.authenticated
+        this.error = null
         return this.isAuthenticated
       } catch (e) {
         console.error('Auth check failed:', e)
+        // Network/timeout errors should not clear auth state — server may be temporarily unavailable
+        const isNetworkError = !e.message?.includes('401') && !e.message?.includes('403')
+        if (isNetworkError && this.isAuthenticated) {
+          // Preserve current auth state on network errors
+          return this.isAuthenticated
+        }
         this.isAuthenticated = false
         this.error = e.message
         return false

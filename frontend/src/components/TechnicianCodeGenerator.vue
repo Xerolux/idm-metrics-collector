@@ -73,7 +73,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
-import axios from 'axios'
+import api from '@/utils/api.js'
 
 const toast = useToast()
 const codes = ref({ level_1: '', level_2: '', server_time: '' })
@@ -83,7 +83,7 @@ let intervalId = null
 const fetchCodes = async () => {
   loading.value = true
   try {
-    const res = await axios.get('/api/tools/technician-code?t=' + Date.now())
+    const res = await api.get('/api/tools/technician-code?t=' + Date.now())
     codes.value = res.data
     toast.add({
       severity: 'success',

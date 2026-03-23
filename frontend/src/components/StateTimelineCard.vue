@@ -87,7 +87,7 @@
 import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import StateTimelineConfigDialog from './StateTimelineConfigDialog.vue'
 import ConfirmDialog from 'primevue/confirmdialog'
 
@@ -216,7 +216,7 @@ const fetchData = async () => {
     const start =
       props.hours === 0 || props.hours === '0' ? end - 86400 * 7 : end - props.hours * 3600
 
-    const response = await axios.get('/api/query', {
+    const response = await api.get('/api/query', {
       params: {
         query: props.query.query,
         start: start,

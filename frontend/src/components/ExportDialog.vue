@@ -260,7 +260,7 @@ import { ref, watch, onMounted } from 'vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
 import { exportDashboard, exportMetricsData } from '../utils/dashboardExport'
-import axios from 'axios'
+import api from '@/utils/api.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -288,7 +288,7 @@ const availableMetrics = ref([])
 // Load available metrics on mount
 onMounted(async () => {
   try {
-    const response = await axios.get('/api/metrics/available')
+    const response = await api.get('/api/metrics/available')
     const categories = response.data
 
     // Flatten all metrics from all categories

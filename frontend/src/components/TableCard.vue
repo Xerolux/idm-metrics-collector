@@ -163,7 +163,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import TableConfigDialog from './TableConfigDialog.vue'
 import ConfirmDialog from 'primevue/confirmdialog'
 import InputText from 'primevue/inputtext'
@@ -289,7 +289,7 @@ const fetchData = async () => {
     const allData = []
 
     for (const query of props.queries) {
-      const response = await axios.get('/api/query', {
+      const response = await api.get('/api/query', {
         params: {
           query: query.query,
           start: start,

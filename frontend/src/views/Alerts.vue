@@ -315,7 +315,7 @@
 <script setup>
 // Xerolux 2026
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import Toast from 'primevue/toast'
 import ConfirmDialog from 'primevue/confirmdialog'
 import Dialog from 'primevue/dialog'
@@ -351,7 +351,7 @@ onMounted(async () => {
 
 async function fetchTemplates() {
   try {
-    const response = await axios.get('/api/alerts/templates')
+    const response = await api.get('/api/alerts/templates')
     templates.value = response.data
   } catch (e) {
     console.error('Failed to load templates', e)
@@ -360,7 +360,7 @@ async function fetchTemplates() {
 
 async function fetchSensors() {
   try {
-    const response = await axios.get('/api/control') // Reuse control endpoint to get sensors
+    const response = await api.get('/api/control') // Reuse control endpoint to get sensors
     sensors.value = response.data
   } catch (e) {
     console.error('Failed to load sensors', e)
@@ -370,7 +370,7 @@ async function fetchSensors() {
 async function fetchAlerts() {
   loading.value = true
   try {
-    const response = await axios.get('/api/alerts')
+    const response = await api.get('/api/alerts')
     alerts.value = response.data
   } catch (e) {
     console.error('Failed to load alerts', e)
@@ -420,7 +420,7 @@ function loadTemplate(event) {
 async function saveAlert() {
   try {
     if (editingAlert.value) {
-      await axios.put('/api/alerts', { id: editingAlert.value.id, ...form.value })
+      await api.put('/api/alerts', { id: editingAlert.value.id, ...form.value })
       toast.add({
         severity: 'success',
         summary: 'Erfolg',
@@ -428,7 +428,7 @@ async function saveAlert() {
         life: 3000
       })
     } else {
-      await axios.post('/api/alerts', form.value)
+      await api.post('/api/alerts', form.value)
       toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Alarm erstellt', life: 3000 })
     }
     await fetchAlerts()
@@ -451,7 +451,7 @@ const deleteAlert = (alert) => {
     acceptClass: 'p-button-danger',
     accept: async () => {
       try {
-        await axios.delete(`/api/alerts?id=${alert.id}`)
+        await api.delete(`/api/alerts?id=${alert.id}`)
         toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Alarm gelöscht', life: 3000 })
         await fetchAlerts()
       } catch (e) {
@@ -469,7 +469,7 @@ const deleteAlert = (alert) => {
 
 async function toggleAlert(alert) {
   try {
-    await axios.put('/api/alerts', { id: alert.id, enabled: !alert.enabled })
+    await api.put('/api/alerts', { id: alert.id, enabled: !alert.enabled })
     toast.add({
       severity: 'success',
       summary: 'Erfolg',

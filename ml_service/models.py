@@ -149,7 +149,7 @@ class AutoencoderModel:
         self.ema_loss: Optional[float] = None
         self.ema_loss_sq: Optional[float] = None
         self.sample_count: int = 0
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # RLock to allow re-entrant acquisition
 
     def _ensure_net(self, input_dim: int) -> None:
         if self.net is None:
@@ -206,7 +206,8 @@ class AutoencoderModel:
         return float(max(0.0, min(1.0, score)))
 
     def learn_one(self, data: Dict[str, Any]) -> float:
-        self.sample_count += 1
+        with self._lock:
+            self.sample_count += 1
         self.scaler.partial_fit(data)
 
         numeric_data = {

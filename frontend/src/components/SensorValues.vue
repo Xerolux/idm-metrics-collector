@@ -49,7 +49,7 @@
 <script setup>
 // Xerolux 2026
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import { useWebSocket } from '../utils/websocket.js'
 
 const emit = defineEmits(['sensor-drag-start'])
@@ -109,7 +109,7 @@ const filteredMetrics = computed(() => {
 
 const loadMetrics = async () => {
   try {
-    const res = await axios.get('/api/metrics/available')
+    const res = await api.get('/api/metrics/available')
     metrics.value = res.data
   } catch (e) {
     error.value = 'Fehler beim Laden der Metriken'
@@ -119,7 +119,7 @@ const loadMetrics = async () => {
 
 const loadCurrentValues = async () => {
   try {
-    const res = await axios.get('/api/metrics/current')
+    const res = await api.get('/api/metrics/current')
     currentValues.value = res.data
     loading.value = false
     error.value = null

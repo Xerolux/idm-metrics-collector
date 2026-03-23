@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useUiStore } from '../stores/ui'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import Menubar from 'primevue/menubar'
 import Button from 'primevue/button'
 import Select from 'primevue/select'
@@ -107,7 +107,7 @@ const logout = async () => {
 // Check for updates
 const checkForUpdates = async () => {
   try {
-    const res = await axios.get('/api/check-update')
+    const res = await api.get('/api/check-update')
     if (res.data.update_available) {
       updateAvailable.value = true
       updateInfo.value = res.data

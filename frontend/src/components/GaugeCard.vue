@@ -84,7 +84,7 @@
 <script setup>
 // Xerolux 2026
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -219,7 +219,7 @@ const formatTimestamp = (ts) => {
 const fetchData = async () => {
   try {
     // Fetch current value
-    const currentRes = await axios.get('/api/metrics/query_range', {
+    const currentRes = await api.get('/api/metrics/query_range', {
       params: {
         query: props.query,
         start: Math.floor((Date.now() - 300000) / 1000),
@@ -239,7 +239,7 @@ const fetchData = async () => {
 
     // Fetch target value if query provided
     if (props.showTarget && props.targetQuery) {
-      const targetRes = await axios.get('/api/metrics/query', {
+      const targetRes = await api.get('/api/metrics/query', {
         params: { query: props.targetQuery }
       })
 

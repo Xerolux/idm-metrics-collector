@@ -97,6 +97,7 @@ last_mode = "unknown"
 last_data_points = {}  # Store previous values for delta calculation
 consecutive_anomalies = {}  # Per-mode anomaly counter
 model_lock = threading.Lock()
+state_lock = threading.RLock()  # Protects scalar global state read by health endpoint
 _save_threads = []  # Track background save threads for shutdown
 
 # Connection health tracking
@@ -118,7 +119,14 @@ health_app = Flask(__name__)
 @health_app.route("/health")
 def health():
     """Health check endpoint for monitoring."""
-    is_healthy = connection_stats["metrics_connected"] or update_counter > 0
+    with state_lock:
+        _update_counter = update_counter
+        _model_trained = model_trained
+        _current_mode = current_mode
+        _last_score = last_score
+        _consecutive_anomalies = dict(consecutive_anomalies)
+
+    is_healthy = connection_stats["metrics_connected"] or _update_counter > 0
     status = "healthy" if is_healthy else "degraded"
 
     # Per-model statistics
@@ -129,20 +137,20 @@ def health():
                 "samples": getattr(model, "sample_count", 0),
                 "features": len(model.feature_order) if model.feature_order else 0,
                 "ema_loss": round(model.ema_loss, 6) if model.ema_loss else None,
-                "consecutive_anomalies": consecutive_anomalies.get(mode, 0),
+                "consecutive_anomalies": _consecutive_anomalies.get(mode, 0),
             }
 
     return jsonify(
         {
             "status": status,
-            "model_state": "trained" if model_trained else "learning",
-            "current_mode": current_mode,
-            "last_score": last_score,
+            "model_state": "trained" if _model_trained else "learning",
+            "current_mode": _current_mode,
+            "last_score": _last_score,
             "features_count": len(get_all_readable_sensors()),
             "uptime_seconds": int(time.time() - start_time),
             "update_interval": UPDATE_INTERVAL,
             "anomaly_threshold": ANOMALY_THRESHOLD,
-            "updates_processed": update_counter,
+            "updates_processed": _update_counter,
             "models": model_stats,
             "connection": {
                 "metrics_connected": connection_stats["metrics_connected"],
@@ -989,8 +997,9 @@ def job():
 
         # Determine mode
         mode = determine_mode(data)
-        global current_mode
-        current_mode = mode
+        with state_lock:
+            global current_mode
+            current_mode = mode
 
         # Skip processing for defrost mode (user suggestion)
         if mode == "defrost":
@@ -1010,30 +1019,29 @@ def job():
             score = active_model.score_one(data)
             active_model.learn_one(data)
 
-        # Warm-up Logic
-        if not model_trained:
-            if update_counter > WARMUP_UPDATES:
-                model_trained = True
-                logger.info(
-                    f"Model training phase completed (Updates > {WARMUP_UPDATES})"
-                )
+        with state_lock:
+            # Warm-up Logic
+            if not model_trained:
+                if update_counter > WARMUP_UPDATES:
+                    model_trained = True
+                    logger.info(
+                        f"Model training phase completed (Updates > {WARMUP_UPDATES})"
+                    )
+
+            # Determine anomaly flag and Debounce
+            is_anomaly = score > ANOMALY_THRESHOLD
+
+            global consecutive_anomalies, last_mode
+            if mode != last_mode:
+                consecutive_anomalies[mode] = 0
+                last_mode = mode
+            if is_anomaly:
+                consecutive_anomalies[mode] = consecutive_anomalies.get(mode, 0) + 1
             else:
-                # During warmup, we don't count anomalies
-                pass
+                consecutive_anomalies[mode] = 0
 
-        # Determine anomaly flag and Debounce
-        is_anomaly = score > ANOMALY_THRESHOLD
-
-        global consecutive_anomalies, last_mode
-        if mode != last_mode:
-            consecutive_anomalies[mode] = 0
-            last_mode = mode
-        if is_anomaly:
-            consecutive_anomalies[mode] = consecutive_anomalies.get(mode, 0) + 1
-        else:
-            consecutive_anomalies[mode] = 0
-
-        mode_consecutive = consecutive_anomalies.get(mode, 0)
+            mode_consecutive = consecutive_anomalies.get(mode, 0)
+            _model_trained = model_trained
 
         processing_time = time.time() - start
 
@@ -1045,7 +1053,7 @@ def job():
         write_metrics(score, is_anomaly, len(data), processing_time, mode)
 
         # Send alert if anomaly detected AND confirmed (debounce) AND warmed up
-        if is_anomaly and model_trained:
+        if is_anomaly and _model_trained:
             if mode_consecutive >= ALARM_CONSECUTIVE_HITS:
                 top_features = get_top_features(active_model, data)
                 send_anomaly_alert(score, data, mode, top_features)
@@ -1054,8 +1062,9 @@ def job():
                     f"Anomaly suppressed (Debounce {mode_consecutive}/{ALARM_CONSECUTIVE_HITS})"
                 )
 
-        last_score = score
-        update_counter += 1
+        with state_lock:
+            last_score = score
+            update_counter += 1
 
         # Periodic model save
         if time.time() - last_model_save > MODEL_SAVE_INTERVAL:

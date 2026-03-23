@@ -80,7 +80,7 @@ export const createBaseOptions = (isDual = false, isDark = false) => {
         type: 'time',
         time: {
           tooltipFormat: 'dd.MM.yyyy HH:mm',
-          displayFormats: { hour: 'HH:mm', day: 'dd.MM' }
+          displayFormats: { minute: 'HH:mm', hour: 'HH:mm', day: 'dd.MM', month: 'MM.yyyy' }
         },
         grid: { display: true, color: colors.grid },
         ticks: { maxTicksLimit: 8, maxRotation: 0, color: colors.ticks, font: { size: 10 } }
