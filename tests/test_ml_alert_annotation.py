@@ -11,14 +11,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 class TestMLAlertAnnotation(unittest.TestCase):
     def setUp(self):
-        # Save original modules to restore later
-        self._original_modules = sys.modules.copy()
-
-        # Clean up modules to force reload with mocks
-        for mod in list(sys.modules.keys()):
-            if mod.startswith("idm_logger"):
-                del sys.modules[mod]
-
         # Mock modules
         mock_db_module = MagicMock()
         mock_db_object = MagicMock()
@@ -37,18 +29,36 @@ class TestMLAlertAnnotation(unittest.TestCase):
         self.modules_patcher.start()
 
         # Patch config instance
-        self.config_patcher = patch("idm_logger.config.config")
+        self.config_patcher = patch("idm_logger.web.config")
         self.mock_config = self.config_patcher.start()
 
         # Configure config
         self.mock_config.get_flask_secret_key.return_value = "secret"
-        self.mock_config.get.side_effect = lambda k, d=None: (
-            "secret" if k == "internal_api_key" else d
-        )
+        self.mock_config.internal_api_key = "secret"
+        self.mock_config.api_whitelist = ["127.0.0.0/8"]
+
+        def config_get(k, default=None):
+            if k == "internal_api_key":
+                return "secret"
+            if k == "RATELIMIT_STORAGE_URI":
+                return "memory://"
+            return default
+
+        self.mock_config.get.side_effect = config_get
         self.mock_config.data = {}
+        self.mock_config.setdefault.side_effect = lambda k, default=None: default
+
+        # Because web.py imports config from idm_logger.config at the top level
+        # and we mocked it inside idm_logger.web, it's safer to mock idm_logger.config.config
+        # before reloading
+        self.global_config_patcher = patch("idm_logger.config.config", self.mock_config)
+        self.global_config_patcher.start()
 
         # Import web
+        import importlib
         import idm_logger.web as web
+
+        importlib.reload(web)
 
         self.web = web
         self.app = web.app
@@ -59,16 +69,9 @@ class TestMLAlertAnnotation(unittest.TestCase):
         self.web.notification_manager = MagicMock()
 
     def tearDown(self):
+        self.global_config_patcher.stop()
         self.config_patcher.stop()
         self.modules_patcher.stop()
-
-        # Restore original modules
-        # We must preserve modules that were loaded during the test if needed,
-        # but for isolation it's better to revert to original state.
-        # However, simply assigning sys.modules doesn't work well if references are held.
-        # We need to update the dict in place.
-        sys.modules.clear()
-        sys.modules.update(self._original_modules)
 
     def test_alert_creates_annotation(self):
         payload = {
