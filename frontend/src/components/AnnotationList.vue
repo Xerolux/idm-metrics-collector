@@ -94,7 +94,7 @@ import Button from 'primevue/button'
 import AnnotationDialog from './AnnotationDialog.vue'
 import ConfirmDialog from 'primevue/confirmdialog'
 import { useConfirm } from 'primevue/useconfirm'
-import axios from 'axios'
+import api from '@/utils/api.js'
 
 const props = defineProps({
   dashboardId: { type: String, required: true },
@@ -123,7 +123,7 @@ const loadAnnotations = async () => {
       params.end = props.endTime
     }
 
-    const response = await axios.get('/api/annotations', { params })
+    const response = await api.get('/api/annotations', { params })
     annotations.value = response.data
   } catch (error) {
     console.error('Failed to load annotations:', error)
@@ -144,7 +144,7 @@ const confirmDelete = (annotation) => {
     rejectLabel: 'Nein',
     accept: async () => {
       try {
-        await axios.delete(`/api/annotations/${annotation.id}`)
+        await api.delete(`/api/annotations/${annotation.id}`)
         await loadAnnotations()
       } catch (error) {
         console.error('Failed to delete annotation:', error)

@@ -75,7 +75,7 @@
 <script setup>
 // Xerolux 2026
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import Card from 'primevue/card'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -97,11 +97,11 @@ const confirm = useConfirm()
 
 onMounted(async () => {
   try {
-    const res = await axios.get('/api/control')
+    const res = await api.get('/api/control')
     sensors.value = res.data
     // Initialize form values
     try {
-      const dataRes = await axios.get('/api/data')
+      const dataRes = await api.get('/api/data')
       sensors.value.forEach((s) => {
         formValues.value[s.name] = dataRes.data[s.name]
       })
@@ -118,7 +118,7 @@ onMounted(async () => {
 const executeWrite = async (sensor, value) => {
   writing.value[sensor.name] = true
   try {
-    const res = await axios.post('/api/control', {
+    const res = await api.post('/api/control', {
       sensor: sensor.name,
       value: value
     })

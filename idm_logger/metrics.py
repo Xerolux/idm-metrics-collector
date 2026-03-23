@@ -62,8 +62,10 @@ class MetricsWriter:
                     timeout = 1.0
 
                 measurements = self.queue.get(timeout=timeout)
-                batch.append(measurements)
                 self.queue.task_done()
+                if measurements is None:  # sentinel from stop()
+                    break
+                batch.append(measurements)
 
                 # If batch is full, send immediately
                 if len(batch) >= BATCH_SIZE:
@@ -171,6 +173,11 @@ class MetricsWriter:
     def stop(self):
         """Stop the worker thread and flush remaining data."""
         self.stop_event.set()
+        # Unblock queue.get() if the worker is waiting on an empty queue
+        try:
+            self.queue.put_nowait(None)  # sentinel to wake up the worker
+        except queue.Full:
+            pass
         self.worker_thread.join(timeout=10.0)
         if self.worker_thread.is_alive():
             logger.warning(

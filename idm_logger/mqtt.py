@@ -156,6 +156,12 @@ class MQTTPublisher:
             if not topic.startswith(topic_prefix) or not topic.endswith("/set"):
                 return
 
+            # Minimum valid topic: prefix + "/" + at_least_one_char + "/set"
+            min_len = len(topic_prefix) + 1 + 1 + 4  # prefix/x/set
+            if len(topic) < min_len:
+                logger.warning(f"Malformed MQTT topic (too short): {topic}")
+                return
+
             # Remove prefix and /set suffix
             sensor_name = topic[len(topic_prefix) + 1 : -4]
 

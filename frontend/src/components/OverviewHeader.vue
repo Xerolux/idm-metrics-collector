@@ -47,7 +47,7 @@
 <script setup>
 // Xerolux 2026
 import { ref, onMounted, onUnmounted } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import OverviewCard from './OverviewCard.vue'
 
 const currentValues = ref({})
@@ -55,7 +55,7 @@ let refreshTimer = null
 
 const loadCurrentValues = async () => {
   try {
-    const res = await axios.get('/api/metrics/current')
+    const res = await api.get('/api/metrics/current')
     currentValues.value = res.data
   } catch (e) {
     console.error('Failed to load overview values', e)

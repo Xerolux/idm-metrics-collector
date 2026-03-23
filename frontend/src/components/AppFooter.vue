@@ -1,13 +1,13 @@
 <script setup>
 // Xerolux 2026
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 
 const version = ref('Loading...')
 
 onMounted(async () => {
   try {
-    const res = await axios.get('/api/version')
+    const res = await api.get('/api/version')
     version.value = res.data.version
   } catch (error) {
     console.error(error)

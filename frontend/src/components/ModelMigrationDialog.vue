@@ -45,7 +45,7 @@
 <script setup>
 // Xerolux 2026
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
 import Dropdown from 'primevue/dropdown'
@@ -61,7 +61,7 @@ const toast = useToast()
 
 const checkConfig = async () => {
   try {
-    const res = await axios.get('/api/config')
+    const res = await api.get('/api/config')
     // If hp_model is missing or empty, show dialog
     if (!res.data.hp_model) {
       visible.value = true
@@ -78,7 +78,7 @@ const checkConfig = async () => {
 
 const loadModels = async () => {
   try {
-    const res = await axios.get('/api/info')
+    const res = await api.get('/api/info')
     if (res.data.heat_pump_models) {
       models.value = res.data.heat_pump_models.map((m) => ({ label: m, value: m }))
     } else {
@@ -98,7 +98,7 @@ const save = async () => {
 
   saving.value = true
   try {
-    await axios.post('/api/config', {
+    await api.post('/api/config', {
       hp_model: selectedModel.value
     })
     toast.add({

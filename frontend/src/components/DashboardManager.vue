@@ -490,7 +490,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import draggable from 'vuedraggable'
@@ -640,7 +640,7 @@ watch(
 
 const loadDashboards = async () => {
   try {
-    const res = await axios.get('/api/dashboards')
+    const res = await api.get('/api/dashboards')
     dashboards.value = res.data
     if (dashboards.value.length > 0 && !currentDashboardId.value) {
       currentDashboardId.value = dashboards.value[0].id
@@ -658,7 +658,7 @@ const loadDashboards = async () => {
 
 const saveChartOrder = async (charts) => {
   try {
-    await axios.put(`/api/dashboards/${currentDashboardId.value}`, {
+    await api.put(`/api/dashboards/${currentDashboardId.value}`, {
       charts: charts
     })
     // Update local dashboard data
@@ -698,7 +698,7 @@ const createDashboard = async () => {
   if (!name) return
 
   try {
-    const res = await axios.post('/api/dashboards', { name })
+    const res = await api.post('/api/dashboards', { name })
     dashboards.value.push(res.data)
     currentDashboardId.value = res.data.id
     toast.add({
@@ -732,7 +732,7 @@ const confirmDeleteDashboard = () => {
 
 const deleteDashboard = async () => {
   try {
-    await axios.delete(`/api/dashboards/${currentDashboardId.value}`)
+    await api.delete(`/api/dashboards/${currentDashboardId.value}`)
     dashboards.value = dashboards.value.filter((d) => d.id !== currentDashboardId.value)
     currentDashboardId.value = dashboards.value[0]?.id || ''
     toast.add({
@@ -757,7 +757,7 @@ const onTimeRangeChange = () => {}
 // Variables management
 const loadVariables = async () => {
   try {
-    const response = await axios.get('/api/variables')
+    const response = await api.get('/api/variables')
     variables.value = response.data
   } catch (error) {
     console.error('Failed to load variables:', error)
@@ -778,7 +778,7 @@ const confirmDeleteVariable = (variable) => {
     rejectLabel: 'Nein',
     accept: async () => {
       try {
-        await axios.delete(`/api/variables/${variable.id}`)
+        await api.delete(`/api/variables/${variable.id}`)
         await loadVariables()
       } catch (error) {
         console.error('Failed to delete variable:', error)
@@ -805,7 +805,7 @@ const handleCssSave = async (css) => {
   if (!currentDashboard.value) return
 
   try {
-    await axios.put(`/api/dashboards/${currentDashboard.value.id}`, {
+    await api.put(`/api/dashboards/${currentDashboard.value.id}`, {
       name: currentDashboard.value.name,
       customCss: css
     })
@@ -845,7 +845,7 @@ const addChart = async () => {
   const hoursVal = newChart.value.hours === '0' ? 0 : parseInt(newChart.value.hours)
 
   try {
-    const res = await axios.post(`/api/dashboards/${currentDashboardId.value}/charts`, {
+    const res = await api.post(`/api/dashboards/${currentDashboardId.value}/charts`, {
       type: newChart.value.type,
       title: newChart.value.title,
       queries,
@@ -903,7 +903,7 @@ const onDrop = async (event) => {
       }
     ]
 
-    const res = await axios.post(`/api/dashboards/${currentDashboardId.value}/charts`, {
+    const res = await api.post(`/api/dashboards/${currentDashboardId.value}/charts`, {
       title: metric.display,
       queries,
       hours: effectiveHours.value
@@ -949,12 +949,12 @@ const onChartDeleted = () => {
 const applyTemplate = async (template) => {
   try {
     // Create new dashboard
-    const dashRes = await axios.post('/api/dashboards', { name: template.name })
+    const dashRes = await api.post('/api/dashboards', { name: template.name })
     const newDashboard = dashRes.data
 
     // Add all charts from template
     for (const chartConfig of template.charts) {
-      await axios.post(`/api/dashboards/${newDashboard.id}/charts`, {
+      await api.post(`/api/dashboards/${newDashboard.id}/charts`, {
         title: chartConfig.title,
         queries: chartConfig.queries,
         hours: chartConfig.hours,
@@ -985,7 +985,7 @@ const applyTemplate = async (template) => {
 
 const loadUnacknowledgedAnomalies = async () => {
   try {
-    const response = await axios.get('/api/annotations')
+    const response = await api.get('/api/annotations')
     // Filter client-side for simplicity
     unacknowledgedAnomalies.value = response.data.filter(
       (a) => a.tags && a.tags.includes('anomaly') && !a.acknowledged
@@ -1001,7 +1001,7 @@ const loadUnacknowledgedAnomalies = async () => {
 
 const acknowledgeAnomaly = async (anomaly) => {
   try {
-    await axios.put(`/api/annotations/${anomaly.id}`, {
+    await api.put(`/api/annotations/${anomaly.id}`, {
       acknowledged: true
     })
     // Remove from local list

@@ -154,7 +154,7 @@
 <script setup>
 // Xerolux 2026
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import { useRouter } from 'vue-router'
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
@@ -190,7 +190,7 @@ const form = ref({
 
 onMounted(async () => {
   try {
-    const res = await axios.get('/api/info')
+    const res = await api.get('/api/info')
     if (res.data.heat_pump_models) {
       models.value = res.data.heat_pump_models.map((m) => ({ label: m, value: m }))
     }
@@ -230,7 +230,7 @@ const submitSetup = async () => {
 
   loading.value = true
   try {
-    const res = await axios.post('/api/setup', form.value)
+    const res = await api.post('/api/setup', form.value)
     if (res.data.success) {
       toast.add({
         severity: 'success',

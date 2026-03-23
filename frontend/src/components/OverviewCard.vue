@@ -26,18 +26,8 @@
 <script setup>
 // Xerolux 2026
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler
-} from 'chart.js'
 import { Line } from 'vue-chartjs'
-import axios from 'axios'
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler)
+import api from '@/utils/api.js'
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -114,7 +104,7 @@ const fetchHistory = async () => {
   const step = 300 // 5 min resolution
 
   try {
-    const res = await axios.get('/api/metrics/query_range', {
+    const res = await api.get('/api/metrics/query_range', {
       params: {
         query: props.metric,
         start,

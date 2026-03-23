@@ -78,7 +78,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { Bar } from 'vue-chartjs'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import { isDarkMode, getChartColors } from '../utils/chartConfig.js'
 import BarConfigDialog from './BarConfigDialog.vue'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -191,7 +191,7 @@ const fetchData = async () => {
     const allLabels = new Set()
 
     for (const query of props.queries) {
-      const response = await axios.get('/api/query', {
+      const response = await api.get('/api/query', {
         params: {
           query: query.query,
           start: start,

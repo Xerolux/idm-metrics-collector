@@ -141,7 +141,7 @@ import { ref, shallowRef, onMounted, onUnmounted, watch, computed } from 'vue'
 import { Line } from 'vue-chartjs'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import { wsClient } from '../utils/websocket.js'
 import { isDarkMode, getChartColors } from '../utils/chartConfig.js'
 import ChartConfigDialog from './ChartConfigDialog.vue'
@@ -340,7 +340,7 @@ const fetchData = async () => {
   // Fetch all metric queries first
   const metricPromises = metricQueries.map(async (q) => {
     try {
-      const res = await axios.get('/api/metrics/query_range', {
+      const res = await api.get('/api/metrics/query_range', {
         params: {
           query: q.query,
           start,
@@ -401,7 +401,7 @@ const fetchData = async () => {
   for (const q of expressionQueries) {
     if (q.expression && q.label) {
       try {
-        const exprRes = await axios.post('/api/query/evaluate', {
+        const exprRes = await api.post('/api/query/evaluate', {
           expression: q.expression,
           queries: queryDataMap
         })
@@ -478,7 +478,7 @@ const openConfig = () => {
 
 const onConfigSave = async (config) => {
   try {
-    await axios.put(`/api/dashboards/${props.dashboardId}/charts/${props.chartId}`, config)
+    await api.put(`/api/dashboards/${props.dashboardId}/charts/${props.chartId}`, config)
     toast.add({
       severity: 'success',
       summary: 'Erfolg',
@@ -507,7 +507,7 @@ const confirmDelete = () => {
 
 const deleteChart = async () => {
   try {
-    await axios.delete(`/api/dashboards/${props.dashboardId}/charts/${props.chartId}`)
+    await api.delete(`/api/dashboards/${props.dashboardId}/charts/${props.chartId}`)
     toast.add({
       severity: 'success',
       summary: 'Gelöscht',
@@ -532,7 +532,7 @@ const loadAnnotations = async () => {
     const start =
       props.hours === 0 || props.hours === '0' ? end - 86400 * 7 : end - props.hours * 3600
 
-    const response = await axios.get('/api/annotations', {
+    const response = await api.get('/api/annotations', {
       params: {
         dashboard_id: props.dashboardId,
         start: start,

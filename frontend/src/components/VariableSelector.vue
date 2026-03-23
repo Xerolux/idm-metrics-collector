@@ -33,7 +33,7 @@
 import { ref, onMounted } from 'vue'
 import Select from 'primevue/select'
 import MultiSelect from 'primevue/multiselect'
-import axios from 'axios'
+import api from '@/utils/api.js'
 
 // const props = defineProps({
 //     dashboardId: { type: String, default: null }
@@ -47,12 +47,12 @@ const selectedValues = ref({})
 const loadVariables = async () => {
   try {
     // First get all variable definitions
-    const response = await axios.get('/api/variables')
+    const response = await api.get('/api/variables')
     const variableDefs = response.data
 
     // Then fetch values for each variable
     for (const varDef of variableDefs) {
-      const valueResponse = await axios.get(`/api/variables/${varDef.id}`, {
+      const valueResponse = await api.get(`/api/variables/${varDef.id}`, {
         params: { fetch_values: true }
       })
 

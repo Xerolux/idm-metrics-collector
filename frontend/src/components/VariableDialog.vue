@@ -101,7 +101,7 @@ import Chips from 'primevue/chips'
 import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
-import axios from 'axios'
+import api from '@/utils/api.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -164,10 +164,10 @@ const handleSave = async () => {
 
     if (props.variable) {
       // Update existing
-      await axios.put(`/api/variables/${props.variable.id}`, data)
+      await api.put(`/api/variables/${props.variable.id}`, data)
     } else {
       // Create new
-      await axios.post('/api/variables', data)
+      await api.post('/api/variables', data)
     }
 
     emit('saved')
@@ -187,7 +187,7 @@ const handleSave = async () => {
 
 const handleDelete = async () => {
   try {
-    await axios.delete(`/api/variables/${props.variable.id}`)
+    await api.delete(`/api/variables/${props.variable.id}`)
     emit('saved')
     visible.value = false
     resetForm()

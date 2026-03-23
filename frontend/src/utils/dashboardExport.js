@@ -8,7 +8,7 @@
 
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
-import axios from 'axios'
+import api from '@/utils/api.js'
 
 /**
  * Export a DOM element as PNG image
@@ -242,7 +242,7 @@ export async function exportMetricsData(options) {
 
   try {
     // Call backend API
-    const response = await axios.post(
+    const response = await api.post(
       '/api/export/data',
       {
         format,

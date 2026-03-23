@@ -2356,7 +2356,7 @@
 <script setup>
 // Xerolux 2026
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import Fieldset from 'primevue/fieldset'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
@@ -2891,7 +2891,7 @@ const fetchCommunityAverages = async () => {
       headers['Authorization'] = `Bearer ${config.value.telemetry.auth_token}`
     }
 
-    const res = await axios.get(`${telemetryUrl}/api/v1/community/averages`, {
+    const res = await api.get(`${telemetryUrl}/api/v1/community/averages`, {
       params: {
         model: selectedStatsModel.value,
         metrics: statsMetrics.value
@@ -3257,7 +3257,7 @@ const showUpdateHelpDialog = ref(false)
 
 onMounted(async () => {
   try {
-    const res = await axios.get('/api/config')
+    const res = await api.get('/api/config')
     config.value = res.data
 
     // Convert whitelist/blacklist arrays to text
@@ -3279,7 +3279,7 @@ onMounted(async () => {
 
     // Get current client IP
     try {
-      const ipRes = await axios.get('/api/health')
+      const ipRes = await api.get('/api/health')
       currentClientIP.value = ipRes.data.client_ip || 'Unbekannt'
     } catch (e) {
       console.error('Failed to get client IP', e)
@@ -3287,7 +3287,7 @@ onMounted(async () => {
 
     // Load models
     try {
-      const infoRes = await axios.get('/api/info')
+      const infoRes = await api.get('/api/info')
       if (infoRes.data.heat_pump_models) {
         models.value = infoRes.data.heat_pump_models.map((m) => ({ label: m, value: m }))
       }
@@ -3324,7 +3324,7 @@ onMounted(async () => {
 
 const sendSignalTest = async () => {
   try {
-    const res = await axios.post('/api/signal/test', {
+    const res = await api.post('/api/signal/test', {
       message: 'Signal Test vom IDM Metrics Collector'
     })
     if (res.data.success) {
@@ -3402,7 +3402,7 @@ const loadStatus = async (showNotification = false) => {
 const checkUpdates = async () => {
   checkingUpdates.value = true
   try {
-    const res = await axios.get('/api/check-update')
+    const res = await api.get('/api/check-update')
     updateStatus.value = res.data
     if (res.data.update_available) {
       toast.add({
@@ -3439,7 +3439,7 @@ const savePassword = () => {
 
 const loadAiStatus = async () => {
   try {
-    const res = await axios.get('/api/ai/status')
+    const res = await api.get('/api/ai/status')
     aiStatus.value = res.data
   } catch (e) {
     console.error('Failed to load AI status', e)
@@ -3448,7 +3448,7 @@ const loadAiStatus = async () => {
 
 const loadTelemetryStatus = async () => {
   try {
-    const res = await axios.get('/api/telemetry/status')
+    const res = await api.get('/api/telemetry/status')
     telemetryStatus.value = res.data
 
     // Load admin-specific data if admin (parallel for better performance)
@@ -3503,7 +3503,7 @@ const toggleAdminAutoRefresh = () => {
 const manualSubmitTelemetry = async () => {
   submittingTelemetry.value = true
   try {
-    const res = await axios.post('/api/telemetry/submit')
+    const res = await api.post('/api/telemetry/submit')
     toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message, life: 3000 })
     loadTelemetryStatus()
   } catch (e) {
@@ -3521,7 +3521,7 @@ const manualSubmitTelemetry = async () => {
 const manualCheckModel = async () => {
   checkingModel.value = true
   try {
-    const res = await axios.post('/api/telemetry/check')
+    const res = await api.post('/api/telemetry/check')
     toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message, life: 3000 })
     loadTelemetryStatus()
   } catch (e) {
@@ -3600,7 +3600,7 @@ const saveConfig = async () => {
       backup_auto_upload: config.value.backup?.auto_upload || false,
       new_password: newPassword.value || undefined
     }
-    const res = await axios.post('/api/config', payload)
+    const res = await api.post('/api/config', payload)
     toast.add({
       severity: 'success',
       summary: 'Erfolg',
@@ -3630,7 +3630,7 @@ const confirmRestart = () => {
     icon: 'pi pi-exclamation-triangle',
     accept: async () => {
       try {
-        const res = await axios.post('/api/restart')
+        const res = await api.post('/api/restart')
         toast.add({ severity: 'info', summary: 'Neustart', detail: res.data.message, life: 3000 })
       } catch (e) {
         console.error(e)
@@ -3649,7 +3649,7 @@ const confirmRestart = () => {
 const loadBackups = async () => {
   loadingBackups.value = true
   try {
-    const res = await axios.get('/api/backup/list')
+    const res = await api.get('/api/backup/list')
     backups.value = res.data.backups || []
   } catch (e) {
     console.error(e)
@@ -3667,7 +3667,7 @@ const loadBackups = async () => {
 const createBackup = async () => {
   creatingBackup.value = true
   try {
-    const res = await axios.post('/api/backup/create')
+    const res = await api.post('/api/backup/create')
     if (res.data.success) {
       toast.add({
         severity: 'success',
@@ -3693,7 +3693,7 @@ const createBackup = async () => {
 
 const downloadBackup = async (filename) => {
   try {
-    const response = await axios.get(`/api/backup/download/${filename}`, {
+    const response = await api.get(`/api/backup/download/${filename}`, {
       responseType: 'blob'
     })
     const url = window.URL.createObjectURL(new Blob([response.data]))
@@ -3723,7 +3723,7 @@ const downloadBackup = async (filename) => {
 const uploadToCloud = async (filename) => {
   try {
     toast.add({ severity: 'info', summary: 'Info', detail: 'Upload gestartet...', life: 2000 })
-    const res = await axios.post(`/api/backup/upload/${filename}`)
+    const res = await api.post(`/api/backup/upload/${filename}`)
     if (res.data.success) {
       toast.add({
         severity: 'success',
@@ -3753,7 +3753,7 @@ const confirmDeleteBackup = (filename) => {
     acceptClass: 'p-button-danger',
     accept: async () => {
       try {
-        await axios.delete(`/api/backup/delete/${filename}`)
+        await api.delete(`/api/backup/delete/${filename}`)
         toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Backup gelöscht', life: 2000 })
         loadBackups()
       } catch (e) {
@@ -3790,7 +3790,7 @@ const restoreFromFile = async () => {
         formData.append('file', selectedFile.value)
         formData.append('restore_secrets', 'false')
 
-        const res = await axios.post('/api/backup/restore', formData, {
+        const res = await api.post('/api/backup/restore', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
 
@@ -3826,7 +3826,7 @@ const confirmDeleteDatabase = async () => {
 
   deletingDatabase.value = true
   try {
-    const res = await axios.post('/api/database/delete')
+    const res = await api.post('/api/database/delete')
     if (res.data.success) {
       toast.add({ severity: 'success', summary: 'Erfolg', detail: res.data.message, life: 5000 })
       showDeleteDialog.value = false

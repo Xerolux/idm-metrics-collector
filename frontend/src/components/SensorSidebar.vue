@@ -85,7 +85,7 @@
 <script setup>
 // Xerolux 2026
 import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 
 const emit = defineEmits(['add-to-chart'])
 
@@ -127,7 +127,7 @@ const refreshMetrics = async () => {
   loading.value = true
   error.value = null
   try {
-    const res = await axios.get('/api/metrics/available')
+    const res = await api.get('/api/metrics/available')
     metrics.value = res.data
   } catch (e) {
     error.value = 'Fehler beim Laden der Sensoren'

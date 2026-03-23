@@ -68,7 +68,7 @@
 <script setup>
 // Xerolux 2026
 import { ref, onMounted, onUnmounted } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
@@ -99,7 +99,7 @@ onUnmounted(() => {
 const fetchLogs = async () => {
   try {
     const url = lastId.value > 0 ? `/api/logs?since_id=${lastId.value}` : '/api/logs'
-    const res = await axios.get(url)
+    const res = await api.get(url)
 
     if (res.data && res.data.length > 0) {
       // Logs are returned [newest, ..., oldest]
@@ -130,7 +130,7 @@ const downloadLogs = () => {
 const shareLogs = async () => {
   sharing.value = true
   try {
-    const res = await axios.post('/api/logs/share')
+    const res = await api.post('/api/logs/share')
     if (res.data.success) {
       shareLink.value = res.data.link
       shareDialogVisible.value = true

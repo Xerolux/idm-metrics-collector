@@ -106,7 +106,7 @@
 <script setup>
 // Xerolux 2026
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import api from '@/utils/api.js'
 import Card from 'primevue/card'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
@@ -141,7 +141,7 @@ onMounted(() => {
 const fetchSchedule = async () => {
   loading.value = true
   try {
-    const res = await axios.get('/api/schedule')
+    const res = await api.get('/api/schedule')
     jobs.value = res.data.jobs
     sensors.value = res.data.sensors
   } catch (e) {
@@ -160,7 +160,7 @@ const fetchSchedule = async () => {
 const addJob = async () => {
   saving.value = true
   try {
-    await axios.post('/api/schedule', {
+    await api.post('/api/schedule', {
       action: 'add',
       sensor: newJob.value.sensor,
       value: newJob.value.value,
@@ -191,7 +191,7 @@ const addJob = async () => {
 
 const deleteJob = async (id) => {
   try {
-    await axios.post('/api/schedule', { action: 'delete', job_id: id })
+    await api.post('/api/schedule', { action: 'delete', job_id: id })
     fetchSchedule()
     toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Gelöscht', life: 3000 })
   } catch (e) {
@@ -207,7 +207,7 @@ const deleteJob = async (id) => {
 
 const toggleJob = async (id, currentState) => {
   try {
-    await axios.post('/api/schedule', { action: 'toggle', job_id: id, current_state: currentState })
+    await api.post('/api/schedule', { action: 'toggle', job_id: id, current_state: currentState })
     fetchSchedule()
   } catch (e) {
     console.error(e)
@@ -222,7 +222,7 @@ const toggleJob = async (id, currentState) => {
 
 const runJob = async (id) => {
   try {
-    const res = await axios.post('/api/schedule', { action: 'run_now', job_id: id })
+    const res = await api.post('/api/schedule', { action: 'run_now', job_id: id })
     toast.add({ severity: 'success', summary: 'Ausgeführt', detail: res.data.message, life: 3000 })
   } catch (e) {
     console.error(e)
