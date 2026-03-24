@@ -28,6 +28,9 @@ class AlertManager:
     def load(self):
         with self.lock:
             self.alerts = db.get_alerts()
+            # ⚡ Bolt: Pre-parse threshold strings to avoid O(N) redundant float() conversions per tick
+            for alert in self.alerts:
+                alert["_parsed_threshold"] = _to_float(alert.get("threshold"))
             logger.info(f"Loaded {len(self.alerts)} alerts")
 
     def add_alert(self, alert_data):
@@ -46,6 +49,8 @@ class AlertManager:
                 "last_triggered": 0,
             }
             db.add_alert(alert)
+            # ⚡ Bolt: Cache parsed threshold value
+            alert["_parsed_threshold"] = _to_float(alert.get("threshold"))
             self.alerts.append(alert)
             return alert
 
@@ -55,6 +60,9 @@ class AlertManager:
             for alert in self.alerts:
                 if alert["id"] == alert_id:
                     alert.update(data)
+                    # ⚡ Bolt: Update cached parsed threshold
+                    if "threshold" in data:
+                        alert["_parsed_threshold"] = _to_float(data.get("threshold"))
                     break
 
     def delete_alert(self, alert_id):
@@ -98,7 +106,6 @@ class AlertManager:
                     elif alert["type"] == "threshold":
                         sensor = alert.get("sensor")
                         condition = alert.get("condition")
-                        threshold_str = str(alert.get("threshold"))
 
                         if sensor not in current_data:
                             continue
@@ -107,7 +114,14 @@ class AlertManager:
                         trigger_value = current_val
 
                         val_f = _to_float(current_val)
-                        thresh_f = _to_float(threshold_str)
+
+                        # ⚡ Bolt: Handle legacy alerts in memory that might not have the cache initialized yet
+                        if "_parsed_threshold" not in alert:
+                            alert["_parsed_threshold"] = _to_float(
+                                alert.get("threshold")
+                            )
+
+                        thresh_f = alert.get("_parsed_threshold")
 
                         if val_f is not None and thresh_f is not None:
                             # Numeric comparison
@@ -121,6 +135,7 @@ class AlertManager:
                                 should_trigger = val_f != thresh_f
                         else:
                             # String comparison
+                            threshold_str = str(alert.get("threshold"))
                             val_s = str(current_val)
                             if condition == "=":
                                 should_trigger = val_s == threshold_str
