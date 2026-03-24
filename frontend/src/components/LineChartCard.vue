@@ -5,7 +5,7 @@
         <h3 class="text-gray-900 dark:text-gray-100 font-bold text-sm leading-tight">{{ title }}</h3>
         <span class="text-xs text-gray-500 dark:text-gray-400">Verlauf - letzte {{ hours }} Stunden</span>
       </div>
-      <button
+      <button type="button"
         class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500 rounded"
         title="Vollbild umschalten"
         aria-label="Vollbild umschalten"
