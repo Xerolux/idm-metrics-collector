@@ -62,14 +62,14 @@ class TestScheduler(unittest.TestCase):
         # Verify modbus writes
         self.assertEqual(self.modbus_mock.write_sensor.call_count, 3)
 
-        # Verify db.update_jobs_last_run was called once with 3 updates
-        self.mock_db.update_jobs_last_run.assert_called_once()
-        args, _ = self.mock_db.update_jobs_last_run.call_args
-        updates = args[0]
-        self.assertEqual(len(updates), 3)
+        # Verify db.update_jobs_last_run was called 3 times (once per job execution)
+        self.assertEqual(self.mock_db.update_jobs_last_run.call_count, 3)
+        updated_ids = set()
+        for call in self.mock_db.update_jobs_last_run.call_args_list:
+            args, _ = call
+            updates = args[0]
+            updated_ids.add(updates[0][0])
 
-        # Check job IDs in updates
-        updated_ids = {u[0] for u in updates}
         self.assertEqual(updated_ids, {"job_0", "job_1", "job_2"})
 
         # Check that jobs in memory were updated

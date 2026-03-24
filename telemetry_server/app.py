@@ -131,6 +131,7 @@ _banned_ips: Dict[str, Tuple[float, int]] = {}
 _file_hash_cache: Dict[str, Tuple[Optional[str], float]] = {}
 _pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (None, 0)
 _community_avg_cache: Dict[str, Tuple[Dict[str, Any], float]] = {}
+_contribution_rank_cache: Tuple[Optional[Dict[str, Any]], float] = (None, 0)
 
 
 async def run_sync(func, *args):
@@ -2387,14 +2388,33 @@ async def admin_installation_details(
             "group by(installation_id) (count by (installation_id))"
         )
 
-        # Execute all queries in parallel
-        response, count_resp, first_resp, last_resp, rank_resp = await asyncio.gather(
+        # ⚡ Bolt: Performance Optimization
+        # The 'Contribution Rank' query involves an O(N) database load on VictoriaMetrics on every request.
+        # We cache it here to avoid a redundant query for `POOL_STATS_CACHE_TTL` seconds.
+        global _contribution_rank_cache
+        now = time.time()
+        cached_rank_data, timestamp = _contribution_rank_cache
+        use_cache = cached_rank_data and (now - timestamp < POOL_STATS_CACHE_TTL)
+
+        tasks = [
             client.get(VM_QUERY_URL, params={"query": metrics_query}),
             client.get(VM_QUERY_URL, params={"query": timestamps_query}),
             client.get(VM_QUERY_URL, params={"query": first_seen_query}),
             client.get(VM_QUERY_URL, params={"query": last_seen_query}),
-            client.get(VM_QUERY_URL, params={"query": all_installations_query}),
-        )
+        ]
+        if not use_cache:
+            tasks.append(
+                client.get(VM_QUERY_URL, params={"query": all_installations_query})
+            )
+
+        # Execute all queries in parallel
+        results_list = await asyncio.gather(*tasks)
+
+        response = results_list[0]
+        count_resp = results_list[1]
+        first_resp = results_list[2]
+        last_resp = results_list[3]
+        rank_resp = results_list[4] if not use_cache else None
 
         # Process Results
 
@@ -2486,29 +2506,36 @@ async def admin_installation_details(
         # 5. Process Contribution Rank
 
         contribution_rank = "Unknown"
-        if rank_resp.status_code == 200:
+        if use_cache and cached_rank_data:
+            rank_data = cached_rank_data
+        elif rank_resp and rank_resp.status_code == 200:
             rank_data = rank_resp.json()
-            if rank_data.get("data") and rank_data["data"].get("result"):
-                counts = [
-                    (r["metric"].get("installation_id"), int(r["value"][1]))
-                    for r in rank_data["data"]["result"]
-                    if r.get("value") and len(r["value"]) > 1
-                ]
-                counts.sort(key=lambda x: x[1], reverse=True)
+            # Update cache
+            _contribution_rank_cache = (rank_data, now)
+        else:
+            rank_data = None
 
-                total_installs = len(counts)
-                for idx, (inst_id, _) in enumerate(counts):
-                    if inst_id == target_id:
-                        percentile = ((idx + 1) / total_installs) * 100
-                        if percentile <= 10:
-                            contribution_rank = "Top 10%"
-                        elif percentile <= 25:
-                            contribution_rank = "Top 25%"
-                        elif percentile <= 50:
-                            contribution_rank = "Top 50%"
-                        else:
-                            contribution_rank = f"Top {int(percentile)}%"
-                        break
+        if rank_data and rank_data.get("data") and rank_data["data"].get("result"):
+            counts = [
+                (r["metric"].get("installation_id"), int(r["value"][1]))
+                for r in rank_data["data"]["result"]
+                if r.get("value") and len(r["value"]) > 1
+            ]
+            counts.sort(key=lambda x: x[1], reverse=True)
+
+            total_installs = len(counts)
+            for idx, (inst_id, _) in enumerate(counts):
+                if inst_id == target_id:
+                    percentile = ((idx + 1) / total_installs) * 100
+                    if percentile <= 10:
+                        contribution_rank = "Top 10%"
+                    elif percentile <= 25:
+                        contribution_rank = "Top 25%"
+                    elif percentile <= 50:
+                        contribution_rank = "Top 50%"
+                    else:
+                        contribution_rank = f"Top {int(percentile)}%"
+                    break
 
         return {
             "installation_id": target_id,
