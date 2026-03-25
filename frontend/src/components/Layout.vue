@@ -191,9 +191,11 @@ onUnmounted(() => {
         </span>
       </div>
       <button
+        type="button"
         @click.stop="dismissUpdateBanner"
         class="p-1 hover:bg-blue-500 rounded transition-colors"
         title="Ausblenden"
+        aria-label="Ausblenden"
       >
         <i class="pi pi-times"></i>
       </button>

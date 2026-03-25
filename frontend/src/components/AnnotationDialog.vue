@@ -45,6 +45,7 @@
         <label class="block text-sm font-medium text-gray-700 mb-2">Farbe</label>
         <div class="flex gap-2 flex-wrap">
           <button
+            type="button"
             v-for="color in presetColors"
             :key="color"
             @click="localAnnotation.color = color"
@@ -56,6 +57,7 @@
             ]"
             :style="{ backgroundColor: color }"
             :title="color"
+            :aria-label="color"
           />
         </div>
       </div>
