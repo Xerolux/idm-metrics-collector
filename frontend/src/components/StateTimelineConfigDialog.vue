@@ -69,6 +69,8 @@
               size="small"
               severity="danger"
               text
+              aria-label="Farbe entfernen"
+              title="Farbe entfernen"
             />
           </div>
         </div>
