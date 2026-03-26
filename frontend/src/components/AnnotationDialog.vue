@@ -47,17 +47,17 @@
           <button
             type="button"
             v-for="color in presetColors"
-            :key="color"
-            @click="localAnnotation.color = color"
+            :key="color.hex"
+            @click="localAnnotation.color = color.hex"
             :class="[
-              'w-8 h-8 rounded-full border-2 transition-all',
-              localAnnotation.color === color
+              'w-8 h-8 rounded-full border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500',
+              localAnnotation.color === color.hex
                 ? 'border-gray-900 scale-110'
                 : 'border-gray-300 hover:border-gray-400'
             ]"
-            :style="{ backgroundColor: color }"
-            :title="color"
-            :aria-label="color"
+            :style="{ backgroundColor: color.hex }"
+            :title="color.name"
+            :aria-label="color.name"
           />
         </div>
       </div>
@@ -118,13 +118,13 @@ const localAnnotation = ref({
 })
 
 const presetColors = [
-  '#ef4444', // red
-  '#f59e0b', // amber
-  '#10b981', // emerald
-  '#3b82f6', // blue
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#6b7280' // gray
+  { hex: '#ef4444', name: 'Rot' },
+  { hex: '#f59e0b', name: 'Orange' },
+  { hex: '#10b981', name: 'Grün' },
+  { hex: '#3b82f6', name: 'Blau' },
+  { hex: '#8b5cf6', name: 'Violett' },
+  { hex: '#ec4899', name: 'Pink' },
+  { hex: '#6b7280', name: 'Grau' }
 ]
 
 const resetForm = () => {
