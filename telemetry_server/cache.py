@@ -4,12 +4,16 @@ import os
 import time
 from typing import Dict, Optional, Tuple, Any
 
-from .config import cache_config
+try:
+    from .config import cache_config
+except ImportError:
+    from config import cache_config
 
 
 class FileHashCache:
-    def __init__(self, ttl: int = cache_config.hash_ttl):
+    def __init__(self, ttl: int = cache_config.hash_ttl, max_size: int = 10000):
         self.ttl = ttl
+        self.max_size = max_size
         self._cache: Dict[str, Tuple[Optional[str], float]] = {}
 
     async def get(self, filepath: str) -> Optional[str]:
@@ -20,11 +24,14 @@ class FileHashCache:
             if now - timestamp < self.ttl:
                 return cached_hash
 
-        hash_val = await asyncio.get_event_loop().run_in_executor(
-            None, self._compute_hash, filepath
-        )
+        hash_val = await asyncio.to_thread(self._compute_hash, filepath)
 
         if hash_val:
+            if len(self._cache) >= self.max_size:
+                sorted_items = sorted(self._cache.items(), key=lambda x: x[1][1])
+                excess = len(self._cache) - self.max_size + 1
+                for k, _ in sorted_items[:excess]:
+                    del self._cache[k]
             self._cache[filepath] = (hash_val, now)
 
         return hash_val
@@ -43,6 +50,13 @@ class FileHashCache:
 
     def clear(self) -> None:
         self._cache.clear()
+
+    def cleanup_expired(self) -> int:
+        now = time.time()
+        expired = [k for k, (_, t) in self._cache.items() if now - t >= self.ttl]
+        for k in expired:
+            del self._cache[k]
+        return len(expired)
 
 
 class PoolStatsCache:
@@ -64,8 +78,9 @@ class PoolStatsCache:
 
 
 class CommunityAverageCache:
-    def __init__(self, ttl: int = cache_config.community_avg_ttl):
+    def __init__(self, ttl: int = cache_config.community_avg_ttl, max_size: int = 1000):
         self.ttl = ttl
+        self.max_size = max_size
         self._cache: Dict[str, Tuple[Dict[str, Any], float]] = {}
 
     def get(self, cache_key: str) -> Optional[Tuple[Dict[str, Any], float]]:
@@ -76,6 +91,11 @@ class CommunityAverageCache:
         return None
 
     async def set(self, cache_key: str, result: Dict[str, Any]) -> None:
+        if len(self._cache) >= self.max_size:
+            sorted_items = sorted(self._cache.items(), key=lambda x: x[1][1])
+            excess = len(self._cache) - self.max_size + 1
+            for k, _ in sorted_items[:excess]:
+                del self._cache[k]
         self._cache[cache_key] = (result, time.time())
 
     def clear(self) -> None:
@@ -89,11 +109,31 @@ class CommunityAverageCache:
         return len(expired)
 
 
+class ContributionRankCache:
+    def __init__(self, ttl: int = cache_config.pool_stats_ttl):
+        self.ttl = ttl
+        self._cache: Tuple[Optional[Dict[str, Any]], float] = (None, 0)
+
+    async def get(self) -> Optional[Tuple[Dict[str, Any], float]]:
+        cached_data, timestamp = self._cache
+        if cached_data and time.time() - timestamp < self.ttl:
+            return (cached_data, timestamp)
+        return None
+
+    async def set(self, rank_data: Dict[str, Any]) -> None:
+        self._cache = (rank_data, time.time())
+
+    def clear(self) -> None:
+        self._cache = (None, 0)
+
+
 file_hash_cache = FileHashCache()
 pool_stats_cache = PoolStatsCache()
 community_avg_cache = CommunityAverageCache()
+contribution_rank_cache = ContributionRankCache()
 
 
 async def cleanup_all_caches() -> int:
-    total_expired = community_avg_cache.cleanup_expired()
-    return total_expired
+    total = file_hash_cache.cleanup_expired()
+    total += community_avg_cache.cleanup_expired()
+    return total

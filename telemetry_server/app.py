@@ -1,4 +1,5 @@
 # Xerolux 2026
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Header, Depends, Request, status
 from fastapi.responses import (
     FileResponse,
@@ -14,7 +15,7 @@ import os
 import httpx
 import time
 import asyncio
-import threading
+
 from datetime import timedelta, datetime, timezone
 import hashlib
 import re
@@ -25,7 +26,6 @@ import hmac
 import tempfile
 from cryptography.fernet import Fernet
 from pathlib import Path
-from collections import OrderedDict
 from analysis import get_community_averages
 import structlog
 import orjson
@@ -61,6 +61,20 @@ from installation_manager import (
 )
 from training_queue import training_queue
 from config import config, rate_limit_config, cache_config, security_config
+from security import (
+    mask_ip,
+    mask_id,
+    validate_installation_id as _validate_installation_id,
+    validate_model_name as _validate_model_name,
+    get_client_ip,
+)
+from rate_limit import rate_limiter
+from cache import (
+    file_hash_cache,
+    pool_stats_cache,
+    community_avg_cache,
+    contribution_rank_cache,
+)
 
 # Setup Structured Logging
 structlog.configure(
@@ -120,169 +134,45 @@ HASH_CACHE_TTL = cache_config.hash_ttl
 POOL_STATS_CACHE_TTL = cache_config.pool_stats_ttl
 COMMUNITY_AVG_CACHE_TTL = cache_config.community_avg_ttl
 
-# Cache size limits to prevent unbounded growth
 MAX_BANNED_IPS = 10000
-MAX_FILE_HASH_CACHE = 10000
-MAX_COMMUNITY_AVG_CACHE = 1000
 
-_rate_limit_store: Dict[str, List[float]] = OrderedDict()
-_rate_limit_lock = threading.Lock()
+
 _banned_ips: Dict[str, Tuple[float, int]] = {}
-_file_hash_cache: Dict[str, Tuple[Optional[str], float]] = {}
-_pool_stats_cache: Tuple[Optional[Dict[str, Any]], float] = (None, 0)
-_community_avg_cache: Dict[str, Tuple[Dict[str, Any], float]] = {}
-_contribution_rank_cache: Tuple[Optional[Dict[str, Any]], float] = (None, 0)
 
 
-async def run_sync(func, *args):
-    """Run a synchronous function in the default executor."""
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, func, *args)
+def run_sync(func, *args):
+    return asyncio.to_thread(func, *args)
 
 
-# Security: Disable Docs, ReDoc, and OpenAPI to prevent scanning
-app = FastAPI(
-    title="IDM Telemetry Server",
-    version="1.0.6",
-    docs_url=None,
-    redoc_url=None,
-    openapi_url=None,
-    default_response_class=ORJSONResponse,
-)
-
-
-async def cleanup_rate_limits_and_bans():
-    """Background task to clean up stale rate limit entries and expired bans."""
+async def _cleanup_task():
+    """Background task to clean up expired caches and bans."""
     while True:
-        await asyncio.sleep(300)  # Clean every 5 minutes
+        await asyncio.sleep(300)
         try:
+            await asyncio.to_thread(audit_logger.cleanup_old_logs)
+            await asyncio.to_thread(training_queue.cleanup_old_tasks, max_age_days=30)
+            file_hash_cache.cleanup_expired()
+            community_avg_cache.cleanup_expired()
+
             now = time.time()
-            keys_to_remove = []
-
-            # Clean rate limit entries
-            with _rate_limit_lock:
-                for ip, timestamps in list(_rate_limit_store.items()):
-                    # Filter out old timestamps first
-                    valid_timestamps = [
-                        t for t in timestamps if now - t < RATE_LIMIT_WINDOW
-                    ]
-                    if not valid_timestamps:
-                        keys_to_remove.append(ip)
-                    else:
-                        _rate_limit_store[ip] = valid_timestamps
-
-                for k in keys_to_remove:
-                    if k in _rate_limit_store:
-                        del _rate_limit_store[k]
-
-            if keys_to_remove:
-                logger.info("rate_limit_cleanup", removed=len(keys_to_remove))
-
-            # Clean expired IP bans
-            expired_bans = []
-            for ip, (ban_time, duration) in list(_banned_ips.items()):
-                if now - ban_time >= duration:
-                    expired_bans.append(ip)
-
+            expired_bans = [
+                ip for ip, (bt, dur) in list(_banned_ips.items()) if now - bt >= dur
+            ]
             for ip in expired_bans:
                 del _banned_ips[ip]
-
-            # Enforce size limit on banned IPs (remove oldest if over limit)
             if len(_banned_ips) > MAX_BANNED_IPS:
-                # Sort by ban time and remove oldest entries
-                sorted_bans = sorted(
-                    _banned_ips.items(), key=lambda x: x[1][0]
-                )  # Sort by ban_time
-                excess = len(_banned_ips) - MAX_BANNED_IPS
-                for ip, _ in sorted_bans[:excess]:
+                sorted_bans = sorted(_banned_ips.items(), key=lambda x: x[1][0])
+                for ip, _ in sorted_bans[: len(_banned_ips) - MAX_BANNED_IPS]:
                     del _banned_ips[ip]
-                logger.info(
-                    "ip_ban_size_limit_enforced",
-                    removed=excess,
-                    remaining=MAX_BANNED_IPS,
-                )
-
-            if expired_bans:
-                logger.info("ip_ban_cleanup", expired=len(expired_bans))
-
-            # Clean file hash cache
-            expired_hashes = []
-            for path, (_, timestamp) in list(_file_hash_cache.items()):
-                if now - timestamp >= HASH_CACHE_TTL:
-                    expired_hashes.append(path)
-
-            for path in expired_hashes:
-                del _file_hash_cache[path]
-
-            # Enforce size limit on file hash cache (remove oldest if over limit)
-            if len(_file_hash_cache) > MAX_FILE_HASH_CACHE:
-                # Sort by timestamp and remove oldest entries
-                sorted_hashes = sorted(
-                    _file_hash_cache.items(), key=lambda x: x[1][1]
-                )  # Sort by timestamp
-                excess = len(_file_hash_cache) - MAX_FILE_HASH_CACHE
-                for path, _ in sorted_hashes[:excess]:
-                    del _file_hash_cache[path]
-                logger.info(
-                    "file_hash_cache_size_limit_enforced",
-                    removed=excess,
-                    remaining=MAX_FILE_HASH_CACHE,
-                )
-
-            # Clean community averages cache
-            expired_avg_cache = []
-            for cache_key, (_, timestamp) in list(_community_avg_cache.items()):
-                if now - timestamp >= COMMUNITY_AVG_CACHE_TTL:
-                    expired_avg_cache.append(cache_key)
-
-            for cache_key in expired_avg_cache:
-                del _community_avg_cache[cache_key]
-
-            # Enforce size limit on community avg cache (remove oldest if over limit)
-            if len(_community_avg_cache) > MAX_COMMUNITY_AVG_CACHE:
-                # Sort by timestamp and remove oldest entries
-                sorted_avg = sorted(
-                    _community_avg_cache.items(), key=lambda x: x[1][1]
-                )  # Sort by timestamp
-                excess = len(_community_avg_cache) - MAX_COMMUNITY_AVG_CACHE
-                for cache_key, _ in sorted_avg[:excess]:
-                    del _community_avg_cache[cache_key]
-                logger.info(
-                    "community_avg_cache_size_limit_enforced",
-                    removed=excess,
-                    remaining=MAX_COMMUNITY_AVG_CACHE,
-                )
-
-            if expired_avg_cache:
-                logger.info(
-                    "community_avg_cache_cleanup", expired=len(expired_avg_cache)
-                )
-
-            # Clean old audit logs (run once per day)
-            # Check if we should run daily cleanup (every ~288 iterations of 5min = 24h)
-            if not hasattr(cleanup_rate_limits_and_bans, "_cleanup_counter"):
-                cleanup_rate_limits_and_bans._cleanup_counter = 0
-
-            cleanup_rate_limits_and_bans._cleanup_counter += 1
-
-            # Run audit log cleanup once per day (every 288 iterations)
-            if cleanup_rate_limits_and_bans._cleanup_counter >= 288:
-                await asyncio.to_thread(audit_logger.cleanup_old_logs)
-                await asyncio.to_thread(
-                    training_queue.cleanup_old_tasks, max_age_days=30
-                )
-                cleanup_rate_limits_and_bans._cleanup_counter = 0
-
         except Exception as e:
             logger.error("cleanup_error", error=str(e))
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize HTTP client, Redis, and start background tasks."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: startup and shutdown."""
     global _redis_client
 
-    # Security Checks
     if AUTH_TOKEN == "change-me-to-something-secure":
         logger.critical(
             "insecure_configuration",
@@ -296,14 +186,12 @@ async def startup_event():
             message="TELEMETRY_ENCRYPTION_KEY is using default value! Models are not secure.",
         )
 
-    # Create HTTPX client with connection pooling
     app.state.http_client = httpx.AsyncClient(
         timeout=httpx.Timeout(10.0, connect=5.0),
         limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
     )
     logger.info("http_client_initialized")
 
-    # Initialize Redis if configured
     if USE_REDIS:
         try:
             _redis_client = redis.from_url(
@@ -313,15 +201,11 @@ async def startup_event():
                 socket_timeout=5,
                 retry_on_timeout=True,
             )
-            # Test connection
             _redis_client.ping()
-
-            # Mask Redis Password
             safe_url = REDIS_URL
             try:
                 parsed = urlparse(REDIS_URL)
                 if parsed.password:
-                    # Construct masked URL safely
                     user_part = parsed.username if parsed.username is not None else ""
                     host_part = parsed.hostname if parsed.hostname else ""
                     port_part = f":{parsed.port}" if parsed.port else ""
@@ -329,11 +213,7 @@ async def startup_event():
                     safe_url = parsed._replace(netloc=safe_netloc).geturl()
             except Exception:
                 safe_url = "redis://***"
-
-            logger.info(
-                "redis_connected",
-                url=safe_url,
-            )
+            logger.info("redis_connected", url=safe_url)
         except Exception as e:
             logger.warning(
                 "redis_connection_failed", error=str(e), fallback="in_memory"
@@ -351,19 +231,21 @@ async def startup_event():
                 hint="Install redis package to enable persistent rate limiting",
             )
 
-    # Start cleanup task
-    asyncio.create_task(cleanup_rate_limits_and_bans())
+    cleanup_handle = asyncio.create_task(_cleanup_task())
     logger.info("background_tasks_started")
 
+    yield
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean up resources."""
+    cleanup_handle.cancel()
+    try:
+        await cleanup_handle
+    except asyncio.CancelledError:
+        pass
+
     if hasattr(app.state, "http_client"):
         await app.state.http_client.aclose()
         logger.info("http_client_closed")
 
-    # Close Redis connection
     if _redis_client:
         try:
             _redis_client.close()
@@ -372,42 +254,17 @@ async def shutdown_event():
             logger.warning("redis_close_error", error=str(e))
 
 
-# Middleware for HTTPS enforcement and Security Headers
-@app.middleware("http")
-async def enforce_https(request: Request, call_next):
-    # Trust X-Forwarded-Proto from reverse proxy
-    proto = request.headers.get("X-Forwarded-Proto", "https")
-    if proto == "http":
-        return PlainTextResponse(
-            "Service Unavailable", status_code=status.HTTP_503_SERVICE_UNAVAILABLE
-        )
-
-    response = await call_next(request)
-
-    # Add security headers
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
-
-    # HSTS (only if already HTTPS)
-    if proto == "https":
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains"
-        )
-
-    # Content Security Policy (restrictive for API)
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';"
-    )
-
-    return response
+app = FastAPI(
+    title="IDM Telemetry Server",
+    version="1.0.6",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+    default_response_class=ORJSONResponse,
+    lifespan=lifespan,
+)
 
 
-# Obfuscate 404 errors (Scanning attempts)
 @app.exception_handler(404)
 async def not_found_exception_handler(request: Request, exc: HTTPException):
     return PlainTextResponse(
@@ -426,131 +283,14 @@ async def root():
 def check_rate_limit(
     client_ip: str, endpoint_type: str = "default"
 ) -> Tuple[bool, Dict[str, str]]:
-    """
-    Rate limiting check with headers and endpoint-specific limits.
-    Supports Redis for persistence (falls back to in-memory).
-
-    Returns (allowed, headers_dict).
-
-    Args:
-        client_ip: The client IP address
-        endpoint_type: Type of endpoint (default, submit, status, model, admin)
-    """
-    now = time.time()
-
-    # Get rate limit for this endpoint type
-    rate_limit = RATE_LIMITS.get(endpoint_type, RATE_LIMITS["default"])
-
-    # Use compound key for IP + endpoint type
-    compound_key = f"ratelimit:{client_ip}:{endpoint_type}"
-
-    # Use Redis if available, otherwise fall back to in-memory
-    if _redis_client:
-        try:
-            # Redis-based rate limiting using Sorted Sets
-            # Use timestamp as score for automatic expiration
-            pipe = _redis_client.pipeline()
-
-            # Remove entries outside the time window
-            min_score = now - RATE_LIMIT_WINDOW
-            pipe.zremrangebyscore(compound_key, 0, min_score)
-
-            # Count current requests in window
-            pipe.zcard(compound_key)
-            pipe.zadd(compound_key, {str(now): now})
-            pipe.expire(compound_key, RATE_LIMIT_WINDOW)
-
-            results = pipe.execute()
-            current_count = results[1]  # zcard result
-
-            remaining = max(0, rate_limit - current_count)
-            # Get oldest timestamp for reset time calculation
-            oldest = _redis_client.zrange(compound_key, 0, 0, withscores=True)
-            reset_time = (
-                int(oldest[0][1] + RATE_LIMIT_WINDOW)
-                if oldest
-                else int(now + RATE_LIMIT_WINDOW)
-            )
-
-            # Check limit
-            if current_count >= rate_limit:
-                logger.warning(
-                    "rate_limit_exceeded_redis",
-                    ip=mask_ip(client_ip),
-                    endpoint=endpoint_type,
-                )
-                return False, {
-                    "X-RateLimit-Limit": str(rate_limit),
-                    "X-RateLimit-Remaining": "0",
-                    "X-RateLimit-Reset": str(reset_time),
-                    "Retry-After": str(RATE_LIMIT_WINDOW),
-                }
-
-            return True, {
-                "X-RateLimit-Limit": str(rate_limit),
-                "X-RateLimit-Remaining": str(remaining - 1),
-                "X-RateLimit-Reset": str(reset_time),
-            }
-
-        except Exception as e:
-            logger.warning(
-                "redis_rate_limit_failed", error=str(e), fallback="in_memory"
-            )
-            # Fall through to in-memory implementation
-
-    # In-memory rate limiting (fallback)
-    with _rate_limit_lock:
-        # Check if too many IPs stored
-        if len(_rate_limit_store) >= MAX_RATE_LIMIT_ENTRIES:
-            # Remove oldest entries (LRU eviction)
-            evicted_count = 0
-            for _ in range(100):
-                if _rate_limit_store:
-                    _rate_limit_store.popitem(last=False)
-                    evicted_count += 1
-                else:
-                    break
-            logger.warning("rate_limit_eviction", evicted=evicted_count)
-
-        # Initialize list if new key (since OrderedDict doesn't support default_factory)
-        if compound_key not in _rate_limit_store:
-            _rate_limit_store[compound_key] = []
-
-        # Clean old entries
-        _rate_limit_store[compound_key] = [
-            t for t in _rate_limit_store[compound_key] if now - t < RATE_LIMIT_WINDOW
-        ]
-
-        # Mark as recently used
-        _rate_limit_store.move_to_end(compound_key)
-
-        remaining = max(0, rate_limit - len(_rate_limit_store[compound_key]))
-        reset_time = int(
-            max(_rate_limit_store[compound_key]) + RATE_LIMIT_WINDOW
-            if _rate_limit_store[compound_key]
-            else now + RATE_LIMIT_WINDOW
+    allowed, headers = rate_limiter.check(client_ip, endpoint_type)
+    if not allowed:
+        logger.warning(
+            "rate_limit_exceeded",
+            ip=mask_ip(client_ip),
+            endpoint=endpoint_type,
         )
-
-        # Check limit
-        if len(_rate_limit_store[compound_key]) >= rate_limit:
-            logger.warning(
-                "rate_limit_exceeded_memory",
-                ip=mask_ip(client_ip),
-                endpoint=endpoint_type,
-            )
-            return False, {
-                "X-RateLimit-Limit": str(rate_limit),
-                "X-RateLimit-Remaining": "0",
-                "X-RateLimit-Reset": str(reset_time),
-                "Retry-After": str(RATE_LIMIT_WINDOW),
-            }
-
-        _rate_limit_store[compound_key].append(now)
-    return True, {
-        "X-RateLimit-Limit": str(rate_limit),
-        "X-RateLimit-Remaining": str(remaining - 1),
-        "X-RateLimit-Reset": str(reset_time),
-    }
+    return allowed, headers
 
 
 async def check_ip_ban(client_ip: str) -> bool:
@@ -630,72 +370,23 @@ def ban_ip(client_ip: str, duration: Optional[int] = None) -> None:
     )
 
 
-def _get_file_hash_sync(filepath: str) -> Optional[str]:
-    """Synchronous internal function for hash calculation."""
-    if not os.path.exists(filepath):
-        return None
-    try:
-        with open(filepath, "rb") as f:
-            return hashlib.file_digest(f, "sha256").hexdigest()
-    except Exception:
-        return None
-
-
 async def get_file_hash(filepath: str) -> Optional[str]:
-    """Calculate SHA256 hash of a file with caching."""
-    now = time.time()
-
-    # Check cache
-    if filepath in _file_hash_cache:
-        cached_hash, timestamp = _file_hash_cache[filepath]
-        if now - timestamp < HASH_CACHE_TTL:
-            return cached_hash
-
-    # Calculate new hash
-    loop = asyncio.get_event_loop()
-    hash_val = await loop.run_in_executor(None, _get_file_hash_sync, filepath)
-
-    # Cache it
-    if hash_val:
-        _file_hash_cache[filepath] = (hash_val, now)
-
-    return hash_val
+    return await file_hash_cache.get(filepath)
 
 
 def validate_installation_id(installation_id: str) -> str:
-    """Validate installation ID is a UUID."""
     try:
-        uuid.UUID(installation_id)
+        _validate_installation_id(installation_id)
         return installation_id
-    except ValueError:
-        raise HTTPException(
-            status_code=400, detail="Invalid installation_id format (must be UUID)"
-        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 def validate_model_name(model_name: Optional[str]) -> Optional[str]:
-    """Validate model name contains only safe characters."""
-    if not model_name:
-        return None
-
-    # Check for null bytes
-    if "\x00" in model_name:
-        raise HTTPException(status_code=400, detail="Invalid model name format")
-
-    # Check length
-    if len(model_name) > 100:
-        raise HTTPException(status_code=400, detail="Model name too long")
-
-    # Allow alphanumeric, underscore, hyphen, dot, space, parentheses
-    if not re.match(r"^[a-zA-Z0-9_\-\. \(\)]+$", model_name):
-        raise HTTPException(status_code=400, detail="Invalid model name format")
-
-    # Prevent path traversal
-    if ".." in model_name or "/" in model_name or "\\" in model_name:
-        raise HTTPException(status_code=400, detail="Invalid model name format")
-
-    # Normalize spaces to underscores
-    return model_name.replace(" ", "_")
+    try:
+        return _validate_model_name(model_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 async def get_data_pool_stats(request: Request) -> Dict[str, Any]:
@@ -703,12 +394,8 @@ async def get_data_pool_stats(request: Request) -> Dict[str, Any]:
     Get current data pool statistics from VictoriaMetrics with caching.
     Used for cold start feedback.
     """
-    global _pool_stats_cache
-    now = time.time()
-
-    # Check cache
-    cached_stats, timestamp = _pool_stats_cache
-    if cached_stats and now - timestamp < POOL_STATS_CACHE_TTL:
+    cached_stats = await pool_stats_cache.get()
+    if cached_stats:
         return cached_stats
 
     stats = {
@@ -740,7 +427,7 @@ async def get_data_pool_stats(request: Request) -> Dict[str, Any]:
         results = await asyncio.gather(
             client.get(VM_QUERY_URL, params={"query": query_installations}),
             client.get(VM_QUERY_URL, params={"query": query_points}),
-            run_sync(_list_models),
+            asyncio.to_thread(_list_models),
         )
 
         resp_installations, resp_points, models_available = results
@@ -804,32 +491,9 @@ async def get_data_pool_stats(request: Request) -> Dict[str, Any]:
         stats["message"] = "Data pool status temporarily unavailable."
         stats["message_de"] = "Datenpool-Status vorübergehend nicht verfügbar."
 
-    # Update cache
-    _pool_stats_cache = (stats, now)
+    await pool_stats_cache.set(stats)
 
     return stats
-
-
-def mask_ip(ip: str) -> str:
-    """Mask IP address for GDPR compliance logging."""
-    if not ip:
-        return "0.0.0.0"
-    if ":" in ip:  # IPv6
-        return "xxxx:xxxx"
-    parts = ip.split(".")
-    if len(parts) == 4:
-        return f"{parts[0]}.{parts[1]}.xxx.xxx"
-    return "xxx.xxx.xxx.xxx"
-
-
-def mask_id(id_str: str) -> str:
-    """Mask installation ID for privacy."""
-    if not id_str:
-        return "unknown"
-    # Show first 8 chars (standard UUID segment)
-    if len(id_str) >= 8:
-        return f"{id_str[:8]}..."
-    return "xxx"
 
 
 class TelemetryPayload(BaseModel):
@@ -1161,11 +825,7 @@ async def submit_telemetry(
         )
 
     # Prefer X-Forwarded-For if behind proxy, else fallback to direct connection
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        raw_ip = forwarded.split(",")[0].strip()
-    else:
-        raw_ip = request.client.host if request.client else "unknown"
+    raw_ip = get_client_ip(request)
 
     client_ip = mask_ip(raw_ip)
 
@@ -1194,7 +854,7 @@ async def submit_telemetry(
 
     try:
         # Offload synchronous formatting to a thread pool to avoid blocking the event loop
-        lines = await run_sync(
+        lines = await asyncio.to_thread(
             _process_telemetry_batch,
             payload.installation_id,
             payload.heatpump_model,
@@ -1675,9 +1335,7 @@ async def download_model(
                     return new_envelope
 
                 # Execute re-encryption in thread pool (I/O intensive)
-                new_envelope = await asyncio.get_event_loop().run_in_executor(
-                    None, _read_and_reencrypt
-                )
+                new_envelope = await asyncio.to_thread(_read_and_reencrypt)
 
                 # Write to temporary file
                 temp_file = tempfile.NamedTemporaryFile(
@@ -1822,25 +1480,16 @@ async def community_averages(
     # Create cache key from model and sorted metrics
     cache_key = f"{model}:{','.join(sorted(metric_list))}"
 
-    # Check cache
-    global _community_avg_cache
-    if cache_key in _community_avg_cache:
-        cached_result, cached_time = _community_avg_cache[cache_key]
-        if time.time() - cached_time < COMMUNITY_AVG_CACHE_TTL:
-            logger.info(
-                "community_averages_cache_hit", model=model, metrics=len(metric_list)
-            )
+    cached = community_avg_cache.get(cache_key)
+    if cached:
+        logger.info(
+            "community_averages_cache_hit", model=model, metrics=len(metric_list)
+        )
+        if PROMETHEUS_AVAILABLE:
+            cache_hits_total.labels(cache_type="community_averages").inc()
+        return cached[0]
 
-            # Track cache hit metric
-            if PROMETHEUS_AVAILABLE:
-                cache_hits_total.labels(cache_type="community_averages").inc()
-
-            return cached_result
-
-    # Cache miss - fetch from VictoriaMetrics
     logger.info("community_averages_cache_miss", model=model, metrics=len(metric_list))
-
-    # Track cache miss metric
     if PROMETHEUS_AVAILABLE:
         cache_misses_total.labels(cache_type="community_averages").inc()
     result = await get_community_averages(
@@ -1850,8 +1499,7 @@ async def community_averages(
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
 
-    # Store in cache
-    _community_avg_cache[cache_key] = (result, time.time())
+    await community_avg_cache.set(cache_key, result)
 
     return result
 
@@ -1988,60 +1636,60 @@ async def admin_delete_model(
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
-    # Check permission
     if not has_permission(admin_id, "admin:models"):
         raise HTTPException(
             status_code=403, detail="Insufficient permissions. Required: admin:models"
         )
 
-    # Sanitize model name
-    safe_name = os.path.basename(model_name).replace(" ", "_")
-    if not safe_name.endswith(".enc"):
-        safe_name += ".enc"
+    client_ip = get_client_ip(request)
 
-    model_file = Path(MODEL_DIR) / safe_name
+    model_dir = Path(MODEL_DIR)
+    model_file = model_dir / f"{model_name}.enc"
 
-    exists = await run_sync(model_file.exists)
-    if not exists:
-        raise HTTPException(status_code=404, detail="Model not found")
-
-    # Get client IP for audit log
-    forwarded = request.headers.get("X-Forwarded-For")
-    client_ip = (
-        forwarded.split(",")[0].strip()
-        if forwarded
-        else (request.client.host if request.client else "unknown")
-    )
+    if not model_file.exists():
+        raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
 
     try:
-        await run_sync(model_file.unlink)
+        file_hash = (
+            await asyncio.to_thread(file_hash_cache.get, str(model_file)) or "unknown"
+        )
+    except Exception:
+        file_hash = "unknown"
+
+    try:
+        await asyncio.to_thread(os.remove, model_file)
+
         logger.info(
-            "admin_model_deleted",
-            model=safe_name,
-            admin_id=installation_id,
+            "model_deleted",
+            admin_id=admin_id,
+            model_name=model_name,
+            file_hash=file_hash[:12],
+            ip=client_ip,
         )
 
-        # Audit log
         log_model_delete(
-            admin_id=installation_id,
+            admin_id=admin_id,
             ip_address=client_ip,
-            model_name=safe_name,
+            model_name=model_name,
             success=True,
+            metadata={"file_hash": file_hash[:12] if file_hash else "unknown"},
         )
 
-        return {"success": True, "message": f"Model {safe_name} deleted"}
+        if PROMETHEUS_AVAILABLE:
+            model_downloads_total.labels(model=model_name).inc()
+
+        return {"success": True, "message": f"Model {model_name} deleted successfully"}
+
     except Exception as e:
-        logger.error("admin_model_delete_failed", model=safe_name, error=str(e))
-
-        # Audit log failure
+        logger.error("model_delete_failed", error=str(e), model_name=model_name)
         log_model_delete(
-            admin_id=installation_id,
+            admin_id=admin_id,
             ip_address=client_ip,
-            model_name=safe_name,
+            model_name=model_name,
             success=False,
+            metadata={"error": str(e)},
         )
-
-        raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete model: {str(e)}")
 
 
 @app.post("/api/v1/admin/models/trigger-training")
@@ -2054,27 +1702,18 @@ async def admin_trigger_training(
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
-    # Check permission
     if not has_permission(admin_id, "admin:training"):
         raise HTTPException(
             status_code=403, detail="Insufficient permissions. Required: admin:training"
         )
 
-    # Get client IP for audit log
-    forwarded = request.headers.get("X-Forwarded-For")
-    client_ip = (
-        forwarded.split(",")[0].strip()
-        if forwarded
-        else (request.client.host if request.client else "unknown")
-    )
+    client_ip = get_client_ip(request)
 
-    # Enqueue training task (async, non-blocking)
     try:
         task_id = await training_queue.enqueue_training(triggered_by=admin_id)
 
         logger.info("admin_training_queued", admin_id=admin_id, task_id=task_id)
 
-        # Audit log
         log_training_trigger(
             admin_id=admin_id,
             ip_address=client_ip,
@@ -2094,10 +1733,8 @@ async def admin_trigger_training(
         }
 
     except ValueError as e:
-        # Training already in progress
         logger.warning("training_already_running", admin_id=admin_id, error=str(e))
 
-        # Audit log
         log_training_trigger(
             admin_id=admin_id,
             ip_address=client_ip,
@@ -2110,7 +1747,6 @@ async def admin_trigger_training(
     except Exception as e:
         logger.error("admin_training_trigger_failed", error=str(e))
 
-        # Audit log failure
         log_training_trigger(
             admin_id=admin_id,
             ip_address=client_ip,
@@ -2134,7 +1770,6 @@ async def admin_get_training_status(
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
-    # Check permission
     if not has_permission(admin_id, "admin:view"):
         raise HTTPException(
             status_code=403, detail="Insufficient permissions. Required: admin:view"
@@ -2170,14 +1805,12 @@ async def admin_get_training_history(
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
-    # Check permission
     if not has_permission(admin_id, "admin:view"):
         raise HTTPException(
             status_code=403, detail="Insufficient permissions. Required: admin:view"
         )
 
     try:
-        # Limit cap
         limit = min(limit, 100)
 
         tasks = training_queue.get_recent_tasks(limit=limit)
@@ -2205,7 +1838,6 @@ async def admin_get_current_training(
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
-    # Check permission
     if not has_permission(admin_id, "admin:view"):
         raise HTTPException(
             status_code=403, detail="Insufficient permissions. Required: admin:view"
@@ -2237,7 +1869,6 @@ async def admin_cancel_training(
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
-    # Check permission
     if not has_permission(admin_id, "admin:training"):
         raise HTTPException(
             status_code=403, detail="Insufficient permissions. Required: admin:training"
@@ -2283,40 +1914,30 @@ async def admin_list_installations(
     try:
         client = request.app.state.http_client
 
-        # Optimized: Run batched queries instead of N+1 loop
-
-        # Query 1: Get list of installations and series counts (Original Query)
-        # This preserves the original semantics of 'data_points' being series count.
         list_query = 'count by (installation_id) ({__name__=~"heatpump_metrics_.*"})'
 
-        # Query 2: Get last seen timestamp for all installations in last 30d
         time_query = 'max(tlast_over_time({__name__=~"heatpump_metrics_.*"}[30d])) by (installation_id)'
 
-        # Execute in parallel
         list_response, time_response = await asyncio.gather(
             client.get(VM_QUERY_URL, params={"query": list_query}),
             client.get(VM_QUERY_URL, params={"query": time_query}),
         )
 
-        # Process Times
         installation_times = {}
         if time_response.status_code == 200:
             data = orjson.loads(time_response.content)
             if data.get("status") == "success":
                 for result in data["data"]["result"]:
                     inst_id = result["metric"].get("installation_id", "unknown")
-                    # tlast_over_time returns timestamp as value
                     ts = float(result["value"][1]) if result.get("value") else 0
                     installation_times[inst_id] = ts
 
         installations = []
-        # Process List (Main Loop)
         if list_response.status_code == 200:
             data = orjson.loads(list_response.content)
             if data.get("status") == "success":
                 for result in data["data"]["result"]:
                     inst_id = result["metric"].get("installation_id", "unknown")
-                    # Original logic: count from value[1]
                     count = int(result["value"][1]) if result.get("value") else 0
 
                     last_seen = installation_times.get(inst_id)
@@ -2337,7 +1958,6 @@ async def admin_list_installations(
                         }
                     )
 
-        # Sort by last seen
         installations.sort(key=lambda x: x.get("last_seen") or 0, reverse=True)
 
         return {
@@ -2368,33 +1988,23 @@ async def admin_installation_details(
     try:
         client = request.app.state.http_client
 
-        # Prepare all queries for parallel execution
-        # 1. Metrics for this installation (30d window)
         metrics_query = (
             f'{{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}'
         )
 
-        # 2. Total submissions (count of unique timestamps)
         timestamps_query = f'count_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
 
-        # 3. First seen (earliest timestamp)
         first_seen_query = f'min_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
 
-        # 4. Last seen (latest timestamp)
         last_seen_query = f'last_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[30d])'
 
-        # 5. Contribution rank (all installations)
         all_installations_query = (
             "group by(installation_id) (count by (installation_id))"
         )
 
-        # ⚡ Bolt: Performance Optimization
-        # The 'Contribution Rank' query involves an O(N) database load on VictoriaMetrics on every request.
-        # We cache it here to avoid a redundant query for `POOL_STATS_CACHE_TTL` seconds.
-        global _contribution_rank_cache
-        now = time.time()
-        cached_rank_data, timestamp = _contribution_rank_cache
-        use_cache = cached_rank_data and (now - timestamp < POOL_STATS_CACHE_TTL)
+        cached_rank_result = await contribution_rank_cache.get()
+        cached_rank_data = cached_rank_result[0] if cached_rank_result else None
+        use_cache = cached_rank_data is not None
 
         tasks = [
             client.get(VM_QUERY_URL, params={"query": metrics_query}),
@@ -2407,7 +2017,6 @@ async def admin_installation_details(
                 client.get(VM_QUERY_URL, params={"query": all_installations_query})
             )
 
-        # Execute all queries in parallel
         results_list = await asyncio.gather(*tasks)
 
         response = results_list[0]
@@ -2416,9 +2025,6 @@ async def admin_installation_details(
         last_resp = results_list[3]
         rank_resp = results_list[4] if not use_cache else None
 
-        # Process Results
-
-        # 1. Process Metrics
         if response.status_code != 200:
             raise HTTPException(status_code=404, detail="Installation not found")
 
@@ -2430,12 +2036,9 @@ async def admin_installation_details(
 
         results = data["data"]["result"]
 
-        # Extract model from first metric (assuming all metrics have same model)
-        # Note: data is submitted with "model" tag (not "heatpump_model")
         heatpump_model = "Unknown"
         for result in results:
             metric = result.get("metric", {})
-            # Check both "model" (current) and "heatpump_model" (legacy) labels
             if "model" in metric:
                 heatpump_model = metric["model"]
                 break
@@ -2443,11 +2046,9 @@ async def admin_installation_details(
                 heatpump_model = metric["heatpump_model"]
                 break
 
-        # Calculate data quality score
         unique_metrics = len(set(r["metric"]["__name__"] for r in results))
         data_quality_score = min(1.0, unique_metrics / 20.0)
 
-        # 2. Process Total Submissions
         total_submissions = 0
         if count_resp.status_code == 200:
             count_data = count_resp.json()
@@ -2458,12 +2059,10 @@ async def admin_installation_details(
                     if r.get("value") and len(r["value"]) > 1
                 )
 
-        # 3. Process First Seen
         first_seen = None
         if first_resp.status_code == 200:
             first_data = first_resp.json()
             if first_data.get("data") and first_data["data"].get("result"):
-                # Get the timestamp of the earliest metric
                 timestamps = [
                     float(r["value"][0])
                     for r in first_data["data"]["result"]
@@ -2472,7 +2071,6 @@ async def admin_installation_details(
                 if timestamps:
                     first_seen = min(timestamps)
 
-        # 4. Process Last Seen
         last_seen = None
         if last_resp.status_code == 200:
             last_data = last_resp.json()
@@ -2484,7 +2082,6 @@ async def admin_installation_details(
             ):
                 last_seen = float(last_data["data"]["result"][0]["value"][0])
 
-        # Get model download history (from audit log if available)
         model_downloads = []
         try:
             from audit_log import get_audit_logs
@@ -2500,18 +2097,14 @@ async def admin_installation_details(
                 for log in logs
             ]
         except Exception:
-            # Audit log not available or error occurred
             pass
-
-        # 5. Process Contribution Rank
 
         contribution_rank = "Unknown"
         if use_cache and cached_rank_data:
             rank_data = cached_rank_data
         elif rank_resp and rank_resp.status_code == 200:
             rank_data = rank_resp.json()
-            # Update cache
-            _contribution_rank_cache = (rank_data, now)
+            await contribution_rank_cache.set(rank_data)
         else:
             rank_data = None
 
@@ -2586,16 +2179,14 @@ async def admin_installation_history(
     try:
         client = request.app.state.http_client
 
-        # Get time series data for this installation
-        # Query last 30 days of data with 1-hour resolution
         query = f'count_over_time({{__name__=~"heatpump_metrics_.*", installation_id="{target_id}"}}[1h])'
         response = await client.get(
             VM_QUERY_URL.replace("/query", "/query_range"),
             params={
                 "query": query,
-                "start": int(time.time()) - 30 * 24 * 3600,  # 30 days ago
+                "start": int(time.time()) - 30 * 24 * 3600,
                 "end": int(time.time()),
-                "step": "3600",  # 1 hour resolution
+                "step": "3600",
             },
         )
 
@@ -2603,7 +2194,6 @@ async def admin_installation_history(
         if response.status_code == 200:
             data = response.json()
             if data.get("data") and data["data"].get("result"):
-                # Aggregate all metrics into timeline
                 for result in data["data"]["result"]:
                     metric_name = result["metric"].get("__name__", "unknown")
                     for timestamp, value in result.get("values", []):
@@ -2617,7 +2207,6 @@ async def admin_installation_history(
                             }
                         )
 
-        # Sort by timestamp descending
         history.sort(key=lambda x: x["timestamp"], reverse=True)
 
         return {
@@ -2653,18 +2242,16 @@ async def admin_server_health(
             return {
                 "hostname": platform.node(),
                 "boot_time": psutil.boot_time(),
-                "cpu_percent": psutil.cpu_percent(interval=None),  # Non-blocking
+                "cpu_percent": psutil.cpu_percent(interval=None),
                 "memory": psutil.virtual_memory(),
                 "disk": psutil.disk_usage("/"),
             }
 
-        sys_stats = await run_sync(_get_system_stats)
+        sys_stats = await asyncio.to_thread(_get_system_stats)
 
-        # Check VictoriaMetrics
         vm_response = await request.app.state.http_client.get(f"{VM_QUERY_URL}/health")
         vm_healthy = vm_response.status_code == 200
 
-        # Get model stats
         def _get_model_stats():
             model_dir = Path(MODEL_DIR)
             if not model_dir.exists():
@@ -2674,7 +2261,7 @@ async def admin_server_health(
             size = sum(f.stat().st_size for f in files)
             return count, size
 
-        model_count, total_size = await run_sync(_get_model_stats)
+        model_count, total_size = await asyncio.to_thread(_get_model_stats)
 
         return {
             "server": {
@@ -2725,11 +2312,7 @@ async def admin_get_metrics(
     authorization: Optional[str] = Header(None),
     installation_id: Optional[str] = None,
 ):
-    """
-    Admin: Get metrics for monitoring dashboard.
-
-    Returns metrics in a frontend-friendly format.
-    """
+    """Admin: Get metrics for monitoring dashboard."""
     await check_admin_rate_limit(request)
     await verify_admin(authorization, installation_id)
 
@@ -2741,10 +2324,8 @@ async def admin_get_metrics(
     try:
         from prometheus_client import REGISTRY
 
-        # Collect all metrics
         metrics_data = {}
 
-        # Helper to get metric value
         def get_metric_value(metric_name, labels=None):
             try:
                 for collector in REGISTRY._collector_to_names.keys():
@@ -2752,27 +2333,23 @@ async def admin_get_metrics(
                         if metric.name == metric_name:
                             for sample in metric.samples:
                                 if labels:
-                                    # Match specific labels
                                     if all(
                                         sample.labels.get(k) == v
                                         for k, v in labels.items()
                                     ):
                                         return sample.value
                                 else:
-                                    # Return first sample if no labels specified
                                     return sample.value
                 return 0
             except Exception:
                 return 0
 
-        # Request metrics
         metrics_data["requests"] = {
             "total": get_metric_value("telemetry_requests_total"),
             "errors": get_metric_value("telemetry_errors_total"),
             "rate_limit_hits": get_metric_value("rate_limit_hits_total"),
         }
 
-        # Business metrics
         metrics_data["business"] = {
             "submissions": get_metric_value("telemetry_data_submissions_total"),
             "data_points": get_metric_value("telemetry_data_points_submitted_total"),
@@ -2781,14 +2358,12 @@ async def admin_get_metrics(
             "active_installations": get_metric_value("telemetry_active_installations"),
         }
 
-        # Cache metrics
         metrics_data["cache"] = {
             "hits": get_metric_value("telemetry_cache_hits_total"),
             "misses": get_metric_value("telemetry_cache_misses_total"),
             "hit_rate": 0.0,
         }
 
-        # Calculate cache hit rate
         total_cache_requests = (
             metrics_data["cache"]["hits"] + metrics_data["cache"]["misses"]
         )
@@ -2797,9 +2372,8 @@ async def admin_get_metrics(
                 metrics_data["cache"]["hits"] / total_cache_requests
             ) * 100
 
-        # Performance metrics (percentiles from histogram)
         metrics_data["performance"] = {
-            "avg_request_duration_ms": 0.0,  # Would need histogram buckets
+            "avg_request_duration_ms": 0.0,
             "p95_request_duration_ms": 0.0,
             "p99_request_duration_ms": 0.0,
         }
@@ -2820,22 +2394,13 @@ async def admin_get_audit_log(
     action: Optional[str] = None,
     admin_filter: Optional[str] = None,
 ):
-    """
-    Admin: Get audit log events.
-
-    Query parameters:
-    - limit: Maximum number of events to return (default 100, max 500)
-    - action: Filter by action type (e.g., "model_delete", "training_trigger")
-    - admin_filter: Filter by specific admin installation ID
-    """
+    """Admin: Get audit log events."""
     await check_admin_rate_limit(request)
     await verify_admin(authorization, installation_id)
 
     try:
-        # Limit cap
         limit = min(limit, 500)
 
-        # Get events based on filters
         if action:
             events = await asyncio.to_thread(
                 audit_logger.get_events_by_action, action, limit=limit
@@ -2878,7 +2443,6 @@ async def admin_list_permissions(
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
-    # Check permission - only full admins can manage permissions
     if not has_permission(admin_id, "admin:full"):
         raise HTTPException(
             status_code=403, detail="Insufficient permissions. Required: admin:full"
@@ -2910,21 +2474,18 @@ async def admin_grant_permission(
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
-    # Check permission - only full admins can grant permissions
     if not has_permission(admin_id, "admin:full"):
         raise HTTPException(
             status_code=403, detail="Insufficient permissions. Required: admin:full"
         )
 
     try:
-        # Validate permission
         if permission not in PERMISSIONS:
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid permission. Must be one of: {list(PERMISSIONS.keys())}",
             )
 
-        # Grant permission
         granted = permission_manager.grant_permission(
             target_admin_id, permission, granted_by=admin_id
         )
@@ -2972,20 +2533,17 @@ async def admin_revoke_permission(
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
-    # Check permission - only full admins can revoke permissions
     if not has_permission(admin_id, "admin:full"):
         raise HTTPException(
             status_code=403, detail="Insufficient permissions. Required: admin:full"
         )
 
-    # Prevent self-revocation of admin:full
     if target_admin_id.lower() == admin_id.lower() and permission == "admin:full":
         raise HTTPException(
             status_code=400, detail="Cannot revoke your own admin:full permission"
         )
 
     try:
-        # Revoke permission
         revoked = permission_manager.revoke_permission(
             target_admin_id, permission, revoked_by=admin_id
         )
@@ -3032,7 +2590,6 @@ async def admin_get_permissions(
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
-    # Check permission
     if not has_permission(admin_id, "admin:view"):
         raise HTTPException(
             status_code=403, detail="Insufficient permissions. Required: admin:view"
@@ -3124,10 +2681,7 @@ async def admin_list_installations_filtered(
     limit: int = 100,
     offset: int = 0,
 ):
-    """
-    Admin: List installations with filters.
-    Requires admin:users permission.
-    """
+    """Admin: List installations with filters. Requires admin:users permission."""
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
@@ -3189,10 +2743,7 @@ async def admin_set_installation_role(
     role: str = None,
     reason: Optional[str] = None,
 ):
-    """
-    Admin: Set role for an installation.
-    Requires admin:users permission.
-    """
+    """Admin: Set role for an installation. Requires admin:users permission."""
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
@@ -3246,16 +2797,7 @@ async def admin_ban_installation(
     reason: str = None,
     duration_hours: Optional[int] = None,
 ):
-    """
-    Admin: Ban an installation.
-    Requires admin:users permission.
-
-    Args:
-        target_id: Installation to ban
-        ban_type: Type of ban (upload, download, full)
-        reason: Reason for ban (required)
-        duration_hours: Ban duration in hours (None = permanent)
-    """
+    """Admin: Ban an installation. Requires admin:users permission."""
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
@@ -3311,10 +2853,7 @@ async def admin_unban_installation(
     ban_type: str = "full",
     reason: Optional[str] = None,
 ):
-    """
-    Admin: Remove a ban from an installation.
-    Requires admin:users permission.
-    """
+    """Admin: Remove a ban from an installation. Requires admin:users permission."""
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
@@ -3368,10 +2907,7 @@ async def admin_set_installation_notes(
     installation_id: Optional[str] = None,
     notes: str = "",
 ):
-    """
-    Admin: Set notes for an installation.
-    Requires admin:users permission.
-    """
+    """Admin: Set notes for an installation. Requires admin:users permission."""
     await check_admin_rate_limit(request)
     admin_id = await verify_admin(authorization, installation_id)
 
@@ -3389,7 +2925,7 @@ async def admin_set_installation_notes(
     }
 
 
-# Prometheus Metrics# Prometheus Metrics
+# Prometheus Metrics
 try:
     from prometheus_client import Counter, Histogram, Gauge, generate_latest
 
@@ -3411,7 +2947,6 @@ try:
         "rate_limit_hits_total", "Total rate limit violations"
     )
 
-    # Business Metrics
     data_submissions_total = Counter(
         "telemetry_data_submissions_total", "Total data submissions", ["heatpump_model"]
     )

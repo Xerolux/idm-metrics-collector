@@ -3,7 +3,14 @@ import time
 from collections import OrderedDict
 from typing import Dict, List, Tuple
 
-from .config import rate_limit_config, security_config
+import structlog
+
+try:
+    from .config import rate_limit_config, security_config
+except ImportError:
+    from config import rate_limit_config, security_config
+
+logger = structlog.get_logger("telemetry-ratelimit")
 
 
 class RateLimiter:
@@ -66,7 +73,9 @@ class RateLimiter:
                 "X-RateLimit-Reset": str(reset_time),
             }
         except Exception as e:
-            print(f"Redis rate limit failed: {e}")
+            logger.warning(
+                "redis_rate_limit_failed", error=str(e), fallback="in_memory"
+            )
             return self._check_memory(client_ip, endpoint_type, rate_limit, now)
 
     def _check_memory(
@@ -81,7 +90,7 @@ class RateLimiter:
                     if self._store:
                         self._store.popitem(last=False)
                         evicted_count += 1
-                print(f"Rate limit store eviction: evicted {evicted_count} entries")
+                logger.debug("rate_limit_eviction", evicted=evicted_count)
 
             if compound_key not in self._store:
                 self._store[compound_key] = []

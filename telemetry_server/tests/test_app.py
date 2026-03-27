@@ -117,7 +117,7 @@ def test_check_eligibility_invalid_model(mock_client_cls, client):
         f"/api/v1/model/check?installation_id={uuid_str}&model=foo/bar"
     )
     assert response.status_code == 400
-    assert "format" in response.json()["detail"]
+    assert "invalid" in response.json()["detail"].lower()
 
 
 @patch("app.get_data_pool_stats")

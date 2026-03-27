@@ -1,6 +1,8 @@
 import re
 from typing import Optional
 
+import uuid
+
 
 def mask_ip(ip: str) -> str:
     if not ip:
@@ -23,8 +25,6 @@ def mask_id(id_str: str) -> str:
 
 def validate_installation_id(installation_id: str) -> str:
     try:
-        import uuid
-
         uuid.UUID(installation_id)
         return installation_id
     except ValueError:
