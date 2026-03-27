@@ -772,7 +772,9 @@ def _process_telemetry_batch(
     This CPU-intensive task is designed to be offloaded to a background thread.
     """
     lines = []
-    tags = f"installation_id={installation_id},model={heatpump_model.replace(' ', '_')},version={version}"
+
+    # ⚡ Bolt: Pre-calculate common string prefix outside the loop to avoid redundant formatting
+    prefix = f"heatpump_metrics,installation_id={installation_id},model={heatpump_model.replace(' ', '_')},version={version} "
 
     for record in data:
         timestamp = record.get("timestamp")
@@ -781,17 +783,17 @@ def _process_telemetry_batch(
 
         ts_ns = int(timestamp * 1e9)
         fields = []
+
+        # ⚡ Bolt: Iterate to format fields
         for key, value in record.items():
             if key == "timestamp":
                 continue
             if isinstance(value, (int, float)):
+                # Note: bool is a subclass of int, so booleans match here and format as True/False strings
                 fields.append(f"{key}={value}")
-            elif isinstance(value, bool):
-                fields.append(f"{key}={str(value).lower()}")
 
         if fields:
-            line = f"heatpump_metrics,{tags} {','.join(fields)} {ts_ns}"
-            lines.append(line)
+            lines.append(f"{prefix}{','.join(fields)} {ts_ns}")
 
     return lines
 

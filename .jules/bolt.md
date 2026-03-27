@@ -21,3 +21,7 @@
 ## 2026-03-10 - Redundant String Parsing in Loops
 **Learning:** Checking threshold alerts evaluated static string thresholds into floats on every single tick (e.g. `_to_float("12.5")`), multiplying small parsing overheads into significant aggregate CPU time on the main event loop over time.
 **Action:** When static configuration values must be compared repeatedly in a fast-running loop, pre-parse and cache their types (e.g. `float`) at load time.
+
+## 2026-03-27 - Telemetry Batch Dictionary Iteration
+**Learning:** In Python, `bool` is a subclass of `int`. Because `isinstance(True, (int, float))` evaluates to `True`, any subsequent `elif isinstance(value, bool):` branch in a type-checking `if/elif` chain is unreachable dead code. Furthermore, using a dictionary lookup like `record.get('timestamp')` combined with an early `continue` is faster than fully traversing every key of malformed payload items that lack required fields.
+**Action:** Use early-exit validation (`record.get(...)`) before starting single-pass iterations, and remove dead code branches caused by Python's `bool` subclassing behavior to keep loops tight.
