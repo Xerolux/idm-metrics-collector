@@ -59,32 +59,46 @@ Commands:
   self-update Script manuell von GitHub aktualisieren
   install     systemd-Service einrichten (einmalig als root)
   help        diese Hilfe anzeigen
+
+Hinweis: Bei jedem Aufruf wird automatisch geprüft ob dieses
+Script auf GitHub aktualisiert wurde und ggf. selbst aktualisiert.
 USAGE
 }
 
 # ── Self-Update ───────────────────────────────────────────────────────────────
+# Vergleicht den SHA256 des installierten Scripts mit dem inneren Script
+# (Heredoc-Inhalt) aus dem Installer auf GitHub. Nur bei Abweichung wird
+# aktualisiert. Loop-Schutz via TELEMETRY_NO_SELFUPDATE=1.
 cmd_self_update() {
   local silent="${1:-}"
+
+  # Loop-Schutz: gesetzt von exec nach erfolgreichem Update
   [[ "${TELEMETRY_NO_SELFUPDATE:-}" == "1" ]] && return 0
-  command -v curl &>/dev/null || { [[ "$silent" == "silent" ]] || warn "curl nicht gefunden – Self-Update übersprungen."; return 0; }
 
-  local tmp
-  tmp=$(mktemp /tmp/telemetry_update.XXXXXX)
-  trap "rm -f '$tmp'" RETURN
+  # curl verfügbar?
+  command -v curl &>/dev/null || {
+    [[ "$silent" == "silent" ]] || warn "curl nicht gefunden – Self-Update übersprungen."
+    return 0
+  }
 
+  local tmp tmp_inner
+  tmp=$(mktemp /tmp/telemetry_installer.XXXXXX)
+  tmp_inner=$(mktemp /tmp/telemetry_inner.XXXXXX)
+  trap "rm -f '$tmp' '$tmp_inner'" RETURN
+
+  # Installer-Script von GitHub laden
   if ! curl -fsSL --connect-timeout 10 --max-time 30 "$SELF_URL" -o "$tmp" 2>/dev/null; then
     [[ "$silent" == "silent" ]] || warn "Self-Update: GitHub nicht erreichbar – übersprungen."
     return 0
   fi
 
-  # Das heruntergeladene Installer-Script enthält das eigentliche Script zwischen EOF-Markern.
-  # Wir extrahieren nur den inneren Teil (zwischen <<'EOF' und EOF) für den Vergleich.
-  local tmp_inner
-  tmp_inner=$(mktemp /tmp/telemetry_inner.XXXXXX)
-  trap "rm -f '$tmp' '$tmp_inner'" RETURN
-  awk "/^EOF$/,0{next} /^'EOF'/{found=1; next} found" "$tmp" > "$tmp_inner" 2>/dev/null || true
+  # Inneres Script aus dem Installer-Heredoc extrahieren
+  # Alles zwischen "<<'EOF'" und abschließendem "^EOF$" am Zeilenende
+  awk "/^sudo tee/,0 { next }
+       /^'?EOF'?\$/ { found=!found; next }
+       found { print }" "$tmp" > "$tmp_inner" 2>/dev/null || true
 
-  # Fallback: ganzes Script vergleichen wenn Extraktion leer
+  # Fallback: ganzes Installer-Script vergleichen wenn Extraktion leer
   if [[ ! -s "$tmp_inner" ]]; then
     cp "$tmp" "$tmp_inner"
   fi
@@ -111,6 +125,7 @@ cmd_self_update() {
 
   ok "Script aktualisiert."
 
+  # systemd informieren falls Service aktiv
   if command -v systemctl &>/dev/null && systemctl is-active --quiet "$SYSTEMD_SERVICE" 2>/dev/null; then
     info "Lade systemd-Service neu..."
     if [[ $EUID -eq 0 ]]; then
@@ -121,6 +136,8 @@ cmd_self_update() {
     ok "systemd daemon-reload abgeschlossen."
   fi
 
+  # Ursprünglichen Befehl mit neuem Script neu ausführen – kein Loop da
+  # TELEMETRY_NO_SELFUPDATE=1 exportiert wird und vererbt bleibt
   info "Starte neu mit aktualisiertem Script..."
   export TELEMETRY_NO_SELFUPDATE=1
   exec "$SELF" "${@:2}"
@@ -130,9 +147,15 @@ cmd_self_update() {
 cmd_update() {
   need_cmds
   need_dirs
+
   cd "$REPO_DIR"
+
+  # CRLF-Warnungen unterdrücken – nur Whitespace, kein echter Konflikt
   git config core.autocrlf input
+
   local stashed=false
+
+  # Dirty working tree → automatisch stashen
   if ! git diff --quiet || ! git diff --cached --quiet; then
     warn "Lokale Änderungen erkannt – wird automatisch gestasht."
     if git stash push --include-untracked -m "telemetry-auto-stash-$(date +%Y%m%d-%H%M%S)"; then
@@ -142,6 +165,7 @@ cmd_update() {
       die "git stash fehlgeschlagen – bitte manuell prüfen: git status"
     fi
   fi
+
   log "git pull"
   if ! git pull; then
     if [[ "$stashed" == true ]]; then
@@ -150,12 +174,15 @@ cmd_update() {
     fi
     die "git pull fehlgeschlagen."
   fi
+
   if [[ "$stashed" == true ]]; then
     log "git stash pop: lokale Änderungen werden wiederhergestellt."
     if ! git stash pop; then
       warn "Merge-Konflikt beim stash pop – bitte manuell auflösen: git stash list"
+      warn "Stack wird trotzdem neu gestartet."
     fi
   fi
+
   cd "$COMPOSE_DIR"
   log "docker compose down"
   compose down
@@ -166,15 +193,50 @@ cmd_update() {
   ok "Telemetry aktualisiert & gestartet."
 }
 
-cmd_start()   { need_cmds; need_dirs; cd "$COMPOSE_DIR"; log "docker compose up -d";  compose up -d;  ok "Telemetry gestartet."; }
-cmd_stop()    { need_cmds; need_dirs; cd "$COMPOSE_DIR"; log "docker compose down";    compose down;   ok "Telemetry gestoppt."; }
-cmd_restart() { need_cmds; need_dirs; cd "$COMPOSE_DIR"; log "docker compose down"; compose down; log "docker compose up -d"; compose up -d; ok "Telemetry neugestartet."; }
-cmd_status()  { need_cmds; need_dirs; cd "$COMPOSE_DIR"; compose ps; }
-cmd_logs()    { need_cmds; need_dirs; cd "$COMPOSE_DIR"; compose logs -f --tail=200 || true; }
+# ── Weitere Befehle ───────────────────────────────────────────────────────────
+cmd_start() {
+  need_cmds; need_dirs
+  cd "$COMPOSE_DIR"
+  log "docker compose up -d"
+  compose up -d
+  ok "Telemetry gestartet."
+}
+
+cmd_stop() {
+  need_cmds; need_dirs
+  cd "$COMPOSE_DIR"
+  log "docker compose down"
+  compose down
+  ok "Telemetry gestoppt."
+}
+
+cmd_restart() {
+  need_cmds; need_dirs
+  cd "$COMPOSE_DIR"
+  log "docker compose down"
+  compose down
+  log "docker compose up -d"
+  compose up -d
+  ok "Telemetry neugestartet."
+}
+
+cmd_status() {
+  need_cmds; need_dirs
+  cd "$COMPOSE_DIR"
+  compose ps
+}
+
+cmd_logs() {
+  need_cmds; need_dirs
+  cd "$COMPOSE_DIR"
+  compose logs -f --tail=200 || true
+}
 
 cmd_install() {
   [[ $EUID -eq 0 ]] || die "install muss als root ausgeführt werden (sudo telemetry install)"
+
   local service_file="/etc/systemd/system/${SYSTEMD_SERVICE}"
+
   log "Erstelle systemd-Service: $service_file"
   cat > "$service_file" <<SERVICE
 [Unit]
@@ -192,6 +254,7 @@ WorkingDirectory=${COMPOSE_DIR}
 [Install]
 WantedBy=multi-user.target
 SERVICE
+
   systemctl daemon-reload
   systemctl enable "$SYSTEMD_SERVICE"
   ok "systemd-Service installiert & aktiviert."
@@ -200,11 +263,15 @@ SERVICE
 }
 
 # ── Dispatch ──────────────────────────────────────────────────────────────────
+
+# self-update explizit: kein automatischer Check davor
 if [[ "${1:-help}" == "self-update" ]]; then
   cmd_self_update verbose
   exit 0
 fi
 
+# Automatischer Check bei jedem anderen Befehl (still, ohne Output wenn aktuell)
+# Alle Argumente werden weitergereicht damit exec nach Update korrekt neu startet
 cmd_self_update silent "$@"
 
 case "${1:-help}" in
@@ -226,9 +293,3 @@ EOF
 
 sudo chmod +x /usr/local/bin/telemetry
 echo "✅ /usr/local/bin/telemetry installiert."
-ENDE
-
-# Committen und pushen:
-git add telemetry_server/telemetry_update.sh
-git commit -m "feat: self-update mechanism with SHA256 check"
-git push
