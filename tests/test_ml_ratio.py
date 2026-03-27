@@ -3,85 +3,117 @@ import unittest
 from unittest.mock import patch, MagicMock
 import sys
 import os
+import importlib
 
 sys.path.insert(0, os.getcwd())
 
-# Gracefully skip if river is not available (e.g. in backend CI)
-try:
-    import river
-except ImportError:
-    river = None
 
-if river:
-    # Mock requests to avoid network calls during import
-    with patch("requests.get"), patch("requests.post"):
-        from ml_service import main as ml_main
-else:
-    ml_main = None
-
-
-@unittest.skipIf(river is None, "river library not installed")
 class TestMlRatio(unittest.TestCase):
     def setUp(self):
-        # Reset logger mock for each test
-        ml_main.logger = MagicMock()
-        # Ensure model is mocked and returns a valid float score
-        ml_main.model = MagicMock()
-        ml_main.model.score_one.return_value = 0.5
+        self.mock_torch = MagicMock()
+        self.modules_patcher = patch.dict(
+            sys.modules,
+            {
+                "torch": self.mock_torch,
+                "torch.nn": MagicMock(),
+                "torch.nn.Module": MagicMock,
+                "schedule": MagicMock(),
+                "joblib": MagicMock(),
+                "flask": MagicMock(),
+            },
+        )
+        self.modules_patcher.start()
+        self.addCleanup(self.modules_patcher.stop)
+
+        self.env_patcher = patch.dict(
+            os.environ,
+            {
+                "METRICS_URL": "http://test-vm",
+                "MIN_DATA_RATIO": "0.4",
+                "MODEL_PATH": "/tmp/test_model.pkl",
+                "WARMUP_UPDATES": "5",
+                "ALARM_CONSECUTIVE_HITS": "3",
+                "IDM_LOGGER_URL": "http://test-logger",
+            },
+        )
+        self.env_patcher.start()
+        self.addCleanup(self.env_patcher.stop)
+
+        import ml_service.config as ml_config
+        import ml_service.main as ml_main
+
+        importlib.reload(ml_config)
+        importlib.reload(ml_main)
+        self.ml_main = ml_main
+        self.ml_config = ml_config
+
+        self.ml_main.logger = MagicMock()
 
     @patch("ml_service.main.fetch_latest_data")
     @patch("ml_service.main.write_metrics")
     def test_job_proceeds_even_if_insufficient_data(self, mock_write, mock_fetch):
-        # Setup: Ratio is 0.4.
-        original_sensors = ml_main.SENSORS
-        ml_main.SENSORS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10"]
+        original_sensors = self.ml_main.SENSORS
+        self.ml_main.SENSORS = [
+            "s1",
+            "s2",
+            "s3",
+            "s4",
+            "s5",
+            "s6",
+            "s7",
+            "s8",
+            "s9",
+            "s10",
+        ]
 
-        # Case 1: 3 sensors (30%) -> Should NO LONGER skip, but proceed with warning
         mock_fetch.return_value = {"s1": 1.0, "s2": 1.0, "s3": 1.0}
 
-        original_ratio = ml_main.MIN_DATA_RATIO
-        ml_main.MIN_DATA_RATIO = 0.4
+        original_ratio = self.ml_config.config.min_data_ratio
+        self.ml_config.config.min_data_ratio = 0.4
 
-        ml_main.job()
+        self.ml_main.job()
 
-        # Verify warning logged
-        ml_main.logger.warning.assert_called()
+        self.ml_main.logger.warning.assert_called()
         found_warning = False
-        for call in ml_main.logger.warning.call_args_list:
+        for call in self.ml_main.logger.warning.call_args_list:
             msg = call[0][0]
             if "Low data availability" in msg and "Proceeding anyway" in msg:
                 found_warning = True
                 break
 
         self.assertTrue(found_warning, "Should log 'Low data availability' warning")
-
-        # Verify write_metrics called
         mock_write.assert_called()
 
-        # Cleanup
-        ml_main.SENSORS = original_sensors
-        ml_main.MIN_DATA_RATIO = original_ratio
+        self.ml_main.SENSORS = original_sensors
+        self.ml_config.config.min_data_ratio = original_ratio
 
     @patch("ml_service.main.fetch_latest_data")
     @patch("ml_service.main.write_metrics")
     def test_job_proceeds_if_sufficient_data(self, mock_write, mock_fetch):
-        # Setup
-        original_sensors = ml_main.SENSORS
-        ml_main.SENSORS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10"]
-        original_ratio = ml_main.MIN_DATA_RATIO
-        ml_main.MIN_DATA_RATIO = 0.4
+        original_sensors = self.ml_main.SENSORS
+        self.ml_main.SENSORS = [
+            "s1",
+            "s2",
+            "s3",
+            "s4",
+            "s5",
+            "s6",
+            "s7",
+            "s8",
+            "s9",
+            "s10",
+        ]
+        original_ratio = self.ml_config.config.min_data_ratio
+        self.ml_config.config.min_data_ratio = 0.4
 
-        # Case 2: 4 sensors (40%) -> Should proceed (since ratio is 0.4)
         mock_fetch.return_value = {"s1": 1.0, "s2": 1.0, "s3": 1.0, "s4": 1.0}
 
-        ml_main.job()
+        self.ml_main.job()
 
-        # Verify write_metrics called
         mock_write.assert_called()
 
-        # Cleanup
-        ml_main.SENSORS = original_sensors
-        ml_main.MIN_DATA_RATIO = original_ratio
+        self.ml_main.SENSORS = original_sensors
+        self.ml_config.config.min_data_ratio = original_ratio
 
 
 if __name__ == "__main__":

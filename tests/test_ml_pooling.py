@@ -4,7 +4,6 @@ import sys
 import os
 import importlib
 
-# Ensure the parent directory is in the path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
@@ -24,18 +23,18 @@ class TestMLServicePooling(unittest.TestCase):
         self.patcher.start()
         self.addCleanup(self.patcher.stop)
 
+        import ml_service.config as ml_config
         import ml_service.main as main
 
+        importlib.reload(ml_config)
         importlib.reload(main)
         self.main = main
 
     def test_http_session_initialized(self):
-        """Test that the global http_session is initialized."""
         self.assertIsNotNone(self.main.http_session)
 
     @patch("ml_service.main.http_session.post")
     def test_fetch_latest_data_uses_session(self, mock_post):
-        """Test that fetch_latest_data uses the global session."""
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {
             "status": "success",
@@ -49,7 +48,6 @@ class TestMLServicePooling(unittest.TestCase):
 
     @patch("ml_service.main.http_session.post")
     def test_write_metrics_uses_session(self, mock_post):
-        """Test that write_metrics uses the global session."""
         mock_post.return_value.status_code = 204
 
         self.main.write_metrics(0.1, False, 1, 0.05, "standby")
@@ -58,20 +56,26 @@ class TestMLServicePooling(unittest.TestCase):
 
     @patch("ml_service.main.http_session.post")
     def test_send_anomaly_alert_uses_session(self, mock_post):
-        """Test that send_anomaly_alert uses the global session."""
         mock_post.return_value.status_code = 200
 
-        # Ensure cooldown doesn't prevent call
         self.main.last_alert_time = 0
-        self.main.ENABLE_ALERTS = True
 
-        self.main.send_anomaly_alert(0.9, {"sensor": 1}, "heating", [])
+        with patch("ml_service.main.config") as mock_cfg:
+            mock_cfg.enable_alerts = True
+            mock_cfg.alert_cooldown = 3600
+            mock_cfg.anomaly_threshold = 0.85
+            mock_cfg.idm_logger_url = "http://test-logger"
+            mock_cfg.internal_api_key = "test-key"
+            mock_cfg.retry_base_delay = 1.0
+            mock_cfg.retry_multiplier = 2.0
+            mock_cfg.retry_max_delay = 60.0
+            mock_cfg.retry_max_attempts = 3
+            self.main.send_anomaly_alert(0.9, {"sensor": 1}, "heating", [])
 
         mock_post.assert_called()
 
     @patch("ml_service.main.http_session.get")
     def test_fetch_remote_config_uses_session(self, mock_get):
-        """Test that fetch_remote_config uses the global session."""
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = {"threshold": 0.8}
 
@@ -80,9 +84,8 @@ class TestMLServicePooling(unittest.TestCase):
         mock_get.assert_called()
 
     @patch("ml_service.main.http_session.get")
-    @patch("time.sleep", side_effect=InterruptedError)  # Break the loop
+    @patch("time.sleep", side_effect=InterruptedError)
     def test_wait_for_connection_uses_session(self, mock_sleep, mock_get):
-        """Test that wait_for_connection uses the global session."""
         mock_get.return_value.status_code = 200
 
         try:
