@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+# Installer: writes /usr/local/bin/telemetry and makes it executable.
+# Run as root or via sudo.
+set -euo pipefail
+
+sudo tee /usr/local/bin/telemetry >/dev/null <<'EOF'
+#!/usr/bin/env bash
+# telemetry – wrapper for idm-metrics-collector docker compose stack
+set -euo pipefail
+
+# ── Config ────────────────────────────────────────────────────────────────────
+REPO_DIR="/home/idm-metrics-collector"
+COMPOSE_DIR="/home/idm-metrics-collector/telemetry_server"
+
+# ── Colours (disabled when not a terminal) ───────────────────────────────────
+if [[ -t 1 ]]; then
+  RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+  CYAN='\033[0;36m'; RESET='\033[0m'
+else
+  RED=''; GREEN=''; YELLOW=''; CYAN=''; RESET=''
+fi
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+log()  { echo -e "${CYAN}==>${RESET} $*"; }
+ok()   { echo -e "${GREEN}✅${RESET} $*"; }
+warn() { echo -e "${YELLOW}⚠️ ${RESET} $*" >&2; }
+die()  { echo -e "${RED}❌${RESET} $*" >&2; exit 1; }
+
+need_cmds() {
+  local missing=()
+  for cmd in git docker; do
+    command -v "$cmd" &>/dev/null || missing+=("$cmd")
+  done
+  [[ ${#missing[@]} -eq 0 ]] || die "Required commands not found: ${missing[*]}"
+}
+
+need_dirs() {
+  [[ -d "$REPO_DIR" ]]    || die "Repo dir not found: $REPO_DIR"
+  [[ -d "$COMPOSE_DIR" ]] || die "Compose dir not found: $COMPOSE_DIR"
+}
+
+compose() { docker compose "$@"; }
+
+usage() {
+  cat <<USAGE
+Usage: telemetry <command>
+
+Commands:
+  update    git pull (stash/pop bei lokalen Änderungen) + compose down/pull/up -d
+  start     compose up -d
+  stop      compose down
+  restart   compose down + up -d  (kein Image-Pull)
+  status    compose ps
+  logs      compose logs -f --tail=200
+  install   systemd-Service einrichten (einmalig als root)
+  help      diese Hilfe anzeigen
+USAGE
+}
+
+# ── Commands ──────────────────────────────────────────────────────────────────
+cmd_update() {
+  need_cmds
+  need_dirs
+
+  cd "$REPO_DIR"
+
+  # Globale CRLF-Warnungen unterdrücken – betrifft nur Whitespace, kein echter Konflikt
+  git config core.autocrlf input
+
+  local stashed=false
+
+  # Prüfen ob dirty working tree vorhanden
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    warn "Lokale Änderungen erkannt – wird automatisch gestasht."
+    if git stash push --include-untracked -m "telemetry-auto-stash-$(date +%Y%m%d-%H%M%S)"; then
+      stashed=true
+      log "git stash: lokale Änderungen gesichert."
+    else
+      die "git stash fehlgeschlagen – bitte manuell prüfen: git status"
+    fi
+  fi
+
+  log "git pull"
+  if ! git pull; then
+    # Pull fehlgeschlagen → Stash wiederherstellen damit nichts verloren geht
+    if [[ "$stashed" == true ]]; then
+      warn "git pull fehlgeschlagen – stelle lokale Änderungen wieder her..."
+      git stash pop || warn "git stash pop fehlgeschlagen – bitte manuell prüfen: git stash list"
+    fi
+    die "git pull fehlgeschlagen."
+  fi
+
+  # Stash zurück anwenden wenn vorher gesichert
+  if [[ "$stashed" == true ]]; then
+    log "git stash pop: lokale Änderungen werden wiederhergestellt."
+    if ! git stash pop; then
+      warn "Merge-Konflikt beim stash pop – bitte manuell auflösen: git stash list"
+      warn "Stack wird trotzdem neu gestartet."
+    fi
+  fi
+
+  cd "$COMPOSE_DIR"
+  log "docker compose down"
+  compose down
+  log "docker compose pull"
+  compose pull
+  log "docker compose up -d"
+  compose up -d
+  ok "Telemetry aktualisiert & gestartet."
+}
+
+cmd_start() {
+  need_cmds; need_dirs
+  cd "$COMPOSE_DIR"
+  log "docker compose up -d"
+  compose up -d
+  ok "Telemetry gestartet."
+}
+
+cmd_stop() {
+  need_cmds; need_dirs
+  cd "$COMPOSE_DIR"
+  log "docker compose down"
+  compose down
+  ok "Telemetry gestoppt."
+}
+
+cmd_restart() {
+  need_cmds; need_dirs
+  cd "$COMPOSE_DIR"
+  log "docker compose down"
+  compose down
+  log "docker compose up -d"
+  compose up -d
+  ok "Telemetry neugestartet."
+}
+
+cmd_status() {
+  need_cmds; need_dirs
+  cd "$COMPOSE_DIR"
+  compose ps
+}
+
+cmd_logs() {
+  need_cmds; need_dirs
+  cd "$COMPOSE_DIR"
+  # Ctrl+C sauber abfangen ohne set -e auszulösen
+  compose logs -f --tail=200 || true
+}
+
+cmd_install() {
+  [[ $EUID -eq 0 ]] || die "install muss als root ausgeführt werden (sudo telemetry install)"
+
+  local service_file="/etc/systemd/system/telemetry.service"
+
+  log "Erstelle systemd-Service: $service_file"
+  cat > "$service_file" <<SERVICE
+[Unit]
+Description=IDM Metrics Collector (Telemetry Stack)
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/telemetry start
+ExecStop=/usr/local/bin/telemetry stop
+WorkingDirectory=${COMPOSE_DIR}
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+  systemctl daemon-reload
+  systemctl enable telemetry.service
+  ok "systemd-Service installiert & aktiviert."
+  log "Starten mit: systemctl start telemetry"
+  log "Status:      systemctl status telemetry"
+}
+
+# ── Dispatch ──────────────────────────────────────────────────────────────────
+case "${1:-help}" in
+  update)  cmd_update  ;;
+  start)   cmd_start   ;;
+  stop)    cmd_stop    ;;
+  restart) cmd_restart ;;
+  status)  cmd_status  ;;
+  logs)    cmd_logs    ;;
+  install) cmd_install ;;
+  help|--help|-h) usage ;;
+  *)
+    warn "Unbekannter Befehl: '${1}'"
+    usage
+    exit 1
+    ;;
+esac
+EOF
+
+sudo chmod +x /usr/local/bin/telemetry
+echo "✅ /usr/local/bin/telemetry installiert."
