@@ -8,6 +8,9 @@ sudo tee /usr/local/bin/telemetry >/dev/null <<'EOF'
 # telemetry – wrapper for idm-metrics-collector docker compose stack
 set -euo pipefail
 
+# ── Version (wird für Self-Update-Vergleich verwendet) ───────────────────────
+SCRIPT_VERSION="2025-03-27-001"
+
 # ── Config ────────────────────────────────────────────────────────────────────
 REPO_DIR="/home/idm-metrics-collector"
 COMPOSE_DIR="/home/idm-metrics-collector/telemetry_server"
@@ -32,7 +35,7 @@ info() { echo -e "${BLUE}ℹ️ ${RESET} $*"; }
 
 need_cmds() {
   local missing=()
-  for cmd in git docker curl sha256sum; do
+  for cmd in git docker curl; do
     command -v "$cmd" &>/dev/null || missing+=("$cmd")
   done
   [[ ${#missing[@]} -eq 0 ]] || die "Required commands not found: ${missing[*]}"
@@ -57,6 +60,7 @@ Commands:
   status      compose ps
   logs        compose logs -f --tail=200
   self-update Script manuell von GitHub aktualisieren
+  version     aktuelle Script-Version anzeigen
   install     systemd-Service einrichten (einmalig als root)
   help        diese Hilfe anzeigen
 
@@ -66,53 +70,60 @@ USAGE
 }
 
 # ── Self-Update ───────────────────────────────────────────────────────────────
-# Vergleicht den SHA256 des installierten Scripts mit dem inneren Script
-# (Heredoc-Inhalt) aus dem Installer auf GitHub. Nur bei Abweichung wird
-# aktualisiert. Loop-Schutz via TELEMETRY_NO_SELFUPDATE=1.
 cmd_self_update() {
   local silent="${1:-}"
 
-  # Loop-Schutz: gesetzt von exec nach erfolgreichem Update
+  # Loop-Schutz
   [[ "${TELEMETRY_NO_SELFUPDATE:-}" == "1" ]] && return 0
 
-  # curl verfügbar?
   command -v curl &>/dev/null || {
     [[ "$silent" == "silent" ]] || warn "curl nicht gefunden – Self-Update übersprungen."
     return 0
   }
 
-  local tmp tmp_inner
+  local tmp
   tmp=$(mktemp /tmp/telemetry_installer.XXXXXX)
-  tmp_inner=$(mktemp /tmp/telemetry_inner.XXXXXX)
-  trap "rm -f '$tmp' '$tmp_inner'" RETURN
+  trap "rm -f '$tmp'" RETURN
 
-  # Installer-Script von GitHub laden
+  # Installer von GitHub laden
   if ! curl -fsSL --connect-timeout 10 --max-time 30 "$SELF_URL" -o "$tmp" 2>/dev/null; then
     [[ "$silent" == "silent" ]] || warn "Self-Update: GitHub nicht erreichbar – übersprungen."
     return 0
   fi
 
-  # Inneres Script aus dem Installer-Heredoc extrahieren
-  # Alles zwischen "<<'EOF'" und abschließendem "^EOF$" am Zeilenende
-  awk "/^sudo tee/,0 { next }
-       /^'?EOF'?\$/ { found=!found; next }
-       found { print }" "$tmp" > "$tmp_inner" 2>/dev/null || true
+  # Versions-String aus dem Installer-Script auslesen
+  local remote_version
+  remote_version=$(grep -m1 '^SCRIPT_VERSION=' "$tmp" | cut -d'"' -f2)
 
-  # Fallback: ganzes Installer-Script vergleichen wenn Extraktion leer
-  if [[ ! -s "$tmp_inner" ]]; then
-    cp "$tmp" "$tmp_inner"
-  fi
-
-  local hash_local hash_remote
-  hash_local=$(sha256sum "$SELF"       | awk '{print $1}')
-  hash_remote=$(sha256sum "$tmp_inner" | awk '{print $1}')
-
-  if [[ "$hash_local" == "$hash_remote" ]]; then
-    [[ "$silent" == "silent" ]] || ok "Script ist bereits aktuell."
+  if [[ -z "$remote_version" ]]; then
+    [[ "$silent" == "silent" ]] || warn "Self-Update: Versions-String nicht gefunden – übersprungen."
     return 0
   fi
 
-  info "Neue Script-Version gefunden – aktualisiere $SELF ..."
+  if [[ "$SCRIPT_VERSION" == "$remote_version" ]]; then
+    [[ "$silent" == "silent" ]] || ok "Script ist bereits aktuell (Version: $SCRIPT_VERSION)."
+    return 0
+  fi
+
+  info "Update verfügbar: $SCRIPT_VERSION → $remote_version"
+  info "Aktualisiere $SELF ..."
+
+  # Inneres Script aus Installer extrahieren (zwischen erstem <<'EOF' und abschließendem ^EOF$)
+  local tmp_inner
+  tmp_inner=$(mktemp /tmp/telemetry_inner.XXXXXX)
+  trap "rm -f '$tmp' '$tmp_inner'" RETURN
+
+  awk "
+    /^sudo tee/ { skip=1; next }
+    skip && /^'EOF'\$/ { skip=0; inside=1; next }
+    inside && /^EOF\$/ { exit }
+    inside { print }
+  " "$tmp" > "$tmp_inner"
+
+  if [[ ! -s "$tmp_inner" ]]; then
+    warn "Self-Update: Extraktion des Scripts fehlgeschlagen – übersprungen."
+    return 0
+  fi
 
   if [[ $EUID -ne 0 ]]; then
     if ! sudo install -m 0755 "$tmp_inner" "$SELF"; then
@@ -123,21 +134,18 @@ cmd_self_update() {
     install -m 0755 "$tmp_inner" "$SELF"
   fi
 
-  ok "Script aktualisiert."
+  ok "Script aktualisiert auf Version $remote_version."
 
   # systemd informieren falls Service aktiv
   if command -v systemctl &>/dev/null && systemctl is-active --quiet "$SYSTEMD_SERVICE" 2>/dev/null; then
-    info "Lade systemd-Service neu..."
+    info "Lade systemd daemon-reload..."
     if [[ $EUID -eq 0 ]]; then
       systemctl daemon-reload
     else
       sudo systemctl daemon-reload 2>/dev/null || true
     fi
-    ok "systemd daemon-reload abgeschlossen."
   fi
 
-  # Ursprünglichen Befehl mit neuem Script neu ausführen – kein Loop da
-  # TELEMETRY_NO_SELFUPDATE=1 exportiert wird und vererbt bleibt
   info "Starte neu mit aktualisiertem Script..."
   export TELEMETRY_NO_SELFUPDATE=1
   exec "$SELF" "${@:2}"
@@ -149,13 +157,10 @@ cmd_update() {
   need_dirs
 
   cd "$REPO_DIR"
-
-  # CRLF-Warnungen unterdrücken – nur Whitespace, kein echter Konflikt
   git config core.autocrlf input
 
   local stashed=false
 
-  # Dirty working tree → automatisch stashen
   if ! git diff --quiet || ! git diff --cached --quiet; then
     warn "Lokale Änderungen erkannt – wird automatisch gestasht."
     if git stash push --include-untracked -m "telemetry-auto-stash-$(date +%Y%m%d-%H%M%S)"; then
@@ -236,7 +241,6 @@ cmd_install() {
   [[ $EUID -eq 0 ]] || die "install muss als root ausgeführt werden (sudo telemetry install)"
 
   local service_file="/etc/systemd/system/${SYSTEMD_SERVICE}"
-
   log "Erstelle systemd-Service: $service_file"
   cat > "$service_file" <<SERVICE
 [Unit]
@@ -263,15 +267,17 @@ SERVICE
 }
 
 # ── Dispatch ──────────────────────────────────────────────────────────────────
-
-# self-update explizit: kein automatischer Check davor
 if [[ "${1:-help}" == "self-update" ]]; then
   cmd_self_update verbose
   exit 0
 fi
 
-# Automatischer Check bei jedem anderen Befehl (still, ohne Output wenn aktuell)
-# Alle Argumente werden weitergereicht damit exec nach Update korrekt neu startet
+if [[ "${1:-help}" == "version" ]]; then
+  echo "telemetry version: $SCRIPT_VERSION"
+  exit 0
+fi
+
+# Automatischer Check bei jedem Aufruf
 cmd_self_update silent "$@"
 
 case "${1:-help}" in
