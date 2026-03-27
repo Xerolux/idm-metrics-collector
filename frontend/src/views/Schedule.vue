@@ -34,15 +34,25 @@
                 text
                 severity="info"
                 v-tooltip="'Jetzt ausführen'"
+                aria-label="Jetzt ausführen"
                 @click="runJob(job.id)"
               />
               <Button
                 :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'"
                 text
                 severity="warning"
+                v-tooltip="job.enabled ? 'Pausieren' : 'Aktivieren'"
+                :aria-label="job.enabled ? 'Pausieren' : 'Aktivieren'"
                 @click="toggleJob(job.id, job.enabled)"
               />
-              <Button icon="pi pi-trash" text severity="danger" @click="deleteJob(job.id)" />
+              <Button
+                icon="pi pi-trash"
+                text
+                severity="danger"
+                v-tooltip="'Löschen'"
+                aria-label="Löschen"
+                @click="deleteJob(job.id)"
+              />
             </div>
           </template>
         </Card>
