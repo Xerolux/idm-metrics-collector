@@ -62,28 +62,12 @@ cmd_update() {
   need_cmds; need_dirs
   cd "$REPO_DIR"
   git config core.autocrlf input
-  local stashed=false
-  if ! git diff --quiet || ! git diff --cached --quiet; then
-    warn "Lokale Änderungen erkannt – wird automatisch gestasht."
-    if git stash push --include-untracked -m "telemetry-auto-stash-$(date +%Y%m%d-%H%M%S)"; then
-      stashed=true
-      log "git stash: lokale Änderungen gesichert."
-    else
-      die "git stash fehlgeschlagen – bitte manuell prüfen: git status"
-    fi
-  fi
-  log "git pull"
-  if ! git pull; then
-    if [[ "$stashed" == true ]]; then
-      warn "git pull fehlgeschlagen – stelle lokale Änderungen wieder her..."
-      git stash pop || warn "git stash pop fehlgeschlagen: git stash list"
-    fi
-    die "git pull fehlgeschlagen."
-  fi
-  if [[ "$stashed" == true ]]; then
-    log "git stash pop: lokale Änderungen werden wiederhergestellt."
-    git stash pop || warn "Merge-Konflikt – bitte manuell auflösen: git stash list"
-  fi
+  git checkout main 2>/dev/null || true
+  log "git fetch origin"
+  git fetch origin
+  log "git reset --hard origin/main"
+  git reset --hard origin/main
+  git clean -fd --quiet 2>/dev/null || true
   cd "$COMPOSE_DIR"
   log "docker compose down"
   compose down
