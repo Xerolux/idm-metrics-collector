@@ -36,6 +36,9 @@ class TokenManager:
 
     def __init__(self):
         self.tokens: Dict[str, Dict[str, Any]] = {}
+        self._dirty = False
+        self._last_save = 0.0
+        self._save_interval = 60.0
         self._load_tokens()
 
     def _load_tokens(self):
@@ -52,14 +55,22 @@ class TokenManager:
             logger.error("token_load_failed", error=str(e))
             self.tokens = {}
 
-    def _save_tokens(self):
-        """Save tokens to storage."""
+    def _save_tokens(self, force=False):
+        """Save tokens to storage (debounced for last_used updates)."""
+        if not force and not self._dirty:
+            return
         try:
-            # Atomic write with temp file
+            import time as _time
+
+            now = _time.time()
+            if not force and (now - self._last_save) < self._save_interval:
+                return
             temp_file = TOKEN_FILE + ".tmp"
             with open(temp_file, "w", encoding="utf-8") as f:
                 json.dump(self.tokens, f, indent=2)
             os.replace(temp_file, TOKEN_FILE)
+            self._dirty = False
+            self._last_save = now
             logger.debug("tokens_saved", count=len(self.tokens))
         except Exception as e:
             logger.error("token_save_failed", error=str(e))
@@ -109,11 +120,10 @@ class TokenManager:
             "metadata": metadata or {},
         }
 
-        self._save_tokens()
+        self._save_tokens(force=True)
 
         logger.info(
             "token_generated",
-            installation_id=installation_id,
             token_hash_prefix=token_hash[:16],
             has_encryption_key=with_encryption_key,
         )
@@ -163,10 +173,10 @@ class TokenManager:
         is_valid = hmac.compare_digest(provided_hash, stored_hash)
 
         if is_valid:
-            # Update last_used timestamp
             self.tokens[installation_id]["last_used"] = datetime.now(
                 timezone.utc
             ).isoformat()
+            self._dirty = True
             self._save_tokens()
             logger.debug("token_validated", installation_id=installation_id)
         else:
@@ -200,7 +210,7 @@ class TokenManager:
         self.tokens[installation_id]["revoked_at"] = datetime.now(
             timezone.utc
         ).isoformat()
-        self._save_tokens()
+        self._save_tokens(force=True)
 
         logger.info("token_revoked", installation_id=installation_id)
         return True

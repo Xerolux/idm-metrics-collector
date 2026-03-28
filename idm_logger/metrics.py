@@ -18,16 +18,34 @@ class MetricsWriter:
             "METRICS_URL",
             config.get("metrics.url", "http://victoriametrics:8428/write"),
         )
-        self._connected = True  # HTTP is stateless
+        self._connected = True
         self.session = requests.Session()
 
-        # Async queue for metrics to avoid blocking main loop
-        self.queue = queue.Queue(maxsize=1000)
+        self.queue = queue.Queue(maxsize=2000)
         self.stop_event = threading.Event()
         self.worker_thread = threading.Thread(target=self._worker, daemon=True)
         self.worker_thread.start()
 
+        self._cached_tags = None
+        self._cached_tags_config = None
+
         logger.info(f"MetricsWriter initialized with URL: {self.url} (Async)")
+
+    def _get_tags(self):
+        current_config = (
+            config.get("installation_id"),
+            config.get("hp_model"),
+            config.get("hp_manufacturer", "IDM"),
+        )
+        if self._cached_tags_config != current_config:
+            inst_id = self._escape_tag(current_config[0])
+            model = self._escape_tag(current_config[1])
+            manufacturer = self._escape_tag(current_config[2])
+            self._cached_tags = (
+                f",installation_id={inst_id},model={model},manufacturer={manufacturer}"
+            )
+            self._cached_tags_config = current_config
+        return self._cached_tags
 
     def is_connected(self) -> bool:
         return self._connected
@@ -40,68 +58,82 @@ class MetricsWriter:
             self.queue.put_nowait(measurements)
             return True
         except queue.Full:
-            logger.warning("Metrics queue full, dropping data")
-            return False
+            try:
+                self.queue.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                self.queue.put_nowait(measurements)
+                logger.warning("Metrics queue full, dropped oldest item")
+                return True
+            except queue.Full:
+                logger.warning("Metrics queue full after eviction, dropping data")
+                return False
 
     def _worker(self):
-        """Worker thread to process metrics queue with batching."""
         batch = []
         last_send = time.time()
         BATCH_SIZE = 50
         BATCH_TIMEOUT = 1.0
+        MAX_RETRIES = 3
+        RETRY_BASE_DELAY = 0.5
 
         while not self.stop_event.is_set():
             try:
-                # Calculate timeout dynamically
                 now = time.time()
                 if batch:
-                    # If we have items, wait only the remaining time of the 1s window
                     timeout = max(0, BATCH_TIMEOUT - (now - last_send))
                 else:
-                    # If empty, wait up to 1s (or until an item arrives)
                     timeout = 1.0
 
                 measurements = self.queue.get(timeout=timeout)
                 self.queue.task_done()
-                if measurements is None:  # sentinel from stop()
+                if measurements is None:
                     break
                 batch.append(measurements)
 
-                # If batch is full, send immediately
                 if len(batch) >= BATCH_SIZE:
-                    self._send_data(batch)
+                    self._send_with_retry(batch, MAX_RETRIES, RETRY_BASE_DELAY)
                     batch = []
                     last_send = time.time()
 
             except queue.Empty:
-                # Timeout expired (or queue empty for >1s)
-                # If we have data pending, send it now
                 if batch:
-                    self._send_data(batch)
+                    self._send_with_retry(batch, MAX_RETRIES, RETRY_BASE_DELAY)
                     batch = []
                     last_send = time.time()
                 continue
             except Exception as e:
                 logger.error(f"Error in metrics worker: {e}")
-                # Try to flush what we have if possible, otherwise drop
                 if batch:
                     try:
-                        self._send_data(batch)
+                        self._send_with_retry(batch, MAX_RETRIES, RETRY_BASE_DELAY)
                     except Exception as e:
                         logger.warning(
                             f"Error flushing metrics after worker error: {e}"
                         )
                     batch = []
 
-        # Flush remaining items on exit
         if batch:
             try:
-                self._send_data(batch)
+                self._send_with_retry(batch, MAX_RETRIES, RETRY_BASE_DELAY)
             except Exception as e:
                 logger.error(f"Error flushing metrics on exit: {e}")
 
+    def _send_with_retry(self, data, max_retries=3, base_delay=0.5):
+        for attempt in range(max_retries):
+            if self._send_data(data):
+                return True
+            if attempt < max_retries - 1:
+                delay = base_delay * (2**attempt)
+                logger.debug(
+                    f"Metrics send retry {attempt + 1}/{max_retries} in {delay:.1f}s"
+                )
+                time.sleep(delay)
+        logger.error(f"Failed to send metrics after {max_retries} attempts")
+        return False
+
     def _escape_tag(self, value):
-        """Escape special characters for InfluxDB line protocol tags."""
         if not value:
             return "unknown"
         s = str(value)
@@ -110,38 +142,25 @@ class MetricsWriter:
         return s
 
     def _send_data(self, data: Union[Dict, List[Dict]]) -> bool:
-        """Internal method to send data to VictoriaMetrics (executed in worker thread)."""
-        # data can be a single dict (legacy call) or a list of dicts (batch)
-
         items = data if isinstance(data, list) else [data]
         lines = []
 
-        # Prepare tags from config
-        inst_id = self._escape_tag(config.get("installation_id"))
-        model = self._escape_tag(config.get("hp_model"))
-        manufacturer = self._escape_tag(config.get("hp_manufacturer", "IDM"))
-
-        tags = f",installation_id={inst_id},model={model},manufacturer={manufacturer}"
+        tags = self._get_tags()
 
         for measurements in items:
-            measurement_name = "idm_heatpump"
             fields = []
 
             for key, value in measurements.items():
-                # Skip string representation fields
                 if key.endswith("_str"):
                     continue
-                # Convert booleans to int
                 if isinstance(value, bool):
                     value = int(value)
-                # Only write numeric values
                 if isinstance(value, (int, float)):
                     fields.append(f"{key}={value}")
 
             if fields:
                 field_str = ",".join(fields)
-                # Timestamp is handled by VictoriaMetrics on ingestion
-                lines.append(f"{measurement_name}{tags} {field_str}")
+                lines.append(f"idm_heatpump{tags} {field_str}")
 
         if not lines:
             return False
@@ -152,14 +171,17 @@ class MetricsWriter:
             url = str(self.url)
             response = self.session.post(url, data=payload, timeout=5)
             if response.status_code in (200, 204):
+                self._connected = True
                 return True
             else:
                 logger.error(
                     f"Failed to write metrics: {response.status_code} {response.text}"
                 )
+                self._connected = False
                 return False
         except Exception as e:
             logger.error(f"Exception writing metrics: {e}")
+            self._connected = False
             return False
 
     def get_status(self) -> dict:
@@ -171,11 +193,9 @@ class MetricsWriter:
         }
 
     def stop(self):
-        """Stop the worker thread and flush remaining data."""
         self.stop_event.set()
-        # Unblock queue.get() if the worker is waiting on an empty queue
         try:
-            self.queue.put_nowait(None)  # sentinel to wake up the worker
+            self.queue.put_nowait(None)
         except queue.Full:
             pass
         self.worker_thread.join(timeout=10.0)

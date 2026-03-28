@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: MIT
 import math
 import threading
+import random
+from collections import deque
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any
 
@@ -16,11 +18,11 @@ class ResidualBlock(nn.Module):
         super().__init__()
         self.block = nn.Sequential(
             nn.Linear(dim, dim),
-            nn.BatchNorm1d(dim),
+            nn.LayerNorm(dim),
             nn.LeakyReLU(0.1),
             nn.Dropout(dropout_rate),
             nn.Linear(dim, dim),
-            nn.BatchNorm1d(dim),
+            nn.LayerNorm(dim),
         )
         self.activation = nn.LeakyReLU(0.1)
 
@@ -42,11 +44,11 @@ class Autoencoder(nn.Module):
 
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
+            nn.LayerNorm(hidden_dim),
             nn.LeakyReLU(0.1),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.BatchNorm1d(hidden_dim // 2),
+            nn.LayerNorm(hidden_dim // 2),
             nn.LeakyReLU(0.1),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim // 2, latent_dim),
@@ -54,11 +56,11 @@ class Autoencoder(nn.Module):
         )
         self.decoder = nn.Sequential(
             nn.Linear(latent_dim, hidden_dim // 2),
-            nn.BatchNorm1d(hidden_dim // 2),
+            nn.LayerNorm(hidden_dim // 2),
             nn.LeakyReLU(0.1),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dim // 2, hidden_dim),
-            nn.BatchNorm1d(hidden_dim),
+            nn.LayerNorm(hidden_dim),
             nn.LeakyReLU(0.1),
             ResidualBlock(hidden_dim, dropout_rate),
             nn.Linear(hidden_dim, input_dim),
@@ -82,28 +84,30 @@ class Autoencoder(nn.Module):
 class OnlineStandardScaler:
     def __init__(self):
         self._lock = threading.Lock()
-        self.n: int = 0
+        self.n: Dict[str, int] = {}
         self.means: Dict[str, float] = {}
         self.m2: Dict[str, float] = {}
         self.vars: Dict[str, float] = {}
 
     def partial_fit(self, data: Dict[str, Any]) -> None:
         with self._lock:
-            self.n += 1
             for key, value in data.items():
                 if not isinstance(value, (int, float)) or (
                     isinstance(value, float) and math.isnan(value)
                 ):
                     continue
-                if key not in self.means:
+                if key not in self.n:
+                    self.n[key] = 0
                     self.means[key] = 0.0
                     self.m2[key] = 0.0
                     self.vars[key] = 0.0
+                self.n[key] += 1
+                count = self.n[key]
                 delta = value - self.means[key]
-                self.means[key] += delta / self.n
+                self.means[key] += delta / count
                 delta2 = value - self.means[key]
                 self.m2[key] += delta * delta2
-                self.vars[key] = self.m2[key] / self.n if self.n > 1 else 0.0
+                self.vars[key] = self.m2[key] / count if count > 1 else 0.0
 
     def transform(self, data: Dict[str, Any], feature_order: List[str]) -> List[float]:
         with self._lock:
@@ -123,6 +127,26 @@ class OnlineStandardScaler:
     def get_stats(self) -> Dict[str, Dict[str, float]]:
         with self._lock:
             return {k: {"mean": self.means[k], "var": self.vars[k]} for k in self.means}
+
+
+class ReplayBuffer:
+    def __init__(self, capacity: int = 500):
+        self._buffer = deque(maxlen=capacity)
+        self._lock = threading.Lock()
+
+    def add(self, tensor: torch.Tensor):
+        with self._lock:
+            self._buffer.append(tensor.clone().detach())
+
+    def sample(self, batch_size: int) -> Optional[torch.Tensor]:
+        with self._lock:
+            if len(self._buffer) < batch_size:
+                return None
+            samples = random.sample(list(self._buffer), batch_size)
+            return torch.cat(samples, dim=0)
+
+    def __len__(self):
+        return len(self._buffer)
 
 
 @dataclass
@@ -161,8 +185,11 @@ class AutoencoderModel:
         self.feature_order: List[str] = []
         self.net: Optional[Autoencoder] = None
         self.optimizer: Optional[torch.optim.Adam] = None
-        self.scheduler: Optional[torch.optim.lr_scheduler.StepLR] = None
+        self.scheduler: Optional[torch.optim.lr_scheduler.ReduceLROnPlateau] = None
         self.criterion = nn.HuberLoss(delta=1.0, reduction="mean")
+
+        self.replay_buffer = ReplayBuffer(capacity=500)
+        self.min_replay_batch = 16
 
         self.ema_loss: Optional[float] = None
         self.ema_loss_sq: Optional[float] = None
@@ -181,8 +208,8 @@ class AutoencoderModel:
             self.optimizer = torch.optim.Adam(
                 self.net.parameters(), lr=self.learning_rate, weight_decay=1e-5
             )
-            self.scheduler = torch.optim.lr_scheduler.StepLR(
-                self.optimizer, step_size=500, gamma=0.5
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer, mode="min", factor=0.5, patience=200, min_lr=1e-6
             )
 
     def _prepare_input(self, data: Dict[str, Any]) -> torch.Tensor:
@@ -216,17 +243,7 @@ class AutoencoderModel:
         if self.ema_loss is None:
             return 0.0
 
-        ema_var = max(self.ema_loss_sq - self.ema_loss**2, 0.0)
-        ema_std = ema_var**0.5
-
-        if ema_std < 1e-8:
-            score = min(mse / (self.ema_loss + 1e-8) / 3.0, 1.0)
-        else:
-            z = (mse - self.ema_loss) / ema_std
-            z_shifted = z - 2.0
-            score = 1.0 / (1.0 + math.exp(-z_shifted))
-
-        return float(max(0.0, min(1.0, score)))
+        return self._compute_score(mse)
 
     def score_one_detailed(self, data: Dict[str, Any]) -> AnomalyResult:
         if not self.feature_order or self.sample_count < 50:
@@ -341,6 +358,8 @@ class AutoencoderModel:
             self.net.train()
             x = self._prepare_input(data)
 
+            self.replay_buffer.add(x)
+
             noise_scale = self.noise_std * max(
                 0.1, 1.0 - min(self.sample_count / 500.0, 1.0)
             )
@@ -349,31 +368,43 @@ class AutoencoderModel:
             else:
                 x_noisy = x
 
-            for _ in range(self.train_steps):
+            self.optimizer.zero_grad()
+            x_hat = self.net(x_noisy)
+            loss = self.criterion(x_hat, x)
+            loss.backward()
+            nn.utils.clip_grad_norm_(self.net.parameters(), self.gradient_clip)
+            self.optimizer.step()
+
+            replay_batch = self.replay_buffer.sample(self.min_replay_batch)
+            if replay_batch is not None:
+                replay_noise = torch.randn_like(replay_batch) * max(
+                    noise_scale * 0.5, 0.01
+                )
                 self.optimizer.zero_grad()
-                x_hat = self.net(x_noisy)
-                loss = self.criterion(x_hat, x)
-                loss.backward()
+                x_hat_r = self.net(replay_batch + replay_noise)
+                replay_loss = self.criterion(x_hat_r, replay_batch)
+                replay_loss.backward()
                 nn.utils.clip_grad_norm_(self.net.parameters(), self.gradient_clip)
                 self.optimizer.step()
+                loss_val = (loss.item() + replay_loss.item()) / 2.0
+            else:
+                loss_val = loss.item()
 
-            self.total_steps += self.train_steps
-            if self.scheduler and self.total_steps % 50 == 0:
-                self.scheduler.step()
-
-            mse = loss.item()
+            self.total_steps += 1
+            if self.scheduler:
+                self.scheduler.step(loss_val)
 
         if self.ema_loss is None:
-            self.ema_loss = mse
-            self.ema_loss_sq = mse**2
+            self.ema_loss = loss_val
+            self.ema_loss_sq = loss_val**2
         else:
             alpha = self.ema_alpha
             if self.sample_count < 100:
                 alpha = min(alpha * 2, 0.1)
-            self.ema_loss = (1 - alpha) * self.ema_loss + alpha * mse
-            self.ema_loss_sq = (1 - alpha) * self.ema_loss_sq + alpha * (mse**2)
+            self.ema_loss = (1 - alpha) * self.ema_loss + alpha * loss_val
+            self.ema_loss_sq = (1 - alpha) * self.ema_loss_sq + alpha * (loss_val**2)
 
-        return mse
+        return loss_val
 
     def get_top_features(
         self, data: Dict[str, Any], n: int = 3
@@ -388,7 +419,7 @@ class AutoencoderModel:
             "feature_order": self.feature_order,
             "scaler_means": dict(self.scaler.means),
             "scaler_vars": dict(self.scaler.vars),
-            "scaler_n": self.scaler.n,
+            "scaler_n": dict(self.scaler.n),
             "ema_loss": self.ema_loss,
             "ema_loss_sq": self.ema_loss_sq,
             "net_state": self.net.state_dict() if self.net else None,
@@ -407,7 +438,12 @@ class AutoencoderModel:
         self.feature_order = state.get("feature_order", [])
         self.scaler.means = state.get("scaler_means", {})
         self.scaler.vars = state.get("scaler_vars", {})
-        self.scaler.n = state.get("scaler_n", 0)
+        scaler_n = state.get("scaler_n", {})
+        if isinstance(scaler_n, int):
+            for key in self.scaler.means:
+                self.scaler.n[key] = scaler_n
+        else:
+            self.scaler.n = scaler_n
         self.ema_loss = state.get("ema_loss")
         self.ema_loss_sq = state.get("ema_loss_sq")
 

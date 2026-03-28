@@ -2356,6 +2356,7 @@
 <script setup>
 // Xerolux 2026
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import axios from 'axios'
 import api from '@/utils/api.js'
 import Fieldset from 'primevue/fieldset'
 import InputText from 'primevue/inputtext'

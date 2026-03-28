@@ -230,7 +230,8 @@ def save_model_state(wait=False):
         os.makedirs(os.path.dirname(config.model_path), exist_ok=True)
 
         with model_lock:
-            serialized = pickle.dumps(models)
+            state = {mode: model.get_state() for mode, model in models.items()}
+            serialized = pickle.dumps(state)
 
         if wait:
             _save_worker(serialized, config.model_path)
@@ -289,16 +290,27 @@ def load_model_state():
                 with open(config.model_path, "rb") as f:
                     loaded = pickle.load(f)
 
-            if isinstance(loaded, dict) and all(k in loaded for k in MODES):
-                models = loaded
-                for mode, model in models.items():
-                    if hasattr(model, "sample_count") and model.sample_count < 100:
-                        model.sample_count = 100
-                logger.info(f"Multi-mode model state loaded from {config.model_path}")
-            else:
-                logger.warning(
-                    "Legacy model state found (single model). Starting fresh with multi-mode models."
-                )
+            if isinstance(loaded, dict):
+                first_val = next(iter(loaded.values()), None)
+                if isinstance(first_val, dict) and "net_state" in first_val:
+                    for mode in MODES:
+                        if mode in loaded:
+                            models[mode].load_state(loaded[mode])
+                    logger.info(
+                        f"Model state loaded (get_state format) from {config.model_path}"
+                    )
+                elif hasattr(first_val, "sample_count"):
+                    models = loaded
+                    for mode, model in models.items():
+                        if hasattr(model, "sample_count") and model.sample_count < 100:
+                            model.sample_count = 100
+                    logger.info(
+                        f"Legacy pickle model state loaded from {config.model_path}"
+                    )
+
+            for mode, model in models.items():
+                if hasattr(model, "sample_count") and model.sample_count < 100:
+                    model.sample_count = 100
 
             model_trained = True
         return True
@@ -325,6 +337,20 @@ def determine_mode(data):
         return "standby"
 
 
+ENGINEERED_SUFFIXES = frozenset(("_delta", "_sin", "_cos", "_spread", "_instant"))
+ENGINEERED_KEYS = frozenset(
+    (
+        "hour_of_day",
+        "day_of_week",
+        "is_weekend",
+        "hour_sin",
+        "hour_cos",
+        "temp_spread",
+        "cop_instant",
+    )
+)
+
+
 def enrich_features(data):
     global last_data_points
     now = time.localtime()
@@ -337,14 +363,24 @@ def enrich_features(data):
     data["hour_sin"] = math.sin(hour_rad)
     data["hour_cos"] = math.cos(hour_rad)
 
-    for key, value in list(data.items()):
-        if isinstance(value, (int, float)) and key in last_data_points:
-            data[f"{key}_delta"] = value - last_data_points[key]
-        if isinstance(value, (int, float)):
-            last_data_points[key] = value
+    original_keys = {k for k in data if isinstance(data[k], (int, float))}
+    for key in original_keys:
+        if key in ENGINEERED_KEYS:
+            continue
+        if any(key.endswith(s) for s in ENGINEERED_SUFFIXES):
+            continue
+        if key in last_data_points:
+            data[f"{key}_delta"] = data[key] - last_data_points[key]
+        last_data_points[key] = data[key]
 
-    keys_to_remove = [k for k in last_data_points if k not in data]
-    for k in keys_to_remove:
+    stale_keys = [
+        k
+        for k in last_data_points
+        if k not in data
+        and k not in ENGINEERED_KEYS
+        and not any(k.endswith(s) for s in ENGINEERED_SUFFIXES)
+    ]
+    for k in stale_keys:
         del last_data_points[k]
 
     try:
