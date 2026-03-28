@@ -58,7 +58,24 @@ Commands:
 USAGE
 }
 
+SELF_UPDATE_URL="https://raw.githubusercontent.com/Xerolux/idm-metrics-collector/main/telemetry_server/telemetry_update.sh"
+
+_self_update() {
+  if [[ "${_TELEMETRY_SELF_UPDATED:-}" == "1" ]]; then return; fi
+  log "Prüfe auf Script-Update..."
+  local tmp
+  tmp=$(mktemp) || return
+  if curl -fsSL "$SELF_UPDATE_URL" -o "$tmp" 2>/dev/null; then
+    bash "$tmp"
+    rm -f "$tmp"
+    export _TELEMETRY_SELF_UPDATED=1
+    exec /usr/local/bin/telemetry update
+  fi
+  rm -f "$tmp"
+}
+
 cmd_update() {
+  _self_update
   need_cmds; need_dirs
   cd "$REPO_DIR"
   git config core.autocrlf input
