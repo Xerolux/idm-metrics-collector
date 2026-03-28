@@ -1,9 +1,9 @@
-typing_extensions>=4.12.0
 requests
-torch>=2.2.0
-numpy>=1.26.0
+Flask
 schedule
-flask
-joblib>=1.3.0  # Safer model serialization (no arbitrary code execution)
-cryptography
-scikit-learn>=1.5.0
+numpy
+pandas
+paho-mqtt
+flask-limiter
+torch
+scikit-learn
