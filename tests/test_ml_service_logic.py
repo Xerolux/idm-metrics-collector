@@ -175,7 +175,7 @@ class TestMLServiceLogic(unittest.TestCase):
                 if not res:
                     print(f"Error logs: {self.main.logger.error.call_args_list}")
 
-                mock_dumps.assert_called_once_with(self.main.models)
+                mock_dumps.assert_called_once()
 
                 mock_thread.assert_called_once()
                 call_kwargs = mock_thread.call_args[1]

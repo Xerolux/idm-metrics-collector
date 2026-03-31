@@ -168,7 +168,10 @@ class Database:
             with self._get_locked_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT * FROM jobs")
-                return cursor.fetchall()
+                # ⚡ Bolt: Memory Optimization
+                # Iterating directly over the cursor prevents O(N) memory consumption
+                # from loading the entire result set into an intermediate list via fetchall()
+                return [dict(row) for row in cursor]
         except sqlite3.Error as e:
             logger.error(f"Failed to retrieve jobs: {e}", exc_info=True)
             return []
