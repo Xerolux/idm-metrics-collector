@@ -46,18 +46,19 @@
         <div class="flex gap-2 flex-wrap">
           <button
             type="button"
-            v-for="color in presetColors"
-            :key="color"
-            @click="localAnnotation.color = color"
+            v-for="preset in presetColors"
+            :key="preset.color"
+            @click="localAnnotation.color = preset.color"
             :class="[
-              'w-8 h-8 rounded-full border-2 transition-all',
-              localAnnotation.color === color
+              'w-8 h-8 rounded-full border-2 transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 focus-visible:outline-none',
+              localAnnotation.color === preset.color
                 ? 'border-gray-900 scale-110'
                 : 'border-gray-300 hover:border-gray-400'
             ]"
-            :style="{ backgroundColor: color }"
-            :title="color"
-            :aria-label="color"
+            :style="{ backgroundColor: preset.color }"
+            :title="preset.name"
+            :aria-label="preset.name"
+            :aria-pressed="localAnnotation.color === preset.color"
           />
         </div>
       </div>
@@ -118,13 +119,13 @@ const localAnnotation = ref({
 })
 
 const presetColors = [
-  '#ef4444', // red
-  '#f59e0b', // amber
-  '#10b981', // emerald
-  '#3b82f6', // blue
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#6b7280' // gray
+  { color: '#ef4444', name: 'Rot' },
+  { color: '#f59e0b', name: 'Bernstein' },
+  { color: '#10b981', name: 'Smaragdgrün' },
+  { color: '#3b82f6', name: 'Blau' },
+  { color: '#8b5cf6', name: 'Violett' },
+  { color: '#ec4899', name: 'Pink' },
+  { color: '#6b7280', name: 'Grau' }
 ]
 
 const resetForm = () => {
