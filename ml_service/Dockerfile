@@ -3,15 +3,15 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Copy ML service requirements and install
-COPY ml_service/requirements.txt .
+COPY ml_service/requirements.txt ./ml_service/requirements.txt
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r ./ml_service/requirements.txt
 
 # Copy the idm_logger package (needed for imports)
 COPY idm_logger ./idm_logger
 
 # Copy the ml_service code
-COPY ml_service .
+COPY ml_service ./ml_service
 
-CMD ["python", "main.py"]
+CMD ["python", "ml_service/main.py"]
