@@ -981,6 +981,7 @@
                         text
                         size="small"
                         @click="downloadBackup(backup.filename)"
+                        aria-label="Herunterladen"
                       />
                       <Button
                         icon="pi pi-trash"
@@ -988,6 +989,7 @@
                         severity="danger"
                         size="small"
                         @click="confirmDeleteBackup(backup.filename)"
+                        aria-label="Löschen"
                       />
                     </div>
                   </div>

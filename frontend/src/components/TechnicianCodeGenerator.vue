@@ -27,6 +27,7 @@
               size="small"
               @click="copy(codes.level_1)"
               :disabled="!codes.level_1"
+              aria-label="Kopieren"
             />
           </div>
         </div>
@@ -44,6 +45,7 @@
               size="small"
               @click="copy(codes.level_2)"
               :disabled="!codes.level_2"
+              aria-label="Kopieren"
             />
           </div>
         </div>

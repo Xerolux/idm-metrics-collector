@@ -74,6 +74,7 @@
                 size="small"
                 severity="danger"
                 text
+                aria-label="Löschen"
               />
             </div>
           </div>

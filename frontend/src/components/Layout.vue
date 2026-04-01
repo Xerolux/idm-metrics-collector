@@ -239,6 +239,7 @@ onUnmounted(() => {
             severity="secondary"
             @click="toggleTheme"
             class="w-8 h-8 sm:w-auto sm:h-auto"
+            aria-label="Theme umschalten"
           />
 
           <Button
@@ -255,6 +256,7 @@ onUnmounted(() => {
             text
             @click="logout"
             class="p-1 sm:p-2"
+            aria-label="Abmelden"
           />
         </div>
       </template>
