@@ -896,7 +896,12 @@ def _process_telemetry_batch(
     This CPU-intensive task is designed to be offloaded to a background thread.
     """
     lines = []
-    tags = f"installation_id={installation_id},model={heatpump_model.replace(' ', '_')},version={version}"
+    # ⚡ Bolt: Performance Optimization
+    # Pre-calculating the static prefix (measurement name and tags) outside the loop
+    # eliminates redundant string interpolation for every single data point.
+    # Impact: Reduces CPU overhead during high-throughput batch processing,
+    # lowering serialization latency by avoiding O(N) string formatting operations.
+    prefix = f"heatpump_metrics,installation_id={installation_id},model={heatpump_model.replace(' ', '_')},version={version} "
 
     for record in data:
         timestamp = record.get("timestamp")
@@ -914,7 +919,7 @@ def _process_telemetry_batch(
                 fields.append(f"{key}={str(value).lower()}")
 
         if fields:
-            line = f"heatpump_metrics,{tags} {','.join(fields)} {ts_ns}"
+            line = f"{prefix}{','.join(fields)} {ts_ns}"
             lines.append(line)
 
     return lines
