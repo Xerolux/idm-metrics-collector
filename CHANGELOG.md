@@ -4,6 +4,32 @@ Alle Änderungen, Features und Verbesserungen chronologisch dokumentiert.
 
 ---
 
+## [1.0.8] - 2026-04-01
+
+### 🔒 Security Patch Release
+
+Dieses Release schließt die offenen Dependabot-Warnungen aus Frontend- und Telemetry-Abhängigkeiten.
+
+### ✨ Änderungen
+
+- Telemetry Dependencies aktualisiert:
+  - `cryptography` auf `46.0.6`
+  - `orjson` auf `3.11.6`
+  - `requests` auf `2.33.1`
+- Frontend Dependency/Lockfile gehärtet:
+  - `socket.io-client` auf `^4.8.3`
+  - sichere Versionen für `brace-expansion`, `picomatch`, `flatted`, `socket.io-parser`
+- `pnpm-lock.yaml` regeneriert
+
+### ✅ Ergebnis
+
+- Open Dependabot Alerts: **0**
+
+*Stand: 2026-04-01*
+*Version: 1.0.8*
+
+---
+
 ## [1.0.7] - 2026-04-01
 
 ### 🔐 Security, Telemetry & Ops Release
