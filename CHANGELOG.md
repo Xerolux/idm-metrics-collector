@@ -4,6 +4,35 @@ Alle Änderungen, Features und Verbesserungen chronologisch dokumentiert.
 
 ---
 
+## [1.0.7] - 2026-04-01
+
+### 🔐 Security, Telemetry & Ops Release
+
+Dieses Release fokussiert sich auf produktionsreifes Telemetry-Hardening, Admin-Schutz und vereinfachte Betriebsabläufe.
+
+### ✨ Highlights
+
+- Striktere Admin-Absicherung im Telemetry Server (dediziertes Admin-Token + Schutzpfade)
+- Neue Ops- und Security-Dokumentation für Public Deployments
+- Neue Betriebs-Skripte:
+  - Secret Rotation
+  - Image Digest Pinning
+  - Backup/Restore-Verifikation
+- Erweiterter `telemetry` Wrapper mit Menü, Risiko-Stufen, Bestätigungen und sicherem Update-Modus
+- Monitoring-Verbesserungen inkl. Alert-Regel-Generator und Prometheus-Beispiel
+- CI-Härtung mit automatischem Security-Check für produktive Konfigurationen
+- Shared Dashboard View im Frontend/Backend vervollständigt
+
+### 🧪 Qualität
+
+- Neue und angepasste Telemetry-Tests für Strict Admin Auth und Rollenverhalten
+- Build/Runtime Checks für neue Telemetry- und Ops-Komponenten
+
+*Stand: 2026-04-01*
+*Version: 1.0.7*
+
+---
+
 ## [1.0.3] - 2026-01-28
 
 ### 🔧 Code Quality & Maintenance Release

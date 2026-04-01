@@ -1,5 +1,6 @@
 # Xerolux 2026
 from unittest.mock import patch, MagicMock, AsyncMock
+import os
 
 # ... existing tests ...
 
@@ -151,8 +152,10 @@ def test_check_eligibility_valid_model_with_parens(
         "message_de": "Bereit",
     }
 
+    headers = {"Authorization": "Bearer test-token"}
     response = client.get(
-        f"/api/v1/model/check?installation_id={uuid_str}&model=AERO_SLM(v2)"
+        f"/api/v1/model/check?installation_id={uuid_str}&model=AERO_SLM(v2)",
+        headers=headers,
     )
     # May return 500 in test environment due to connection issues
     assert response.status_code in [200, 500]
@@ -204,11 +207,16 @@ def test_check_eligibility_admin_success(mock_client_cls, client):
     }
     mock_instance.get.return_value = mock_response
 
+    admin_token = os.environ["ADMIN_AUTH_TOKEN"]
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
     admin_uuid = "12345678-1234-1234-1234-123456789abc"
 
     # Patch ADMIN_IDS set with our test UUID
     with patch("app.ADMIN_IDS", {admin_uuid}):
-        response = client.get(f"/api/v1/model/check?installation_id={admin_uuid}")
+        response = client.get(
+            f"/api/v1/model/check?installation_id={admin_uuid}", headers=headers
+        )
         assert response.status_code == 200
         data = response.json()
         assert data.get("is_admin") is True
@@ -229,13 +237,18 @@ def test_check_eligibility_admin_case_insensitive(mock_client_cls, client):
     }
     mock_instance.get.return_value = mock_response
 
+    admin_token = os.environ["ADMIN_AUTH_TOKEN"]
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
     admin_uuid_lower = "12345678-1234-1234-1234-123456789abc"
     admin_uuid_upper = admin_uuid_lower.upper()
 
     # Patch ADMIN_IDS set with LOWERCASE version
     with patch("app.ADMIN_IDS", {admin_uuid_lower}):
         # Request with UPPERCASE version
-        response = client.get(f"/api/v1/model/check?installation_id={admin_uuid_upper}")
+        response = client.get(
+            f"/api/v1/model/check?installation_id={admin_uuid_upper}", headers=headers
+        )
         assert response.status_code == 200
         data = response.json()
         assert data.get("is_admin") is True

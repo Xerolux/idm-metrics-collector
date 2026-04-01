@@ -14,6 +14,11 @@ const routes = [
     component: () => import('../views/Setup.vue')
   },
   {
+    path: '/shared/:tokenId',
+    name: 'SharedDashboard',
+    component: () => import('../views/SharedDashboard.vue')
+  },
+  {
     path: '/',
     component: () => import('../components/Layout.vue'),
     meta: { requiresAuth: true },

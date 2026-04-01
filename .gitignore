@@ -2,7 +2,12 @@ __pycache__/
 *.pyc
 *.pyo
 venv/
+.venv/
 .env
+.env.*
+telemetry_server/.env
+telemetry_server/.env.*
+!telemetry_server/.env.production.example
 nul
 
 # Backup files

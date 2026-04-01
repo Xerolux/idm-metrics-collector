@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4 flex flex-col gap-4 h-[calc(100vh-2rem)] overflow-hidden">
+  <div class="p-4 flex flex-col gap-4 h-[calc(100vh-2rem)] overflow-hidden glass-panel rounded-2xl">
     <h1 class="text-2xl font-bold mb-2 flex-shrink-0">Konfiguration</h1>
 
     <div v-if="loading" class="flex justify-center items-center h-full">
@@ -1403,6 +1403,50 @@
                   </div>
                 </div>
               </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
+                <Dropdown
+                  v-model="trainingTargetModel"
+                  :options="models"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Modell für Training (optional)"
+                  class="w-full"
+                  showClear
+                />
+                <InputText
+                  v-model="trainingTargetInstallationId"
+                  class="w-full font-mono"
+                  placeholder="Installation ID (optional, Single-Device)"
+                />
+                <small class="text-gray-400 md:col-span-3">
+                  Wenn eine Installation-ID gesetzt ist, wird gezielt mit diesem einen Gerät
+                  trainiert.
+                </small>
+                <InputNumber
+                  v-model="trainingMinPoints"
+                  :useGrouping="false"
+                  class="w-full"
+                  placeholder="Min Points (optional)"
+                />
+                <InputNumber
+                  v-model="trainingMinInstallations"
+                  :useGrouping="false"
+                  class="w-full"
+                  placeholder="Min Installations (optional)"
+                />
+                <InputNumber
+                  v-model="trainingLookbackDays"
+                  :useGrouping="false"
+                  class="w-full"
+                  placeholder="Lookback Days (optional)"
+                />
+                <div class="md:col-span-3 flex items-center gap-2 mt-1">
+                  <Checkbox v-model="trainingDryRun" binary inputId="trainingDryRun" />
+                  <label for="trainingDryRun" class="text-sm text-gray-300 cursor-pointer">
+                    Dry-Run (nur validieren, kein Training starten)
+                  </label>
+                </div>
+              </div>
               <div class="flex gap-2 mt-2">
                 <Button
                   label="Refresh Data"
@@ -1413,7 +1457,8 @@
                         fetchAdminModels(),
                         fetchAdminHealth(),
                         fetchAdminInstallations(),
-                        fetchAdminMetrics()
+                        fetchAdminMetrics(),
+                        fetchRuntimeLimits()
                       ])
                     }
                   "
@@ -1749,7 +1794,7 @@
                     </div>
                     <div class="text-gray-400 text-xs">
                       Started:
-                      {{ new Date(adminTraining.current.started_at * 1000).toLocaleString() }}
+                      {{ formatAdminTime(adminTraining.current.started_at) }}
                     </div>
                   </div>
                   <Button
@@ -1779,7 +1824,7 @@
                         class="border-b border-gray-800 last:border-0 hover:bg-gray-800/30"
                       >
                         <td class="py-2 text-gray-300">
-                          {{ new Date(task.created_at * 1000).toLocaleString() }}
+                          {{ formatAdminTime(task.created_at) }}
                         </td>
                         <td class="py-2 font-mono text-xs text-gray-400">
                           {{ task.triggered_by?.substring(0, 8) }}...
@@ -1797,7 +1842,7 @@
                           </span>
                         </td>
                         <td class="py-2 text-right font-mono text-gray-400">
-                          {{ task.duration ? task.duration.toFixed(1) + 's' : '-' }}
+                          {{ formatTaskDuration(task) }}
                         </td>
                       </tr>
                       <tr v-if="adminTraining.history.length === 0">
@@ -1811,16 +1856,100 @@
               </div>
             </Fieldset>
 
+            <Fieldset legend="Runtime Limits" :toggleable="true">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="flex flex-col gap-1">
+                  <label class="text-xs text-gray-400">Admin Rate Limit</label>
+                  <InputNumber
+                    v-model="runtimeLimitsDraft.admin_rate_limit"
+                    :min="1"
+                    :max="10000"
+                    :useGrouping="false"
+                  />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <label class="text-xs text-gray-400">Max Training Queue</label>
+                  <InputNumber
+                    v-model="runtimeLimitsDraft.max_training_queue"
+                    :min="1"
+                    :max="1000"
+                    :useGrouping="false"
+                  />
+                </div>
+                <div class="flex flex-col gap-1">
+                  <label class="text-xs text-gray-400">Max Parallel Training</label>
+                  <InputNumber
+                    v-model="runtimeLimitsDraft.max_parallel_training"
+                    :min="1"
+                    :max="1"
+                    :useGrouping="false"
+                  />
+                </div>
+              </div>
+              <div class="mt-3 flex justify-end">
+                <Button
+                  label="Runtime Limits speichern"
+                  icon="pi pi-save"
+                  size="small"
+                  severity="info"
+                  :loading="savingRuntimeLimits"
+                  @click="saveRuntimeLimits"
+                />
+              </div>
+            </Fieldset>
+
             <!-- Audit Log -->
             <Fieldset legend="Audit Log" :toggleable="true">
               <div class="flex flex-col gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
+                  <div>
+                    <label class="text-xs text-gray-400 block mb-1">Action</label>
+                    <InputText v-model="auditActionFilter" class="w-full" placeholder="z.B. training_trigger" />
+                  </div>
+                  <div>
+                    <label class="text-xs text-gray-400 block mb-1">Admin</label>
+                    <InputText v-model="auditAdminFilter" class="w-full" placeholder="admin-id" />
+                  </div>
+                  <div>
+                    <label class="text-xs text-gray-400 block mb-1">Status</label>
+                    <Dropdown
+                      v-model="auditSuccessFilter"
+                      :options="[
+                        { label: 'Alle', value: 'all' },
+                        { label: 'Erfolg', value: 'success' },
+                        { label: 'Fehler', value: 'failure' }
+                      ]"
+                      optionLabel="label"
+                      optionValue="value"
+                      class="w-full"
+                    />
+                  </div>
+                  <div class="flex gap-2 justify-end">
+                    <Button
+                      label="CSV"
+                      icon="pi pi-download"
+                      severity="contrast"
+                      size="small"
+                      outlined
+                      @click="exportAuditLogCsv"
+                    />
+                    <Button
+                      label="Refresh Log"
+                      icon="pi pi-refresh"
+                      severity="secondary"
+                      size="small"
+                      @click="fetchAuditLog"
+                    />
+                  </div>
+                </div>
                 <div class="flex justify-end">
                   <Button
-                    label="Refresh Log"
-                    icon="pi pi-refresh"
-                    severity="secondary"
+                    label="Filter zurücksetzen"
+                    icon="pi pi-filter-slash"
+                    severity="contrast"
                     size="small"
-                    @click="fetchAuditLog"
+                    outlined
+                    @click="resetAuditFilters"
                   />
                 </div>
                 <div class="overflow-x-auto max-h-96">
@@ -1842,14 +1971,17 @@
                         class="border-b border-gray-800 last:border-0 hover:bg-gray-800/30 font-mono text-xs"
                       >
                         <td class="py-1 text-gray-400">
-                          {{ new Date(log.timestamp * 1000).toLocaleString() }}
+                          {{ formatAdminTime(log.timestamp) }}
                         </td>
                         <td class="py-1 text-blue-300">{{ log.action }}</td>
                         <td class="py-1 text-gray-500" :title="log.admin_id">
                           {{ log.admin_id.substring(0, 8) }}
                         </td>
                         <td class="py-1 text-center">
-                          <i v-if="log.success" class="pi pi-check text-green-500"></i>
+                          <i
+                            v-if="String(log.result || '').toLowerCase() === 'success'"
+                            class="pi pi-check text-green-500"
+                          ></i>
                           <i v-else class="pi pi-times text-red-500"></i>
                         </td>
                       </tr>
@@ -2029,6 +2161,104 @@
                 }}</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div class="bg-gray-900/50 p-4 rounded border border-gray-700">
+          <h3 class="text-lg font-bold mb-3 flex items-center gap-2">
+            <i class="pi pi-sliders-h text-cyan-400"></i>
+            Installation Settings
+          </h3>
+          <div v-if="installationSettingsLoading" class="text-gray-400 text-sm">
+            <i class="pi pi-spin pi-spinner mr-2"></i> Lade Installation-Settings...
+          </div>
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+              <label class="text-xs text-gray-400">Upload Interval (s)</label>
+              <InputNumber
+                v-model="installationSettings.telemetry_policy.upload_interval_seconds"
+                :useGrouping="false"
+                :min="10"
+                :max="86400"
+              />
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-xs text-gray-400">Sampling Ratio</label>
+              <InputNumber
+                v-model="installationSettings.telemetry_policy.sampling_ratio"
+                :min="0.01"
+                :max="1"
+                :step="0.01"
+                :minFractionDigits="2"
+                :maxFractionDigits="2"
+              />
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-xs text-gray-400">PII Masking</label>
+              <Dropdown
+                v-model="installationSettings.telemetry_policy.pii_masking_level"
+                :options="[
+                  { label: 'Low', value: 'low' },
+                  { label: 'Standard', value: 'standard' },
+                  { label: 'High', value: 'high' }
+                ]"
+                optionLabel="label"
+                optionValue="value"
+              />
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-xs text-gray-400">Anomaly Threshold</label>
+              <InputNumber
+                v-model="installationSettings.alert_tuning.anomaly_threshold"
+                :min="0.01"
+                :max="1"
+                :step="0.01"
+                :minFractionDigits="2"
+                :maxFractionDigits="2"
+              />
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-xs text-gray-400">Cooldown (s)</label>
+              <InputNumber
+                v-model="installationSettings.alert_tuning.cooldown_seconds"
+                :useGrouping="false"
+                :min="0"
+                :max="86400"
+              />
+            </div>
+            <div class="flex flex-col gap-2">
+              <label class="text-xs text-gray-400">Consecutive Hits</label>
+              <InputNumber
+                v-model="installationSettings.alert_tuning.consecutive_hits"
+                :useGrouping="false"
+                :min="1"
+                :max="20"
+              />
+            </div>
+            <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="flex items-center gap-2">
+                <Checkbox v-model="installationSettings.feature_flags.next_gen_ai" binary />
+                <span class="text-sm text-gray-300">Feature: next_gen_ai</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <Checkbox v-model="installationSettings.feature_flags.new_dashboard" binary />
+                <span class="text-sm text-gray-300">Feature: new_dashboard</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <Checkbox v-model="installationSettings.feature_flags.beta_training" binary />
+                <span class="text-sm text-gray-300">Feature: beta_training</span>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 flex justify-end">
+            <Button
+              label="Installation-Settings speichern"
+              icon="pi pi-save"
+              severity="info"
+              size="small"
+              :loading="savingInstallationSettings"
+              @click="saveInstallationSettings"
+            />
           </div>
         </div>
 
@@ -2281,6 +2511,25 @@
         <div class="text-sm text-gray-400 mb-2">
           Admin: <span class="font-mono text-white">{{ selectedAdminId.substring(0, 12) }}...</span>
         </div>
+        <div class="flex gap-2 items-end">
+          <div class="flex-1">
+            <label class="text-xs text-gray-400 block mb-1">Permission Preset</label>
+            <Dropdown
+              v-model="selectedPermissionPreset"
+              :options="Object.keys(permissionPresets).map((k) => ({ label: k, value: k }))"
+              optionLabel="label"
+              optionValue="value"
+              class="w-full"
+            />
+          </div>
+          <Button
+            label="Preset anwenden"
+            size="small"
+            severity="info"
+            outlined
+            @click="applyPermissionPreset"
+          />
+        </div>
         <div class="flex flex-col gap-2">
           <div
             v-for="perm in [
@@ -2465,6 +2714,8 @@ const installationHistory = ref(null)
 const loadingDetails = ref(false)
 const selectedStatsModel = ref(null)
 const statsMetrics = ref('cop_current, temp_outdoor')
+const trainingTargetModel = ref(null)
+const trainingTargetInstallationId = ref('')
 const modelDeleting = ref(false)
 const trainingInProgress = ref(false)
 const adminAutoRefresh = ref(true)
@@ -2484,8 +2735,13 @@ const savingRole = ref(false)
 const savingBan = ref(false)
 // New Admin Features State
 const adminAuditLog = ref([])
+const auditActionFilter = ref('')
+const auditAdminFilter = ref('')
+const auditSuccessFilter = ref('all')
 const adminTraining = ref({ current: null, history: [] })
 const adminPermissions = ref([])
+const permissionPresets = ref({})
+const selectedPermissionPreset = ref('viewer')
 const permissionDialogVisible = ref(false)
 const selectedAdminId = ref('')
 const selectedAdminPermissions = ref([])
@@ -2494,6 +2750,24 @@ const newAdminId = ref('')
 const savingPermissions = ref(false)
 const grantingAdmin = ref(false)
 const cancellingTraining = ref(false)
+const runtimeLimits = ref(null)
+const runtimeLimitsDraft = ref({
+  admin_rate_limit: 20,
+  max_training_queue: 10,
+  max_parallel_training: 1
+})
+const savingRuntimeLimits = ref(false)
+const trainingMinPoints = ref(null)
+const trainingMinInstallations = ref(null)
+const trainingLookbackDays = ref(null)
+const trainingDryRun = ref(false)
+const installationSettings = ref({
+  telemetry_policy: { upload_interval_seconds: 60, sampling_ratio: 1.0, pii_masking_level: 'standard' },
+  alert_tuning: { anomaly_threshold: 0.7, cooldown_seconds: 300, consecutive_hits: 3 },
+  feature_flags: { next_gen_ai: false, new_dashboard: false, beta_training: false }
+})
+const installationSettingsLoading = ref(false)
+const savingInstallationSettings = ref(false)
 
 const modelDownloadsChart = ref(null)
 let modelDownloadsChartInstance = null
@@ -2541,6 +2815,7 @@ const getAdminHeaders = () => {
 
 const adminGet = (url, options = {}) => axios.get(url, { timeout: ADMIN_TIMEOUT, ...options })
 const adminPost = (url, data, options = {}) => axios.post(url, data, { timeout: ADMIN_TIMEOUT, ...options })
+const adminPut = (url, data, options = {}) => axios.put(url, data, { timeout: ADMIN_TIMEOUT, ...options })
 const adminDelete = (url, options = {}) => axios.delete(url, { timeout: ADMIN_TIMEOUT, ...options })
 
 const fetchAdminHealth = async () => {
@@ -2571,8 +2846,10 @@ const fetchAdminInstallations = async () => {
       headers: getAdminHeaders()
     })
     adminInstallations.value = res.data
-    // Also fetch roles data
-    await fetchInstallationRoles()
+    // Fetch detailed roles independently; do not fail installation table on role endpoint errors.
+    fetchInstallationRoles().catch((err) => {
+      console.warn('Role list fetch failed, using inline role fallback:', err?.message || err)
+    })
   } catch (err) {
     console.error('Failed to fetch admin installations:', err)
     const msg = err.code === 'ECONNABORTED'
@@ -2602,15 +2879,21 @@ const fetchInstallationRoles = async () => {
 }
 
 const getInstallationRole = (instId) => {
-  if (!installationRoles.value?.items) return 'guest'
-  const inst = installationRoles.value.items.find((i) => i.installation_id === instId)
-  return inst?.role || 'guest'
+  if (installationRoles.value?.items) {
+    const inst = installationRoles.value.items.find((i) => i.installation_id === instId)
+    if (inst?.role) return inst.role
+  }
+  const inline = adminInstallations.value?.installations?.find((i) => i.installation_id === instId)
+  return inline?.role || 'guest'
 }
 
 const isInstallationBanned = (instId) => {
-  if (!installationRoles.value?.items) return false
-  const inst = installationRoles.value.items.find((i) => i.installation_id === instId)
-  return inst?.is_banned || false
+  if (installationRoles.value?.items) {
+    const inst = installationRoles.value.items.find((i) => i.installation_id === instId)
+    if (typeof inst?.is_banned === 'boolean') return inst.is_banned
+  }
+  const inline = adminInstallations.value?.installations?.find((i) => i.installation_id === instId)
+  return !!inline?.is_banned
 }
 
 const getRoleBadgeClass = (role) => {
@@ -2623,6 +2906,17 @@ const getRoleBadgeClass = (role) => {
     admin: 'bg-red-600 text-white'
   }
   return classes[role] || classes.guest
+}
+
+const formatAdminTime = (value) => {
+  if (!value) return '-'
+  const date = typeof value === 'number' ? new Date(value * 1000) : new Date(value)
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString()
+}
+
+const formatTaskDuration = (task) => {
+  const raw = task?.duration_seconds ?? task?.duration
+  return typeof raw === 'number' ? `${raw.toFixed(1)}s` : '-'
 }
 
 const openRoleDialog = (instId) => {
@@ -2918,13 +3212,199 @@ const fetchAuditLog = async () => {
   if (!telemetryStatus.value?.is_admin) return
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
+    const successOnly =
+      auditSuccessFilter.value === 'all' ? undefined : auditSuccessFilter.value === 'success'
     const res = await adminGet(`${telemetryUrl}/api/v1/admin/audit-log`, {
-      params: { installation_id: config.value.installation_id, limit: 100 },
+      params: {
+        installation_id: config.value.installation_id,
+        limit: 100,
+        action: auditActionFilter.value || undefined,
+        admin_filter: auditAdminFilter.value || undefined,
+        success_only: successOnly
+      },
       headers: getAdminHeaders()
     })
     adminAuditLog.value = res.data.events || []
   } catch (err) {
     console.error('Failed to fetch audit log:', err)
+  }
+}
+
+const exportAuditLogCsv = async () => {
+  if (!telemetryStatus.value?.is_admin) return
+  try {
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
+    const successOnly =
+      auditSuccessFilter.value === 'all' ? undefined : auditSuccessFilter.value === 'success'
+    const res = await adminGet(`${telemetryUrl}/api/v1/admin/audit-log`, {
+      params: {
+        installation_id: config.value.installation_id,
+        limit: 500,
+        action: auditActionFilter.value || undefined,
+        admin_filter: auditAdminFilter.value || undefined,
+        success_only: successOnly,
+        format: 'csv'
+      },
+      headers: getAdminHeaders(),
+      responseType: 'blob'
+    })
+
+    const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', 'telemetry_audit_log.csv')
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err.response?.data?.detail || 'Audit CSV Export fehlgeschlagen',
+      life: 5000
+    })
+  }
+}
+
+const resetAuditFilters = () => {
+  auditActionFilter.value = ''
+  auditAdminFilter.value = ''
+  auditSuccessFilter.value = 'all'
+  fetchAuditLog()
+}
+
+const fetchRuntimeLimits = async () => {
+  if (!telemetryStatus.value?.is_admin) return
+  try {
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
+    const res = await adminGet(`${telemetryUrl}/api/v1/admin/runtime-limits`, {
+      params: { installation_id: config.value.installation_id },
+      headers: getAdminHeaders()
+    })
+    runtimeLimits.value = res.data.limits
+    runtimeLimitsDraft.value = { ...runtimeLimitsDraft.value, ...res.data.limits }
+  } catch (err) {
+    console.error('Failed to fetch runtime limits:', err)
+  }
+}
+
+const saveRuntimeLimits = async () => {
+  savingRuntimeLimits.value = true
+  try {
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
+    const res = await adminPost(
+      `${telemetryUrl}/api/v1/admin/runtime-limits`,
+      {
+        admin_rate_limit: Number(runtimeLimitsDraft.value.admin_rate_limit),
+        max_training_queue: Number(runtimeLimitsDraft.value.max_training_queue),
+        max_parallel_training: Number(runtimeLimitsDraft.value.max_parallel_training)
+      },
+      {
+        params: { installation_id: config.value.installation_id },
+        headers: getAdminHeaders()
+      }
+    )
+    runtimeLimits.value = res.data.limits
+    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Runtime Limits gespeichert', life: 3000 })
+  } catch (err) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err.response?.data?.detail || 'Runtime Limits konnten nicht gespeichert werden',
+      life: 5000
+    })
+  } finally {
+    savingRuntimeLimits.value = false
+  }
+}
+
+const fetchPermissionPresets = async () => {
+  if (!telemetryStatus.value?.is_admin) return
+  try {
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
+    const res = await adminGet(`${telemetryUrl}/api/v1/admin/permissions/presets`, {
+      params: { installation_id: config.value.installation_id },
+      headers: getAdminHeaders()
+    })
+    permissionPresets.value = res.data.presets || {}
+  } catch (err) {
+    console.error('Failed to fetch permission presets:', err)
+  }
+}
+
+const applyPermissionPreset = async () => {
+  if (!selectedAdminId.value || !selectedPermissionPreset.value) return
+  try {
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
+    await adminPost(
+      `${telemetryUrl}/api/v1/admin/permissions/apply-preset`,
+      {
+        target_admin_id: selectedAdminId.value,
+        preset: selectedPermissionPreset.value,
+        merge: false
+      },
+      {
+        params: { installation_id: config.value.installation_id },
+        headers: getAdminHeaders()
+      }
+    )
+    await fetchPermissions()
+    const admin = adminPermissions.value.find((a) => a.id === selectedAdminId.value)
+    selectedAdminPermissions.value = admin?.permissions ? [...admin.permissions] : []
+    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Preset angewendet', life: 3000 })
+  } catch (err) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err.response?.data?.detail || 'Preset konnte nicht angewendet werden',
+      life: 5000
+    })
+  }
+}
+
+const fetchInstallationSettings = async (instId) => {
+  if (!telemetryStatus.value?.is_admin || !instId) return
+  installationSettingsLoading.value = true
+  try {
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
+    const res = await adminGet(`${telemetryUrl}/api/v1/admin/installations/${instId}/settings`, {
+      params: { installation_id: config.value.installation_id },
+      headers: getAdminHeaders()
+    })
+    installationSettings.value = res.data.settings || installationSettings.value
+  } catch (err) {
+    console.error('Failed to fetch installation settings:', err)
+  } finally {
+    installationSettingsLoading.value = false
+  }
+}
+
+const saveInstallationSettings = async () => {
+  if (!selectedInstallation.value) return
+  savingInstallationSettings.value = true
+  try {
+    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
+    const res = await adminPut(
+      `${telemetryUrl}/api/v1/admin/installations/${selectedInstallation.value}/settings`,
+      installationSettings.value,
+      {
+        params: { installation_id: config.value.installation_id },
+        headers: getAdminHeaders()
+      }
+    )
+    installationSettings.value = res.data.settings || installationSettings.value
+    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Installation-Settings gespeichert', life: 3000 })
+  } catch (err) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err.response?.data?.detail || 'Installation-Settings konnten nicht gespeichert werden',
+      life: 5000
+    })
+  } finally {
+    savingInstallationSettings.value = false
   }
 }
 
@@ -3002,6 +3482,7 @@ const cancelTraining = async (taskId) => {
 const openPermissionDialog = (admin) => {
   selectedAdminId.value = admin.id
   selectedAdminPermissions.value = [...admin.permissions] // Use direct permissions
+  selectedPermissionPreset.value = 'viewer'
   permissionDialogVisible.value = true
 }
 
@@ -3117,7 +3598,7 @@ const openInstallationDetails = async (installationId) => {
 
     const headers = getAdminHeaders()
     // Fetch details and history in parallel
-    const [detailsRes, historyRes] = await Promise.all([
+    const [detailsRes, historyRes, settingsRes] = await Promise.all([
       adminGet(`${telemetryUrl}/api/v1/admin/installations/${installationId}/details`, {
         params: { installation_id: config.value.installation_id },
         headers
@@ -3125,11 +3606,16 @@ const openInstallationDetails = async (installationId) => {
       adminGet(`${telemetryUrl}/api/v1/admin/installations/${installationId}/history`, {
         params: { installation_id: config.value.installation_id, limit: 20 },
         headers
-      })
+      }),
+      adminGet(`${telemetryUrl}/api/v1/admin/installations/${installationId}/settings`, {
+        params: { installation_id: config.value.installation_id },
+        headers
+      }).catch(() => ({ data: { settings: installationSettings.value } }))
     ])
 
     installationDetails.value = detailsRes.data
     installationHistory.value = historyRes.data
+    installationSettings.value = settingsRes.data?.settings || installationSettings.value
   } catch (err) {
     console.error('Failed to fetch installation details:', err)
     toast.add({
@@ -3196,16 +3682,29 @@ const triggerTraining = async () => {
   trainingInProgress.value = true
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
+    const params = { installation_id: config.value.installation_id }
+    if (trainingTargetModel.value) params.target_model = trainingTargetModel.value
+    if (trainingTargetInstallationId.value?.trim()) {
+      params.target_installation_id = trainingTargetInstallationId.value.trim()
+    }
+    if (trainingMinPoints.value) params.min_points = Number(trainingMinPoints.value)
+    if (trainingMinInstallations.value) {
+      params.min_installations = Number(trainingMinInstallations.value)
+    }
+    if (trainingLookbackDays.value) params.lookback_days = Number(trainingLookbackDays.value)
+    if (trainingDryRun.value) params.dry_run = true
     const res = await adminPost(`${telemetryUrl}/api/v1/admin/models/trigger-training`, null, {
-      params: { installation_id: config.value.installation_id },
+      params,
       headers: getAdminHeaders()
     })
 
     if (res.data.success) {
       toast.add({
-        severity: 'success',
-        summary: 'Training gestartet',
-        detail: 'Modell-Training wurde manuell ausgelöst',
+        severity: trainingDryRun.value ? 'info' : 'success',
+        summary: trainingDryRun.value ? 'Dry-Run erfolgreich' : 'Training gestartet',
+        detail: trainingDryRun.value
+          ? 'Parameter sind gültig. Es wurde kein Training gestartet.'
+          : 'Modell-Training wurde manuell ausgelöst',
         life: 3000
       })
     } else {
@@ -3459,7 +3958,9 @@ const loadTelemetryStatus = async () => {
         fetchAdminInstallations(),
         fetchAdminModels(),
         fetchAdminMetrics(),
-        fetchTrainingInfo()
+        fetchTrainingInfo(),
+        fetchRuntimeLimits(),
+        fetchPermissionPresets()
       ])
 
       // Start auto-refresh for admin data
@@ -3485,7 +3986,8 @@ const startAdminAutoRefresh = () => {
           fetchAdminInstallations(),
           fetchAdminModels(),
           fetchAdminMetrics(),
-          fetchTrainingInfo()
+          fetchTrainingInfo(),
+          fetchRuntimeLimits()
         ])
       } catch (e) {
         console.error('Auto-refresh failed', e)

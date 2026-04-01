@@ -1,6 +1,7 @@
 # Xerolux 2026
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
+import os
 from installation_manager import InstallationRole
 
 
@@ -17,6 +18,9 @@ async def test_check_eligibility_roles_and_bans(client):
         patch("app.installation_manager") as mock_inst_manager,
         patch("app.ADMIN_IDS", set()),
     ):
+        client_headers = {"Authorization": "Bearer test-token"}
+        admin_headers = {"Authorization": f"Bearer {os.environ['ADMIN_AUTH_TOKEN']}"}
+
         # Mock pool stats
         mock_pool_stats.return_value = {
             "total_installations": 10,
@@ -44,7 +48,10 @@ async def test_check_eligibility_roles_and_bans(client):
         mock_inst_manager.get_active_bans.return_value = []
         mock_inst_manager.has_role_or_higher.return_value = False  # Not admin
 
-        response = client.get(f"/api/v1/model/check?installation_id={installation_id}")
+        response = client.get(
+            f"/api/v1/model/check?installation_id={installation_id}",
+            headers=client_headers,
+        )
         assert response.status_code == 200
         data = response.json()
 
@@ -56,7 +63,11 @@ async def test_check_eligibility_roles_and_bans(client):
         mock_inst_manager.get_role.return_value = InstallationRole.ADMIN
         mock_inst_manager.has_role_or_higher.return_value = True  # Is admin
 
-        response = client.get(f"/api/v1/model/check?installation_id={installation_id}")
+        with patch("app.verify_admin", return_value=installation_id):
+            response = client.get(
+                f"/api/v1/model/check?installation_id={installation_id}",
+                headers=admin_headers,
+            )
         assert response.status_code == 200
         data = response.json()
 
@@ -72,7 +83,10 @@ async def test_check_eligibility_roles_and_bans(client):
             {"type": "full", "reason": "Bad behavior"}
         ]
 
-        response = client.get(f"/api/v1/model/check?installation_id={installation_id}")
+        response = client.get(
+            f"/api/v1/model/check?installation_id={installation_id}",
+            headers=client_headers,
+        )
         assert response.status_code == 200
         data = response.json()
 

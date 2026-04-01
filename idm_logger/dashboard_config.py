@@ -167,12 +167,12 @@ def get_default_dashboards() -> List[Dict[str, Any]]:
                     "queries": [
                         {
                             "label": "Anomalie Score",
-                            "query": "max(idm_anomaly_score_value)",
+                            "query": "max(idm_anomaly_score_value or idm_anomaly_score)",
                             "color": "#ef4444",
                         },
                         {
                             "label": "Anomalie Flag",
-                            "query": "max(idm_anomaly_flag_value)",
+                            "query": "max(idm_anomaly_flag_value or idm_anomaly_flag)",
                             "color": "#f59e0b",
                         },
                     ],
@@ -246,12 +246,12 @@ class DashboardManager:
                         expected_queries = [
                             {
                                 "label": "Anomalie Score",
-                                "query": "max(idm_anomaly_score_value)",
+                                "query": "max(idm_anomaly_score_value or idm_anomaly_score)",
                                 "color": "#ef4444",
                             },
                             {
                                 "label": "Anomalie Flag",
-                                "query": "max(idm_anomaly_flag_value)",
+                                "query": "max(idm_anomaly_flag_value or idm_anomaly_flag)",
                                 "color": "#f59e0b",
                             },
                         ]
@@ -271,12 +271,12 @@ class DashboardManager:
                         "queries": [
                             {
                                 "label": "Anomalie Score",
-                                "query": "max(idm_anomaly_score_value)",
+                                "query": "max(idm_anomaly_score_value or idm_anomaly_score)",
                                 "color": "#ef4444",
                             },
                             {
                                 "label": "Anomalie Flag",
-                                "query": "max(idm_anomaly_flag_value)",
+                                "query": "max(idm_anomaly_flag_value or idm_anomaly_flag)",
                                 "color": "#f59e0b",
                             },
                         ],

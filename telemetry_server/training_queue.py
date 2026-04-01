@@ -61,6 +61,8 @@ class TrainingTask:
     stderr: Optional[str] = None
     returncode: Optional[int] = None
     duration_seconds: Optional[float] = None
+    target_model: Optional[str] = None
+    target_installation_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -110,7 +112,14 @@ class TrainingQueue:
             logger.error("task_save_failed", error=str(e))
 
     async def enqueue_training(
-        self, triggered_by: str, script_path: str = "/app/scripts/train_models.py"
+        self,
+        triggered_by: str,
+        script_path: str = "/app/scripts/train_models.py",
+        script_args: Optional[List[str]] = None,
+        target_model: Optional[str] = None,
+        target_installation_id: Optional[str] = None,
+        max_queued_tasks: Optional[int] = None,
+        max_parallel_tasks: int = 1,
     ) -> str:
         """
         Enqueue a new training task.
@@ -123,10 +132,21 @@ class TrainingQueue:
             Task ID (UUID)
         """
         # Check if training is already running
-        if self.current_task and not self.current_task.done():
+        if max_parallel_tasks <= 1 and self.current_task and not self.current_task.done():
             raise ValueError(
                 "Training is already in progress. Please wait for it to complete."
             )
+
+        if max_queued_tasks is not None:
+            active_count = sum(
+                1
+                for t in self.tasks.values()
+                if t.status in (TaskStatus.QUEUED, TaskStatus.RUNNING)
+            )
+            if active_count >= max_queued_tasks:
+                raise ValueError(
+                    f"Training queue limit reached ({max_queued_tasks}). Please wait."
+                )
 
         # Generate task ID
         task_id = str(uuid.uuid4())
@@ -138,6 +158,8 @@ class TrainingQueue:
             created_at=datetime.now(timezone.utc).isoformat(),
             triggered_by=triggered_by,
             message="Training queued",
+            target_model=target_model,
+            target_installation_id=target_installation_id,
         )
 
         self.tasks[task_id] = task
@@ -148,12 +170,12 @@ class TrainingQueue:
         # Start training in background
         self.current_task_id = task_id
         self.current_task = asyncio.create_task(
-            self._run_training(task_id, script_path)
+            self._run_training(task_id, script_path, script_args or [])
         )
 
         return task_id
 
-    async def _run_training(self, task_id: str, script_path: str):
+    async def _run_training(self, task_id: str, script_path: str, script_args: List[str]):
         """
         Run training script asynchronously.
 
@@ -178,6 +200,7 @@ class TrainingQueue:
             process = await asyncio.create_subprocess_exec(
                 "python3",
                 script_path,
+                *script_args,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd="/app",

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="bg-white rounded-lg p-2 h-full flex flex-col shadow-sm border border-gray-200 relative"
+    class="glass-card rounded-lg p-2 h-full flex flex-col shadow-sm border border-gray-200 relative"
   >
     <div v-if="editMode" class="absolute top-2 right-2 z-10 flex gap-1">
       <button type="button"

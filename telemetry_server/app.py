@@ -15,6 +15,9 @@ import os
 import httpx
 import time
 import asyncio
+import csv
+import io
+import threading
 
 from datetime import timedelta, datetime, timezone
 import hashlib
@@ -108,6 +111,13 @@ if not ADMIN_IDS and raw_admin_ids:
 VM_WRITE_URL = config.vm_write_url
 VM_QUERY_URL = config.vm_query_url
 AUTH_TOKEN = config.auth_token
+ADMIN_AUTH_TOKEN = os.environ.get("ADMIN_AUTH_TOKEN", "").strip()
+STRICT_ADMIN_AUTH = os.environ.get("STRICT_ADMIN_AUTH", "true").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 MODEL_DIR = config.model_dir
 MIN_INSTALLATIONS_FOR_MODEL = config.min_installations
 MIN_DATA_POINTS_FOR_MODEL = config.min_data_points
@@ -116,6 +126,41 @@ MAX_PAYLOAD_SIZE = config.max_payload_size
 RATE_LIMIT_WINDOW = rate_limit_config.window
 MAX_RATE_LIMIT_ENTRIES = rate_limit_config.max_entries
 RATE_LIMITS = rate_limit_config.limits
+
+ADMIN_RUNTIME_SETTINGS: Dict[str, int] = {
+    "admin_rate_limit": int(RATE_LIMITS.get("admin", 20)),
+    "max_training_queue": int(os.environ.get("MAX_TRAINING_QUEUE", "10")),
+    "max_parallel_training": int(os.environ.get("MAX_PARALLEL_TRAINING", "1")),
+}
+
+PERMISSION_PRESETS: Dict[str, List[str]] = {
+    "viewer": ["admin:view"],
+    "ops": ["admin:view", "admin:models", "admin:training"],
+    "user_admin": ["admin:view", "admin:users"],
+    "ml_admin": ["admin:view", "admin:training", "admin:models"],
+    "full": ["admin:full"],
+}
+
+DEFAULT_INSTALLATION_SETTINGS: Dict[str, Any] = {
+    "telemetry_policy": {
+        "upload_interval_seconds": 60,
+        "sampling_ratio": 1.0,
+        "pii_masking_level": "standard",
+    },
+    "alert_tuning": {
+        "anomaly_threshold": 0.7,
+        "cooldown_seconds": 300,
+        "consecutive_hits": 3,
+    },
+    "feature_flags": {
+        "next_gen_ai": False,
+        "new_dashboard": False,
+        "beta_training": False,
+    },
+}
+
+_admin_rl_lock = threading.Lock()
+_admin_rl_store: Dict[str, List[float]] = {}
 
 DEFAULT_BAN_DURATION = security_config.default_ban_duration
 DEFAULT_ENCRYPTION_KEY = security_config.encryption_key
@@ -129,6 +174,32 @@ if not _encryption_key_str:
     logger.warning(
         "Using default encryption key - set TELEMETRY_ENCRYPTION_KEY environment variable for production"
     )
+
+_INSECURE_TOKENS = {
+    "",
+    "change-me-to-something-secure",
+    "changeme",
+    "admin",
+    "password",
+}
+
+
+def _is_strong_secret(token: Optional[str]) -> bool:
+    if not token:
+        return False
+    t = token.strip()
+    if len(t) < 24:
+        return False
+    return t.lower() not in _INSECURE_TOKENS
+
+
+def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer":
+        return None
+    return token or None
 
 HASH_CACHE_TTL = cache_config.hash_ttl
 POOL_STATS_CACHE_TTL = cache_config.pool_stats_ttl
@@ -280,10 +351,44 @@ async def root():
     )
 
 
-def check_rate_limit(
-    client_ip: str, endpoint_type: str = "default"
+def _check_rate_limit_override(
+    client_ip: str, endpoint_type: str, limit: int
 ) -> Tuple[bool, Dict[str, str]]:
-    allowed, headers = rate_limiter.check(client_ip, endpoint_type)
+    now = time.time()
+    key = f"{client_ip}:{endpoint_type}"
+    with _admin_rl_lock:
+        timestamps = _admin_rl_store.get(key, [])
+        timestamps = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
+        if len(timestamps) >= limit:
+            reset = int((max(timestamps) if timestamps else now) + RATE_LIMIT_WINDOW)
+            _admin_rl_store[key] = timestamps
+            return False, {
+                "X-RateLimit-Limit": str(limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(reset),
+                "Retry-After": str(RATE_LIMIT_WINDOW),
+            }
+
+        timestamps.append(now)
+        _admin_rl_store[key] = timestamps
+        remaining = max(0, limit - len(timestamps))
+        reset = int(max(timestamps) + RATE_LIMIT_WINDOW)
+        return True, {
+            "X-RateLimit-Limit": str(limit),
+            "X-RateLimit-Remaining": str(remaining),
+            "X-RateLimit-Reset": str(reset),
+        }
+
+
+def check_rate_limit(
+    client_ip: str, endpoint_type: str = "default", override_limit: Optional[int] = None
+) -> Tuple[bool, Dict[str, str]]:
+    if override_limit and endpoint_type == "admin":
+        allowed, headers = _check_rate_limit_override(
+            client_ip, endpoint_type, max(1, int(override_limit))
+        )
+    else:
+        allowed, headers = rate_limiter.check(client_ip, endpoint_type)
     if not allowed:
         logger.warning(
             "rate_limit_exceeded",
@@ -525,6 +630,24 @@ class TelemetryPayload(BaseModel):
         if size > MAX_PAYLOAD_SIZE:
             raise ValueError(f"Payload too large (max {MAX_PAYLOAD_SIZE} bytes)")
         return v
+
+
+class RuntimeLimitsUpdate(BaseModel):
+    admin_rate_limit: Optional[int] = None
+    max_training_queue: Optional[int] = None
+    max_parallel_training: Optional[int] = None
+
+
+class PermissionPresetApply(BaseModel):
+    target_admin_id: str
+    preset: str
+    merge: bool = False
+
+
+class InstallationSettingsUpdate(BaseModel):
+    telemetry_policy: Optional[Dict[str, Any]] = None
+    alert_tuning: Optional[Dict[str, Any]] = None
+    feature_flags: Optional[Dict[str, bool]] = None
 
 
 async def verify_token(authorization: Optional[str] = Header(None)):
@@ -982,6 +1105,7 @@ async def check_eligibility(
     installation_id: str,
     model: Optional[str] = None,
     current_hash: Optional[str] = None,
+    authorization: Optional[str] = Header(None),
 ):
     """
     Check if an installation ID is eligible for community models.
@@ -995,6 +1119,22 @@ async def check_eligibility(
     # Validation
     validate_installation_id(installation_id)
     model = validate_model_name(model)  # Returns normalized/validated name or None
+
+    # Require valid token for this installation to avoid ID probing.
+    # For admin installations we also allow the dedicated admin token.
+    bearer_token = _extract_bearer_token(authorization)
+    is_admin_candidate = (
+        installation_id.lower() in ADMIN_IDS
+        or installation_manager.has_role_or_higher(installation_id, InstallationRole.ADMIN)
+    )
+    admin_token_ok = bool(
+        bearer_token
+        and _is_strong_secret(ADMIN_AUTH_TOKEN)
+        and bearer_token == ADMIN_AUTH_TOKEN
+        and is_admin_candidate
+    )
+    if not admin_token_ok:
+        await verify_token_with_fallback(installation_id, authorization)
 
     try:
         result = {
@@ -1032,7 +1172,16 @@ async def check_eligibility(
         result["is_banned"] = is_banned_check
         result["active_bans"] = active_bans
 
+        is_admin_authorized = False
         if is_admin_check:
+            try:
+                await verify_admin(authorization, installation_id)
+                is_admin_authorized = True
+            except HTTPException:
+                # Do not expose admin-only server stats without dedicated admin auth.
+                is_admin_authorized = False
+
+        if is_admin_authorized:
             result["is_admin"] = True
             logger.info("admin_access_verified", installation_id=installation_id)
             # Fetch server stats for admins
@@ -1507,43 +1656,118 @@ async def community_averages(
 # ==================== ADMIN ENDPOINTS ====================
 
 
+def _merge_installation_settings(existing_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    merged = json.loads(json.dumps(DEFAULT_INSTALLATION_SETTINGS))
+    meta = existing_metadata or {}
+    for key in ("telemetry_policy", "alert_tuning", "feature_flags"):
+        if isinstance(meta.get(key), dict):
+            merged[key].update(meta[key])
+    return merged
+
+
+def _sanitize_installation_settings(payload: InstallationSettingsUpdate) -> Dict[str, Any]:
+    updates: Dict[str, Any] = {}
+
+    if payload.telemetry_policy is not None:
+        pol = payload.telemetry_policy
+        interval = int(pol.get("upload_interval_seconds", 60))
+        sampling = float(pol.get("sampling_ratio", 1.0))
+        masking = str(pol.get("pii_masking_level", "standard")).lower()
+        if interval < 10 or interval > 86400:
+            raise HTTPException(status_code=400, detail="upload_interval_seconds must be 10..86400")
+        if sampling <= 0 or sampling > 1.0:
+            raise HTTPException(status_code=400, detail="sampling_ratio must be >0 and <=1.0")
+        if masking not in {"low", "standard", "high"}:
+            raise HTTPException(status_code=400, detail="pii_masking_level must be low|standard|high")
+        updates["telemetry_policy"] = {
+            "upload_interval_seconds": interval,
+            "sampling_ratio": sampling,
+            "pii_masking_level": masking,
+        }
+
+    if payload.alert_tuning is not None:
+        tune = payload.alert_tuning
+        threshold = float(tune.get("anomaly_threshold", 0.7))
+        cooldown = int(tune.get("cooldown_seconds", 300))
+        consecutive = int(tune.get("consecutive_hits", 3))
+        if threshold <= 0 or threshold > 1.0:
+            raise HTTPException(status_code=400, detail="anomaly_threshold must be >0 and <=1.0")
+        if cooldown < 0 or cooldown > 86400:
+            raise HTTPException(status_code=400, detail="cooldown_seconds must be 0..86400")
+        if consecutive < 1 or consecutive > 20:
+            raise HTTPException(status_code=400, detail="consecutive_hits must be 1..20")
+        updates["alert_tuning"] = {
+            "anomaly_threshold": threshold,
+            "cooldown_seconds": cooldown,
+            "consecutive_hits": consecutive,
+        }
+
+    if payload.feature_flags is not None:
+        ff = payload.feature_flags
+        updates["feature_flags"] = {
+            "next_gen_ai": bool(ff.get("next_gen_ai", False)),
+            "new_dashboard": bool(ff.get("new_dashboard", False)),
+            "beta_training": bool(ff.get("beta_training", False)),
+        }
+
+    return updates
+
+
 async def verify_admin(
     authorization: Optional[str] = Header(None), installation_id: Optional[str] = None
 ):
     """
     Verify admin access (token + admin ID).
-
-    Uses new permission system (permissions.py) with fallback to legacy ADMIN_IDS.
+    Uses dedicated ADMIN_AUTH_TOKEN in strict mode.
     Returns installation_id for use in permission checks.
     """
-    # Verify token if configured
-    if AUTH_TOKEN:
-        if not authorization:
-            raise HTTPException(status_code=401, detail="Missing Authorization Header")
+    # Verify dedicated admin token
+    if STRICT_ADMIN_AUTH:
+        if not _is_strong_secret(ADMIN_AUTH_TOKEN):
+            logger.error(
+                "admin_auth_misconfigured",
+                strict=True,
+                reason="ADMIN_AUTH_TOKEN is missing or weak",
+            )
+            raise HTTPException(
+                status_code=503,
+                detail="Admin API disabled: ADMIN_AUTH_TOKEN is missing or weak",
+            )
+        expected_token = ADMIN_AUTH_TOKEN
+    else:
+        # Backward compatibility mode only (not recommended for public deployments)
+        expected_token = ADMIN_AUTH_TOKEN or AUTH_TOKEN
+        if not _is_strong_secret(expected_token):
+            logger.warning(
+                "admin_auth_weak_token_fallback",
+                strict=False,
+                reason="Using weak admin token fallback",
+            )
 
-        scheme, _, token = authorization.partition(" ")
-        if scheme.lower() != "bearer" or token != AUTH_TOKEN:
-            raise HTTPException(status_code=403, detail="Invalid Token")
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization Header")
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or token != expected_token:
+        raise HTTPException(status_code=403, detail="Invalid Admin Token")
 
     # Verify admin ID
     if not installation_id:
         raise HTTPException(
             status_code=401, detail="Missing installation_id for admin check"
         )
+    try:
+        _validate_installation_id(installation_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     # Check using new permission system
-    if not is_admin(installation_id):
-        # Fallback to legacy ADMIN_IDS for backward compatibility
-        if installation_id.lower() not in ADMIN_IDS:
-            logger.warning("unauthorized_admin_access", installation_id=installation_id)
-            raise HTTPException(status_code=403, detail="Not authorized as admin")
-        else:
-            # Legacy admin - automatically grant full permissions
-            logger.info(
-                "legacy_admin_detected", installation_id=installation_id, migrating=True
-            )
+    normalized_id = installation_id.lower()
+    if not (is_admin(normalized_id) or normalized_id in ADMIN_IDS):
+        logger.warning("unauthorized_admin_access", installation_id=normalized_id)
+        raise HTTPException(status_code=403, detail="Not authorized as admin")
 
-    return installation_id  # Return for use in endpoints
+    return normalized_id  # Return for use in endpoints
 
 
 async def check_admin_rate_limit(request: Request) -> None:
@@ -1555,7 +1779,9 @@ async def check_admin_rate_limit(request: Request) -> None:
         else (request.client.host if request.client else "unknown")
     )
 
-    allowed, rate_limit_headers = check_rate_limit(raw_ip, "admin")
+    allowed, rate_limit_headers = check_rate_limit(
+        raw_ip, "admin", override_limit=ADMIN_RUNTIME_SETTINGS["admin_rate_limit"]
+    )
     if not allowed:
         raise HTTPException(
             status_code=429,
@@ -1697,6 +1923,12 @@ async def admin_trigger_training(
     request: Request,
     authorization: Optional[str] = Header(None),
     installation_id: Optional[str] = None,
+    target_model: Optional[str] = None,
+    target_installation_id: Optional[str] = None,
+    min_points: Optional[int] = None,
+    min_installations: Optional[int] = None,
+    lookback_days: Optional[int] = None,
+    dry_run: bool = False,
 ):
     """Admin: Trigger manual model training. Requires admin:training permission."""
     await check_admin_rate_limit(request)
@@ -1708,9 +1940,59 @@ async def admin_trigger_training(
         )
 
     client_ip = get_client_ip(request)
+    normalized_target_model = validate_model_name(target_model)
+    if target_installation_id:
+        target_installation_id = validate_installation_id(target_installation_id)
 
     try:
-        task_id = await training_queue.enqueue_training(triggered_by=admin_id)
+        script_args = []
+        if normalized_target_model:
+            script_args.extend(["--target-model", normalized_target_model])
+        if target_installation_id:
+            # Single-device training: explicitly allow one installation as source.
+            script_args.extend(
+                [
+                    "--target-installation-id",
+                    target_installation_id,
+                    "--min-installations",
+                    "1",
+                ]
+            )
+
+        if min_points is not None:
+            if min_points < 100 or min_points > 10_000_000:
+                raise HTTPException(status_code=400, detail="min_points must be 100..10000000")
+            script_args.extend(["--min-points", str(int(min_points))])
+        if min_installations is not None:
+            if min_installations < 1 or min_installations > 1000:
+                raise HTTPException(
+                    status_code=400, detail="min_installations must be 1..1000"
+                )
+            script_args.extend(["--min-installations", str(int(min_installations))])
+        if lookback_days is not None:
+            if lookback_days < 1 or lookback_days > 365:
+                raise HTTPException(status_code=400, detail="lookback_days must be 1..365")
+            script_args.extend(["--lookback-days", str(int(lookback_days))])
+
+        if dry_run:
+            return {
+                "success": True,
+                "dry_run": True,
+                "message": "Training request is valid. No job was queued.",
+                "args": script_args,
+                "target_model": normalized_target_model,
+                "target_installation_id": target_installation_id,
+            }
+
+        task_id = await training_queue.enqueue_training(
+            triggered_by=admin_id,
+            script_path="/app/scripts/train_models.py",
+            script_args=script_args,
+            target_model=normalized_target_model,
+            target_installation_id=target_installation_id,
+            max_queued_tasks=ADMIN_RUNTIME_SETTINGS["max_training_queue"],
+            max_parallel_tasks=ADMIN_RUNTIME_SETTINGS["max_parallel_training"],
+        )
 
         logger.info("admin_training_queued", admin_id=admin_id, task_id=task_id)
 
@@ -1721,6 +2003,8 @@ async def admin_trigger_training(
             metadata={
                 "task_id": task_id,
                 "status": "queued",
+                "target_model": normalized_target_model,
+                "target_installation_id": target_installation_id,
             },
         )
 
@@ -1729,6 +2013,8 @@ async def admin_trigger_training(
             "message": "Training queued successfully. Use task_id to check progress.",
             "task_id": task_id,
             "status": "queued",
+            "target_model": normalized_target_model,
+            "target_installation_id": target_installation_id,
             "check_status_url": f"/api/v1/admin/training/status/{task_id}",
         }
 
@@ -1941,6 +2227,9 @@ async def admin_list_installations(
                     count = int(result["value"][1]) if result.get("value") else 0
 
                     last_seen = installation_times.get(inst_id)
+                    info = installation_manager.get_installation(inst_id) or {}
+                    role = info.get("effective_role", "guest")
+                    is_banned = bool(info.get("is_banned", False))
 
                     installations.append(
                         {
@@ -1955,6 +2244,8 @@ async def admin_list_installations(
                                 else "Unknown"
                             ),
                             "is_admin": inst_id.lower() in ADMIN_IDS,
+                            "role": role,
+                            "is_banned": is_banned,
                         }
                     )
 
@@ -2393,6 +2684,8 @@ async def admin_get_audit_log(
     limit: int = 100,
     action: Optional[str] = None,
     admin_filter: Optional[str] = None,
+    success_only: Optional[bool] = None,
+    format: Optional[str] = None,
 ):
     """Admin: Get audit log events."""
     await check_admin_rate_limit(request)
@@ -2414,6 +2707,44 @@ async def admin_get_audit_log(
                 audit_logger.get_recent_events, limit=limit
             )
 
+        if success_only is not None:
+            wanted = "success" if success_only else "failure"
+            events = [e for e in events if str(e.get("result", "")).lower() == wanted]
+
+        if format and format.lower() == "csv":
+            output = io.StringIO()
+            writer = csv.DictWriter(
+                output,
+                fieldnames=[
+                    "timestamp",
+                    "action",
+                    "admin_id",
+                    "ip_address",
+                    "resource",
+                    "result",
+                    "metadata",
+                ],
+            )
+            writer.writeheader()
+            for event in events:
+                writer.writerow(
+                    {
+                        "timestamp": event.get("timestamp"),
+                        "action": event.get("action"),
+                        "admin_id": event.get("admin_id"),
+                        "ip_address": event.get("ip_address"),
+                        "resource": event.get("resource"),
+                        "result": event.get("result"),
+                        "metadata": json.dumps(event.get("metadata", {}), ensure_ascii=False),
+                    }
+                )
+
+            return Response(
+                content=output.getvalue(),
+                media_type="text/csv",
+                headers={"Content-Disposition": 'attachment; filename="telemetry_audit_log.csv"'},
+            )
+
         return {
             "events": events,
             "count": len(events),
@@ -2421,6 +2752,7 @@ async def admin_get_audit_log(
             "filters": {
                 "action": action,
                 "admin_filter": admin_filter,
+                "success_only": success_only,
             },
         }
     except Exception as e:
@@ -2431,6 +2763,136 @@ async def admin_get_audit_log(
 
 
 # ==================== PERMISSION MANAGEMENT ENDPOINTS ====================
+
+
+@app.get("/api/v1/admin/runtime-limits")
+async def admin_get_runtime_limits(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get runtime limits. Requires admin:full permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+    if not has_permission(admin_id, "admin:full"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:full"
+        )
+    return {"limits": ADMIN_RUNTIME_SETTINGS}
+
+
+@app.put("/api/v1/admin/runtime-limits")
+async def admin_update_runtime_limits(
+    payload: RuntimeLimitsUpdate,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Update runtime limits. Requires admin:full permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+    if not has_permission(admin_id, "admin:full"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:full"
+        )
+
+    updates = {}
+    if payload.admin_rate_limit is not None:
+        if payload.admin_rate_limit < 1 or payload.admin_rate_limit > 10000:
+            raise HTTPException(status_code=400, detail="admin_rate_limit must be 1..10000")
+        updates["admin_rate_limit"] = int(payload.admin_rate_limit)
+    if payload.max_training_queue is not None:
+        if payload.max_training_queue < 1 or payload.max_training_queue > 1000:
+            raise HTTPException(status_code=400, detail="max_training_queue must be 1..1000")
+        updates["max_training_queue"] = int(payload.max_training_queue)
+    if payload.max_parallel_training is not None:
+        if payload.max_parallel_training != 1:
+            raise HTTPException(
+                status_code=400,
+                detail="max_parallel_training currently supports only value 1",
+            )
+        updates["max_parallel_training"] = int(payload.max_parallel_training)
+
+    ADMIN_RUNTIME_SETTINGS.update(updates)
+    audit_logger.log(
+        action="runtime_limits_update",
+        admin_id=admin_id,
+        ip_address=get_client_ip(request),
+        resource="runtime_limits",
+        result="success",
+        metadata={"updates": updates},
+    )
+    return {"success": True, "limits": ADMIN_RUNTIME_SETTINGS}
+
+
+@app.get("/api/v1/admin/permissions/presets")
+async def admin_get_permission_presets(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get permission presets. Requires admin:view permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:view"
+        )
+    return {"presets": PERMISSION_PRESETS}
+
+
+@app.post("/api/v1/admin/permissions/apply-preset")
+async def admin_apply_permission_preset(
+    payload: PermissionPresetApply,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Apply a permission preset to an admin. Requires admin:full permission."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+    if not has_permission(admin_id, "admin:full"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:full"
+        )
+
+    preset_name = payload.preset.strip().lower()
+    if preset_name not in PERMISSION_PRESETS:
+        raise HTTPException(status_code=400, detail=f"Unknown preset: {preset_name}")
+
+    target_id = payload.target_admin_id.strip().lower()
+    desired = set(PERMISSION_PRESETS[preset_name])
+    current_info = permission_manager.get_admin_info(target_id) or {}
+    current = set(current_info.get("permissions", []))
+
+    to_add = desired - current
+    to_remove = set()
+    if not payload.merge:
+        to_remove = current - desired
+
+    for perm in sorted(to_add):
+        permission_manager.grant_permission(target_id, perm, granted_by=admin_id)
+    for perm in sorted(to_remove):
+        if target_id == admin_id.lower() and perm == "admin:full":
+            continue
+        permission_manager.revoke_permission(target_id, perm, revoked_by=admin_id)
+
+    audit_logger.log(
+        action="permission_preset_applied",
+        admin_id=admin_id,
+        ip_address=get_client_ip(request),
+        resource=target_id,
+        result="success",
+        metadata={"preset": preset_name, "merge": payload.merge},
+    )
+
+    return {
+        "success": True,
+        "target_admin_id": target_id,
+        "preset": preset_name,
+        "merge": payload.merge,
+        "permissions": permission_manager.get_admin_info(target_id),
+    }
 
 
 @app.get("/api/v1/admin/permissions")
@@ -2734,6 +3196,67 @@ async def admin_get_installation_role(
     }
 
 
+@app.get("/api/v1/admin/installations/{target_id}/settings")
+async def admin_get_installation_settings(
+    target_id: str,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Get telemetry policy, alert tuning and feature flags for an installation."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:view"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:view"
+        )
+
+    info = installation_manager.get_installation(target_id)
+    metadata = info.get("metadata", {}) if info else {}
+    settings = _merge_installation_settings(metadata)
+
+    return {"installation_id": target_id, "settings": settings}
+
+
+@app.put("/api/v1/admin/installations/{target_id}/settings")
+async def admin_update_installation_settings(
+    target_id: str,
+    payload: InstallationSettingsUpdate,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    installation_id: Optional[str] = None,
+):
+    """Admin: Update telemetry policy, alert tuning and feature flags for an installation."""
+    await check_admin_rate_limit(request)
+    admin_id = await verify_admin(authorization, installation_id)
+
+    if not has_permission(admin_id, "admin:users"):
+        raise HTTPException(
+            status_code=403, detail="Insufficient permissions. Required: admin:users"
+        )
+
+    updates = _sanitize_installation_settings(payload)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No settings provided")
+
+    installation_manager.update_metadata(target_id, updates, updated_by=admin_id)
+    merged = _merge_installation_settings(
+        (installation_manager.get_installation(target_id) or {}).get("metadata", {})
+    )
+
+    audit_logger.log(
+        action="installation_settings_update",
+        admin_id=admin_id,
+        ip_address=get_client_ip(request),
+        resource=target_id,
+        result="success",
+        metadata={"updated_keys": list(updates.keys())},
+    )
+
+    return {"success": True, "installation_id": target_id, "settings": merged}
+
+
 @app.post("/api/v1/admin/installations/{target_id}/role")
 async def admin_set_installation_role(
     target_id: str,
@@ -2968,6 +3491,20 @@ try:
     cache_misses_total = Counter(
         "telemetry_cache_misses_total", "Total cache misses", ["cache_type"]
     )
+    telemetry_http_responses_total = Counter(
+        "telemetry_http_responses_total",
+        "HTTP responses by endpoint and status code",
+        ["endpoint", "status_code"],
+    )
+    telemetry_security_events_total = Counter(
+        "telemetry_security_events_total",
+        "Security-relevant events",
+        ["event_type"],
+    )
+    telemetry_admin_requests_total = Counter(
+        "telemetry_admin_requests_total",
+        "Total requests to admin endpoints",
+    )
 
     PROMETHEUS_AVAILABLE = True
 except ImportError:
@@ -3000,6 +3537,24 @@ async def track_metrics(request: Request, call_next):
         try:
             response = await call_next(request)
             telemetry_requests_total.labels(endpoint=endpoint).inc()
+            telemetry_http_responses_total.labels(
+                endpoint=endpoint, status_code=str(response.status_code)
+            ).inc()
+            if endpoint.startswith("/api/v1/admin/"):
+                telemetry_admin_requests_total.inc()
+
+            if response.status_code == 401:
+                telemetry_security_events_total.labels(
+                    event_type="auth_401"
+                ).inc()
+            elif response.status_code == 403:
+                telemetry_security_events_total.labels(
+                    event_type="auth_403"
+                ).inc()
+            elif response.status_code == 429:
+                telemetry_security_events_total.labels(
+                    event_type="rate_limit_429"
+                ).inc()
             return response
         except Exception as e:
             telemetry_errors_total.labels(

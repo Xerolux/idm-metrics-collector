@@ -20,7 +20,7 @@ import sys
 import os
 import math
 from datetime import datetime, timedelta
-from typing import Generator, Dict, Any
+from typing import Generator, Dict, Any, Optional
 
 import requests
 import torch
@@ -227,7 +227,20 @@ class AutoencoderModel:
             ) * self.ema_loss_sq + self.ema_alpha * (mse**2)
 
 
-def fetch_data_stats(model_name: str) -> Dict[str, Any]:
+def _selector_for_model(
+    model_name: str, installation_id: Optional[str] = None
+) -> str:
+    safe_model = model_name.replace(" ", "_")
+    selector = f'{{__name__=~"heatpump_metrics_.*", model="{safe_model}"'
+    if installation_id:
+        selector += f', installation_id="{installation_id}"'
+    selector += "}"
+    return selector
+
+
+def fetch_data_stats(
+    model_name: str, installation_id: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Get statistics about available data for a model.
     """
@@ -239,9 +252,9 @@ def fetch_data_stats(model_name: str) -> Dict[str, Any]:
     }
 
     try:
+        selector = _selector_for_model(model_name, installation_id)
         # Count data points (across all metrics for this model)
-        safe_model = model_name.replace(" ", "_")
-        query = f'count({{__name__=~"heatpump_metrics_.*", model="{safe_model}"}})'
+        query = f"count({selector})"
         response = requests.get(
             VM_QUERY_URL.replace("query_range", "query"),
             params={"query": query},
@@ -260,8 +273,11 @@ def fetch_data_stats(model_name: str) -> Dict[str, Any]:
                     float(data["data"]["result"][0]["value"][1])
                 )
 
-        # Count installations
-        query = f'count(count by (installation_id) ({{__name__=~"heatpump_metrics_.*", model="{safe_model}"}}))'
+        # Count installations (single-device mode is always 1 source by definition)
+        if installation_id:
+            query = f"count({selector})"
+        else:
+            query = f"count(count by (installation_id) ({selector}))"
         response = requests.get(
             VM_QUERY_URL.replace("query_range", "query"),
             params={"query": query},
@@ -291,19 +307,20 @@ def fetch_data_stats(model_name: str) -> Dict[str, Any]:
 
 
 def stream_training_data(
-    model_name: str, lookback_days: int = 30
+    model_name: str,
+    lookback_days: int = 30,
+    installation_id: Optional[str] = None,
 ) -> Generator[Dict[str, float], None, None]:
     """
     Stream training data from VictoriaMetrics.
     Uses the export API for efficient bulk retrieval.
     """
-    safe_model = model_name.replace(" ", "_")
     end_time = datetime.utcnow()
     start_time = end_time - timedelta(days=lookback_days)
 
     # Export format for VictoriaMetrics
     params = {
-        "match[]": f'{{__name__=~"heatpump_metrics_.*", model="{safe_model}"}}',
+        "match[]": _selector_for_model(model_name, installation_id),
         "start": int(start_time.timestamp()),
         "end": int(end_time.timestamp()),
     }
@@ -395,6 +412,7 @@ def train_model(
     min_points: int = DEFAULT_MIN_POINTS,
     min_installations: int = DEFAULT_MIN_INSTALLATIONS,
     lookback_days: int = 30,
+    training_installation_id: Optional[str] = None,
 ) -> bool:
     """
     Train a PyTorch Autoencoder anomaly detection model on community data.
@@ -404,7 +422,7 @@ def train_model(
     logger.info(f"Starting training for model: {model_name}")
 
     # Check data availability
-    stats = fetch_data_stats(model_name)
+    stats = fetch_data_stats(model_name, installation_id=training_installation_id)
 
     if stats["total_points"] < min_points:
         logger.warning(
@@ -413,9 +431,10 @@ def train_model(
         )
         return False
 
-    if stats["installations"] < min_installations:
+    required_installations = max(1, min_installations)
+    if stats["installations"] < required_installations:
         logger.warning(
-            f"Insufficient installations: {stats['installations']}/{min_installations}. "
+            f"Insufficient installations: {stats['installations']}/{required_installations}. "
             "Need more diverse data sources."
         )
         return False
@@ -432,7 +451,9 @@ def train_model(
     samples_processed = 0
     errors = 0
 
-    data_stream = stream_training_data(model_name, lookback_days)
+    data_stream = stream_training_data(
+        model_name, lookback_days, installation_id=training_installation_id
+    )
     sample_stream = aggregate_to_samples(data_stream)
 
     for sample in sample_stream:
@@ -474,6 +495,7 @@ def train_model(
         "data_points": stats["total_points"],
         "installations": stats["installations"],
         "lookback_days": lookback_days,
+        "training_installation_id": training_installation_id,
         "features": TRAINING_FEATURES,
         "architecture": "pytorch_autoencoder",
         "hidden_dim": AE_HIDDEN_DIM,
@@ -522,6 +544,12 @@ def main():
         help="Days of data to use for training (default: 30)",
     )
     parser.add_argument(
+        "--installation-id",
+        type=str,
+        default=None,
+        help="Optional installation_id for single-device training",
+    )
+    parser.add_argument(
         "--vm-url",
         type=str,
         default="http://localhost:8428",
@@ -541,6 +569,7 @@ def main():
         min_points=args.min_points,
         min_installations=args.min_installations,
         lookback_days=args.lookback_days,
+        training_installation_id=args.installation_id,
     )
 
     sys.exit(0 if success else 1)

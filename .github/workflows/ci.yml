@@ -49,9 +49,28 @@ jobs:
       working-directory: frontend
       run: pnpm run build
 
-    - name: Run Tests
+    - name: Security Hardening Checks
       run: |
-        pytest
+        python telemetry_server/scripts/check_prod_security.py
+
+    - name: Run Root Tests
+      run: |
+        if ls tests/test_*.py >/dev/null 2>&1; then
+          pytest -q tests
+        else
+          echo "No root tests found."
+        fi
+
+    - name: Run Telemetry Tests
+      working-directory: telemetry_server
+      run: |
+        mkdir -p /tmp/telemetry/{tokens,installations,permissions,audit,tasks}
+        TOKEN_STORAGE_DIR=/tmp/telemetry/tokens \
+        INSTALLATION_STORAGE_DIR=/tmp/telemetry/installations \
+        PERMISSION_STORAGE_DIR=/tmp/telemetry/permissions \
+        AUDIT_LOG_DIR=/tmp/telemetry/audit \
+        TASK_STORAGE_DIR=/tmp/telemetry/tasks \
+        PYTHONPATH=. python -m pytest -q
 
   frontend-check:
     runs-on: ubuntu-latest

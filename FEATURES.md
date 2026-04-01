@@ -267,7 +267,10 @@ Ein halbkreisförmiges Tachometer-Panel für visuelle Darstellung von Werten.
 
 ---
 
-## 🚀 Noch nicht implementiert (TODO)
+## 🚀 Historische TODO-Liste (Archiv)
+
+Stand April 2026: Die folgenden Punkte stammen aus älteren Planungsständen und sind
+in der aktuellen v1.x weitgehend umgesetzt. Diese Liste bleibt nur als Historie erhalten.
 
 ### Mittlere Priorität
 

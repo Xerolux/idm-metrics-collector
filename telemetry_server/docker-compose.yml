@@ -1,7 +1,7 @@
 # Xerolux 2026
 services:
   telemetry-api:
-    image: ghcr.io/xerolux/idm-metrics-collector-telemetry:latest
+    image: ${TELEMETRY_IMAGE:-ghcr.io/xerolux/idm-metrics-collector-telemetry:latest}
     # For local development, comment out the image line above and uncomment:
     # build:
     #   context: ..
@@ -11,11 +11,23 @@ services:
     environment:
       - VM_WRITE_URL=http://victoriametrics:8428/write
       - VM_QUERY_URL=http://victoriametrics:8428/api/v1/query
-      - AUTH_TOKEN=COMMUNITY-CONTRIBUTOR-TOKEN-2026
+      - AUTH_TOKEN=${AUTH_TOKEN:-}
+      - ADMIN_AUTH_TOKEN=${ADMIN_AUTH_TOKEN:-}
+      - STRICT_ADMIN_AUTH=${STRICT_ADMIN_AUTH:-true}
       - ADMIN_INSTALLATION_IDS=${ADMIN_INSTALLATION_IDS:-}
+      - TELEMETRY_ENCRYPTION_KEY=${TELEMETRY_ENCRYPTION_KEY:-}
       - MODEL_DIR=/app/models
-      - MIN_INSTALLATIONS=1
-      - MIN_DATA_POINTS=1000
+      - MIN_INSTALLATIONS=${MIN_INSTALLATIONS:-5}
+      - MIN_DATA_POINTS=${MIN_DATA_POINTS:-10000}
+      - MAX_PAYLOAD_SIZE=${MAX_PAYLOAD_SIZE:-10485760}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
+      - RATE_LIMIT_DEFAULT=${RATE_LIMIT_DEFAULT:-100}
+      - RATE_LIMIT_SUBMIT=${RATE_LIMIT_SUBMIT:-60}
+      - RATE_LIMIT_STATUS=${RATE_LIMIT_STATUS:-30}
+      - RATE_LIMIT_MODEL=${RATE_LIMIT_MODEL:-10}
+      - RATE_LIMIT_ADMIN=${RATE_LIMIT_ADMIN:-20}
+      - MAX_RATE_LIMIT_ENTRIES=${MAX_RATE_LIMIT_ENTRIES:-10000}
+      - REDIS_URL=${REDIS_URL:-}
     volumes:
       - model-data:/app/models
     depends_on:
@@ -30,7 +42,7 @@ services:
       start_period: 10s
 
   telemetry-trainer:
-    image: ghcr.io/xerolux/idm-metrics-collector-telemetry:latest
+    image: ${TELEMETRY_IMAGE:-ghcr.io/xerolux/idm-metrics-collector-telemetry:latest}
     # For local development, comment out the image line above and uncomment:
     # build:
     #   context: .
@@ -39,9 +51,10 @@ services:
       - VM_QUERY_URL=http://victoriametrics:8428/api/v1/query_range
       - VM_EXPORT_URL=http://victoriametrics:8428/api/v1/export
       - MODEL_DIR=/app/models
-      - TARGET_MODELS=AERO_SLM,TERRA_SW,Navigator_2.0
-      - TRAINING_TIME=03:00
-      - RUN_ON_STARTUP=false
+      - TARGET_MODELS=${TARGET_MODELS:-AERO_SLM,TERRA_SW,Navigator_2.0}
+      - TRAINING_TIME=${TRAINING_TIME:-03:00}
+      - RUN_ON_STARTUP=${RUN_ON_STARTUP:-false}
+      - TELEMETRY_ENCRYPTION_KEY=${TELEMETRY_ENCRYPTION_KEY:-}
     volumes:
       - model-data:/app/models
     depends_on:
@@ -50,7 +63,7 @@ services:
     command: python3 training_scheduler.py
 
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.93.5
+    image: ${VICTORIAMETRICS_IMAGE:-victoriametrics/victoria-metrics:v1.93.5}
     ports:
       - "127.0.0.1:8428:8428" # Bind to localhost ONLY for security
     volumes:

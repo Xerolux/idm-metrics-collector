@@ -2,6 +2,7 @@ import pytest
 import json
 import time
 import asyncio
+import os
 from unittest.mock import MagicMock, AsyncMock, patch
 from app import app
 
@@ -65,12 +66,14 @@ async def test_admin_list_installations_n_plus_1_repro(client):
     mock_client.get.side_effect = side_effect
 
     # Make request
-    headers = {"Authorization": "Bearer test-token"}
+    headers = {"Authorization": f"Bearer {os.environ['ADMIN_AUTH_TOKEN']}"}
+    admin_uuid = "12345678-1234-1234-1234-123456789abc"
 
-    # patch verify_admin to avoid complexity
-    with patch("app.is_admin", return_value=True):
+    # Patch verify_admin to isolate performance behavior from auth details
+    with patch("app.verify_admin", return_value=admin_uuid):
         response = client.get(
-            "/api/v1/admin/installations?installation_id=admin-id", headers=headers
+            f"/api/v1/admin/installations?installation_id={admin_uuid}",
+            headers=headers,
         )
 
     assert response.status_code == 200
@@ -144,7 +147,7 @@ async def test_admin_installation_details_parallel(client):
 
     mock_client.get.side_effect = side_effect
 
-    headers = {"Authorization": "Bearer test-token"}
+    headers = {"Authorization": f"Bearer {os.environ['ADMIN_AUTH_TOKEN']}"}
     target_id = "550e8400-e29b-41d4-a716-446655440000"
 
     # We patch verify_admin to bypass auth checks for this perf test

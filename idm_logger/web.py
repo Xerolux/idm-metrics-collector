@@ -8,6 +8,7 @@ from flask import (
     abort,
     send_from_directory,
     send_file,
+    redirect,
 )
 from flask_socketio import SocketIO
 from waitress import serve
@@ -245,7 +246,9 @@ def _update_ai_status_once():
         base_url = metrics_url.replace("/write", "")
         query_url = f"{base_url}/api/v1/query"
 
-        query = 'last_over_time({__name__=~"idm_anomaly_score|idm_anomaly_flag"}[2h])'
+        query = (
+            'last_over_time({__name__=~"idm_anomaly_score(_value)?|idm_anomaly_flag(_value)?"}[2h])'
+        )
         try:
             response = requests.get(query_url, params={"query": query}, timeout=10)
         except requests.RequestException as e:
@@ -2998,6 +3001,57 @@ def validate_share_token(token_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/sharing/tokens/<token_id>/dashboard", methods=["GET", "POST"])
+def get_shared_dashboard(token_id):
+    """Get shared dashboard data by token (read-only, no login required)."""
+    try:
+        token = sharing_manager.get_token(token_id)
+        if not token:
+            return jsonify({"error": "Token not found"}), 404
+
+        if token.is_expired():
+            return jsonify({"error": "Token expired"}), 410
+
+        password = None
+        if request.method == "POST":
+            payload = request.get_json(silent=True) or {}
+            password = payload.get("password")
+
+        if not sharing_manager.validate_token(token_id, password):
+            if not token.is_public and token.password_hash:
+                return (
+                    jsonify(
+                        {
+                            "error": "Password required",
+                            "password_required": True,
+                            "valid": False,
+                        }
+                    ),
+                    401,
+                )
+            return jsonify({"error": "Invalid or expired token"}), 401
+
+        dashboard = dashboard_manager.get_dashboard(token.dashboard_id)
+        if not dashboard:
+            return jsonify({"error": "Dashboard not found"}), 404
+
+        sharing_manager.record_access(token_id)
+        return jsonify(
+            {
+                "valid": True,
+                "token_id": token_id,
+                "dashboard_id": token.dashboard_id,
+                "dashboard": dashboard,
+                "is_public": token.is_public,
+                "created_at": token.created_at,
+                "expires_at": token.expires_at,
+            }
+        )
+    except Exception as e:
+        logger.error(f"Failed to get shared dashboard: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/shared/<token_id>")
 def view_shared_dashboard(token_id):
     """View a shared dashboard."""
@@ -3014,13 +3068,8 @@ def view_shared_dashboard(token_id):
         if not dashboard:
             return "Dashboard not found", 404
 
-        # Check if password protected
-        if not token.is_public and token.password_hash:
-            # Render password prompt
-            return send_from_directory("frontend", "index.html")
-
-        # Render dashboard in view-only mode
-        return send_from_directory("frontend", "index.html")
+        # SPA uses hash history; redirect to shared route in frontend.
+        return redirect(f"/#/shared/{token_id}", code=302)
     except Exception as e:
         logger.error(f"Failed to view shared dashboard: {e}")
         return "Error loading shared dashboard", 500
