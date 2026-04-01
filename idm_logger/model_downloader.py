@@ -217,13 +217,15 @@ class ModelDownloader:
         server_url: str,
         installation_id: str,
         hp_model: str,
+        auth_token: Optional[str] = None,
     ) -> ModelCheckResult:
         """Check model availability on the server."""
         try:
             check_url = f"{server_url}/api/v1/model/check"
             params = {"installation_id": installation_id, "model": hp_model}
+            headers = {"Authorization": f"Bearer {auth_token}"} if auth_token else {}
 
-            response = self.http_client.get(check_url, params=params)
+            response = self.http_client.get(check_url, params=params, headers=headers)
             response.raise_for_status()
             status = response.json()
 

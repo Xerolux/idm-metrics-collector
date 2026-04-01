@@ -403,9 +403,11 @@ class TelemetryManager:
         installation_id = config.get("installation_id")
         hp_model = config.get("hp_model")
 
+        auth_token = self._get_auth_token()
+
         try:
             check_result = self.model_downloader.check_model_availability(
-                server_url, installation_id, hp_model
+                server_url, installation_id, hp_model, auth_token
             )
         except Exception as e:
             if manual:
@@ -436,7 +438,6 @@ class TelemetryManager:
             logger.info("Model check: No update needed.")
             return True
 
-        auth_token = self._get_auth_token()
         encryption_key = self._get_encryption_key()
 
         envelope, raw_content, error = self.model_downloader.download_model(
