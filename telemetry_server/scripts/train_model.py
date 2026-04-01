@@ -227,9 +227,7 @@ class AutoencoderModel:
             ) * self.ema_loss_sq + self.ema_alpha * (mse**2)
 
 
-def _selector_for_model(
-    model_name: str, installation_id: Optional[str] = None
-) -> str:
+def _selector_for_model(model_name: str, installation_id: Optional[str] = None) -> str:
     safe_model = model_name.replace(" ", "_")
     selector = f'{{__name__=~"heatpump_metrics_.*", model="{safe_model}"'
     if installation_id:

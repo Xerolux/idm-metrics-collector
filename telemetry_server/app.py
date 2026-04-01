@@ -201,6 +201,7 @@ def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
         return None
     return token or None
 
+
 HASH_CACHE_TTL = cache_config.hash_ttl
 POOL_STATS_CACHE_TTL = cache_config.pool_stats_ttl
 COMMUNITY_AVG_CACHE_TTL = cache_config.community_avg_ttl
@@ -1125,7 +1126,9 @@ async def check_eligibility(
     bearer_token = _extract_bearer_token(authorization)
     is_admin_candidate = (
         installation_id.lower() in ADMIN_IDS
-        or installation_manager.has_role_or_higher(installation_id, InstallationRole.ADMIN)
+        or installation_manager.has_role_or_higher(
+            installation_id, InstallationRole.ADMIN
+        )
     )
     admin_token_ok = bool(
         bearer_token
@@ -1656,7 +1659,9 @@ async def community_averages(
 # ==================== ADMIN ENDPOINTS ====================
 
 
-def _merge_installation_settings(existing_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def _merge_installation_settings(
+    existing_metadata: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
     merged = json.loads(json.dumps(DEFAULT_INSTALLATION_SETTINGS))
     meta = existing_metadata or {}
     for key in ("telemetry_policy", "alert_tuning", "feature_flags"):
@@ -1665,7 +1670,9 @@ def _merge_installation_settings(existing_metadata: Optional[Dict[str, Any]]) ->
     return merged
 
 
-def _sanitize_installation_settings(payload: InstallationSettingsUpdate) -> Dict[str, Any]:
+def _sanitize_installation_settings(
+    payload: InstallationSettingsUpdate,
+) -> Dict[str, Any]:
     updates: Dict[str, Any] = {}
 
     if payload.telemetry_policy is not None:
@@ -1674,11 +1681,17 @@ def _sanitize_installation_settings(payload: InstallationSettingsUpdate) -> Dict
         sampling = float(pol.get("sampling_ratio", 1.0))
         masking = str(pol.get("pii_masking_level", "standard")).lower()
         if interval < 10 or interval > 86400:
-            raise HTTPException(status_code=400, detail="upload_interval_seconds must be 10..86400")
+            raise HTTPException(
+                status_code=400, detail="upload_interval_seconds must be 10..86400"
+            )
         if sampling <= 0 or sampling > 1.0:
-            raise HTTPException(status_code=400, detail="sampling_ratio must be >0 and <=1.0")
+            raise HTTPException(
+                status_code=400, detail="sampling_ratio must be >0 and <=1.0"
+            )
         if masking not in {"low", "standard", "high"}:
-            raise HTTPException(status_code=400, detail="pii_masking_level must be low|standard|high")
+            raise HTTPException(
+                status_code=400, detail="pii_masking_level must be low|standard|high"
+            )
         updates["telemetry_policy"] = {
             "upload_interval_seconds": interval,
             "sampling_ratio": sampling,
@@ -1691,11 +1704,17 @@ def _sanitize_installation_settings(payload: InstallationSettingsUpdate) -> Dict
         cooldown = int(tune.get("cooldown_seconds", 300))
         consecutive = int(tune.get("consecutive_hits", 3))
         if threshold <= 0 or threshold > 1.0:
-            raise HTTPException(status_code=400, detail="anomaly_threshold must be >0 and <=1.0")
+            raise HTTPException(
+                status_code=400, detail="anomaly_threshold must be >0 and <=1.0"
+            )
         if cooldown < 0 or cooldown > 86400:
-            raise HTTPException(status_code=400, detail="cooldown_seconds must be 0..86400")
+            raise HTTPException(
+                status_code=400, detail="cooldown_seconds must be 0..86400"
+            )
         if consecutive < 1 or consecutive > 20:
-            raise HTTPException(status_code=400, detail="consecutive_hits must be 1..20")
+            raise HTTPException(
+                status_code=400, detail="consecutive_hits must be 1..20"
+            )
         updates["alert_tuning"] = {
             "anomaly_threshold": threshold,
             "cooldown_seconds": cooldown,
@@ -1961,7 +1980,9 @@ async def admin_trigger_training(
 
         if min_points is not None:
             if min_points < 100 or min_points > 10_000_000:
-                raise HTTPException(status_code=400, detail="min_points must be 100..10000000")
+                raise HTTPException(
+                    status_code=400, detail="min_points must be 100..10000000"
+                )
             script_args.extend(["--min-points", str(int(min_points))])
         if min_installations is not None:
             if min_installations < 1 or min_installations > 1000:
@@ -1971,7 +1992,9 @@ async def admin_trigger_training(
             script_args.extend(["--min-installations", str(int(min_installations))])
         if lookback_days is not None:
             if lookback_days < 1 or lookback_days > 365:
-                raise HTTPException(status_code=400, detail="lookback_days must be 1..365")
+                raise HTTPException(
+                    status_code=400, detail="lookback_days must be 1..365"
+                )
             script_args.extend(["--lookback-days", str(int(lookback_days))])
 
         if dry_run:
@@ -2735,14 +2758,18 @@ async def admin_get_audit_log(
                         "ip_address": event.get("ip_address"),
                         "resource": event.get("resource"),
                         "result": event.get("result"),
-                        "metadata": json.dumps(event.get("metadata", {}), ensure_ascii=False),
+                        "metadata": json.dumps(
+                            event.get("metadata", {}), ensure_ascii=False
+                        ),
                     }
                 )
 
             return Response(
                 content=output.getvalue(),
                 media_type="text/csv",
-                headers={"Content-Disposition": 'attachment; filename="telemetry_audit_log.csv"'},
+                headers={
+                    "Content-Disposition": 'attachment; filename="telemetry_audit_log.csv"'
+                },
             )
 
         return {
@@ -2799,11 +2826,15 @@ async def admin_update_runtime_limits(
     updates = {}
     if payload.admin_rate_limit is not None:
         if payload.admin_rate_limit < 1 or payload.admin_rate_limit > 10000:
-            raise HTTPException(status_code=400, detail="admin_rate_limit must be 1..10000")
+            raise HTTPException(
+                status_code=400, detail="admin_rate_limit must be 1..10000"
+            )
         updates["admin_rate_limit"] = int(payload.admin_rate_limit)
     if payload.max_training_queue is not None:
         if payload.max_training_queue < 1 or payload.max_training_queue > 1000:
-            raise HTTPException(status_code=400, detail="max_training_queue must be 1..1000")
+            raise HTTPException(
+                status_code=400, detail="max_training_queue must be 1..1000"
+            )
         updates["max_training_queue"] = int(payload.max_training_queue)
     if payload.max_parallel_training is not None:
         if payload.max_parallel_training != 1:
@@ -3544,13 +3575,9 @@ async def track_metrics(request: Request, call_next):
                 telemetry_admin_requests_total.inc()
 
             if response.status_code == 401:
-                telemetry_security_events_total.labels(
-                    event_type="auth_401"
-                ).inc()
+                telemetry_security_events_total.labels(event_type="auth_401").inc()
             elif response.status_code == 403:
-                telemetry_security_events_total.labels(
-                    event_type="auth_403"
-                ).inc()
+                telemetry_security_events_total.labels(event_type="auth_403").inc()
             elif response.status_code == 429:
                 telemetry_security_events_total.labels(
                     event_type="rate_limit_429"
