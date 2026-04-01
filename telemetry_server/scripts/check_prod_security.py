@@ -22,7 +22,9 @@ def require(condition: bool, msg: str) -> None:
 
 def main() -> int:
     compose = (TELEMETRY_DIR / "docker-compose.yml").read_text(encoding="utf-8")
-    env_example = (TELEMETRY_DIR / ".env.production.example").read_text(encoding="utf-8")
+    env_example = (TELEMETRY_DIR / ".env.production.example").read_text(
+        encoding="utf-8"
+    )
     gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
 
     # 1) No hardcoded auth token in compose
@@ -47,7 +49,10 @@ def main() -> int:
 
     # 3) Ensure env files are ignored
     require(".env.*" in gitignore, ".gitignore must ignore .env.*")
-    require("telemetry_server/.env" in gitignore, ".gitignore must ignore telemetry_server/.env")
+    require(
+        "telemetry_server/.env" in gitignore,
+        ".gitignore must ignore telemetry_server/.env",
+    )
 
     print("[SECURITY CHECK] OK")
     return 0

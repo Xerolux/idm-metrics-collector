@@ -132,7 +132,11 @@ class TrainingQueue:
             Task ID (UUID)
         """
         # Check if training is already running
-        if max_parallel_tasks <= 1 and self.current_task and not self.current_task.done():
+        if (
+            max_parallel_tasks <= 1
+            and self.current_task
+            and not self.current_task.done()
+        ):
             raise ValueError(
                 "Training is already in progress. Please wait for it to complete."
             )
@@ -175,7 +179,9 @@ class TrainingQueue:
 
         return task_id
 
-    async def _run_training(self, task_id: str, script_path: str, script_args: List[str]):
+    async def _run_training(
+        self, task_id: str, script_path: str, script_args: List[str]
+    ):
         """
         Run training script asynchronously.
 

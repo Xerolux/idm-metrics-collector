@@ -28,19 +28,26 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Train one or more telemetry models")
     parser.add_argument("--target-model", type=str, default=None)
     parser.add_argument("--target-installation-id", type=str, default=None)
-    parser.add_argument("--min-points", type=int, default=int(os.environ.get("MIN_POINTS", "50000")))
+    parser.add_argument(
+        "--min-points", type=int, default=int(os.environ.get("MIN_POINTS", "50000"))
+    )
     parser.add_argument(
         "--min-installations",
         type=int,
         default=int(os.environ.get("MIN_INSTALLATIONS_FOR_MODEL", "5")),
     )
     parser.add_argument("--lookback-days", type=int, default=30)
-    parser.add_argument("--model-dir", type=str, default=os.environ.get("MODEL_DIR", "/app/models"))
+    parser.add_argument(
+        "--model-dir", type=str, default=os.environ.get("MODEL_DIR", "/app/models")
+    )
     args = parser.parse_args()
 
     models = _parse_models(args.target_model)
     if not models:
-        print("No models configured. Set TARGET_MODELS or provide --target-model.", file=sys.stderr)
+        print(
+            "No models configured. Set TARGET_MODELS or provide --target-model.",
+            file=sys.stderr,
+        )
         return 1
 
     Path(args.model_dir).mkdir(parents=True, exist_ok=True)
