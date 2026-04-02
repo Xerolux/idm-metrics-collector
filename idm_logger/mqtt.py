@@ -80,7 +80,7 @@ class MQTTPublisher:
                 ca_cert = config.get("mqtt.tls_ca_cert", "")
                 tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
                 tls_context.minimum_version = ssl.TLSVersion.TLSv1_2
-                tls_context.check_hostname = False
+                tls_context.check_hostname = True
                 tls_context.verify_mode = ssl.CERT_REQUIRED
 
                 if ca_cert and os.path.exists(ca_cert):
