@@ -1772,8 +1772,6 @@ async def verify_admin(
         raise HTTPException(status_code=401, detail="Missing Authorization Header")
 
     scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or token != expected_token:
-        raise HTTPException(status_code=403, detail="Invalid Admin Token")
 
     # Verify admin ID
     if not installation_id:
@@ -1785,8 +1783,22 @@ async def verify_admin(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Check using new permission system
     normalized_id = installation_id.lower()
+
+    # Token is valid if it matches expected_token (global admin token) OR if it is a valid per-installation token
+    token_is_valid = False
+    if scheme.lower() == "bearer":
+        if token == expected_token:
+            token_is_valid = True
+        elif token_exists(normalized_id) and validate_installation_token(
+            normalized_id, token
+        ):
+            token_is_valid = True
+
+    if not token_is_valid:
+        raise HTTPException(status_code=403, detail="Invalid Admin Token")
+
+    # Check using new permission system
     if not (is_admin(normalized_id) or normalized_id in ADMIN_IDS):
         logger.warning("unauthorized_admin_access", installation_id=normalized_id)
         raise HTTPException(status_code=403, detail="Not authorized as admin")

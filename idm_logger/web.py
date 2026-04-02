@@ -1905,6 +1905,8 @@ def config_page():
             # AI
             if "ai_enabled" in data:
                 config.data["ai"]["enabled"] = bool(data["ai_enabled"])
+            if "ai_model" in data:
+                config.data["ai"]["model"] = data["ai_model"]
             if "ai_sensitivity" in data:
                 try:
                     sens = float(data["ai_sensitivity"])
