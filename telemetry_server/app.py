@@ -1785,7 +1785,9 @@ async def verify_admin(
     if scheme.lower() == "bearer":
         if token == expected_token:
             token_is_valid = True
-        elif token_exists(normalized_id) and validate_installation_token(normalized_id, token):
+        elif token_exists(normalized_id) and validate_installation_token(
+            normalized_id, token
+        ):
             token_is_valid = True
 
     if not token_is_valid:
