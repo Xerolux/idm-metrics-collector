@@ -10,9 +10,9 @@
 **Learning:** The `broadcast_metric_update` method existed but was never called, and client subscriptions lacked `join_room` logic, rendering real-time updates non-functional. The frontend relied on frequent polling (5s) as a result.
 **Action:** Implemented `join_room` in subscription handler and hooked `broadcast_metrics` into the main data update loop. Converted `SensorValues` to use WebSocket push updates, reducing polling to 60s fallback.
 
-## 2026-03-08 - SQLite Cursor Iteration
-**Learning:** Iterating directly over SQLite cursors (e.g. `for row in cursor:`) prevents O(N) memory consumption from loading entire result sets via `fetchall()`, which is especially important for jobs and alerts.
-**Action:** Use cursor iteration or `list(cursor)` to unpack rows rather than `fetchall()` to optimize memory usage.
+## 2026-03-08 - SQLite Cursor Iteration Anti-Pattern
+**Learning:** Replacing `cursor.fetchall()` with list comprehensions (e.g., `[dict(row) for row in cursor]`) inside database methods creates an O(N) list with significant Python overhead. This makes it slower and worse for memory than the highly-optimized C-code of `fetchall()`. Furthermore, yielding rows directly from a cursor while inside a context manager keeps the database lock open during iteration and risks application-wide lock contention.
+**Action:** Use `cursor.fetchall()` for fetching query results. Avoid Python-level loops over cursor results when the entire dataset needs to be returned.
 
 ## 2026-03-09 - Blocking File I/O in Async APIs
 **Learning:** Synchronous file I/O operations (like reading/writing JSON files) in asynchronous endpoints block the entire asyncio event loop, severely degrading concurrent request handling capabilities.
