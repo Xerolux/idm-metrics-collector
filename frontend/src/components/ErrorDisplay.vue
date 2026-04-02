@@ -98,7 +98,8 @@ const iconClasses = computed(() => {
           Status-Code: {{ error.response.status }}
         </div>
       </div>
-      <button type="button"
+      <button
+        type="button"
         v-if="dismissible"
         @click="$emit('dismiss')"
         class="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"

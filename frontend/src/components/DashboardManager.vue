@@ -457,6 +457,7 @@
               text
               severity="secondary"
               aria-label="Variable bearbeiten"
+              title="Variable bearbeiten"
             />
             <Button
               @click="confirmDeleteVariable(variable)"
@@ -465,6 +466,7 @@
               text
               severity="danger"
               aria-label="Variable löschen"
+              title="Variable löschen"
             />
           </div>
         </div>

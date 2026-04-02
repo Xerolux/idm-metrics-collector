@@ -80,6 +80,7 @@
                   severity="secondary"
                   text
                   title="Expression bearbeiten"
+                  aria-label="Expression bearbeiten"
                 />
               </div>
             </div>

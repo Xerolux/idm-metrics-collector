@@ -43,7 +43,13 @@
                 @click="toggleJob(job.id, job.enabled)"
                 aria-label="Umschalten"
               />
-              <Button icon="pi pi-trash" text severity="danger" @click="deleteJob(job.id)" aria-label="Löschen" />
+              <Button
+                icon="pi pi-trash"
+                text
+                severity="danger"
+                @click="deleteJob(job.id)"
+                aria-label="Löschen"
+              />
             </div>
           </template>
         </Card>

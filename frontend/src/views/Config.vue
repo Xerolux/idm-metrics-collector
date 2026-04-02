@@ -594,8 +594,14 @@
                       <Dropdown
                         v-model="config.ai.model"
                         :options="[
-                          { label: 'Rolling Window (Lokal, kontinuierliches Lernen)', value: 'rolling' },
-                          { label: 'Community Modell (Vortrainiert, für neue Installationen)', value: 'community' }
+                          {
+                            label: 'Rolling Window (Lokal, kontinuierliches Lernen)',
+                            value: 'rolling'
+                          },
+                          {
+                            label: 'Community Modell (Vortrainiert, für neue Installationen)',
+                            value: 'community'
+                          }
                         ]"
                         optionLabel="label"
                         optionValue="value"
@@ -1129,8 +1135,8 @@
             <Fieldset legend="Installation Management" :toggleable="true">
               <div class="flex justify-between items-center mb-3">
                 <div class="text-sm text-gray-400" v-if="adminInstallations">
-                  {{ adminInstallations.showing }} von
-                  {{ adminInstallations.total }} Installationen angezeigt
+                  {{ adminInstallations.showing }} von {{ adminInstallations.total }} Installationen
+                  angezeigt
                 </div>
                 <div class="text-sm text-gray-400" v-else-if="!adminInstallationsError">
                   Installationen werden geladen...
@@ -1150,7 +1156,9 @@
                 class="text-center py-6 bg-red-900/20 border border-red-700/50 rounded mb-3"
               >
                 <i class="pi pi-exclamation-triangle text-red-400 text-2xl mb-2 block"></i>
-                <div class="text-red-300 font-medium">Installationen konnten nicht geladen werden</div>
+                <div class="text-red-300 font-medium">
+                  Installationen konnten nicht geladen werden
+                </div>
                 <div class="text-red-400 text-xs mt-1 font-mono">{{ adminInstallationsError }}</div>
                 <Button
                   label="Erneut versuchen"
@@ -1906,7 +1914,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
                   <div>
                     <label class="text-xs text-gray-400 block mb-1">Action</label>
-                    <InputText v-model="auditActionFilter" class="w-full" placeholder="z.B. training_trigger" />
+                    <InputText
+                      v-model="auditActionFilter"
+                      class="w-full"
+                      placeholder="z.B. training_trigger"
+                    />
                   </div>
                   <div>
                     <label class="text-xs text-gray-400 block mb-1">Admin</label>
@@ -2764,7 +2776,11 @@ const trainingMinInstallations = ref(null)
 const trainingLookbackDays = ref(null)
 const trainingDryRun = ref(false)
 const installationSettings = ref({
-  telemetry_policy: { upload_interval_seconds: 60, sampling_ratio: 1.0, pii_masking_level: 'standard' },
+  telemetry_policy: {
+    upload_interval_seconds: 60,
+    sampling_ratio: 1.0,
+    pii_masking_level: 'standard'
+  },
   alert_tuning: { anomaly_threshold: 0.7, cooldown_seconds: 300, consecutive_hits: 3 },
   feature_flags: { next_gen_ai: false, new_dashboard: false, beta_training: false }
 })
@@ -2816,8 +2832,10 @@ const getAdminHeaders = () => {
 }
 
 const adminGet = (url, options = {}) => axios.get(url, { timeout: ADMIN_TIMEOUT, ...options })
-const adminPost = (url, data, options = {}) => axios.post(url, data, { timeout: ADMIN_TIMEOUT, ...options })
-const adminPut = (url, data, options = {}) => axios.put(url, data, { timeout: ADMIN_TIMEOUT, ...options })
+const adminPost = (url, data, options = {}) =>
+  axios.post(url, data, { timeout: ADMIN_TIMEOUT, ...options })
+const adminPut = (url, data, options = {}) =>
+  axios.put(url, data, { timeout: ADMIN_TIMEOUT, ...options })
 const adminDelete = (url, options = {}) => axios.delete(url, { timeout: ADMIN_TIMEOUT, ...options })
 
 const fetchAdminHealth = async () => {
@@ -2854,9 +2872,10 @@ const fetchAdminInstallations = async () => {
     })
   } catch (err) {
     console.error('Failed to fetch admin installations:', err)
-    const msg = err.code === 'ECONNABORTED'
-      ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
-      : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
+    const msg =
+      err.code === 'ECONNABORTED'
+        ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
+        : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
     adminInstallationsError.value = msg
   }
 }
@@ -2874,9 +2893,10 @@ const fetchInstallationRoles = async () => {
     installationRoles.value = res.data
   } catch (err) {
     console.error('Failed to fetch installation roles:', err)
-    installationRolesError.value = err.code === 'ECONNABORTED'
-      ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
-      : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
+    installationRolesError.value =
+      err.code === 'ECONNABORTED'
+        ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
+        : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
   }
 }
 
@@ -3309,7 +3329,12 @@ const saveRuntimeLimits = async () => {
       }
     )
     runtimeLimits.value = res.data.limits
-    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Runtime Limits gespeichert', life: 3000 })
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Runtime Limits gespeichert',
+      life: 3000
+    })
   } catch (err) {
     toast.add({
       severity: 'error',
@@ -3397,12 +3422,18 @@ const saveInstallationSettings = async () => {
       }
     )
     installationSettings.value = res.data.settings || installationSettings.value
-    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Installation-Settings gespeichert', life: 3000 })
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Installation-Settings gespeichert',
+      life: 3000
+    })
   } catch (err) {
     toast.add({
       severity: 'error',
       summary: 'Fehler',
-      detail: err.response?.data?.detail || 'Installation-Settings konnten nicht gespeichert werden',
+      detail:
+        err.response?.data?.detail || 'Installation-Settings konnten nicht gespeichert werden',
       life: 5000
     })
   } finally {
