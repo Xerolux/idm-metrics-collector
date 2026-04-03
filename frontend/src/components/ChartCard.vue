@@ -180,6 +180,7 @@ const stats = ref([])
 const annotations = ref([])
 const pendingUpdate = ref(false)
 let interval = null
+let latestFetchToken = 0
 
 const chartConfig = computed(() => ({
   title: props.title,
@@ -308,6 +309,7 @@ const calculateStats = (datasets) => {
 }
 
 const fetchData = async () => {
+  const fetchToken = ++latestFetchToken
   isLoading.value = true
 
   const end = Math.floor(Date.now() / 1000)
@@ -329,7 +331,11 @@ const fetchData = async () => {
 
   // Check if we have any queries
   if (!props.queries || props.queries.length === 0) {
-    isLoading.value = false
+    if (fetchToken === latestFetchToken) {
+      chartData.value = { labels: [], datasets: [] }
+      stats.value = []
+      isLoading.value = false
+    }
     return
   }
 
@@ -356,6 +362,9 @@ const fetchData = async () => {
   })
 
   const metricResults = await Promise.all(metricPromises)
+  if (fetchToken !== latestFetchToken) {
+    return
+  }
 
   // Build a map of query data for expression evaluation
   const queryDataMap = {}
@@ -367,10 +376,17 @@ const fetchData = async () => {
 
       if (result.length > 0) {
         const values = result[0].values // [[timestamp, "value"], ...]
-        const dataPoints = values.map((v) => ({
-          x: v[0] * 1000,
-          y: parseFloat(v[1])
-        }))
+        const dataPoints = values
+          .map((v) => {
+            const x = Number(v[0]) * 1000
+            const y = Number.parseFloat(v[1])
+            return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null
+          })
+          .filter((p) => p !== null)
+
+        if (dataPoints.length === 0) {
+          continue
+        }
 
         const dataset = {
           label: q.label,
@@ -405,13 +421,23 @@ const fetchData = async () => {
           expression: q.expression,
           queries: queryDataMap
         })
+        if (fetchToken !== latestFetchToken) {
+          return
+        }
 
         if (exprRes.data && exprRes.data.status === 'success') {
           const values = exprRes.data.data.values // [[timestamp, value], ...]
-          const dataPoints = values.map((v) => ({
-            x: v[0] * 1000,
-            y: parseFloat(v[1])
-          }))
+          const dataPoints = values
+            .map((v) => {
+              const x = Number(v[0]) * 1000
+              const y = Number.parseFloat(v[1])
+              return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null
+            })
+            .filter((p) => p !== null)
+
+          if (dataPoints.length === 0) {
+            continue
+          }
 
           const dataset = {
             label: q.label,
@@ -433,6 +459,10 @@ const fetchData = async () => {
         console.error(`Expression evaluation error for ${q.label}:`, error)
       }
     }
+  }
+
+  if (fetchToken !== latestFetchToken) {
+    return
   }
 
   chartData.value = {
@@ -630,6 +660,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  latestFetchToken++
   if (interval) clearInterval(interval)
 
   // Remove event listener
@@ -645,7 +676,13 @@ onUnmounted(() => {
   }
 })
 
-watch(() => props.queries, fetchData)
+watch(
+  () => props.queries,
+  () => {
+    fetchData()
+  },
+  { deep: true }
+)
 watch(
   () => props.hours,
   () => {
@@ -653,5 +690,11 @@ watch(
     loadAnnotations()
   }
 )
-watch(() => props.dashboardId, loadAnnotations)
+watch(
+  () => props.dashboardId,
+  () => {
+    fetchData()
+    loadAnnotations()
+  }
+)
 </script>

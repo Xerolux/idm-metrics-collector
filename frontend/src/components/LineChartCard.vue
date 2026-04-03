@@ -140,4 +140,13 @@ watch(() => props.hours, () => {
   loading.value = true
   fetchData()
 })
+
+watch(
+  () => props.queries,
+  () => {
+    loading.value = true
+    fetchData()
+  },
+  { deep: true }
+)
 </script>

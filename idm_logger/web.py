@@ -243,7 +243,7 @@ def _update_ai_status_once():
         metrics_url = config.data.get("metrics", {}).get(
             "url", "http://victoriametrics:8428/write"
         )
-        base_url = metrics_url.replace("/write", "")
+        base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         query_url = f"{base_url}/api/v1/query"
 
         query = 'last_over_time({__name__=~"idm_anomaly_score(_value)?|idm_anomaly_flag(_value)?"}[2h])'
@@ -522,6 +522,14 @@ _SENSITIVE_CONFIG_KEYS = frozenset(
     }
 )
 
+# Tokens needed by the authenticated local admin UI for telemetry/admin calls.
+_SENSITIVE_EXPOSED_KEYS = frozenset(
+    {
+        "telemetry.auth_token",
+        "telemetry.admin_auth_token",
+    }
+)
+
 
 def _filter_sensitive_config(data: dict, parent_key: str = "") -> dict:
     """Recursively filter sensitive data from config."""
@@ -531,7 +539,7 @@ def _filter_sensitive_config(data: dict, parent_key: str = "") -> dict:
         # Check if key contains sensitive patterns
         key_lower = key.lower()
         is_sensitive = any(s in key_lower for s in _SENSITIVE_CONFIG_KEYS)
-        if is_sensitive:
+        if is_sensitive and full_key not in _SENSITIVE_EXPOSED_KEYS:
             # Mask sensitive values
             filtered[key] = "***" if value else None
         elif isinstance(value, dict):
@@ -1053,7 +1061,7 @@ def query_metrics_range():
         metrics_url = config.data.get("metrics", {}).get(
             "url", "http://victoriametrics:8428/write"
         )
-        base_url = metrics_url.replace("/write", "")
+        base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         query_url = f"{base_url}/api/v1/query_range"
 
         # Forward parameters
@@ -1930,6 +1938,12 @@ def config_page():
                 if "telemetry" not in config.data:
                     config.data["telemetry"] = {}
                 config.data["telemetry"]["auth_token"] = data["telemetry_auth_token"]
+            if "telemetry_admin_auth_token" in data:
+                if "telemetry" not in config.data:
+                    config.data["telemetry"] = {}
+                config.data["telemetry"]["admin_auth_token"] = data[
+                    "telemetry_admin_auth_token"
+                ]
             if "telemetry_server_url" in data:
                 if "telemetry" not in config.data:
                     config.data["telemetry"] = {}
@@ -2554,7 +2568,7 @@ def delete_database():
         metrics_url = config.data.get("metrics", {}).get(
             "url", "http://victoriametrics:8428/write"
         )
-        base_url = metrics_url.replace("/write", "")
+        base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         delete_url = f"{base_url}/api/v1/admin/tsdb/delete_series"
         response = requests.post(delete_url, params={"match[]": '{__name__!=""}'})
         if response.status_code == 204 or response.status_code == 200:
@@ -2598,6 +2612,31 @@ def submit_telemetry_data():
     except Exception as e:
         logger.error(f"Share error: {e}")
         return jsonify({"error": "Share failed"}), 500
+
+
+@app.route("/api/telemetry/retrieve_credentials", methods=["POST"])
+@login_required
+def retrieve_telemetry_credentials():
+    try:
+        success = telemetry_manager.retrieve_credentials()
+        if success:
+            telemetry_manager._load_state()
+            return jsonify(
+                {
+                    "success": True,
+                    "message": "Telemetry-Zugangsdaten erfolgreich aktualisiert",
+                    "status": telemetry_manager.get_status(),
+                }
+            )
+        return jsonify(
+            {
+                "success": False,
+                "message": "Telemetry-Zugangsdaten konnten nicht aktualisiert werden",
+            }
+        ), 500
+    except Exception as e:
+        logger.error(f"Telemetry credential retrieval failed: {e}")
+        return jsonify({"error": "Credential retrieval failed"}), 500
 
 
 @app.route("/api/telemetry/check", methods=["POST"])

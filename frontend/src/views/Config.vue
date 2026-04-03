@@ -222,6 +222,39 @@
                     Server betreibst.</small
                   >
                 </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="flex flex-col gap-2">
+                    <label class="font-bold text-sm text-gray-300">Client Token</label>
+                    <InputText
+                      v-model="config.telemetry.auth_token"
+                      class="w-full font-mono"
+                      type="password"
+                      placeholder="Wird automatisch gesetzt"
+                    />
+                    <small class="text-gray-400">Für Upload und Modell-Checks.</small>
+                  </div>
+                  <div class="flex flex-col gap-2">
+                    <label class="font-bold text-sm text-gray-300">Admin Token (optional)</label>
+                    <InputText
+                      v-model="config.telemetry.admin_auth_token"
+                      class="w-full font-mono"
+                      type="password"
+                      placeholder="Nur für Admin-Endpunkte"
+                    />
+                    <small class="text-gray-400"
+                      >Wird bevorzugt für Admin-Zone genutzt, falls gesetzt.</small
+                    >
+                  </div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <Button
+                    label="Token automatisch abrufen"
+                    icon="pi pi-key"
+                    size="small"
+                    severity="secondary"
+                    @click="retrieveTelemetryCredentials"
+                  />
+                </div>
 
                 <!-- Admin Status Indicator -->
                 <div class="flex items-center gap-2" v-if="telemetryStatus">
@@ -2663,7 +2696,7 @@ const config = ref({
   },
   webdav: { enabled: false, url: '', username: '' },
   ai: { enabled: false, sensitivity: 3.0, model: 'rolling' },
-  telemetry: { enabled: true, auth_token: '', server_url: '' },
+  telemetry: { enabled: true, auth_token: '', admin_auth_token: '', server_url: '' },
   updates: { enabled: false, interval_hours: 12, mode: 'apply', target: 'all' },
   backup: { enabled: false, interval: 24, retention: 10, auto_upload: false }
 })
@@ -2810,8 +2843,14 @@ const copyId = async () => {
 
 const ADMIN_TIMEOUT = 15000
 
+const normalizeTokenValue = (value) => {
+  const token = typeof value === 'string' ? value.trim() : ''
+  return token && token !== '***' ? token : ''
+}
+
 const getAdminHeaders = () => {
-  const authToken = config.value.telemetry?.auth_token || ''
+  const authToken = normalizeTokenValue(config.value.telemetry?.admin_auth_token) ||
+    normalizeTokenValue(config.value.telemetry?.auth_token)
   return authToken ? { Authorization: `Bearer ${authToken}` } : {}
 }
 
@@ -3184,8 +3223,9 @@ const fetchCommunityAverages = async () => {
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
     const headers = {}
-    if (config.value.telemetry?.auth_token) {
-      headers['Authorization'] = `Bearer ${config.value.telemetry.auth_token}`
+    const token = normalizeTokenValue(config.value.telemetry?.auth_token)
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
     }
 
     const res = await api.get(`${telemetryUrl}/api/v1/community/averages`, {
@@ -3761,6 +3801,11 @@ onMounted(async () => {
   try {
     const res = await api.get('/api/config')
     config.value = res.data
+    if (!config.value.telemetry) config.value.telemetry = {}
+    config.value.telemetry.auth_token = normalizeTokenValue(config.value.telemetry.auth_token)
+    config.value.telemetry.admin_auth_token = normalizeTokenValue(
+      config.value.telemetry.admin_auth_token
+    )
 
     // Convert whitelist/blacklist arrays to text
     if (config.value.network_security) {
@@ -4041,6 +4086,29 @@ const manualCheckModel = async () => {
   }
 }
 
+const retrieveTelemetryCredentials = async () => {
+  try {
+    const res = await api.post('/api/telemetry/retrieve_credentials')
+    if (res.data?.status) {
+      telemetryStatus.value = res.data.status
+    }
+    await loadTelemetryStatus()
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: res.data?.message || 'Telemetry-Zugangsdaten aktualisiert',
+      life: 3000
+    })
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: e.response?.data?.message || e.response?.data?.error || e.message,
+      life: 5000
+    })
+  }
+}
+
 const saveConfig = async () => {
   saving.value = true
   try {
@@ -4093,7 +4161,8 @@ const saveConfig = async () => {
       ai_sensitivity: config.value.ai?.sensitivity || 3.0,
       ai_model: config.value.ai?.model || 'rolling',
       telemetry_enabled: config.value.telemetry?.enabled || false,
-      telemetry_auth_token: config.value.telemetry?.auth_token || '',
+      telemetry_auth_token: normalizeTokenValue(config.value.telemetry?.auth_token),
+      telemetry_admin_auth_token: normalizeTokenValue(config.value.telemetry?.admin_auth_token),
       telemetry_server_url: config.value.telemetry?.server_url || '',
       updates_enabled: config.value.updates?.enabled || false,
       updates_interval_hours: config.value.updates?.interval_hours || 12,
