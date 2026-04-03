@@ -8,14 +8,14 @@ Logs are stored in JSON format with structured data.
 import json
 import os
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Dict, Optional
 import structlog
+from storage_paths import resolve_storage_dir
 
 logger = structlog.get_logger()
 
 # Audit log directory
-AUDIT_LOG_DIR = Path(os.environ.get("AUDIT_LOG_DIR", "/var/log/telemetry"))
+AUDIT_LOG_DIR = resolve_storage_dir("AUDIT_LOG_DIR", "/var/log/telemetry", "logs")
 AUDIT_LOG_FILE = AUDIT_LOG_DIR / "audit.log"
 AUDIT_LOG_RETENTION_DAYS = int(os.environ.get("AUDIT_LOG_RETENTION_DAYS", "90"))
 

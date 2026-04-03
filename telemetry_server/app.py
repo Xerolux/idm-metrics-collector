@@ -78,6 +78,7 @@ from cache import (
     community_avg_cache,
     contribution_rank_cache,
 )
+from storage_paths import resolve_storage_dir
 
 # Setup Structured Logging
 structlog.configure(
@@ -118,7 +119,7 @@ STRICT_ADMIN_AUTH = os.environ.get("STRICT_ADMIN_AUTH", "true").strip().lower() 
     "yes",
     "on",
 )
-MODEL_DIR = config.model_dir
+MODEL_DIR = str(resolve_storage_dir("MODEL_DIR", config.model_dir, "models"))
 MIN_INSTALLATIONS_FOR_MODEL = config.min_installations
 MIN_DATA_POINTS_FOR_MODEL = config.min_data_points
 MAX_PAYLOAD_SIZE = config.max_payload_size

@@ -24,15 +24,16 @@ from datetime import datetime, timezone
 from dataclasses import dataclass, asdict
 from enum import Enum
 import structlog
+from storage_paths import resolve_storage_dir
 
 logger = structlog.get_logger()
 
 # Task storage location
-TASK_STORAGE_DIR = os.environ.get("TASK_STORAGE_DIR", "/var/lib/telemetry/tasks")
-TASK_FILE = os.path.join(TASK_STORAGE_DIR, "training_tasks.json")
-
-# Ensure storage directory exists
-Path(TASK_STORAGE_DIR).mkdir(parents=True, exist_ok=True)
+TASK_STORAGE_DIR_PATH = resolve_storage_dir(
+    "TASK_STORAGE_DIR", "/var/lib/telemetry/tasks", "tasks"
+)
+TASK_STORAGE_DIR = str(TASK_STORAGE_DIR_PATH)
+TASK_FILE = TASK_STORAGE_DIR_PATH / "training_tasks.json"
 
 
 class TaskStatus(str, Enum):
@@ -83,7 +84,7 @@ class TrainingQueue:
     def _load_tasks(self):
         """Load tasks from storage."""
         try:
-            if os.path.exists(TASK_FILE):
+            if TASK_FILE.exists():
                 with open(TASK_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     for task_id, task_data in data.items():
@@ -102,7 +103,7 @@ class TrainingQueue:
         """Save tasks to storage."""
         try:
             # Atomic write with temp file
-            temp_file = TASK_FILE + ".tmp"
+            temp_file = Path(f"{TASK_FILE}.tmp")
             with open(temp_file, "w", encoding="utf-8") as f:
                 data = {task_id: task.to_dict() for task_id, task in self.tasks.items()}
                 json.dump(data, f, indent=2)
