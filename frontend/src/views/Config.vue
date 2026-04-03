@@ -177,8 +177,10 @@
             <Fieldset legend="Community Daten & Telemetrie" :toggleable="true">
               <template #legend>
                 <div class="flex items-center gap-2">
-                  <Checkbox v-model="config.telemetry.enabled" binary />
-                  <span class="font-bold">Community Modell nutzen</span>
+                  <Checkbox v-model="config.telemetry.enabled" binary inputId="telemetry_enabled" />
+                  <label for="telemetry_enabled" class="font-bold cursor-pointer"
+                    >Community Modell nutzen</label
+                  >
                 </div>
               </template>
 
@@ -438,8 +440,8 @@
             <Fieldset legend="Signal Messenger" :toggleable="true">
               <template #legend>
                 <div class="flex items-center gap-2">
-                  <Checkbox v-model="config.signal.enabled" binary />
-                  <span class="font-bold">Signal</span>
+                  <Checkbox v-model="config.signal.enabled" binary inputId="signal_enabled" />
+                  <label for="signal_enabled" class="font-bold cursor-pointer">Signal</label>
                 </div>
               </template>
 
@@ -484,8 +486,8 @@
             <Fieldset legend="Telegram" :toggleable="true">
               <template #legend>
                 <div class="flex items-center gap-2">
-                  <Checkbox v-model="config.telegram.enabled" binary />
-                  <span class="font-bold">Telegram</span>
+                  <Checkbox v-model="config.telegram.enabled" binary inputId="telegram_enabled" />
+                  <label for="telegram_enabled" class="font-bold cursor-pointer">Telegram</label>
                 </div>
               </template>
               <div v-if="config.telegram.enabled" class="flex flex-col gap-4">
@@ -507,8 +509,8 @@
             <Fieldset legend="Discord" :toggleable="true">
               <template #legend>
                 <div class="flex items-center gap-2">
-                  <Checkbox v-model="config.discord.enabled" binary />
-                  <span class="font-bold">Discord</span>
+                  <Checkbox v-model="config.discord.enabled" binary inputId="discord_enabled" />
+                  <label for="discord_enabled" class="font-bold cursor-pointer">Discord</label>
                 </div>
               </template>
               <div v-if="config.discord.enabled" class="flex flex-col gap-4">
@@ -522,8 +524,8 @@
             <Fieldset legend="E-Mail" :toggleable="true">
               <template #legend>
                 <div class="flex items-center gap-2">
-                  <Checkbox v-model="config.email.enabled" binary />
-                  <span class="font-bold">E-Mail</span>
+                  <Checkbox v-model="config.email.enabled" binary inputId="email_enabled" />
+                  <label for="email_enabled" class="font-bold cursor-pointer">E-Mail</label>
                 </div>
               </template>
               <div v-if="config.email.enabled" class="flex flex-col gap-4">
@@ -570,8 +572,10 @@
             <Fieldset legend="KI & Anomalieerkennung" :toggleable="true">
               <template #legend>
                 <div class="flex items-center gap-2">
-                  <Checkbox v-model="config.ai.enabled" binary />
-                  <span class="font-bold">KI-Analyse Status anzeigen</span>
+                  <Checkbox v-model="config.ai.enabled" binary inputId="ai_enabled" />
+                  <label for="ai_enabled" class="font-bold cursor-pointer"
+                    >KI-Analyse Status anzeigen</label
+                  >
                 </div>
               </template>
               <div v-if="config.ai.enabled" class="flex flex-col gap-6">
@@ -594,8 +598,14 @@
                       <Dropdown
                         v-model="config.ai.model"
                         :options="[
-                          { label: 'Rolling Window (Lokal, kontinuierliches Lernen)', value: 'rolling' },
-                          { label: 'Community Modell (Vortrainiert, für neue Installationen)', value: 'community' }
+                          {
+                            label: 'Rolling Window (Lokal, kontinuierliches Lernen)',
+                            value: 'rolling'
+                          },
+                          {
+                            label: 'Community Modell (Vortrainiert, für neue Installationen)',
+                            value: 'community'
+                          }
                         ]"
                         optionLabel="label"
                         optionValue="value"
@@ -718,8 +728,14 @@
             <Fieldset legend="Netzwerk Firewall" :toggleable="true">
               <template #legend>
                 <div class="flex items-center gap-2">
-                  <Checkbox v-model="config.network_security.enabled" binary />
-                  <span class="font-bold">IP Whitelist/Blacklist</span>
+                  <Checkbox
+                    v-model="config.network_security.enabled"
+                    binary
+                    inputId="network_security_enabled"
+                  />
+                  <label for="network_security_enabled" class="font-bold cursor-pointer"
+                    >IP Whitelist/Blacklist</label
+                  >
                 </div>
               </template>
 
@@ -1129,8 +1145,8 @@
             <Fieldset legend="Installation Management" :toggleable="true">
               <div class="flex justify-between items-center mb-3">
                 <div class="text-sm text-gray-400" v-if="adminInstallations">
-                  {{ adminInstallations.showing }} von
-                  {{ adminInstallations.total }} Installationen angezeigt
+                  {{ adminInstallations.showing }} von {{ adminInstallations.total }} Installationen
+                  angezeigt
                 </div>
                 <div class="text-sm text-gray-400" v-else-if="!adminInstallationsError">
                   Installationen werden geladen...
@@ -1150,7 +1166,9 @@
                 class="text-center py-6 bg-red-900/20 border border-red-700/50 rounded mb-3"
               >
                 <i class="pi pi-exclamation-triangle text-red-400 text-2xl mb-2 block"></i>
-                <div class="text-red-300 font-medium">Installationen konnten nicht geladen werden</div>
+                <div class="text-red-300 font-medium">
+                  Installationen konnten nicht geladen werden
+                </div>
                 <div class="text-red-400 text-xs mt-1 font-mono">{{ adminInstallationsError }}</div>
                 <Button
                   label="Erneut versuchen"
@@ -1906,7 +1924,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
                   <div>
                     <label class="text-xs text-gray-400 block mb-1">Action</label>
-                    <InputText v-model="auditActionFilter" class="w-full" placeholder="z.B. training_trigger" />
+                    <InputText
+                      v-model="auditActionFilter"
+                      class="w-full"
+                      placeholder="z.B. training_trigger"
+                    />
                   </div>
                   <div>
                     <label class="text-xs text-gray-400 block mb-1">Admin</label>
@@ -2764,7 +2786,11 @@ const trainingMinInstallations = ref(null)
 const trainingLookbackDays = ref(null)
 const trainingDryRun = ref(false)
 const installationSettings = ref({
-  telemetry_policy: { upload_interval_seconds: 60, sampling_ratio: 1.0, pii_masking_level: 'standard' },
+  telemetry_policy: {
+    upload_interval_seconds: 60,
+    sampling_ratio: 1.0,
+    pii_masking_level: 'standard'
+  },
   alert_tuning: { anomaly_threshold: 0.7, cooldown_seconds: 300, consecutive_hits: 3 },
   feature_flags: { next_gen_ai: false, new_dashboard: false, beta_training: false }
 })
@@ -2816,8 +2842,10 @@ const getAdminHeaders = () => {
 }
 
 const adminGet = (url, options = {}) => axios.get(url, { timeout: ADMIN_TIMEOUT, ...options })
-const adminPost = (url, data, options = {}) => axios.post(url, data, { timeout: ADMIN_TIMEOUT, ...options })
-const adminPut = (url, data, options = {}) => axios.put(url, data, { timeout: ADMIN_TIMEOUT, ...options })
+const adminPost = (url, data, options = {}) =>
+  axios.post(url, data, { timeout: ADMIN_TIMEOUT, ...options })
+const adminPut = (url, data, options = {}) =>
+  axios.put(url, data, { timeout: ADMIN_TIMEOUT, ...options })
 const adminDelete = (url, options = {}) => axios.delete(url, { timeout: ADMIN_TIMEOUT, ...options })
 
 const fetchAdminHealth = async () => {
@@ -2854,9 +2882,10 @@ const fetchAdminInstallations = async () => {
     })
   } catch (err) {
     console.error('Failed to fetch admin installations:', err)
-    const msg = err.code === 'ECONNABORTED'
-      ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
-      : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
+    const msg =
+      err.code === 'ECONNABORTED'
+        ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
+        : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
     adminInstallationsError.value = msg
   }
 }
@@ -2874,9 +2903,10 @@ const fetchInstallationRoles = async () => {
     installationRoles.value = res.data
   } catch (err) {
     console.error('Failed to fetch installation roles:', err)
-    installationRolesError.value = err.code === 'ECONNABORTED'
-      ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
-      : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
+    installationRolesError.value =
+      err.code === 'ECONNABORTED'
+        ? 'Zeitüberschreitung - Telemetrie-Server nicht erreichbar'
+        : err.response?.data?.detail || err.message || 'Netzwerkfehler - Server nicht erreichbar'
   }
 }
 
@@ -3309,7 +3339,12 @@ const saveRuntimeLimits = async () => {
       }
     )
     runtimeLimits.value = res.data.limits
-    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Runtime Limits gespeichert', life: 3000 })
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Runtime Limits gespeichert',
+      life: 3000
+    })
   } catch (err) {
     toast.add({
       severity: 'error',
@@ -3397,12 +3432,18 @@ const saveInstallationSettings = async () => {
       }
     )
     installationSettings.value = res.data.settings || installationSettings.value
-    toast.add({ severity: 'success', summary: 'Erfolg', detail: 'Installation-Settings gespeichert', life: 3000 })
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Installation-Settings gespeichert',
+      life: 3000
+    })
   } catch (err) {
     toast.add({
       severity: 'error',
       summary: 'Fehler',
-      detail: err.response?.data?.detail || 'Installation-Settings konnten nicht gespeichert werden',
+      detail:
+        err.response?.data?.detail || 'Installation-Settings konnten nicht gespeichert werden',
       life: 5000
     })
   } finally {
