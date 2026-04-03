@@ -27,7 +27,9 @@ class AlertManager:
 
     def load(self):
         with self.lock:
-            self.alerts = db.get_alerts()
+            rows = db.get_alerts()
+            # ⚡ Bolt: Convert sqlite3.Row to dict outside the DB lock to minimize contention
+            self.alerts = [dict(row) for row in rows]
             # ⚡ Bolt: Pre-parse threshold strings to avoid O(N) redundant float() conversions per tick
             for alert in self.alerts:
                 alert["_parsed_threshold"] = _to_float(alert.get("threshold"))
