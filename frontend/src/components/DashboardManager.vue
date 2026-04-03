@@ -11,7 +11,7 @@
 
     <!-- Top Bar -->
     <div
-      class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0"
+      class="sticky top-0 z-30 -mx-2 sm:mx-0 px-2 sm:px-0 py-2 rounded-xl bg-white/75 dark:bg-surface-900/70 backdrop-blur-md border border-slate-200/70 dark:border-slate-700/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-shrink-0"
     >
       <div class="flex flex-wrap items-center gap-2 flex-grow w-full sm:w-auto">
         <Select
@@ -22,11 +22,12 @@
           class="w-full sm:w-64"
           placeholder="Dashboard wählen"
         />
-        <div class="flex gap-2">
+        <div class="flex gap-2 overflow-x-auto max-w-full pb-1">
           <Button
-            @click="createDashboard"
+            @click="openCreateDashboardDialog"
             icon="pi pi-plus"
             severity="primary"
+            class="action-button"
             title="Neues Dashboard"
             aria-label="Neues Dashboard"
           />
@@ -34,6 +35,7 @@
             @click="showTemplateDialog = true"
             icon="pi pi-copy"
             severity="secondary"
+            class="action-button"
             title="Aus Vorlage erstellen"
             aria-label="Aus Vorlage erstellen"
           />
@@ -41,6 +43,7 @@
             @click="openDashboardSettings"
             icon="pi pi-cog"
             severity="secondary"
+            class="action-button"
             title="Dashboard Einstellungen"
             aria-label="Dashboard Einstellungen"
           />
@@ -49,6 +52,7 @@
             icon="pi pi-trash"
             severity="danger"
             :disabled="dashboards.length <= 1"
+            class="action-button"
             title="Dashboard löschen"
             aria-label="Dashboard löschen"
           />
@@ -64,13 +68,13 @@
           class="w-full sm:w-48"
           @change="onTimeRangeChange"
         />
-        <div class="flex gap-2">
+        <div class="flex gap-2 overflow-x-auto max-w-full pb-1">
           <Button
             v-if="unacknowledgedAnomalies.length > 0"
             @click="showAlarmDialog = true"
             icon="pi pi-bell"
             severity="danger"
-            class="animate-pulse"
+            class="animate-pulse action-button"
             title="Aktive Warnungen"
             aria-label="Aktive Warnungen"
           />
@@ -78,6 +82,7 @@
             @click="showExportDialog = true"
             icon="pi pi-download"
             severity="secondary"
+            class="action-button"
             title="Exportieren"
             aria-label="Exportieren"
           />
@@ -85,6 +90,7 @@
             @click="showAnnotationsDialog = true"
             icon="pi pi-bookmark"
             severity="secondary"
+            class="action-button"
             title="Annotations"
             aria-label="Annotations"
           />
@@ -92,6 +98,7 @@
             @click="showVariablesDialog = true"
             icon="pi pi-sliders-h"
             severity="secondary"
+            class="action-button"
             title="Variables"
             aria-label="Variables"
           />
@@ -100,18 +107,33 @@
             :icon="editMode ? 'pi pi-lock-open' : 'pi pi-lock'"
             :severity="editMode ? 'success' : 'secondary'"
             :label="editMode ? 'Bearbeiten' : 'Normal'"
+            class="action-button"
           />
         </div>
       </div>
     </div>
 
+    <div
+      v-if="isLoadingDashboards"
+      class="rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white/70 dark:bg-slate-900/50 p-4 animate-pulse"
+    >
+      <div class="h-5 w-48 bg-slate-300/50 dark:bg-slate-700/60 rounded mb-3"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="h-40 rounded-lg bg-slate-200/60 dark:bg-slate-800/70"></div>
+        <div class="h-40 rounded-lg bg-slate-200/60 dark:bg-slate-800/70"></div>
+      </div>
+    </div>
+
     <!-- Overview Header -->
-    <OverviewHeader />
+    <OverviewHeader v-if="!isLoadingDashboards" />
 
     <!-- Variable Selector -->
-    <VariableSelector v-if="variables.length > 0 && !editMode" @change="onVariableChange" />
+    <VariableSelector
+      v-if="variables.length > 0 && !editMode && !isLoadingDashboards"
+      @change="onVariableChange"
+    />
 
-    <div class="flex-grow min-h-0 flex flex-col lg:flex-row gap-3 lg:overflow-hidden">
+    <div v-if="!isLoadingDashboards" class="flex-grow min-h-0 flex flex-col lg:flex-row gap-3 lg:overflow-hidden">
       <!-- Left Sidebar: Current Values -->
       <div class="w-full lg:w-72 flex-shrink-0 overflow-y-auto">
         <SensorValues @sensor-drag-start="onSensorDragStart" />
@@ -180,7 +202,7 @@
           @end="onDragEnd"
         >
           <template #item="{ element: chart }">
-            <div class="h-80 relative group">
+            <div class="h-80 relative group chart-tile">
               <!-- Drag Handle -->
               <div
                 v-if="editMode"
@@ -199,6 +221,7 @@
                 :dashboard-id="currentDashboardId"
                 :edit-mode="editMode"
                 :alert-thresholds="chart.alertThresholds || []"
+                :key="`${chart.id}-${variableRefreshKey}`"
                 @deleted="onChartDeleted"
               />
               <BarCard
@@ -209,6 +232,7 @@
                 :chart-id="chart.id"
                 :dashboard-id="currentDashboardId"
                 :edit-mode="editMode"
+                :key="`${chart.id}-${variableRefreshKey}`"
                 @deleted="onChartDeleted"
               />
               <StatCard
@@ -224,6 +248,7 @@
                 :chart-id="chart.id"
                 :dashboard-id="currentDashboardId"
                 :edit-mode="editMode"
+                :key="`${chart.id}-${variableRefreshKey}`"
                 @deleted="onChartDeleted"
               />
               <GaugeCard
@@ -236,6 +261,7 @@
                 :chart-id="chart.id"
                 :dashboard-id="currentDashboardId"
                 :edit-mode="editMode"
+                :key="`${chart.id}-${variableRefreshKey}`"
                 @deleted="onChartDeleted"
               />
               <HeatmapCard
@@ -246,6 +272,7 @@
                 :chart-id="chart.id"
                 :dashboard-id="currentDashboardId"
                 :edit-mode="editMode"
+                :key="`${chart.id}-${variableRefreshKey}`"
                 @deleted="onChartDeleted"
               />
               <TableCard
@@ -256,6 +283,7 @@
                 :chart-id="chart.id"
                 :dashboard-id="currentDashboardId"
                 :edit-mode="editMode"
+                :key="`${chart.id}-${variableRefreshKey}`"
                 @deleted="onChartDeleted"
               />
               <StateTimelineCard
@@ -266,6 +294,7 @@
                 :chart-id="chart.id"
                 :dashboard-id="currentDashboardId"
                 :edit-mode="editMode"
+                :key="`${chart.id}-${variableRefreshKey}`"
                 @deleted="onChartDeleted"
               />
             </div>
@@ -356,6 +385,35 @@
     </Dialog>
 
     <ChartTemplateDialog v-model="showTemplateDialog" @apply="applyTemplate" />
+
+    <Dialog
+      v-model:visible="showCreateDashboardDialog"
+      modal
+      header="Neues Dashboard"
+      :style="{ width: '90vw', maxWidth: '460px' }"
+    >
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+          <InputText
+            v-model="newDashboardName"
+            class="w-full"
+            placeholder="z.B. Heizung EG"
+            autofocus
+            @keyup.enter="createDashboard"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <Button
+          @click="showCreateDashboardDialog = false"
+          label="Abbrechen"
+          severity="secondary"
+          text
+        />
+        <Button @click="createDashboard" label="Erstellen" :disabled="!newDashboardName.trim()" />
+      </template>
+    </Dialog>
 
     <ExportDialog
       v-model="showExportDialog"
@@ -491,7 +549,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue'
 import api from '@/utils/api.js'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -513,12 +571,12 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import ConfirmDialog from 'primevue/confirmdialog'
 import Toast from 'primevue/toast'
-import ChartTemplateDialog from './ChartTemplateDialog.vue'
-import ExportDialog from './ExportDialog.vue'
-import AnnotationList from './AnnotationList.vue'
-import VariableDialog from './VariableDialog.vue'
+const ChartTemplateDialog = defineAsyncComponent(() => import('./ChartTemplateDialog.vue'))
+const ExportDialog = defineAsyncComponent(() => import('./ExportDialog.vue'))
+const AnnotationList = defineAsyncComponent(() => import('./AnnotationList.vue'))
+const VariableDialog = defineAsyncComponent(() => import('./VariableDialog.vue'))
 import VariableSelector from './VariableSelector.vue'
-import CssEditor from './CssEditor.vue'
+const CssEditor = defineAsyncComponent(() => import('./CssEditor.vue'))
 import { sanitizeCss } from '@/utils/cssSanitizer'
 
 const confirm = useConfirm()
@@ -527,7 +585,9 @@ const toast = useToast()
 const dashboards = ref([])
 const currentDashboardId = ref('')
 const editMode = ref(false)
+const isLoadingDashboards = ref(false)
 const showAddChartDialog = ref(false)
+const showCreateDashboardDialog = ref(false)
 const showTemplateDialog = ref(false)
 const showExportDialog = ref(false)
 const showAnnotationsDialog = ref(false)
@@ -540,6 +600,8 @@ const dashboardElement = ref(null)
 const variables = ref([])
 const editingVariable = ref(null)
 const variableValues = ref({})
+const variableRefreshKey = ref(0)
+const newDashboardName = ref('')
 
 const showAlarmDialog = ref(false)
 const unacknowledgedAnomalies = ref([])
@@ -609,6 +671,7 @@ const currentCharts = ref([])
 // Debounce timer
 let saveTimer = null
 let isDragging = false
+let dashboardLoadRequestId = 0
 
 // Watch for dashboard changes and update charts
 watch(
@@ -641,8 +704,11 @@ watch(
 )
 
 const loadDashboards = async () => {
+  const requestId = ++dashboardLoadRequestId
+  isLoadingDashboards.value = true
   try {
     const res = await api.get('/api/dashboards')
+    if (requestId !== dashboardLoadRequestId) return
     dashboards.value = res.data
     if (dashboards.value.length > 0 && !currentDashboardId.value) {
       currentDashboardId.value = dashboards.value[0].id
@@ -655,6 +721,10 @@ const loadDashboards = async () => {
       detail: 'Dashboards konnten nicht geladen werden',
       life: 5000
     })
+  } finally {
+    if (requestId === dashboardLoadRequestId) {
+      isLoadingDashboards.value = false
+    }
   }
 }
 
@@ -695,14 +765,20 @@ const onDragEnd = () => {
   })
 }
 
+const openCreateDashboardDialog = () => {
+  newDashboardName.value = ''
+  showCreateDashboardDialog.value = true
+}
+
 const createDashboard = async () => {
-  const name = prompt('Name des neuen Dashboards:')
+  const name = newDashboardName.value.trim()
   if (!name) return
 
   try {
     const res = await api.post('/api/dashboards', { name })
     dashboards.value.push(res.data)
     currentDashboardId.value = res.data.id
+    showCreateDashboardDialog.value = false
     toast.add({
       severity: 'success',
       summary: 'Erstellt',
@@ -792,10 +868,8 @@ const confirmDeleteVariable = (variable) => {
 // Handle variable value changes - trigger refresh of all charts
 const onVariableChange = (newValues) => {
   variableValues.value = newValues
-  // Force all ChartCard components to refresh by re-rendering
-  // The key is to trigger the computed properties in ChartCard
-  // This is done by changing the currentDashboardId, which forces a re-fetch
-  loadDashboards()
+  // Force chart components to remount without reloading dashboards from API.
+  variableRefreshKey.value += 1
 }
 
 // Dashboard settings (including CSS)
@@ -1042,5 +1116,15 @@ const acknowledgeAnomaly = async (anomaly) => {
   opacity: 0.9;
   transform: scale(1.02);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.chart-tile {
+  content-visibility: auto;
+  contain-intrinsic-size: 320px;
+}
+
+.action-button {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
 }
 </style>

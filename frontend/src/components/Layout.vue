@@ -133,11 +133,21 @@ const dismissUpdateBanner = () => {
 }
 
 let timer
+let lastActivityResetTs = 0
 const resetTimer = () => {
   clearTimeout(timer)
   timer = setTimeout(() => {
     logout()
   }, 300000) // 5 minutes
+}
+
+const handleUserActivity = () => {
+  const now = Date.now()
+  if (now - lastActivityResetTs < 1000) {
+    return
+  }
+  lastActivityResetTs = now
+  resetTimer()
 }
 
 onMounted(() => {
@@ -147,7 +157,9 @@ onMounted(() => {
     document.documentElement.classList.add('my-app-dark')
   }
   const events = ['click', 'mousemove', 'keypress', 'scroll', 'touchstart']
-  events.forEach((event) => window.addEventListener(event, resetTimer))
+  events.forEach((event) =>
+    window.addEventListener(event, handleUserActivity, { passive: true })
+  )
   resetTimer()
 
   // Check for updates on app load
@@ -156,7 +168,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   const events = ['click', 'mousemove', 'keypress', 'scroll', 'touchstart']
-  events.forEach((event) => window.removeEventListener(event, resetTimer))
+  events.forEach((event) => window.removeEventListener(event, handleUserActivity))
   clearTimeout(timer)
 })
 </script>
@@ -204,7 +216,7 @@ onUnmounted(() => {
     <Menubar
       :model="items"
       breakpoint="1280px"
-      class="rounded-none border-0 border-b !border-gray-700 !bg-gray-800"
+      class="sticky top-0 z-40 rounded-none border-0 border-b !border-gray-700/70 !bg-gray-800/90 backdrop-blur-sm"
     >
       <template #start>
         <span class="text-lg sm:text-xl font-bold px-2 sm:px-4 text-white"
@@ -262,7 +274,7 @@ onUnmounted(() => {
       </template>
     </Menubar>
     <main
-      class="flex-grow container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 md:py-6 lg:py-8"
+      class="flex-grow container mx-auto px-2.5 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 md:py-6 lg:py-8"
     >
       <router-view></router-view>
     </main>

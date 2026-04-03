@@ -210,6 +210,9 @@ body {
     radial-gradient(circle at 85% 0%, rgba(59, 130, 246, 0.14), transparent 30%),
     linear-gradient(180deg, #0b1220 0%, #121b2f 55%, #0f172a 100%);
   min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
+  touch-action: manipulation;
 }
 
 .glass-panel {
@@ -225,4 +228,34 @@ body {
   border: 1px solid rgba(203, 213, 225, 0.9);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* More forgiving touch targets on phones */
+@media (max-width: 768px) {
+  .p-button,
+  button,
+  [role='button'] {
+    min-height: 2.75rem;
+  }
+
+  .p-select,
+  .p-inputtext {
+    min-height: 2.75rem;
+  }
+}
+
+/* Respect reduced-motion settings to improve UX and battery life */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
