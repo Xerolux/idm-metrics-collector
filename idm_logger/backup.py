@@ -75,6 +75,14 @@ def _is_safe_path(base_dir: Path, target_path: Path) -> bool:
         return False
 
 
+def _resolve_backup_file_path(file_path: str) -> Path:
+    """Resolve a backup file path and enforce BACKUP_DIR confinement."""
+    target = Path(file_path).resolve()
+    if not _is_safe_path(BACKUP_DIR, target):
+        raise ValueError("Backup path must stay within backup directory")
+    return target
+
+
 def _get_grafana_credentials():
     """
     Get Grafana credentials from environment variables.
@@ -379,7 +387,13 @@ class BackupManager:
                 logger.warning(f"Blocked symlink extraction: {member.filename}")
                 continue
 
-            zipf.extract(member, target_dir)
+            if member.is_dir():
+                member_path.mkdir(parents=True, exist_ok=True)
+                continue
+
+            member_path.parent.mkdir(parents=True, exist_ok=True)
+            with zipf.open(member, "r") as source, open(member_path, "wb") as target:
+                shutil.copyfileobj(source, target)
 
     @staticmethod
     def _backup_ml_service(backup_dir: Path) -> bool:
@@ -955,9 +969,12 @@ class BackupManager:
         Returns:
             Dict containing restore status and information
         """
-        backup_path = Path(backup_file_path)
+        try:
+            backup_path = _resolve_backup_file_path(backup_file_path)
+        except ValueError:
+            return {"success": False, "error": "Invalid backup path"}
 
-        if not backup_path.exists():
+        if not backup_path.exists() or not backup_path.is_file():
             return {"success": False, "error": "Backup file not found"}
 
         # Create temporary extraction directory
@@ -1120,9 +1137,12 @@ class BackupManager:
         if not _SAFE_FILENAME_PATTERN.match(filename) or ".." in filename:
             return {"success": False, "error": "Invalid filename"}
 
-        backup_path = BACKUP_DIR / filename
+        backup_path = (BACKUP_DIR / filename).resolve()
 
-        if not backup_path.exists():
+        if not _is_safe_path(BACKUP_DIR, backup_path):
+            return {"success": False, "error": "Invalid filename"}
+
+        if not backup_path.exists() or not backup_path.is_file():
             return {"success": False, "error": "Backup file not found"}
 
         try:
@@ -1188,8 +1208,11 @@ class BackupManager:
         if not url or not username:
             return {"success": False, "error": "WebDAV not configured"}
 
-        path = Path(file_path)
-        if not path.exists():
+        try:
+            path = _resolve_backup_file_path(file_path)
+        except ValueError:
+            return {"success": False, "error": "Invalid file path"}
+        if not path.exists() or not path.is_file():
             return {"success": False, "error": "File not found"}
 
         def _do_upload():
@@ -1209,7 +1232,7 @@ class BackupManager:
                 # Nextcloud/WebDAV often requires the directory to exist or precise path
                 # We upload to root of WebDAV share
 
-                client.upload_file(file_path, remote_path, overwrite=True)
+                client.upload_file(str(path), remote_path, overwrite=True)
                 logger.info(f"Successfully uploaded {path.name} to WebDAV")
 
             except Exception as e:

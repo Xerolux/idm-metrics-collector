@@ -33,10 +33,6 @@ const DANGEROUS_PATTERNS = [
   // Webkit mask with external URL (potential data exfiltration)
   /-webkit-mask\s*:\s*url\s*\([^)]*https?:/gi,
 
-  // HTML comments that might break out of style tag
-  /<!--/g,
-  /-->/g,
-
   // Unicode escapes that might bypass filters (more comprehensive)
   /\\[0-9a-fA-F]{1,6}/g, // Any unicode escape
   /\\0/g // Null byte escape

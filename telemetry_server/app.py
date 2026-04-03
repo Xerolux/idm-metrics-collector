@@ -496,6 +496,19 @@ def validate_model_name(model_name: Optional[str]) -> Optional[str]:
         raise HTTPException(status_code=400, detail=str(e))
 
 
+def resolve_model_file(model_name: str) -> Path:
+    """Resolve model file path safely under MODEL_DIR."""
+    normalized = validate_model_name(model_name)
+    if not normalized:
+        raise HTTPException(status_code=400, detail="Invalid model name")
+
+    model_dir = Path(MODEL_DIR).resolve()
+    candidate = (model_dir / f"{normalized}.enc").resolve()
+    if os.path.commonpath([str(model_dir), str(candidate)]) != str(model_dir):
+        raise HTTPException(status_code=400, detail="Invalid model path")
+    return candidate
+
+
 async def get_data_pool_stats(request: Request) -> Dict[str, Any]:
     """
     Get current data pool statistics from VictoriaMetrics with caching.
@@ -812,7 +825,7 @@ async def register_installation(
         logger.error(
             "registration_failed", installation_id=installation_id, error=str(e)
         )
-        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Registration failed")
 
 
 @app.post("/api/v1/credentials/retrieve")
@@ -884,9 +897,7 @@ async def retrieve_credentials(
         logger.error(
             "credential_retrieval_failed", installation_id=installation_id, error=str(e)
         )
-        raise HTTPException(
-            status_code=500, detail=f"Credential retrieval failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Credential retrieval failed")
 
 
 def _process_telemetry_batch(
@@ -1044,7 +1055,7 @@ async def submit_telemetry(
         raise
     except Exception as e:
         logger.error("telemetry_processing_error", ip=client_ip, error=str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Telemetry processing failed")
 
 
 @app.get("/health")
@@ -1118,7 +1129,7 @@ async def server_status(request: Request, auth: None = Depends(verify_token)):
         }
     except Exception as e:
         logger.error("status_check_failed", error=str(e))
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": "status check failed"}
 
 
 @app.get("/api/v1/model/check")
@@ -1280,15 +1291,15 @@ async def check_eligibility(
 
         if model:
             # Look for model-specific file (model is already validated and normalized)
-            model_file = model_dir / f"{model}.enc"
-            metadata_file = model_dir / f"{model}_metadata.json"
+            model_file = resolve_model_file(model)
+            metadata_file = (model_dir / f"{model}_metadata.json").resolve()
             if not model_file.exists():
                 # Fall back to generic model
-                model_file = model_dir / "community_model.enc"
-                metadata_file = model_dir / "community_model_metadata.json"
+                model_file = (model_dir / "community_model.enc").resolve()
+                metadata_file = (model_dir / "community_model_metadata.json").resolve()
         else:
-            model_file = model_dir / "community_model.enc"
-            metadata_file = model_dir / "community_model_metadata.json"
+            model_file = (model_dir / "community_model.enc").resolve()
+            metadata_file = (model_dir / "community_model_metadata.json").resolve()
 
         # Helper to check existence asynchronously
         exists = await run_sync(model_file.exists) if model_file else False
@@ -1422,11 +1433,11 @@ async def download_model(
 
         if model:
             # Model is already validated and normalized
-            model_file = model_dir / f"{model}.enc"
+            model_file = resolve_model_file(model)
             if not model_file.exists():
-                model_file = model_dir / "community_model.enc"
+                model_file = (model_dir / "community_model.enc").resolve()
         else:
-            model_file = model_dir / "community_model.enc"
+            model_file = (model_dir / "community_model.enc").resolve()
 
         if not model_file.exists():
             logger.warning(
@@ -1670,7 +1681,8 @@ async def community_averages(
     )
 
     if "error" in result:
-        raise HTTPException(status_code=500, detail=result["error"])
+        logger.error("community_averages_failed", error=result.get("error"))
+        raise HTTPException(status_code=500, detail="Community averages unavailable")
 
     await community_avg_cache.set(cache_key, result)
 
@@ -1921,8 +1933,7 @@ async def admin_delete_model(
 
     client_ip = get_client_ip(request)
 
-    model_dir = Path(MODEL_DIR)
-    model_file = model_dir / f"{model_name}.enc"
+    model_file = resolve_model_file(model_name)
 
     if not model_file.exists():
         raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
@@ -1965,9 +1976,9 @@ async def admin_delete_model(
             ip_address=client_ip,
             model_name=model_name,
             success=False,
-            metadata={"error": str(e)},
+            metadata={"error": "delete_failed"},
         )
-        raise HTTPException(status_code=500, detail=f"Failed to delete model: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to delete model")
 
 
 @app.post("/api/v1/admin/models/trigger-training")
@@ -2081,7 +2092,7 @@ async def admin_trigger_training(
             admin_id=admin_id,
             ip_address=client_ip,
             success=False,
-            metadata={"error": str(e), "reason": "already_running"},
+            metadata={"error": "already_running", "reason": "already_running"},
         )
 
         raise HTTPException(status_code=409, detail=str(e))
@@ -2096,9 +2107,7 @@ async def admin_trigger_training(
             metadata={"error": str(e)},
         )
 
-        raise HTTPException(
-            status_code=500, detail=f"Failed to trigger training: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to trigger training")
 
 
 @app.get("/api/v1/admin/training/status/{task_id}")
@@ -2131,9 +2140,7 @@ async def admin_get_training_status(
         raise
     except Exception as e:
         logger.error("get_training_status_failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get training status: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get training status")
 
 
 @app.get("/api/v1/admin/training/history")
@@ -2165,9 +2172,7 @@ async def admin_get_training_history(
 
     except Exception as e:
         logger.error("get_training_history_failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get training history: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get training history")
 
 
 @app.get("/api/v1/admin/training/current")
@@ -2195,9 +2200,7 @@ async def admin_get_current_training(
 
     except Exception as e:
         logger.error("get_current_training_failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get current training: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get current training")
 
 
 @app.post("/api/v1/admin/training/cancel/{task_id}")
@@ -2237,9 +2240,7 @@ async def admin_cancel_training(
         raise
     except Exception as e:
         logger.error("cancel_training_failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Failed to cancel training: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to cancel training")
 
 
 @app.get("/api/v1/admin/installations")
@@ -2314,9 +2315,7 @@ async def admin_list_installations(
         }
     except Exception as e:
         logger.error("admin_installations_list_failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Failed to list installations: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to list installations")
 
 
 @app.get("/api/v1/admin/installations/{target_id}/details")
@@ -2504,9 +2503,7 @@ async def admin_installation_details(
         logger.error(
             "admin_installation_details_failed", error=str(e), installation_id=target_id
         )
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get installation details: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get installation details")
 
 
 @app.get("/api/v1/admin/installations/{target_id}/history")
@@ -2566,9 +2563,7 @@ async def admin_installation_history(
         logger.error(
             "admin_installation_history_failed", error=str(e), installation_id=target_id
         )
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get installation history: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get installation history")
 
 
 @app.get("/api/v1/admin/health")
@@ -2650,7 +2645,7 @@ async def admin_server_health(
         raise HTTPException(status_code=501, detail="psutil not installed")
     except Exception as e:
         logger.error("admin_health_check_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Health check failed")
 
 
 @app.get("/api/v1/admin/metrics")
@@ -2729,7 +2724,7 @@ async def admin_get_metrics(
 
     except Exception as e:
         logger.error("admin_metrics_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get metrics: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get metrics")
 
 
 @app.get("/api/v1/admin/audit-log")
@@ -2817,9 +2812,7 @@ async def admin_get_audit_log(
         }
     except Exception as e:
         logger.error("admin_audit_log_failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get audit log: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get audit log")
 
 
 # ==================== PERMISSION MANAGEMENT ENDPOINTS ====================
@@ -2983,9 +2976,7 @@ async def admin_list_permissions(
         }
     except Exception as e:
         logger.error("admin_list_permissions_failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Failed to list permissions: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to list permissions")
 
 
 @app.post("/api/v1/admin/permissions/grant")
@@ -3042,9 +3033,7 @@ async def admin_grant_permission(
         raise
     except Exception as e:
         logger.error("admin_grant_permission_failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Failed to grant permission: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to grant permission")
 
 
 @app.post("/api/v1/admin/permissions/revoke")
@@ -3100,9 +3089,7 @@ async def admin_revoke_permission(
         raise
     except Exception as e:
         logger.error("admin_revoke_permission_failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Failed to revoke permission: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to revoke permission")
 
 
 @app.get("/api/v1/admin/permissions/{target_admin_id}")
@@ -3138,9 +3125,7 @@ async def admin_get_permissions(
         raise
     except Exception as e:
         logger.error("admin_get_permissions_failed", error=str(e))
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get permissions: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail="Failed to get permissions")
 
 
 # =====================================================================

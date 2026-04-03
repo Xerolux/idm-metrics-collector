@@ -206,7 +206,7 @@ def upload_model():
 
     except Exception as e:
         logger.error(f"Model upload failed: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Model upload failed"}), 500
 
 
 def _save_worker(serialized_data, filepath):

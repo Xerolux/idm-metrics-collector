@@ -5,6 +5,7 @@ import os
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
+import re
 
 import requests
 from .config import config
@@ -19,6 +20,8 @@ DOCKER_IMAGES = {
     "idm-logger": "ghcr.io/xerolux/idm-metrics-collector",
     "ml-service": "ghcr.io/xerolux/idm-metrics-collector-ml",
 }
+
+_SAFE_GHCR_REPO = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)+$")
 
 # Only one channel: "latest" (rolling updates from main / Docker latest)
 
@@ -134,6 +137,10 @@ def get_remote_image_digest(image_name: str, tag: str = "latest") -> Optional[st
             repo = image_name[8:]  # Remove "ghcr.io/"
         else:
             repo = image_name
+        repo = repo.strip().lower()
+        if not _SAFE_GHCR_REPO.match(repo):
+            logger.warning(f"Rejected unsafe GHCR repository name: {image_name}")
+            return None
 
         # GHCR uses token auth - get anonymous token first
         token_url = f"https://ghcr.io/token?scope=repository:{repo}:pull"

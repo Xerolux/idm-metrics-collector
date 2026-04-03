@@ -57,6 +57,7 @@ import signal
 import ipaddress
 import time
 import re
+from urllib.parse import quote
 import pandas as pd
 import io
 from datetime import datetime
@@ -142,6 +143,34 @@ def _validate_topic(value: str) -> tuple[bool, str]:
     if re.search(r'[;&|`$(){}[\]<>\\\'"]', value):
         return False, "Topic enthält ungültige Zeichen"
     return True, ""
+
+
+def _internal_error_response(
+    exc: Exception,
+    message: str = "Interner Serverfehler",
+    *,
+    include_success_false: bool = False,
+):
+    """Return a sanitized API error response without leaking exception internals."""
+    logger.error(message, exc_info=True)
+    payload = {"error": message}
+    if include_success_false:
+        payload["success"] = False
+    return jsonify(payload), 500
+
+
+def _resolve_backup_path(filename: str) -> Path:
+    """Resolve a backup file path safely under BACKUP_DIR."""
+    safe_name = secure_filename(filename or "")
+    if not safe_name or safe_name != filename:
+        raise ValueError("Ungültiger Dateiname")
+
+    backup_root = Path(BACKUP_DIR).resolve()
+    candidate = (backup_root / safe_name).resolve()
+
+    if os.path.commonpath([str(backup_root), str(candidate)]) != str(backup_root):
+        raise ValueError("Ungültiger Dateipfad")
+    return candidate
 
 
 app = Flask(__name__)
@@ -1628,7 +1657,9 @@ def share_logs():
         return jsonify({"success": True, "link": link})
     except Exception as e:
         logger.error(f"Failed to share logs: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return _internal_error_response(
+            e, "Logs konnten nicht geteilt werden", include_success_false=True
+        )
 
 
 @app.route("/api/tools/technician-code", methods=["GET"])
@@ -2116,7 +2147,7 @@ def config_page():
                 }
             )
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response(e, "Schreibvorgang fehlgeschlagen")
 
 
 @app.route("/api/restart", methods=["POST"])
@@ -2151,7 +2182,7 @@ def check_update():
         return jsonify(check_for_update())
     except Exception as e:
         logger.error(f"Error checking for updates: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Update-Prüfung fehlgeschlagen")
 
 
 @app.route("/api/perform-update", methods=["POST"])
@@ -2190,7 +2221,9 @@ def perform_update():
         )
     except Exception as e:
         logger.error(f"Error starting update: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return _internal_error_response(
+            e, "Update konnte nicht gestartet werden", include_success_false=True
+        )
 
 
 @app.route("/api/docker/status", methods=["GET"])
@@ -2204,7 +2237,7 @@ def get_docker_status():
         return jsonify(status)
     except Exception as e:
         logger.error(f"Error checking Docker status: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Docker-Status konnte nicht geladen werden")
 
 
 @app.route("/api/signal/test", methods=["POST"])
@@ -2217,7 +2250,9 @@ def signal_test():
         return jsonify({"success": True, "message": "Signal-Testnachricht gesendet"})
     except Exception as e:
         logger.error(f"Signal test failed: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return _internal_error_response(
+            e, "Signal-Test fehlgeschlagen", include_success_false=True
+        )
 
 
 @app.route("/api/signal/status", methods=["GET"])
@@ -2311,7 +2346,7 @@ def control_page():
             else:
                 return jsonify({"error": "Modbus-Client nicht verfügbar"}), 503
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response(e, "Schreibvorgang fehlgeschlagen")
 
     writable_sensors = []
     if modbus_client_instance:
@@ -2405,7 +2440,9 @@ def schedule_page():
                             }
                         )
                     except Exception as e:
-                        return jsonify({"error": str(e)}), 500
+                        return _internal_error_response(
+                            e, "Sofortausführung fehlgeschlagen"
+                        )
                 else:
                     return jsonify(
                         {"error": "Job nicht gefunden oder System nicht verfügbar"}
@@ -2465,7 +2502,7 @@ def alerts_api():
             alert = alert_manager.add_alert(data)
             return jsonify({"success": True, "alert": alert})
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response(e, "Alert konnte nicht erstellt werden")
 
     if request.method == "PUT":
         data = request.get_json()
@@ -2477,7 +2514,7 @@ def alerts_api():
             alert_manager.update_alert(alert_id, data)
             return jsonify({"success": True})
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response(e, "Alert konnte nicht aktualisiert werden")
 
     if request.method == "DELETE":
         alert_id = request.args.get("id")
@@ -2488,7 +2525,7 @@ def alerts_api():
             alert_manager.delete_alert(alert_id)
             return jsonify({"success": True})
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response(e, "Alert konnte nicht gelöscht werden")
 
 
 @app.route("/api/alerts/templates", methods=["GET"])
@@ -2516,11 +2553,12 @@ def create_backup():
 @app.route("/api/backup/upload/<filename>", methods=["POST"])
 @login_required
 def upload_backup(filename):
-    if filename != secure_filename(filename):
-        return jsonify({"error": "Ungültiger Dateiname"}), 400
+    try:
+        backup_path = _resolve_backup_path(filename)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
-    backup_path = Path(BACKUP_DIR) / filename
-    if not backup_path.exists():
+    if not backup_path.is_file():
         return jsonify({"error": "Backup nicht gefunden"}), 404
 
     result = backup_manager.upload_to_webdav(str(backup_path))
@@ -2540,12 +2578,11 @@ def list_backups():
 @app.route("/api/backup/download/<filename>", methods=["GET"])
 @login_required
 def download_backup(filename):
-    if filename != secure_filename(filename):
-        return jsonify({"error": "Ungültiger Dateiname"}), 400
-
-    backup_path = Path(BACKUP_DIR) / filename
-
-    if not backup_path.exists():
+    try:
+        backup_path = _resolve_backup_path(filename)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not backup_path.is_file():
         return jsonify({"error": "Backup nicht gefunden"}), 404
 
     try:
@@ -2557,7 +2594,7 @@ def download_backup(filename):
         )
     except Exception as e:
         logger.error(f"Failed to send backup file: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Backup konnte nicht heruntergeladen werden")
 
 
 @app.route("/api/backup/restore", methods=["POST"])
@@ -2568,9 +2605,12 @@ def restore_backup():
         filename = data.get("filename")
         if not filename:
             return jsonify({"error": "Keine Backup-Datei angegeben"}), 400
-        if filename != secure_filename(filename):
-            return jsonify({"error": "Ungültiger Dateiname"}), 400
-        backup_path = Path(BACKUP_DIR) / filename
+        try:
+            backup_path = _resolve_backup_path(filename)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        if not backup_path.is_file():
+            return jsonify({"error": "Backup nicht gefunden"}), 404
     else:
         file = request.files["file"]
         if file.filename == "":
@@ -2624,7 +2664,7 @@ def delete_database():
             return jsonify({"error": f"Fehler beim Löschen: {response.text}"}), 500
     except Exception as e:
         logger.error(f"Failed to delete database: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Datenbank-Löschung fehlgeschlagen")
 
 
 # ============================================================================
@@ -2698,7 +2738,7 @@ def check_telemetry_model():
                 {"success": True, "message": "Kein Update erforderlich oder verfügbar"}
             )
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Telemetry-Updateprüfung fehlgeschlagen")
 
 
 # ============================================================================
@@ -2727,7 +2767,7 @@ def get_annotations():
         return jsonify([a.to_dict() for a in annotations])
     except Exception as e:
         logger.error(f"Failed to get annotations: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Annotationen konnten nicht geladen werden")
 
 
 @app.route("/api/annotations", methods=["POST"])
@@ -2764,7 +2804,7 @@ def create_annotation():
         return jsonify(annotation.to_dict()), 201
     except Exception as e:
         logger.error(f"Failed to create annotation: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Annotation konnte nicht erstellt werden")
 
 
 @app.route("/api/annotations/<annotation_id>", methods=["GET"])
@@ -2778,7 +2818,7 @@ def get_annotation(annotation_id):
         return jsonify(annotation.to_dict())
     except Exception as e:
         logger.error(f"Failed to get annotation: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Annotation konnte nicht geladen werden")
 
 
 @app.route("/api/annotations/<annotation_id>", methods=["PUT"])
@@ -2810,7 +2850,7 @@ def update_annotation(annotation_id):
         return jsonify(annotation.to_dict())
     except Exception as e:
         logger.error(f"Failed to update annotation: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Annotation konnte nicht aktualisiert werden")
 
 
 @app.route("/api/annotations/<annotation_id>", methods=["DELETE"])
@@ -2853,7 +2893,7 @@ def get_variables():
             return jsonify([v.to_dict() for v in variables])
     except Exception as e:
         logger.error(f"Failed to get variables: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Variablen konnten nicht geladen werden")
 
 
 @app.route("/api/variables", methods=["POST"])
@@ -2881,7 +2921,7 @@ def create_variable():
         return jsonify(variable.to_dict()), 201
     except Exception as e:
         logger.error(f"Failed to create variable: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Variable konnte nicht erstellt werden")
 
 
 @app.route("/api/variables/<variable_id>", methods=["GET"])
@@ -2904,7 +2944,7 @@ def get_variable(variable_id):
             return jsonify(variable.to_dict())
     except Exception as e:
         logger.error(f"Failed to get variable: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Variable konnte nicht geladen werden")
 
 
 @app.route("/api/variables/<variable_id>", methods=["PUT"])
@@ -2931,7 +2971,7 @@ def update_variable(variable_id):
         return jsonify(variable.to_dict())
     except Exception as e:
         logger.error(f"Failed to update variable: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Variable konnte nicht aktualisiert werden")
 
 
 @app.route("/api/variables/<variable_id>", methods=["DELETE"])
@@ -2945,7 +2985,7 @@ def delete_variable(variable_id):
         return jsonify({"success": True})
     except Exception as e:
         logger.error(f"Failed to delete variable: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Variable konnte nicht gelöscht werden")
 
 
 @app.route("/api/variables/substitute", methods=["POST"])
@@ -2974,7 +3014,7 @@ def substitute_variables():
         return jsonify({"result": result})
     except Exception as e:
         logger.error(f"Failed to substitute variables: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Variablenersetzung fehlgeschlagen")
 
 
 def set_metrics_writer(writer):
@@ -3002,7 +3042,7 @@ def get_share_tokens():
         return jsonify([token.to_dict() for token in tokens])
     except Exception as e:
         logger.error(f"Failed to get share tokens: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Freigabe-Token konnten nicht geladen werden")
 
 
 @app.route("/api/sharing/tokens", methods=["POST"])
@@ -3031,7 +3071,7 @@ def create_share_token():
         return jsonify(token.to_dict()), 201
     except Exception as e:
         logger.error(f"Failed to create share token: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Freigabe-Token konnte nicht erstellt werden")
 
 
 @app.route("/api/sharing/tokens/<token_id>", methods=["GET"])
@@ -3048,7 +3088,7 @@ def get_share_token(token_id):
         return jsonify(token.to_dict())
     except Exception as e:
         logger.error(f"Failed to get share token: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Freigabe-Token konnte nicht geladen werden")
 
 
 @app.route("/api/sharing/tokens/<token_id>", methods=["DELETE"])
@@ -3062,7 +3102,7 @@ def delete_share_token(token_id):
             return jsonify({"error": "Token not found"}), 404
     except Exception as e:
         logger.error(f"Failed to delete share token: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Freigabe-Token konnte nicht gelöscht werden")
 
 
 @app.route("/api/sharing/tokens/<token_id>/validate", methods=["POST"])
@@ -3082,7 +3122,7 @@ def validate_share_token(token_id):
             return jsonify({"valid": False, "error": "Invalid or expired token"}), 401
     except Exception as e:
         logger.error(f"Failed to validate share token: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Freigabe-Token konnte nicht validiert werden")
 
 
 @app.route("/api/sharing/tokens/<token_id>/dashboard", methods=["GET", "POST"])
@@ -3133,7 +3173,7 @@ def get_shared_dashboard(token_id):
         )
     except Exception as e:
         logger.error(f"Failed to get shared dashboard: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Freigegebenes Dashboard konnte nicht geladen werden")
 
 
 @app.route("/shared/<token_id>")
@@ -3153,7 +3193,8 @@ def view_shared_dashboard(token_id):
             return "Dashboard not found", 404
 
         # SPA uses hash history; redirect to shared route in frontend.
-        return redirect(f"/#/shared/{token_id}", code=302)
+        safe_token_id = quote(token_id, safe="")
+        return redirect(f"/#/shared/{safe_token_id}", code=302)
     except Exception as e:
         logger.error(f"Failed to view shared dashboard: {e}")
         return "Error loading shared dashboard", 500
