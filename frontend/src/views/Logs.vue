@@ -54,7 +54,7 @@
         </p>
         <div class="flex gap-2">
           <InputText v-model="shareLink" class="w-full" readonly />
-          <Button icon="pi pi-copy" @click="copyLink" aria-label="Link kopieren" />
+          <Button icon="pi pi-copy" @click="copyLink" :aria-label="t('copy_link')" v-tooltip="t('copy_link')" />
         </div>
       </div>
       <template #footer>
@@ -74,9 +74,11 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
+import { useI18n } from 'vue-i18n'
 import { copyToClipboard } from '../utils/clipboard'
 
 const toast = useToast()
+const { t } = useI18n()
 const logs = ref([])
 const loading = ref(true)
 const timer = ref(null)

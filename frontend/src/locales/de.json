@@ -35,5 +35,9 @@
   "error": "Fehler",
   "success": "Erfolg",
   "toggle_theme": "Design umschalten",
-  "language": "Sprache"
+  "language": "Sprache",
+  "copy_link": "Link kopieren",
+  "run_now": "Jetzt ausführen",
+  "pause_job": "Pausieren",
+  "enable_job": "Aktivieren"
 }

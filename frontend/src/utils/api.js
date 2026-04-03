@@ -92,11 +92,17 @@ export const retryRequest = async (requestFn, maxRetries = RETRY_CONFIG.MAX_RETR
 }
 
 export const withTimeout = (promise, ms = API_TIMEOUT.MEDIUM) => {
+  let timeoutId
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('Operation timed out')), ms)
+  })
   return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Operation timed out')), ms)
-    )
+    Promise.resolve(promise).finally(() => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }),
+    timeoutPromise
   ])
 }
 

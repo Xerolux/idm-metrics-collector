@@ -33,17 +33,19 @@
                 icon="pi pi-play"
                 text
                 severity="info"
-                v-tooltip="'Jetzt ausführen'"
+                v-tooltip="t('run_now')"
+                :aria-label="t('run_now')"
                 @click="runJob(job.id)"
               />
               <Button
                 :icon="job.enabled ? 'pi pi-pause' : 'pi pi-play'"
                 text
                 severity="warning"
+                v-tooltip="job.enabled ? t('pause_job') : t('enable_job')"
                 @click="toggleJob(job.id, job.enabled)"
-                aria-label="Umschalten"
+                :aria-label="job.enabled ? t('pause_job') : t('enable_job')"
               />
-              <Button icon="pi pi-trash" text severity="danger" @click="deleteJob(job.id)" aria-label="Löschen" />
+              <Button icon="pi pi-trash" text severity="danger" @click="deleteJob(job.id)" :aria-label="t('delete')" v-tooltip="t('delete')" />
             </div>
           </template>
         </Card>
@@ -118,6 +120,7 @@ import InputMask from 'primevue/inputmask'
 import MultiSelect from 'primevue/multiselect'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
+import { useI18n } from 'vue-i18n'
 
 const jobs = ref([])
 const sensors = ref([])
@@ -125,6 +128,7 @@ const loading = ref(true)
 const saving = ref(false)
 const showAddDialog = ref(false)
 const toast = useToast()
+const { t } = useI18n()
 
 const newJob = ref({
   sensor: null,

@@ -35,5 +35,9 @@
   "error": "Error",
   "success": "Success",
   "toggle_theme": "Toggle Theme",
-  "language": "Language"
+  "language": "Language",
+  "copy_link": "Copy link",
+  "run_now": "Run now",
+  "pause_job": "Pause",
+  "enable_job": "Enable"
 }
