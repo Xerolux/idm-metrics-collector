@@ -48,6 +48,7 @@ const chartData = ref({ labels: [], datasets: [] })
 const loading = ref(true)
 const error = ref(null)
 let refreshInterval = null
+let latestFetchToken = 0
 
 const chartOptions = computed(() => {
   const base = createBaseOptions(false, isDarkMode())
@@ -66,6 +67,7 @@ const chartOptions = computed(() => {
 })
 
 const fetchData = async () => {
+  const fetchToken = ++latestFetchToken
   const end = Math.floor(Date.now() / 1000)
   const start = end - props.hours * 3600
   const step = Math.max(60, Math.floor((end - start) / 200)) // ~200 points max
@@ -104,12 +106,20 @@ const fetchData = async () => {
       }
     }
 
+    if (fetchToken !== latestFetchToken) {
+      return
+    }
     chartData.value = { datasets }
   } catch (e) {
+    if (fetchToken !== latestFetchToken) {
+      return
+    }
     error.value = 'Fehler beim Laden der Daten'
     console.error('LineChartCard fetch error:', e)
   } finally {
-    loading.value = false
+    if (fetchToken === latestFetchToken) {
+      loading.value = false
+    }
   }
 }
 
@@ -119,6 +129,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  latestFetchToken++
   if (refreshInterval) {
     clearInterval(refreshInterval)
     refreshInterval = null

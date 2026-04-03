@@ -456,6 +456,7 @@
               size="small"
               text
               severity="secondary"
+              v-tooltip.top="'Variable bearbeiten'"
               aria-label="Variable bearbeiten"
             />
             <Button
@@ -464,6 +465,7 @@
               size="small"
               text
               severity="danger"
+              v-tooltip.top="'Variable löschen'"
               aria-label="Variable löschen"
             />
           </div>

@@ -895,13 +895,25 @@ def _process_telemetry_batch(
     Synchronously format a batch of telemetry records into Influx Line Protocol.
     This CPU-intensive task is designed to be offloaded to a background thread.
     """
+    def _escape_tag_value(value: Any) -> str:
+        text = str(value)
+        return text.replace("\\", "\\\\").replace(",", "\\,").replace("=", "\\=").replace(" ", "\\ ")
+
+    def _escape_field_key(key: Any) -> str:
+        text = str(key)
+        return text.replace("\\", "\\\\").replace(",", "\\,").replace("=", "\\=").replace(" ", "\\ ")
+
+    def _escape_string_field(value: str) -> str:
+        return value.replace("\\", "\\\\").replace('"', '\\"')
+
     lines = []
-    # ⚡ Bolt: Performance Optimization
-    # Pre-calculating the static prefix (measurement name and tags) outside the loop
-    # eliminates redundant string interpolation for every single data point.
-    # Impact: Reduces CPU overhead during high-throughput batch processing,
-    # lowering serialization latency by avoiding O(N) string formatting operations.
-    prefix = f"heatpump_metrics,installation_id={installation_id},model={heatpump_model.replace(' ', '_')},version={version} "
+    # Pre-calculate static tags once per batch.
+    prefix = (
+        "heatpump_metrics,"
+        f"installation_id={_escape_tag_value(installation_id)},"
+        f"model={_escape_tag_value(heatpump_model)},"
+        f"version={_escape_tag_value(version)} "
+    )
 
     for record in data:
         timestamp = record.get("timestamp")
@@ -913,10 +925,13 @@ def _process_telemetry_batch(
         for key, value in record.items():
             if key == "timestamp":
                 continue
-            if isinstance(value, (int, float)):
-                fields.append(f"{key}={value}")
-            elif isinstance(value, bool):
-                fields.append(f"{key}={str(value).lower()}")
+            field_key = _escape_field_key(key)
+            if isinstance(value, bool):
+                fields.append(f"{field_key}={str(value).lower()}")
+            elif isinstance(value, (int, float)):
+                fields.append(f"{field_key}={value}")
+            elif isinstance(value, str):
+                fields.append(f'{field_key}="{_escape_string_field(value)}"')
 
         if fields:
             line = f"{prefix}{','.join(fields)} {ts_ns}"

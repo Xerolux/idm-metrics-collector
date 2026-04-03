@@ -46,18 +46,19 @@
         <div class="flex gap-2 flex-wrap">
           <button
             type="button"
-            v-for="color in presetColors"
-            :key="color"
-            @click="localAnnotation.color = color"
+            v-for="preset in presetColors"
+            :key="preset.value"
+            @click="localAnnotation.color = preset.value"
             :class="[
-              'w-8 h-8 rounded-full border-2 transition-all',
-              localAnnotation.color === color
+              'w-8 h-8 rounded-full border-2 transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-900 focus-visible:outline-none',
+              localAnnotation.color === preset.value
                 ? 'border-gray-900 scale-110'
                 : 'border-gray-300 hover:border-gray-400'
             ]"
-            :style="{ backgroundColor: color }"
-            :title="color"
-            :aria-label="color"
+            :style="{ backgroundColor: preset.value }"
+            :title="'Farbe: ' + preset.name"
+            :aria-label="'Farbe: ' + preset.name"
+            :aria-pressed="localAnnotation.color === preset.value"
           />
         </div>
       </div>
@@ -108,31 +109,33 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'saved'])
 
 const toast = useToast()
+const DEFAULT_COLOR = '#ef4444'
+
+const presetColors = [
+  { value: DEFAULT_COLOR, name: 'Rot' },
+  { value: '#f59e0b', name: 'Orange' },
+  { value: '#10b981', name: 'Grün' },
+  { value: '#3b82f6', name: 'Blau' },
+  { value: '#8b5cf6', name: 'Violett' },
+  { value: '#ec4899', name: 'Pink' },
+  { value: '#6b7280', name: 'Grau' }
+]
+
 const visible = ref(props.modelValue)
 const localAnnotation = ref({
   time: null,
   text: '',
   tags: [],
-  color: '#ef4444',
+  color: DEFAULT_COLOR,
   isGlobal: false
 })
-
-const presetColors = [
-  '#ef4444', // red
-  '#f59e0b', // amber
-  '#10b981', // emerald
-  '#3b82f6', // blue
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#6b7280' // gray
-]
 
 const resetForm = () => {
   localAnnotation.value = {
     time: new Date(),
     text: '',
     tags: [],
-    color: '#ef4444',
+    color: DEFAULT_COLOR,
     isGlobal: false
   }
 }

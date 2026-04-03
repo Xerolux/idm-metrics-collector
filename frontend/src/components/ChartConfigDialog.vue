@@ -79,7 +79,8 @@
                   size="small"
                   severity="secondary"
                   text
-                  title="Expression bearbeiten"
+                  v-tooltip.top="'Expression bearbeiten'"
+                  aria-label="Expression bearbeiten"
                 />
               </div>
             </div>
