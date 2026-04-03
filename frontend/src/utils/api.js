@@ -12,6 +12,7 @@ const api = axios.create({
 
 let isRefreshing = false
 let failedQueue = []
+const getRequestCache = new Map()
 
 const processQueue = (error, token = null) => {
   failedQueue.forEach((prom) => {
@@ -104,6 +105,41 @@ export const withTimeout = (promise, ms = API_TIMEOUT.MEDIUM) => {
     }),
     timeoutPromise
   ])
+}
+
+const buildGetCacheKey = (url, config = {}) => {
+  const params = config?.params ? JSON.stringify(config.params) : ''
+  return `${url}::${params}`
+}
+
+// Deduplicate identical GET requests for a short window to reduce chart burst load.
+export const cachedGet = (url, config = {}, cacheMs = 1500) => {
+  const key = buildGetCacheKey(url, config)
+  const now = Date.now()
+  const cached = getRequestCache.get(key)
+
+  if (cached && cached.expiresAt > now) {
+    return cached.promise
+  }
+
+  const requestPromise = api.get(url, config).finally(() => {
+    const entry = getRequestCache.get(key)
+    if (entry && entry.promise === requestPromise) {
+      setTimeout(() => {
+        const current = getRequestCache.get(key)
+        if (current && current.promise === requestPromise) {
+          getRequestCache.delete(key)
+        }
+      }, cacheMs)
+    }
+  })
+
+  getRequestCache.set(key, {
+    promise: requestPromise,
+    expiresAt: now + cacheMs
+  })
+
+  return requestPromise
 }
 
 export default api

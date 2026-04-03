@@ -141,7 +141,7 @@ import { ref, shallowRef, onMounted, onUnmounted, watch, computed } from 'vue'
 import { Line } from 'vue-chartjs'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import api from '@/utils/api.js'
+import api, { cachedGet } from '@/utils/api.js'
 import { wsClient } from '../utils/websocket.js'
 import { isDarkMode, getChartColors } from '../utils/chartConfig.js'
 import ChartConfigDialog from './ChartConfigDialog.vue'
@@ -346,7 +346,7 @@ const fetchData = async () => {
   // Fetch all metric queries first
   const metricPromises = metricQueries.map(async (q) => {
     try {
-      const res = await api.get('/api/metrics/query_range', {
+      const res = await cachedGet('/api/metrics/query_range', {
         params: {
           query: q.query,
           start,

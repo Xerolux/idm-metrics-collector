@@ -236,6 +236,12 @@ _ai_status_cache = {
 }
 _ai_status_stop_event = threading.Event()  # For graceful shutdown of AI status thread
 
+# Query-range cache for highly repetitive chart requests
+_query_range_cache_lock = threading.Lock()
+_query_range_cache = {}
+_QUERY_RANGE_CACHE_TTL_SECONDS = 5
+_QUERY_RANGE_CACHE_MAX_ENTRIES = 256
+
 
 def _update_ai_status_once():
     """Perform a single update of the AI status."""
@@ -1058,6 +1064,26 @@ def query_metrics_range():
     Proxy request to VictoriaMetrics /api/v1/query_range
     """
     try:
+        query = request.args.get("query")
+        start = request.args.get("start")
+        end = request.args.get("end")
+        step = request.args.get("step")
+
+        if not query:
+            return jsonify({"status": "error", "error": "Missing query parameter"}), 400
+        if not start or not end:
+            return (
+                jsonify({"status": "error", "error": "Missing start/end parameters"}),
+                400,
+            )
+
+        now_ts = time.time()
+        cache_key = (query, str(start), str(end), str(step))
+        with _query_range_cache_lock:
+            cached = _query_range_cache.get(cache_key)
+            if cached and cached["expires_at"] > now_ts:
+                return jsonify(cached["payload"]), cached["status_code"]
+
         metrics_url = config.data.get("metrics", {}).get(
             "url", "http://victoriametrics:8428/write"
         )
@@ -1066,10 +1092,10 @@ def query_metrics_range():
 
         # Forward parameters
         params = {
-            "query": request.args.get("query"),
-            "start": request.args.get("start"),
-            "end": request.args.get("end"),
-            "step": request.args.get("step"),
+            "query": query,
+            "start": start,
+            "end": end,
+            "step": step,
         }
 
         response = requests.get(query_url, params=params, timeout=10)
@@ -1078,7 +1104,26 @@ def query_metrics_range():
             return jsonify(
                 {"status": "error", "error": response.text}
             ), response.status_code
-        return jsonify(response.json())
+        payload = response.json()
+
+        with _query_range_cache_lock:
+            _query_range_cache[cache_key] = {
+                "payload": payload,
+                "status_code": 200,
+                "expires_at": now_ts + _QUERY_RANGE_CACHE_TTL_SECONDS,
+            }
+            if len(_query_range_cache) > _QUERY_RANGE_CACHE_MAX_ENTRIES:
+                expired_keys = [
+                    key
+                    for key, value in _query_range_cache.items()
+                    if value["expires_at"] <= now_ts
+                ]
+                for key in expired_keys:
+                    _query_range_cache.pop(key, None)
+                while len(_query_range_cache) > _QUERY_RANGE_CACHE_MAX_ENTRIES:
+                    _query_range_cache.pop(next(iter(_query_range_cache)))
+
+        return jsonify(payload)
     except Exception as e:
         logger.error(f"Metrics query failed: {e}")
         return jsonify({"status": "error", "error": "Query failed"}), 500

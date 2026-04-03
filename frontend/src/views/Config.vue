@@ -2819,6 +2819,7 @@ const manufacturers = ref([])
 const privacyDialog = ref(null)
 
 let aiStatusInterval = null
+let adminRefreshInFlight = false
 
 const copyId = async () => {
   const success = await copyToClipboard(config.value.installation_id)
@@ -4027,6 +4028,8 @@ const startAdminAutoRefresh = () => {
   // Set up auto-refresh every 30 seconds
   adminAutoRefreshInterval = setInterval(async () => {
     if (adminAutoRefresh.value && telemetryStatus.value?.is_admin) {
+      if (adminRefreshInFlight) return
+      adminRefreshInFlight = true
       try {
         await Promise.all([
           fetchAdminHealth(),
@@ -4038,6 +4041,8 @@ const startAdminAutoRefresh = () => {
         ])
       } catch (e) {
         console.error('Auto-refresh failed', e)
+      } finally {
+        adminRefreshInFlight = false
       }
     }
   }, 30000) // 30 seconds
