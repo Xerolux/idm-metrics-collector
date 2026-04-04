@@ -93,6 +93,9 @@ def _validate_message(message: str) -> str:
     if "\x00" in message:
         raise RuntimeError("Signal Nachricht enthält ungültige Zeichen.")
 
+    if not _SAFE_MESSAGE_PATTERN.match(message):
+        raise RuntimeError("Signal Nachricht enthält nicht erlaubte Zeichen.")
+
     # Trim leading/trailing whitespace but preserve internal formatting
     return message.strip()
 
@@ -104,7 +107,8 @@ def send_signal_message(message: str) -> None:
     # Validate and sanitize message FIRST
     message = _validate_message(message)
 
-    cli_path = config.get("signal.cli_path", "signal-cli")
+    # Always use signal-cli from PATH to avoid command path injection.
+    cli_path = "signal-cli"
     sender = config.get("signal.sender", "")
 
     # Validate sender

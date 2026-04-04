@@ -503,10 +503,14 @@ def resolve_model_file(model_name: str) -> Path:
         raise HTTPException(status_code=400, detail="Invalid model name")
 
     model_dir = Path(MODEL_DIR).resolve()
-    candidate = (model_dir / f"{normalized}.enc").resolve()
-    if os.path.commonpath([str(model_dir), str(candidate)]) != str(model_dir):
-        raise HTTPException(status_code=400, detail="Invalid model path")
-    return candidate
+    for candidate in model_dir.glob("*.enc"):
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            continue
+        if resolved.stem == normalized and resolved.is_file():
+            return resolved
+    raise HTTPException(status_code=404, detail="Model not found")
 
 
 async def get_data_pool_stats(request: Request) -> Dict[str, Any]:
@@ -1291,12 +1295,12 @@ async def check_eligibility(
 
         if model:
             # Look for model-specific file (model is already validated and normalized)
-            model_file = resolve_model_file(model)
-            metadata_file = (model_dir / f"{model}_metadata.json").resolve()
-            if not model_file.exists():
+            try:
+                model_file = resolve_model_file(model)
+            except HTTPException:
                 # Fall back to generic model
                 model_file = (model_dir / "community_model.enc").resolve()
-                metadata_file = (model_dir / "community_model_metadata.json").resolve()
+            metadata_file = (model_dir / f"{model_file.stem}_metadata.json").resolve()
         else:
             model_file = (model_dir / "community_model.enc").resolve()
             metadata_file = (model_dir / "community_model_metadata.json").resolve()
@@ -1433,8 +1437,9 @@ async def download_model(
 
         if model:
             # Model is already validated and normalized
-            model_file = resolve_model_file(model)
-            if not model_file.exists():
+            try:
+                model_file = resolve_model_file(model)
+            except HTTPException:
                 model_file = (model_dir / "community_model.enc").resolve()
         else:
             model_file = (model_dir / "community_model.enc").resolve()
@@ -1934,9 +1939,6 @@ async def admin_delete_model(
     client_ip = get_client_ip(request)
 
     model_file = resolve_model_file(model_name)
-
-    if not model_file.exists():
-        raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
 
     try:
         file_hash = (
