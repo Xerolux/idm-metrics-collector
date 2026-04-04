@@ -43,6 +43,7 @@ INSTALLATION_FILE = INSTALLATION_STORAGE_DIR_PATH / "installations.json"
 raw_admin_ids = os.environ.get("ADMIN_INSTALLATION_IDS", "")
 PROTECTED_IDS = {x.strip().lower() for x in raw_admin_ids.split(",") if x.strip()}
 
+
 class InstallationRole(str, Enum):
     """Installation role levels."""
 
