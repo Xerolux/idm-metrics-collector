@@ -1,7 +1,7 @@
 import json
 import os
 import pytest
-from telemetry_server.audit_log import AuditLogger
+from audit_log import AuditLogger
 
 
 # Fixture to mock AUDIT_LOG_DIR
@@ -13,9 +13,9 @@ def mock_audit_log_dir(tmp_path):
 
     # Reload audit_log module to pick up the new env var
     import importlib
-    import telemetry_server.audit_log
+    import audit_log
 
-    importlib.reload(telemetry_server.audit_log)
+    importlib.reload(audit_log)
 
     yield tmp_path
 
