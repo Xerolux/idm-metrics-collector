@@ -1428,7 +1428,8 @@ def evaluate_expression():
         # Validate expression
         is_valid, error_msg = expression_parser.validate_expression(expression)
         if not is_valid:
-            return jsonify({"status": "error", "error": error_msg}), 400
+            logger.warning(f"Expression validation failed: {error_msg}")
+            return jsonify({"status": "error", "error": "Ungültiger Ausdruck"}), 400
 
         # Set query results
         expression_parser.set_query_results(queries)
@@ -2553,9 +2554,9 @@ def create_backup():
     result = backup_manager.create_backup()
     if result.get("success"):
         backup_manager.cleanup_old_backups(keep_count=10)
-        return jsonify(result), 200
+        return jsonify({"success": True, "message": "Backup erstellt"}), 200
     else:
-        return jsonify(_sanitize_manager_error(result, "Backup-Erstellung fehlgeschlagen")), 500
+        return jsonify({"success": False, "error": "Backup-Erstellung fehlgeschlagen"}), 500
 
 
 @app.route("/api/backup/upload/<filename>", methods=["POST"])
@@ -2571,9 +2572,9 @@ def upload_backup(filename):
 
     result = backup_manager.upload_to_webdav(str(backup_path))
     if result.get("success"):
-        return jsonify(result), 200
+        return jsonify({"success": True, "message": "Backup-Upload gestartet"}), 200
     else:
-        return jsonify(_sanitize_manager_error(result, "Backup-Upload fehlgeschlagen")), 500
+        return jsonify({"success": False, "error": "Backup-Upload fehlgeschlagen"}), 500
 
 
 @app.route("/api/backup/list", methods=["GET"])
@@ -2636,9 +2637,9 @@ def restore_backup():
         if "file" in request.files and backup_path.exists():
             backup_path.unlink()
         if result.get("success"):
-            return jsonify(result), 200
+            return jsonify({"success": True, "message": "Backup wiederhergestellt"}), 200
         else:
-            return jsonify(_sanitize_manager_error(result, "Backup-Wiederherstellung fehlgeschlagen")), 500
+            return jsonify({"success": False, "error": "Backup-Wiederherstellung fehlgeschlagen"}), 500
     except Exception as e:
         logger.error(f"Restore failed: {e}", exc_info=True)
         return jsonify({"error": "Wiederherstellung fehlgeschlagen (siehe Logs)"}), 500
@@ -2649,9 +2650,9 @@ def restore_backup():
 def delete_backup(filename):
     result = backup_manager.delete_backup(filename)
     if result.get("success"):
-        return jsonify(result), 200
+        return jsonify({"success": True, "message": "Backup gelöscht"}), 200
     else:
-        return jsonify(_sanitize_manager_error(result, "Backup-Löschung fehlgeschlagen")), 500
+        return jsonify({"success": False, "error": "Backup-Löschung fehlgeschlagen"}), 500
 
 
 @app.route("/api/database/delete", methods=["POST"])

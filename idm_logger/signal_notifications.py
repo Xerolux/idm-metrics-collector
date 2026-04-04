@@ -122,8 +122,21 @@ def send_signal_message(message: str) -> None:
         raise RuntimeError("Keine gültigen Signal-Empfänger konfiguriert.")
 
     cli_executable = _resolve_signal_cli(cli_path)
-    command = [cli_executable, "-u", sender, "send", "-m", message] + recipients
+    command = [
+        cli_executable,
+        "-u",
+        sender,
+        "send",
+        "--message-from-stdin",
+    ] + recipients
     logger.info(f"Sending Signal message to {len(recipients)} recipient(s)")
-    result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+    result = subprocess.run(
+        command,
+        input=message,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        shell=False,
+    )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "Signal CLI Fehler")

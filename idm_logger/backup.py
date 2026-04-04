@@ -1137,9 +1137,11 @@ class BackupManager:
         if not _SAFE_FILENAME_PATTERN.match(filename) or ".." in filename:
             return {"success": False, "error": "Invalid filename"}
 
-        backup_path = BACKUP_DIR / filename
+        backup_path = next(
+            (p for p in BACKUP_DIR.glob("idm_backup_*.zip") if p.name == filename), None
+        )
 
-        if not backup_path.exists() or not backup_path.is_file():
+        if not backup_path or not backup_path.exists() or not backup_path.is_file():
             return {"success": False, "error": "Backup file not found"}
 
         try:
