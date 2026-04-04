@@ -911,13 +911,24 @@ def _process_telemetry_batch(
     Synchronously format a batch of telemetry records into Influx Line Protocol.
     This CPU-intensive task is designed to be offloaded to a background thread.
     """
+
     def _escape_tag_value(value: Any) -> str:
         text = str(value)
-        return text.replace("\\", "\\\\").replace(",", "\\,").replace("=", "\\=").replace(" ", "\\ ")
+        return (
+            text.replace("\\", "\\\\")
+            .replace(",", "\\,")
+            .replace("=", "\\=")
+            .replace(" ", "\\ ")
+        )
 
     def _escape_field_key(key: Any) -> str:
         text = str(key)
-        return text.replace("\\", "\\\\").replace(",", "\\,").replace("=", "\\=").replace(" ", "\\ ")
+        return (
+            text.replace("\\", "\\\\")
+            .replace(",", "\\,")
+            .replace("=", "\\=")
+            .replace(" ", "\\ ")
+        )
 
     def _escape_string_field(value: str) -> str:
         return value.replace("\\", "\\\\").replace('"', '\\"')
