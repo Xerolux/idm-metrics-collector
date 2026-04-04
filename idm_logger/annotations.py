@@ -168,6 +168,18 @@ class AnnotationManager:
 
         return False
 
+    def acknowledge_all_anomalies(self) -> int:
+        """Acknowledge all unacknowledged anomaly annotations. Returns count updated."""
+        annotations = self.config.data.get("annotations", [])
+        updated = 0
+        for ann in annotations:
+            if not ann.get("acknowledged") and "anomaly" in ann.get("tags", []):
+                ann["acknowledged"] = True
+                updated += 1
+        if updated:
+            self.config.save()
+        return updated
+
     def get_annotation(self, annotation_id: str) -> Optional[Annotation]:
         """Get a specific annotation by ID"""
         annotations = self.get_all_annotations()

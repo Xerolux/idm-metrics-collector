@@ -33,7 +33,9 @@ class TelemetryClientConfig:
 
     @staticmethod
     def get_shared_auth_token() -> str:
-        return "COMMUNITY-CONTRIBUTOR-TOKEN-2026"
+        return os.environ.get(
+            "TELEMETRY_SHARED_TOKEN", "COMMUNITY-CONTRIBUTOR-TOKEN-2026"
+        )
 
 
 @dataclass

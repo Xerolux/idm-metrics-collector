@@ -455,7 +455,11 @@ class ModbusClient:
 
         try:
             if name in self.binary_sensors:
-                if isinstance(value, str):
+                if isinstance(value, bool):
+                    pass
+                elif isinstance(value, int):
+                    value = bool(value)
+                elif isinstance(value, str):
                     normalized = value.strip().lower()
                     if normalized in {"true", "1", "yes", "on"}:
                         value = True
