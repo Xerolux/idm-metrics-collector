@@ -2512,7 +2512,9 @@ async def admin_installation_details(
         logger.error(
             "admin_installation_details_failed", error=str(e), installation_id=target_id
         )
-        raise HTTPException(status_code=500, detail="Failed to get installation details")
+        raise HTTPException(
+            status_code=500, detail="Failed to get installation details"
+        )
 
 
 @app.get("/api/v1/admin/installations/{target_id}/history")
@@ -2572,7 +2574,9 @@ async def admin_installation_history(
         logger.error(
             "admin_installation_history_failed", error=str(e), installation_id=target_id
         )
-        raise HTTPException(status_code=500, detail="Failed to get installation history")
+        raise HTTPException(
+            status_code=500, detail="Failed to get installation history"
+        )
 
 
 @app.get("/api/v1/admin/health")
