@@ -22,6 +22,7 @@
             severity="secondary"
             text
             title="Hilfe anzeigen"
+            aria-label="Hilfe anzeigen"
           />
         </div>
         <p v-if="validationError" class="text-xs text-red-500 mt-1">{{ validationError }}</p>
