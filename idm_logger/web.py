@@ -8,7 +8,6 @@ from flask import (
     abort,
     send_from_directory,
     send_file,
-    redirect,
 )
 from flask_socketio import SocketIO
 from waitress import serve
@@ -57,7 +56,6 @@ import signal
 import ipaddress
 import time
 import re
-from urllib.parse import quote
 import pandas as pd
 import io
 from datetime import datetime
@@ -171,6 +169,16 @@ def _resolve_backup_path(filename: str) -> Path:
     if os.path.commonpath([str(backup_root), str(candidate)]) != str(backup_root):
         raise ValueError("Ungültiger Dateipfad")
     return candidate
+
+
+def _sanitize_manager_error(result: dict, fallback_message: str) -> dict:
+    """Prevent leaking backend exception details to API clients."""
+    if not isinstance(result, dict):
+        return {"success": False, "error": fallback_message}
+    safe = dict(result)
+    if not safe.get("success"):
+        safe["error"] = fallback_message
+    return safe
 
 
 app = Flask(__name__)
@@ -2547,7 +2555,7 @@ def create_backup():
         backup_manager.cleanup_old_backups(keep_count=10)
         return jsonify(result), 200
     else:
-        return jsonify(result), 500
+        return jsonify(_sanitize_manager_error(result, "Backup-Erstellung fehlgeschlagen")), 500
 
 
 @app.route("/api/backup/upload/<filename>", methods=["POST"])
@@ -2555,8 +2563,8 @@ def create_backup():
 def upload_backup(filename):
     try:
         backup_path = _resolve_backup_path(filename)
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+    except ValueError:
+        return jsonify({"error": "Ungültiger Dateiname"}), 400
 
     if not backup_path.is_file():
         return jsonify({"error": "Backup nicht gefunden"}), 404
@@ -2565,7 +2573,7 @@ def upload_backup(filename):
     if result.get("success"):
         return jsonify(result), 200
     else:
-        return jsonify(result), 500
+        return jsonify(_sanitize_manager_error(result, "Backup-Upload fehlgeschlagen")), 500
 
 
 @app.route("/api/backup/list", methods=["GET"])
@@ -2580,8 +2588,8 @@ def list_backups():
 def download_backup(filename):
     try:
         backup_path = _resolve_backup_path(filename)
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+    except ValueError:
+        return jsonify({"error": "Ungültiger Dateiname"}), 400
     if not backup_path.is_file():
         return jsonify({"error": "Backup nicht gefunden"}), 404
 
@@ -2607,8 +2615,8 @@ def restore_backup():
             return jsonify({"error": "Keine Backup-Datei angegeben"}), 400
         try:
             backup_path = _resolve_backup_path(filename)
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
+        except ValueError:
+            return jsonify({"error": "Ungültiger Dateiname"}), 400
         if not backup_path.is_file():
             return jsonify({"error": "Backup nicht gefunden"}), 404
     else:
@@ -2630,7 +2638,7 @@ def restore_backup():
         if result.get("success"):
             return jsonify(result), 200
         else:
-            return jsonify(result), 500
+            return jsonify(_sanitize_manager_error(result, "Backup-Wiederherstellung fehlgeschlagen")), 500
     except Exception as e:
         logger.error(f"Restore failed: {e}", exc_info=True)
         return jsonify({"error": "Wiederherstellung fehlgeschlagen (siehe Logs)"}), 500
@@ -2643,7 +2651,7 @@ def delete_backup(filename):
     if result.get("success"):
         return jsonify(result), 200
     else:
-        return jsonify(result), 500
+        return jsonify(_sanitize_manager_error(result, "Backup-Löschung fehlgeschlagen")), 500
 
 
 @app.route("/api/database/delete", methods=["POST"])
@@ -3192,9 +3200,8 @@ def view_shared_dashboard(token_id):
         if not dashboard:
             return "Dashboard not found", 404
 
-        # SPA uses hash history; redirect to shared route in frontend.
-        safe_token_id = quote(token_id, safe="")
-        return redirect(f"/#/shared/{safe_token_id}", code=302)
+        # Serve SPA entrypoint directly to avoid user-influenced redirects.
+        return send_from_directory(app.static_folder, "index.html")
     except Exception as e:
         logger.error(f"Failed to view shared dashboard: {e}")
         return "Error loading shared dashboard", 500

@@ -76,11 +76,11 @@ def _is_safe_path(base_dir: Path, target_path: Path) -> bool:
 
 
 def _resolve_backup_file_path(file_path: str) -> Path:
-    """Resolve a backup file path and enforce BACKUP_DIR confinement."""
-    target = Path(file_path).resolve()
-    if not _is_safe_path(BACKUP_DIR, target):
-        raise ValueError("Backup path must stay within backup directory")
-    return target
+    """Resolve a backup filename safely under BACKUP_DIR."""
+    filename = Path(file_path).name
+    if not _SAFE_FILENAME_PATTERN.match(filename) or ".." in filename:
+        raise ValueError("Invalid backup filename")
+    return BACKUP_DIR / filename
 
 
 def _get_grafana_credentials():
@@ -1137,10 +1137,7 @@ class BackupManager:
         if not _SAFE_FILENAME_PATTERN.match(filename) or ".." in filename:
             return {"success": False, "error": "Invalid filename"}
 
-        backup_path = (BACKUP_DIR / filename).resolve()
-
-        if not _is_safe_path(BACKUP_DIR, backup_path):
-            return {"success": False, "error": "Invalid filename"}
+        backup_path = BACKUP_DIR / filename
 
         if not backup_path.exists() or not backup_path.is_file():
             return {"success": False, "error": "Backup file not found"}

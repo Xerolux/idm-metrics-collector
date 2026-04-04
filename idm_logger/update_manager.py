@@ -132,12 +132,13 @@ def get_remote_image_digest(image_name: str, tag: str = "latest") -> Optional[st
     Returns the manifest digest which can be compared to check for updates.
     """
     try:
-        # Parse image name: ghcr.io/xerolux/idm-metrics-collector -> xerolux/idm-metrics-collector
-        if image_name.startswith("ghcr.io/"):
-            repo = image_name[8:]  # Remove "ghcr.io/"
-        else:
-            repo = image_name
-        repo = repo.strip().lower()
+        # Parse image name safely: ghcr.io/xerolux/idm-metrics-collector -> xerolux/idm-metrics-collector
+        normalized_image = (image_name or "").strip().lower()
+        match = re.fullmatch(r"(?:ghcr\.io/)?([a-z0-9._/-]+)", normalized_image)
+        if not match:
+            logger.warning(f"Rejected unsafe GHCR repository name: {image_name}")
+            return None
+        repo = match.group(1)
         if not _SAFE_GHCR_REPO.match(repo):
             logger.warning(f"Rejected unsafe GHCR repository name: {image_name}")
             return None
