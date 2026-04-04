@@ -142,7 +142,17 @@ class TelemetryManager:
 
                 return True
 
-            logger.warning(f"Failed to retrieve credentials: {response.status_code}")
+            if response.status_code == 403:
+                logger.warning(
+                    "Failed to retrieve credentials: 403 Forbidden. "
+                    "The shared auth token does not match the server's AUTH_TOKEN. "
+                    "Set TELEMETRY_SHARED_TOKEN to the correct value or disable "
+                    "telemetry via TELEMETRY_ENABLED=false."
+                )
+            else:
+                logger.warning(
+                    f"Failed to retrieve credentials: {response.status_code}"
+                )
             return False
 
         except Exception as e:
