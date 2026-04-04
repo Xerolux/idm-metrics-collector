@@ -122,7 +122,7 @@ async def get_community_averages(
 
     except Exception as e:
         logger.error("community_analysis_error", model=model_name, error=str(e))
-        return {"error": str(e)}
+        return {"error": "community_analysis_failed"}
     finally:
         if local_client:
             await client.aclose()

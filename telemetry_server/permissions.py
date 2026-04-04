@@ -20,21 +20,20 @@ from pathlib import Path
 from typing import Set, Dict, Optional
 from datetime import datetime, timezone
 from fastapi import HTTPException
+from storage_paths import resolve_storage_dir
 
 logger = structlog.get_logger()
 
 # Permission storage location
-PERMISSION_STORAGE_DIR = os.environ.get(
-    "PERMISSION_STORAGE_DIR", "/var/lib/telemetry/permissions"
+PERMISSION_STORAGE_DIR_PATH = resolve_storage_dir(
+    "PERMISSION_STORAGE_DIR", "/var/lib/telemetry/permissions", "permissions"
 )
-PERMISSION_FILE = os.path.join(PERMISSION_STORAGE_DIR, "admin_permissions.json")
+PERMISSION_STORAGE_DIR = str(PERMISSION_STORAGE_DIR_PATH)
+PERMISSION_FILE = PERMISSION_STORAGE_DIR_PATH / "admin_permissions.json"
 
 # Protected IDs (Super Admins)
 raw_admin_ids = os.environ.get("ADMIN_INSTALLATION_IDS", "")
 PROTECTED_IDS = {x.strip().lower() for x in raw_admin_ids.split(",") if x.strip()}
-
-# Ensure storage directory exists
-Path(PERMISSION_STORAGE_DIR).mkdir(parents=True, exist_ok=True)
 
 # Permission definitions
 PERMISSIONS = {
@@ -61,7 +60,7 @@ class PermissionManager:
     def _load_permissions(self):
         """Load permissions from storage."""
         try:
-            if os.path.exists(PERMISSION_FILE):
+            if PERMISSION_FILE.exists():
                 with open(PERMISSION_FILE, "r", encoding="utf-8") as f:
                     self.admin_permissions = json.load(f)
                 logger.info("permissions_loaded", count=len(self.admin_permissions))
@@ -97,7 +96,7 @@ class PermissionManager:
         """Save permissions to storage."""
         try:
             # Atomic write with temp file
-            temp_file = PERMISSION_FILE + ".tmp"
+            temp_file = Path(f"{PERMISSION_FILE}.tmp")
             with open(temp_file, "w", encoding="utf-8") as f:
                 json.dump(self.admin_permissions, f, indent=2)
             os.replace(temp_file, PERMISSION_FILE)

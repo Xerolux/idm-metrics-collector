@@ -35,7 +35,7 @@
 // Xerolux 2026
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Line } from 'vue-chartjs'
-import api from '@/utils/api.js'
+import { cachedGet } from '@/utils/api.js'
 import { createBaseOptions, isDarkMode } from '@/utils/chartConfig.js'
 
 const props = defineProps({
@@ -76,7 +76,7 @@ const fetchData = async () => {
 
   try {
     const promises = props.queries.map((q) =>
-      api.get('/api/metrics/query_range', {
+      cachedGet('/api/metrics/query_range', {
         params: { query: q.query, start, end, step }
       }).then((res) => ({ q, res })).catch((e) => {
         console.error(`Chart data fetch error for ${q.label}:`, e)
@@ -140,4 +140,13 @@ watch(() => props.hours, () => {
   loading.value = true
   fetchData()
 })
+
+watch(
+  () => props.queries,
+  () => {
+    loading.value = true
+    fetchData()
+  },
+  { deep: true }
+)
 </script>

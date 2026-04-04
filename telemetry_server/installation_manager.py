@@ -26,22 +26,22 @@ from pathlib import Path
 from typing import Dict, Optional, List, Any
 from datetime import datetime, timezone, timedelta
 from enum import Enum
+from storage_paths import resolve_storage_dir
 
 logger = structlog.get_logger()
 
 # Storage location
-INSTALLATION_STORAGE_DIR = os.environ.get(
-    "INSTALLATION_STORAGE_DIR", "/var/lib/telemetry/installations"
+INSTALLATION_STORAGE_DIR_PATH = resolve_storage_dir(
+    "INSTALLATION_STORAGE_DIR",
+    "/var/lib/telemetry/installations",
+    "installations",
 )
-INSTALLATION_FILE = os.path.join(INSTALLATION_STORAGE_DIR, "installations.json")
+INSTALLATION_STORAGE_DIR = str(INSTALLATION_STORAGE_DIR_PATH)
+INSTALLATION_FILE = INSTALLATION_STORAGE_DIR_PATH / "installations.json"
 
 # Protected IDs (Super Admins)
 raw_admin_ids = os.environ.get("ADMIN_INSTALLATION_IDS", "")
 PROTECTED_IDS = {x.strip().lower() for x in raw_admin_ids.split(",") if x.strip()}
-
-# Ensure storage directory exists
-Path(INSTALLATION_STORAGE_DIR).mkdir(parents=True, exist_ok=True)
-
 
 class InstallationRole(str, Enum):
     """Installation role levels."""
@@ -122,7 +122,7 @@ class InstallationManager:
     def _load_installations(self):
         """Load installations from storage."""
         try:
-            if os.path.exists(INSTALLATION_FILE):
+            if INSTALLATION_FILE.exists():
                 with open(INSTALLATION_FILE, "r", encoding="utf-8") as f:
                     self.installations = json.load(f)
                 logger.info("installations_loaded", count=len(self.installations))
@@ -136,7 +136,7 @@ class InstallationManager:
     def _save_installations(self):
         """Save installations to storage."""
         try:
-            temp_file = INSTALLATION_FILE + ".tmp"
+            temp_file = Path(f"{INSTALLATION_FILE}.tmp")
             with open(temp_file, "w", encoding="utf-8") as f:
                 json.dump(self.installations, f, indent=2)
             os.replace(temp_file, INSTALLATION_FILE)

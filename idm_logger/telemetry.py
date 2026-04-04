@@ -118,11 +118,16 @@ class TelemetryManager:
                 data = response.json()
 
                 auth_token = data.get("auth_token")
+                admin_auth_token = data.get("admin_auth_token")
                 encryption_key = data.get("encryption_key")
 
                 if auth_token:
                     config.set("telemetry.auth_token", auth_token)
                     logger.info("Per-installation auth token stored")
+
+                if admin_auth_token:
+                    config.set("telemetry.admin_auth_token", admin_auth_token)
+                    logger.info("Telemetry admin auth token stored")
 
                 if encryption_key:
                     config.set("telemetry.encryption_key", encryption_key)
@@ -194,6 +199,7 @@ class TelemetryManager:
         telemetry_config = config.get("telemetry", {})
 
         auth_token = telemetry_config.get("auth_token")
+        admin_auth_token = telemetry_config.get("admin_auth_token")
         has_per_installation_token = bool(
             auth_token and auth_token != telemetry_client_config.get_shared_auth_token()
         )
@@ -211,6 +217,7 @@ class TelemetryManager:
             "is_banned": self.is_banned,
             "server_stats": self.server_stats,
             "has_per_installation_token": has_per_installation_token,
+            "has_admin_auth_token": bool(admin_auth_token),
             "has_encryption_key": bool(telemetry_config.get("encryption_key")),
         }
 

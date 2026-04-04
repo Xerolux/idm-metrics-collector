@@ -57,6 +57,7 @@ import signal
 import ipaddress
 import time
 import re
+from urllib.parse import quote
 import pandas as pd
 import io
 from datetime import datetime
@@ -142,6 +143,34 @@ def _validate_topic(value: str) -> tuple[bool, str]:
     if re.search(r'[;&|`$(){}[\]<>\\\'"]', value):
         return False, "Topic enthält ungültige Zeichen"
     return True, ""
+
+
+def _internal_error_response(
+    exc: Exception,
+    message: str = "Interner Serverfehler",
+    *,
+    include_success_false: bool = False,
+):
+    """Return a sanitized API error response without leaking exception internals."""
+    logger.error(message, exc_info=True)
+    payload = {"error": message}
+    if include_success_false:
+        payload["success"] = False
+    return jsonify(payload), 500
+
+
+def _resolve_backup_path(filename: str) -> Path:
+    """Resolve a backup file path safely under BACKUP_DIR."""
+    safe_name = secure_filename(filename or "")
+    if not safe_name or safe_name != filename:
+        raise ValueError("Ungültiger Dateiname")
+
+    backup_root = Path(BACKUP_DIR).resolve()
+    candidate = (backup_root / safe_name).resolve()
+
+    if os.path.commonpath([str(backup_root), str(candidate)]) != str(backup_root):
+        raise ValueError("Ungültiger Dateipfad")
+    return candidate
 
 
 app = Flask(__name__)
@@ -236,6 +265,12 @@ _ai_status_cache = {
 }
 _ai_status_stop_event = threading.Event()  # For graceful shutdown of AI status thread
 
+# Query-range cache for highly repetitive chart requests
+_query_range_cache_lock = threading.Lock()
+_query_range_cache = {}
+_QUERY_RANGE_CACHE_TTL_SECONDS = 5
+_QUERY_RANGE_CACHE_MAX_ENTRIES = 256
+
 
 def _update_ai_status_once():
     """Perform a single update of the AI status."""
@@ -243,7 +278,7 @@ def _update_ai_status_once():
         metrics_url = config.data.get("metrics", {}).get(
             "url", "http://victoriametrics:8428/write"
         )
-        base_url = metrics_url.replace("/write", "")
+        base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         query_url = f"{base_url}/api/v1/query"
 
         query = 'last_over_time({__name__=~"idm_anomaly_score(_value)?|idm_anomaly_flag(_value)?"}[2h])'
@@ -522,6 +557,14 @@ _SENSITIVE_CONFIG_KEYS = frozenset(
     }
 )
 
+# Tokens needed by the authenticated local admin UI for telemetry/admin calls.
+_SENSITIVE_EXPOSED_KEYS = frozenset(
+    {
+        "telemetry.auth_token",
+        "telemetry.admin_auth_token",
+    }
+)
+
 
 def _filter_sensitive_config(data: dict, parent_key: str = "") -> dict:
     """Recursively filter sensitive data from config."""
@@ -531,7 +574,7 @@ def _filter_sensitive_config(data: dict, parent_key: str = "") -> dict:
         # Check if key contains sensitive patterns
         key_lower = key.lower()
         is_sensitive = any(s in key_lower for s in _SENSITIVE_CONFIG_KEYS)
-        if is_sensitive:
+        if is_sensitive and full_key not in _SENSITIVE_EXPOSED_KEYS:
             # Mask sensitive values
             filtered[key] = "***" if value else None
         elif isinstance(value, dict):
@@ -1050,18 +1093,38 @@ def query_metrics_range():
     Proxy request to VictoriaMetrics /api/v1/query_range
     """
     try:
+        query = request.args.get("query")
+        start = request.args.get("start")
+        end = request.args.get("end")
+        step = request.args.get("step")
+
+        if not query:
+            return jsonify({"status": "error", "error": "Missing query parameter"}), 400
+        if not start or not end:
+            return (
+                jsonify({"status": "error", "error": "Missing start/end parameters"}),
+                400,
+            )
+
+        now_ts = time.time()
+        cache_key = (query, str(start), str(end), str(step))
+        with _query_range_cache_lock:
+            cached = _query_range_cache.get(cache_key)
+            if cached and cached["expires_at"] > now_ts:
+                return jsonify(cached["payload"]), cached["status_code"]
+
         metrics_url = config.data.get("metrics", {}).get(
             "url", "http://victoriametrics:8428/write"
         )
-        base_url = metrics_url.replace("/write", "")
+        base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         query_url = f"{base_url}/api/v1/query_range"
 
         # Forward parameters
         params = {
-            "query": request.args.get("query"),
-            "start": request.args.get("start"),
-            "end": request.args.get("end"),
-            "step": request.args.get("step"),
+            "query": query,
+            "start": start,
+            "end": end,
+            "step": step,
         }
 
         response = requests.get(query_url, params=params, timeout=10)
@@ -1070,7 +1133,26 @@ def query_metrics_range():
             return jsonify(
                 {"status": "error", "error": response.text}
             ), response.status_code
-        return jsonify(response.json())
+        payload = response.json()
+
+        with _query_range_cache_lock:
+            _query_range_cache[cache_key] = {
+                "payload": payload,
+                "status_code": 200,
+                "expires_at": now_ts + _QUERY_RANGE_CACHE_TTL_SECONDS,
+            }
+            if len(_query_range_cache) > _QUERY_RANGE_CACHE_MAX_ENTRIES:
+                expired_keys = [
+                    key
+                    for key, value in _query_range_cache.items()
+                    if value["expires_at"] <= now_ts
+                ]
+                for key in expired_keys:
+                    _query_range_cache.pop(key, None)
+                while len(_query_range_cache) > _QUERY_RANGE_CACHE_MAX_ENTRIES:
+                    _query_range_cache.pop(next(iter(_query_range_cache)))
+
+        return jsonify(payload)
     except Exception as e:
         logger.error(f"Metrics query failed: {e}")
         return jsonify({"status": "error", "error": "Query failed"}), 500
@@ -1575,7 +1657,9 @@ def share_logs():
         return jsonify({"success": True, "link": link})
     except Exception as e:
         logger.error(f"Failed to share logs: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return _internal_error_response(
+            e, "Logs konnten nicht geteilt werden", include_success_false=True
+        )
 
 
 @app.route("/api/tools/technician-code", methods=["GET"])
@@ -1930,6 +2014,12 @@ def config_page():
                 if "telemetry" not in config.data:
                     config.data["telemetry"] = {}
                 config.data["telemetry"]["auth_token"] = data["telemetry_auth_token"]
+            if "telemetry_admin_auth_token" in data:
+                if "telemetry" not in config.data:
+                    config.data["telemetry"] = {}
+                config.data["telemetry"]["admin_auth_token"] = data[
+                    "telemetry_admin_auth_token"
+                ]
             if "telemetry_server_url" in data:
                 if "telemetry" not in config.data:
                     config.data["telemetry"] = {}
@@ -2057,7 +2147,7 @@ def config_page():
                 }
             )
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response(e, "Schreibvorgang fehlgeschlagen")
 
 
 @app.route("/api/restart", methods=["POST"])
@@ -2092,7 +2182,7 @@ def check_update():
         return jsonify(check_for_update())
     except Exception as e:
         logger.error(f"Error checking for updates: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Update-Prüfung fehlgeschlagen")
 
 
 @app.route("/api/perform-update", methods=["POST"])
@@ -2131,7 +2221,9 @@ def perform_update():
         )
     except Exception as e:
         logger.error(f"Error starting update: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return _internal_error_response(
+            e, "Update konnte nicht gestartet werden", include_success_false=True
+        )
 
 
 @app.route("/api/docker/status", methods=["GET"])
@@ -2145,7 +2237,7 @@ def get_docker_status():
         return jsonify(status)
     except Exception as e:
         logger.error(f"Error checking Docker status: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Docker-Status konnte nicht geladen werden")
 
 
 @app.route("/api/signal/test", methods=["POST"])
@@ -2158,7 +2250,9 @@ def signal_test():
         return jsonify({"success": True, "message": "Signal-Testnachricht gesendet"})
     except Exception as e:
         logger.error(f"Signal test failed: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return _internal_error_response(
+            e, "Signal-Test fehlgeschlagen", include_success_false=True
+        )
 
 
 @app.route("/api/signal/status", methods=["GET"])
@@ -2252,7 +2346,7 @@ def control_page():
             else:
                 return jsonify({"error": "Modbus-Client nicht verfügbar"}), 503
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response(e, "Schreibvorgang fehlgeschlagen")
 
     writable_sensors = []
     if modbus_client_instance:
@@ -2346,7 +2440,9 @@ def schedule_page():
                             }
                         )
                     except Exception as e:
-                        return jsonify({"error": str(e)}), 500
+                        return _internal_error_response(
+                            e, "Sofortausführung fehlgeschlagen"
+                        )
                 else:
                     return jsonify(
                         {"error": "Job nicht gefunden oder System nicht verfügbar"}
@@ -2406,7 +2502,7 @@ def alerts_api():
             alert = alert_manager.add_alert(data)
             return jsonify({"success": True, "alert": alert})
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response(e, "Alert konnte nicht erstellt werden")
 
     if request.method == "PUT":
         data = request.get_json()
@@ -2418,7 +2514,7 @@ def alerts_api():
             alert_manager.update_alert(alert_id, data)
             return jsonify({"success": True})
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response(e, "Alert konnte nicht aktualisiert werden")
 
     if request.method == "DELETE":
         alert_id = request.args.get("id")
@@ -2429,7 +2525,7 @@ def alerts_api():
             alert_manager.delete_alert(alert_id)
             return jsonify({"success": True})
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return _internal_error_response(e, "Alert konnte nicht gelöscht werden")
 
 
 @app.route("/api/alerts/templates", methods=["GET"])
@@ -2457,11 +2553,12 @@ def create_backup():
 @app.route("/api/backup/upload/<filename>", methods=["POST"])
 @login_required
 def upload_backup(filename):
-    if filename != secure_filename(filename):
-        return jsonify({"error": "Ungültiger Dateiname"}), 400
+    try:
+        backup_path = _resolve_backup_path(filename)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
-    backup_path = Path(BACKUP_DIR) / filename
-    if not backup_path.exists():
+    if not backup_path.is_file():
         return jsonify({"error": "Backup nicht gefunden"}), 404
 
     result = backup_manager.upload_to_webdav(str(backup_path))
@@ -2481,12 +2578,11 @@ def list_backups():
 @app.route("/api/backup/download/<filename>", methods=["GET"])
 @login_required
 def download_backup(filename):
-    if filename != secure_filename(filename):
-        return jsonify({"error": "Ungültiger Dateiname"}), 400
-
-    backup_path = Path(BACKUP_DIR) / filename
-
-    if not backup_path.exists():
+    try:
+        backup_path = _resolve_backup_path(filename)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not backup_path.is_file():
         return jsonify({"error": "Backup nicht gefunden"}), 404
 
     try:
@@ -2498,7 +2594,7 @@ def download_backup(filename):
         )
     except Exception as e:
         logger.error(f"Failed to send backup file: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Backup konnte nicht heruntergeladen werden")
 
 
 @app.route("/api/backup/restore", methods=["POST"])
@@ -2509,9 +2605,12 @@ def restore_backup():
         filename = data.get("filename")
         if not filename:
             return jsonify({"error": "Keine Backup-Datei angegeben"}), 400
-        if filename != secure_filename(filename):
-            return jsonify({"error": "Ungültiger Dateiname"}), 400
-        backup_path = Path(BACKUP_DIR) / filename
+        try:
+            backup_path = _resolve_backup_path(filename)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        if not backup_path.is_file():
+            return jsonify({"error": "Backup nicht gefunden"}), 404
     else:
         file = request.files["file"]
         if file.filename == "":
@@ -2554,7 +2653,7 @@ def delete_database():
         metrics_url = config.data.get("metrics", {}).get(
             "url", "http://victoriametrics:8428/write"
         )
-        base_url = metrics_url.replace("/write", "")
+        base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         delete_url = f"{base_url}/api/v1/admin/tsdb/delete_series"
         response = requests.post(delete_url, params={"match[]": '{__name__!=""}'})
         if response.status_code == 204 or response.status_code == 200:
@@ -2565,7 +2664,7 @@ def delete_database():
             return jsonify({"error": f"Fehler beim Löschen: {response.text}"}), 500
     except Exception as e:
         logger.error(f"Failed to delete database: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Datenbank-Löschung fehlgeschlagen")
 
 
 # ============================================================================
@@ -2600,6 +2699,31 @@ def submit_telemetry_data():
         return jsonify({"error": "Share failed"}), 500
 
 
+@app.route("/api/telemetry/retrieve_credentials", methods=["POST"])
+@login_required
+def retrieve_telemetry_credentials():
+    try:
+        success = telemetry_manager.retrieve_credentials()
+        if success:
+            telemetry_manager._load_state()
+            return jsonify(
+                {
+                    "success": True,
+                    "message": "Telemetry-Zugangsdaten erfolgreich aktualisiert",
+                    "status": telemetry_manager.get_status(),
+                }
+            )
+        return jsonify(
+            {
+                "success": False,
+                "message": "Telemetry-Zugangsdaten konnten nicht aktualisiert werden",
+            }
+        ), 500
+    except Exception as e:
+        logger.error(f"Telemetry credential retrieval failed: {e}")
+        return jsonify({"error": "Credential retrieval failed"}), 500
+
+
 @app.route("/api/telemetry/check", methods=["POST"])
 @login_required
 def check_telemetry_model():
@@ -2614,7 +2738,7 @@ def check_telemetry_model():
                 {"success": True, "message": "Kein Update erforderlich oder verfügbar"}
             )
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Telemetry-Updateprüfung fehlgeschlagen")
 
 
 # ============================================================================
@@ -2643,7 +2767,7 @@ def get_annotations():
         return jsonify([a.to_dict() for a in annotations])
     except Exception as e:
         logger.error(f"Failed to get annotations: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Annotationen konnten nicht geladen werden")
 
 
 @app.route("/api/annotations", methods=["POST"])
@@ -2680,7 +2804,7 @@ def create_annotation():
         return jsonify(annotation.to_dict()), 201
     except Exception as e:
         logger.error(f"Failed to create annotation: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Annotation konnte nicht erstellt werden")
 
 
 @app.route("/api/annotations/<annotation_id>", methods=["GET"])
@@ -2694,7 +2818,7 @@ def get_annotation(annotation_id):
         return jsonify(annotation.to_dict())
     except Exception as e:
         logger.error(f"Failed to get annotation: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Annotation konnte nicht geladen werden")
 
 
 @app.route("/api/annotations/<annotation_id>", methods=["PUT"])
@@ -2726,7 +2850,7 @@ def update_annotation(annotation_id):
         return jsonify(annotation.to_dict())
     except Exception as e:
         logger.error(f"Failed to update annotation: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Annotation konnte nicht aktualisiert werden")
 
 
 @app.route("/api/annotations/<annotation_id>", methods=["DELETE"])
@@ -2769,7 +2893,7 @@ def get_variables():
             return jsonify([v.to_dict() for v in variables])
     except Exception as e:
         logger.error(f"Failed to get variables: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Variablen konnten nicht geladen werden")
 
 
 @app.route("/api/variables", methods=["POST"])
@@ -2797,7 +2921,7 @@ def create_variable():
         return jsonify(variable.to_dict()), 201
     except Exception as e:
         logger.error(f"Failed to create variable: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Variable konnte nicht erstellt werden")
 
 
 @app.route("/api/variables/<variable_id>", methods=["GET"])
@@ -2820,7 +2944,7 @@ def get_variable(variable_id):
             return jsonify(variable.to_dict())
     except Exception as e:
         logger.error(f"Failed to get variable: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Variable konnte nicht geladen werden")
 
 
 @app.route("/api/variables/<variable_id>", methods=["PUT"])
@@ -2847,7 +2971,7 @@ def update_variable(variable_id):
         return jsonify(variable.to_dict())
     except Exception as e:
         logger.error(f"Failed to update variable: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Variable konnte nicht aktualisiert werden")
 
 
 @app.route("/api/variables/<variable_id>", methods=["DELETE"])
@@ -2861,7 +2985,7 @@ def delete_variable(variable_id):
         return jsonify({"success": True})
     except Exception as e:
         logger.error(f"Failed to delete variable: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Variable konnte nicht gelöscht werden")
 
 
 @app.route("/api/variables/substitute", methods=["POST"])
@@ -2890,7 +3014,7 @@ def substitute_variables():
         return jsonify({"result": result})
     except Exception as e:
         logger.error(f"Failed to substitute variables: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Variablenersetzung fehlgeschlagen")
 
 
 def set_metrics_writer(writer):
@@ -2918,7 +3042,7 @@ def get_share_tokens():
         return jsonify([token.to_dict() for token in tokens])
     except Exception as e:
         logger.error(f"Failed to get share tokens: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Freigabe-Token konnten nicht geladen werden")
 
 
 @app.route("/api/sharing/tokens", methods=["POST"])
@@ -2947,7 +3071,7 @@ def create_share_token():
         return jsonify(token.to_dict()), 201
     except Exception as e:
         logger.error(f"Failed to create share token: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Freigabe-Token konnte nicht erstellt werden")
 
 
 @app.route("/api/sharing/tokens/<token_id>", methods=["GET"])
@@ -2964,7 +3088,7 @@ def get_share_token(token_id):
         return jsonify(token.to_dict())
     except Exception as e:
         logger.error(f"Failed to get share token: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Freigabe-Token konnte nicht geladen werden")
 
 
 @app.route("/api/sharing/tokens/<token_id>", methods=["DELETE"])
@@ -2978,7 +3102,7 @@ def delete_share_token(token_id):
             return jsonify({"error": "Token not found"}), 404
     except Exception as e:
         logger.error(f"Failed to delete share token: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Freigabe-Token konnte nicht gelöscht werden")
 
 
 @app.route("/api/sharing/tokens/<token_id>/validate", methods=["POST"])
@@ -2998,7 +3122,7 @@ def validate_share_token(token_id):
             return jsonify({"valid": False, "error": "Invalid or expired token"}), 401
     except Exception as e:
         logger.error(f"Failed to validate share token: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Freigabe-Token konnte nicht validiert werden")
 
 
 @app.route("/api/sharing/tokens/<token_id>/dashboard", methods=["GET", "POST"])
@@ -3049,7 +3173,7 @@ def get_shared_dashboard(token_id):
         )
     except Exception as e:
         logger.error(f"Failed to get shared dashboard: {e}")
-        return jsonify({"error": str(e)}), 500
+        return _internal_error_response(e, "Freigegebenes Dashboard konnte nicht geladen werden")
 
 
 @app.route("/shared/<token_id>")
@@ -3069,7 +3193,8 @@ def view_shared_dashboard(token_id):
             return "Dashboard not found", 404
 
         # SPA uses hash history; redirect to shared route in frontend.
-        return redirect(f"/#/shared/{token_id}", code=302)
+        safe_token_id = quote(token_id, safe="")
+        return redirect(f"/#/shared/{safe_token_id}", code=302)
     except Exception as e:
         logger.error(f"Failed to view shared dashboard: {e}")
         return "Error loading shared dashboard", 500

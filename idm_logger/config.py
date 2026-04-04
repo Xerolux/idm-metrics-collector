@@ -368,6 +368,7 @@ class Config:
                 "enabled": True,  # Enabled by default per user request
                 "server_url": "https://collector.xerolux.de",
                 "auth_token": "",  # To be filled by user/admin
+                "admin_auth_token": "",  # Optional separate token for admin endpoints
                 "last_submission": 0,
                 "last_model_check": 0,
                 "manual_downloads_today": 0,
@@ -415,6 +416,9 @@ class Config:
                     data["telemetry"]["auth_token"] = self._decrypt(
                         data["telemetry"].get("encrypted_auth_token", "")
                     )
+                    data["telemetry"]["admin_auth_token"] = self._decrypt(
+                        data["telemetry"].get("encrypted_admin_auth_token", "")
+                    )
 
                 # Merge loaded data into defaults
                 merged = self._merge_dicts(defaults, data)
@@ -458,8 +462,13 @@ class Config:
             to_save["telemetry"]["encrypted_auth_token"] = self._encrypt(
                 to_save["telemetry"].get("auth_token", "")
             )
+            to_save["telemetry"]["encrypted_admin_auth_token"] = self._encrypt(
+                to_save["telemetry"].get("admin_auth_token", "")
+            )
             if "auth_token" in to_save["telemetry"]:
                 del to_save["telemetry"]["auth_token"]
+            if "admin_auth_token" in to_save["telemetry"]:
+                del to_save["telemetry"]["admin_auth_token"]
 
         db.set_setting("config", json.dumps(to_save))
 

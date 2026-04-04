@@ -20,15 +20,16 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 import structlog
+from storage_paths import resolve_storage_dir
 
 logger = structlog.get_logger()
 
 # Token storage location
-TOKEN_STORAGE_DIR = os.environ.get("TOKEN_STORAGE_DIR", "/var/lib/telemetry/tokens")
-TOKEN_FILE = os.path.join(TOKEN_STORAGE_DIR, "installation_tokens.json")
-
-# Ensure storage directory exists
-Path(TOKEN_STORAGE_DIR).mkdir(parents=True, exist_ok=True)
+TOKEN_STORAGE_DIR_PATH = resolve_storage_dir(
+    "TOKEN_STORAGE_DIR", "/var/lib/telemetry/tokens", "tokens"
+)
+TOKEN_STORAGE_DIR = str(TOKEN_STORAGE_DIR_PATH)
+TOKEN_FILE = TOKEN_STORAGE_DIR_PATH / "installation_tokens.json"
 
 
 class TokenManager:
@@ -44,7 +45,7 @@ class TokenManager:
     def _load_tokens(self):
         """Load tokens from storage."""
         try:
-            if os.path.exists(TOKEN_FILE):
+            if TOKEN_FILE.exists():
                 with open(TOKEN_FILE, "r", encoding="utf-8") as f:
                     self.tokens = json.load(f)
                 logger.info("tokens_loaded", count=len(self.tokens))
@@ -65,7 +66,7 @@ class TokenManager:
             now = _time.time()
             if not force and (now - self._last_save) < self._save_interval:
                 return
-            temp_file = TOKEN_FILE + ".tmp"
+            temp_file = Path(f"{TOKEN_FILE}.tmp")
             with open(temp_file, "w", encoding="utf-8") as f:
                 json.dump(self.tokens, f, indent=2)
             os.replace(temp_file, TOKEN_FILE)

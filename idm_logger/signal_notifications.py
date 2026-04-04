@@ -24,6 +24,32 @@ _SAFE_MESSAGE_PATTERN = re.compile(
 )
 
 
+def _resolve_signal_cli(cli_path: str) -> str:
+    """Resolve signal-cli to a safe executable path."""
+    normalized = (cli_path or "signal-cli").strip()
+    if not re.match(r"^[a-zA-Z0-9_\-/\.]+$", normalized):
+        raise RuntimeError("Signal CLI Pfad enthält ungültige Zeichen.")
+
+    if os.path.sep in normalized:
+        abs_path = os.path.abspath(normalized)
+        if not os.path.isabs(abs_path):
+            raise RuntimeError("Signal CLI Pfad muss absolut sein.")
+        if os.path.basename(abs_path) != "signal-cli":
+            raise RuntimeError("Nur 'signal-cli' ist als Executable erlaubt.")
+        if not os.path.isfile(abs_path):
+            raise RuntimeError(f"Signal CLI Executable nicht gefunden: {abs_path}")
+        if not os.access(abs_path, os.X_OK):
+            raise RuntimeError(f"Signal CLI Executable nicht ausführbar: {abs_path}")
+        return abs_path
+
+    if normalized != "signal-cli":
+        raise RuntimeError("Nur der Befehl 'signal-cli' ist erlaubt.")
+    resolved = shutil.which("signal-cli")
+    if not resolved:
+        raise RuntimeError("Signal CLI Befehl 'signal-cli' nicht im PATH gefunden.")
+    return resolved
+
+
 def _validate_phone_number(number: str) -> bool:
     """Validate that a string looks like a valid international phone number."""
     return bool(_PHONE_PATTERN.match(number))
@@ -91,29 +117,8 @@ def send_signal_message(message: str) -> None:
     if not recipients:
         raise RuntimeError("Keine gültigen Signal-Empfänger konfiguriert.")
 
-    # Validate cli_path doesn't contain shell metacharacters
-    if not re.match(r"^[a-zA-Z0-9_\-/\.]+$", cli_path):
-        raise RuntimeError("Signal CLI Pfad enthält ungültige Zeichen.")
-
-    # Validate executable existence
-    if os.path.sep in cli_path:
-        # Absolute path check
-        if not os.path.isabs(cli_path):
-            raise RuntimeError(
-                "Signal CLI Pfad muss absolut sein (wenn nicht in PATH)."
-            )
-        if not os.path.isfile(cli_path):
-            raise RuntimeError(f"Signal CLI Executable nicht gefunden: {cli_path}")
-        if not os.access(cli_path, os.X_OK):
-            raise RuntimeError(f"Signal CLI Executable nicht ausführbar: {cli_path}")
-    else:
-        # Look up in PATH
-        if not shutil.which(cli_path):
-            raise RuntimeError(
-                f"Signal CLI Befehl '{cli_path}' nicht im PATH gefunden."
-            )
-
-    command = [cli_path, "-u", sender, "send", "-m", message] + recipients
+    cli_executable = _resolve_signal_cli(cli_path)
+    command = [cli_executable, "-u", sender, "send", "-m", message] + recipients
     logger.info(f"Sending Signal message to {len(recipients)} recipient(s)")
     result = subprocess.run(command, capture_output=True, text=True, timeout=30)
     if result.returncode != 0:
