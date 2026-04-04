@@ -439,10 +439,23 @@
     <Dialog
       v-model:visible="showAlarmDialog"
       modal
-      header="Aktive Warnungen"
       :style="{ width: '90vw', maxWidth: '600px' }"
       :closable="true"
     >
+      <template #header>
+        <div class="flex items-center justify-between w-full pr-2">
+          <span class="font-semibold text-base">Aktive Warnungen</span>
+          <Button
+            v-if="unacknowledgedAnomalies.length > 1"
+            label="Alle quittieren"
+            size="small"
+            severity="danger"
+            icon="pi pi-check-circle"
+            :loading="acknowledgingAll"
+            @click="acknowledgeAllAnomalies"
+          />
+        </div>
+      </template>
       <div v-if="unacknowledgedAnomalies.length === 0" class="text-center py-4">
         Keine aktiven Warnungen.
       </div>
@@ -605,6 +618,7 @@ const newDashboardName = ref('')
 
 const showAlarmDialog = ref(false)
 const unacknowledgedAnomalies = ref([])
+const acknowledgingAll = ref(false)
 
 // Time range selector
 const timeRange = ref('24h')
@@ -1101,6 +1115,32 @@ const acknowledgeAnomaly = async (anomaly) => {
       detail: 'Konnte nicht quittiert werden',
       life: 3000
     })
+  }
+}
+
+const acknowledgeAllAnomalies = async () => {
+  acknowledgingAll.value = true
+  try {
+    const response = await api.post('/api/annotations/acknowledge-all')
+    const count = response.data?.acknowledged ?? unacknowledgedAnomalies.value.length
+    unacknowledgedAnomalies.value = []
+    showAlarmDialog.value = false
+    toast.add({
+      severity: 'success',
+      summary: 'Alle quittiert',
+      detail: `${count} Anomalie${count !== 1 ? 'n' : ''} quittiert`,
+      life: 3000
+    })
+  } catch (error) {
+    console.error('Failed to acknowledge all anomalies:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Anomalien konnten nicht quittiert werden',
+      life: 3000
+    })
+  } finally {
+    acknowledgingAll.value = false
   }
 }
 </script>

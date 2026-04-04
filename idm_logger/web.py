@@ -2556,7 +2556,9 @@ def create_backup():
         backup_manager.cleanup_old_backups(keep_count=10)
         return jsonify({"success": True, "message": "Backup erstellt"}), 200
     else:
-        return jsonify({"success": False, "error": "Backup-Erstellung fehlgeschlagen"}), 500
+        return jsonify(
+            {"success": False, "error": "Backup-Erstellung fehlgeschlagen"}
+        ), 500
 
 
 @app.route("/api/backup/upload/<filename>", methods=["POST"])
@@ -2637,9 +2639,13 @@ def restore_backup():
         if "file" in request.files and backup_path.exists():
             backup_path.unlink()
         if result.get("success"):
-            return jsonify({"success": True, "message": "Backup wiederhergestellt"}), 200
+            return jsonify(
+                {"success": True, "message": "Backup wiederhergestellt"}
+            ), 200
         else:
-            return jsonify({"success": False, "error": "Backup-Wiederherstellung fehlgeschlagen"}), 500
+            return jsonify(
+                {"success": False, "error": "Backup-Wiederherstellung fehlgeschlagen"}
+            ), 500
     except Exception as e:
         logger.error(f"Restore failed: {e}", exc_info=True)
         return jsonify({"error": "Wiederherstellung fehlgeschlagen (siehe Logs)"}), 500
@@ -2652,7 +2658,9 @@ def delete_backup(filename):
     if result.get("success"):
         return jsonify({"success": True, "message": "Backup gelöscht"}), 200
     else:
-        return jsonify({"success": False, "error": "Backup-Löschung fehlgeschlagen"}), 500
+        return jsonify(
+            {"success": False, "error": "Backup-Löschung fehlgeschlagen"}
+        ), 500
 
 
 @app.route("/api/database/delete", methods=["POST"])
@@ -2859,7 +2867,21 @@ def update_annotation(annotation_id):
         return jsonify(annotation.to_dict())
     except Exception as e:
         logger.error(f"Failed to update annotation: {e}")
-        return _internal_error_response(e, "Annotation konnte nicht aktualisiert werden")
+        return _internal_error_response(
+            e, "Annotation konnte nicht aktualisiert werden"
+        )
+
+
+@app.route("/api/annotations/acknowledge-all", methods=["POST"])
+@login_required
+def acknowledge_all_anomalies():
+    """Acknowledge all unacknowledged anomaly annotations at once."""
+    try:
+        updated = annotation_manager.acknowledge_all_anomalies()
+        return jsonify({"acknowledged": updated})
+    except Exception as e:
+        logger.error(f"Failed to acknowledge all anomalies: {e}")
+        return _internal_error_response(e, "Anomalien konnten nicht quittiert werden")
 
 
 @app.route("/api/annotations/<annotation_id>", methods=["DELETE"])
@@ -3051,7 +3073,9 @@ def get_share_tokens():
         return jsonify([token.to_dict() for token in tokens])
     except Exception as e:
         logger.error(f"Failed to get share tokens: {e}")
-        return _internal_error_response(e, "Freigabe-Token konnten nicht geladen werden")
+        return _internal_error_response(
+            e, "Freigabe-Token konnten nicht geladen werden"
+        )
 
 
 @app.route("/api/sharing/tokens", methods=["POST"])
@@ -3080,7 +3104,9 @@ def create_share_token():
         return jsonify(token.to_dict()), 201
     except Exception as e:
         logger.error(f"Failed to create share token: {e}")
-        return _internal_error_response(e, "Freigabe-Token konnte nicht erstellt werden")
+        return _internal_error_response(
+            e, "Freigabe-Token konnte nicht erstellt werden"
+        )
 
 
 @app.route("/api/sharing/tokens/<token_id>", methods=["GET"])
@@ -3111,7 +3137,9 @@ def delete_share_token(token_id):
             return jsonify({"error": "Token not found"}), 404
     except Exception as e:
         logger.error(f"Failed to delete share token: {e}")
-        return _internal_error_response(e, "Freigabe-Token konnte nicht gelöscht werden")
+        return _internal_error_response(
+            e, "Freigabe-Token konnte nicht gelöscht werden"
+        )
 
 
 @app.route("/api/sharing/tokens/<token_id>/validate", methods=["POST"])
@@ -3131,7 +3159,9 @@ def validate_share_token(token_id):
             return jsonify({"valid": False, "error": "Invalid or expired token"}), 401
     except Exception as e:
         logger.error(f"Failed to validate share token: {e}")
-        return _internal_error_response(e, "Freigabe-Token konnte nicht validiert werden")
+        return _internal_error_response(
+            e, "Freigabe-Token konnte nicht validiert werden"
+        )
 
 
 @app.route("/api/sharing/tokens/<token_id>/dashboard", methods=["GET", "POST"])
@@ -3182,7 +3212,9 @@ def get_shared_dashboard(token_id):
         )
     except Exception as e:
         logger.error(f"Failed to get shared dashboard: {e}")
-        return _internal_error_response(e, "Freigegebenes Dashboard konnte nicht geladen werden")
+        return _internal_error_response(
+            e, "Freigegebenes Dashboard konnte nicht geladen werden"
+        )
 
 
 @app.route("/shared/<token_id>")
