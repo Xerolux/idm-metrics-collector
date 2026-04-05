@@ -75,6 +75,7 @@
                 severity="danger"
                 text
                 aria-label="Löschen"
+                title="Löschen"
               />
             </div>
           </div>

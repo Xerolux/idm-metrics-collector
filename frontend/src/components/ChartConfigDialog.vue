@@ -81,6 +81,7 @@
                   text
                   v-tooltip.top="'Expression bearbeiten'"
                   aria-label="Expression bearbeiten"
+                  title="Expression bearbeiten"
                 />
               </div>
             </div>
@@ -93,6 +94,7 @@
                 severity="danger"
                 text
                 aria-label="Löschen"
+                title="Löschen"
               />
             </div>
           </div>
@@ -138,6 +140,7 @@
                 severity="danger"
                 text
                 aria-label="Löschen"
+                title="Löschen"
               />
             </div>
           </div>

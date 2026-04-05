@@ -157,9 +157,7 @@ onMounted(() => {
     document.documentElement.classList.add('my-app-dark')
   }
   const events = ['click', 'mousemove', 'keypress', 'scroll', 'touchstart']
-  events.forEach((event) =>
-    window.addEventListener(event, handleUserActivity, { passive: true })
-  )
+  events.forEach((event) => window.addEventListener(event, handleUserActivity, { passive: true }))
   resetTimer()
 
   // Check for updates on app load
@@ -252,6 +250,7 @@ onUnmounted(() => {
             @click="toggleTheme"
             class="w-8 h-8 sm:w-auto sm:h-auto"
             aria-label="Theme umschalten"
+            title="Theme umschalten"
           />
 
           <Button
@@ -261,6 +260,8 @@ onUnmounted(() => {
             text
             class="p-1 sm:p-2"
             @click="ui.toggleEditMode"
+            :aria-label="ui.editMode ? 'Bearbeiten beenden' : 'Bearbeiten'"
+            :title="ui.editMode ? 'Bearbeiten beenden' : 'Bearbeiten'"
           />
           <Button
             icon="pi pi-power-off"
@@ -269,6 +270,7 @@ onUnmounted(() => {
             @click="logout"
             class="p-1 sm:p-2"
             aria-label="Abmelden"
+            title="Abmelden"
           />
         </div>
       </template>
