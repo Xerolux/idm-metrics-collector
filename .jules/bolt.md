@@ -25,3 +25,7 @@
 ## 2026-03-11 - Pre-calculating Common String Prefixes
 **Learning:** String interpolation and concatenation (`f"heatpump_metrics,{tags} ..."`) inside hot loops (like formatting large batches of telemetry data) incurs unnecessary CPU overhead per record when part of the string is static.
 **Action:** Always pre-calculate common string prefixes outside the loop and append to them, rather than reconstructing the entire string format for every iteration.
+
+## 2026-03-12 - Memoizing Field Key Escaping in Telemetry Batches
+**Learning:** Telemetry payloads contain highly repetitive field keys across records in a batch. Re-evaluating `_escape_field_key(key)` for every field of every record causes redundant string replacement overhead in the main line protocol formatting hot-loop.
+**Action:** Use a local dictionary cache (memoization) to store and reuse escaped field keys during batch processing. This replaces repeated O(L) string replacements with fast O(1) hash map lookups.
