@@ -861,15 +861,8 @@ async def retrieve_credentials(
     """
     validate_installation_id(installation_id)
 
-    # Requires global AUTH_TOKEN
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing Authorization Header")
-
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or token != AUTH_TOKEN:
-        raise HTTPException(
-            status_code=403, detail="Invalid global token for credential retrieval"
-        )
+    # Verify token with fallback
+    await verify_token_with_fallback(installation_id, authorization)
 
     is_new = not token_exists(installation_id)
 
@@ -954,7 +947,7 @@ def _process_telemetry_batch(
                 continue
             field_key = _escape_field_key(key)
             if isinstance(value, bool):
-                fields.append(f"{field_key}={str(value).lower()}")
+                fields.append(f"{field_key}={str(value).capitalize()}")
             elif isinstance(value, (int, float)):
                 fields.append(f"{field_key}={value}")
             elif isinstance(value, str):
@@ -1394,7 +1387,7 @@ async def download_model(
     request: Request,
     installation_id: str,
     model: Optional[str] = None,
-    auth: None = Depends(verify_token),
+    authorization: Optional[str] = Header(None),
 ):
     """
     Download the community model file.
@@ -1406,6 +1399,9 @@ async def download_model(
     """
     # Validation
     validate_installation_id(installation_id)
+
+    # Verify token (per-installation with fallback)
+    await verify_token_with_fallback(installation_id, authorization)
     model = validate_model_name(model)  # Returns normalized/validated name or None
 
     # Check installation ban status
@@ -2516,7 +2512,9 @@ async def admin_installation_details(
         logger.error(
             "admin_installation_details_failed", error=str(e), installation_id=target_id
         )
-        raise HTTPException(status_code=500, detail="Failed to get installation details")
+        raise HTTPException(
+            status_code=500, detail="Failed to get installation details"
+        )
 
 
 @app.get("/api/v1/admin/installations/{target_id}/history")
@@ -2576,7 +2574,9 @@ async def admin_installation_history(
         logger.error(
             "admin_installation_history_failed", error=str(e), installation_id=target_id
         )
-        raise HTTPException(status_code=500, detail="Failed to get installation history")
+        raise HTTPException(
+            status_code=500, detail="Failed to get installation history"
+        )
 
 
 @app.get("/api/v1/admin/health")

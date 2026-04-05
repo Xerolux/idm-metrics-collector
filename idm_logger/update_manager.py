@@ -21,7 +21,9 @@ DOCKER_IMAGES = {
     "ml-service": "ghcr.io/xerolux/idm-metrics-collector-ml",
 }
 
-_SAFE_GHCR_REPO = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)+$")
+_SAFE_GHCR_REPO = re.compile(
+    r"^[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)+$"
+)
 
 # Only one channel: "latest" (rolling updates from main / Docker latest)
 
