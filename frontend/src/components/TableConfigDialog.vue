@@ -72,7 +72,8 @@
               size="small"
               severity="danger"
               text
-                aria-label="Löschen"
+              aria-label="Löschen"
+              title="Löschen"
             />
           </div>
         </div>
@@ -105,7 +106,8 @@
               size="small"
               severity="danger"
               text
-                aria-label="Löschen"
+              aria-label="Löschen"
+              title="Löschen"
             />
           </div>
         </div>
