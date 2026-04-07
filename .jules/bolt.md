@@ -29,3 +29,7 @@
 ## 2026-04-06 - Memoizing Key Parsing in Telemetry Batches
 **Learning:** Evaluating `_escape_field_key` or `str(value).capitalize()` per key inside the inner loop formatting Line Protocol strings for large data batches caused redundant CPU string allocations, since batches generally contain identical keys across all records.
 **Action:** Use a local dictionary cache (`_key_cache`) outside the batch loop to memoize the string parsing operations to optimize the aggregate CPU processing time.
+
+## 2026-04-07 - Vectorized Struct Operations for Modbus Coding
+**Learning:** String concatenation (`b'' += ...`) and list appending inside a loop for encoding/decoding Modbus registers creates significant memory allocation and CPU overhead on a hot path.
+**Action:** Use vectorized C-level `struct.pack` with format multipliers (e.g. `>2H`) to pack/unpack registers all at once instead of iterating through them.
