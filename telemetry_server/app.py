@@ -935,6 +935,9 @@ def _process_telemetry_batch(
         f"version={_escape_tag_value(version)} "
     )
 
+    # Memoize escaped keys to avoid redundant string parsing allocations in the hot loop
+    _key_cache = {}
+
     for record in data:
         timestamp = record.get("timestamp")
         if not timestamp:
@@ -945,9 +948,13 @@ def _process_telemetry_batch(
         for key, value in record.items():
             if key == "timestamp":
                 continue
-            field_key = _escape_field_key(key)
+
+            if key not in _key_cache:
+                _key_cache[key] = _escape_field_key(key)
+            field_key = _key_cache[key]
+
             if isinstance(value, bool):
-                fields.append(f"{field_key}={str(value).capitalize()}")
+                fields.append(f"{field_key}={'True' if value else 'False'}")
             elif isinstance(value, (int, float)):
                 fields.append(f"{field_key}={value}")
             elif isinstance(value, str):
