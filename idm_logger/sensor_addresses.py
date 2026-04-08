@@ -136,7 +136,11 @@ def _encode_value(
 
     # Convert bytes to registers (16-bit chunks)
     # Use vectorized unpack to avoid loop and list appends
-    fmt = f">{len(byte_data) // 2}H" if byteorder.lower() == "big" else f"<{len(byte_data) // 2}H"
+    fmt = (
+        f">{len(byte_data) // 2}H"
+        if byteorder.lower() == "big"
+        else f"<{len(byte_data) // 2}H"
+    )
     registers = list(struct.unpack(fmt, byte_data))
 
     # Apply word order
