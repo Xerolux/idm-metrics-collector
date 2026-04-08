@@ -29,3 +29,10 @@
 ## 2026-04-06 - Memoizing Key Parsing in Telemetry Batches
 **Learning:** Evaluating `_escape_field_key` or `str(value).capitalize()` per key inside the inner loop formatting Line Protocol strings for large data batches caused redundant CPU string allocations, since batches generally contain identical keys across all records.
 **Action:** Use a local dictionary cache (`_key_cache`) outside the batch loop to memoize the string parsing operations to optimize the aggregate CPU processing time.
+## 2026-04-07 - Vectorized Modbus Register Encoding/Decoding
+**Learning:** In hot loops handling Modbus struct operations (like  and ), using a Python loop to append list items or concatenate byte strings () causes significant memory allocation overhead and CPU time on every cycle.
+**Action:** Replaced iterative struct operations with vectorized C-level `struct.pack` and `struct.unpack` using dynamic format multipliers (e.g., `f"{fmt_char}{len(registers)}H"`). This avoids Python loop boundaries, performing pack/unpack concurrently.
+
+## 2026-04-07 - Vectorized Modbus Register Encoding/Decoding
+**Learning:** In hot loops handling Modbus struct operations (like `_encode_value` and `_decode_registers`), using a Python loop to append list items or concatenate byte strings (`b"" += struct.pack(...)`) causes significant memory allocation overhead and CPU time on every cycle.
+**Action:** Replaced iterative struct operations with vectorized C-level `struct.pack` and `struct.unpack` using dynamic format multipliers (e.g., `f">{len(registers)}H"`). This avoids Python loop boundaries, performing pack/unpack concurrently.
