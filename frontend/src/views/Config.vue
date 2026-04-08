@@ -1023,7 +1023,8 @@
                         text
                         size="small"
                         @click="uploadToCloud(backup.filename)"
-                        title="Upload to WebDAV"
+                        aria-label="In WebDAV hochladen"
+                        v-tooltip="'In WebDAV hochladen'"
                       />
                       <Button
                         icon="pi pi-download"
@@ -1800,7 +1801,8 @@
                             size="small"
                             severity="info"
                             @click="openPermissionDialog(admin)"
-                            v-tooltip="'Edit Permissions'"
+                            aria-label="Berechtigungen bearbeiten"
+                            v-tooltip="'Berechtigungen bearbeiten'"
                           />
                         </td>
                       </tr>
@@ -1832,7 +1834,8 @@
                     severity="secondary"
                     size="small"
                     @click="fetchTrainingInfo"
-                    v-tooltip="'Refresh'"
+                    aria-label="Aktualisieren"
+                    v-tooltip="'Aktualisieren'"
                   />
                 </div>
 
