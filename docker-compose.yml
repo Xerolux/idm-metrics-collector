@@ -14,9 +14,9 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.scope=idm-updates"
     environment:
-      # IDM Heat Pump connection
-      - IDM_HOST=192.168.178.103
-      - IDM_PORT=502
+      # IDM Heat Pump connection - configure via Web UI (http://localhost:5008)
+      # - IDM_HOST=192.168.178.103
+      # - IDM_PORT=502
       # Metrics connection
       - METRICS_URL=http://victoriametrics:8428/write
       # Internal API Key (Shared Secret)
