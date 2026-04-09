@@ -47,6 +47,7 @@
     "eslint": "^9.39.4",
     "eslint-plugin-vue": "^10.8.0",
     "flatted": "3.4.2",
+    "jsdom": "^29.0.2",
     "picomatch": "4.0.4",
     "postcss": "^8.5.8",
     "prettier": "^3.8.1",
