@@ -12,6 +12,7 @@ const api = axios.create({
 
 let isRefreshing = false
 let failedQueue = []
+const MAX_CACHE_SIZE = 100
 const getRequestCache = new Map()
 
 const processQueue = (error, token = null) => {
@@ -41,6 +42,13 @@ api.interceptors.response.use(
     }
 
     if (error.response.status === 401 && !originalRequest._retry) {
+      if (originalRequest.url === '/api/auth/check') {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:logout'))
+        }
+        return Promise.reject(error)
+      }
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
@@ -84,7 +92,7 @@ export const retryRequest = async (requestFn, maxRetries = RETRY_CONFIG.MAX_RETR
         throw error
       }
       if (i < maxRetries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, delay * (i + 1)))
+        await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, i)))
       }
     }
   }
@@ -133,6 +141,11 @@ export const cachedGet = (url, config = {}, cacheMs = 1500) => {
       }, cacheMs)
     }
   })
+
+  if (getRequestCache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = getRequestCache.keys().next().value
+    getRequestCache.delete(oldestKey)
+  }
 
   getRequestCache.set(key, {
     promise: requestPromise,

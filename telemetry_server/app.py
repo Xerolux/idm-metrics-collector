@@ -671,8 +671,11 @@ class InstallationSettingsUpdate(BaseModel):
 
 async def verify_token(authorization: Optional[str] = Header(None)):
     """Verify global AUTH_TOKEN (for admin endpoints)."""
-    if not AUTH_TOKEN:
-        return  # Open access if no token configured (not recommended)
+    if not AUTH_TOKEN or AUTH_TOKEN == "change-me-to-something-secure":
+        raise HTTPException(
+            status_code=503,
+            detail="Server is not properly configured. Set a strong AUTH_TOKEN.",
+        )
 
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing Authorization Header")

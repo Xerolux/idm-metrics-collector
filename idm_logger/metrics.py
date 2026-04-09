@@ -87,10 +87,11 @@ class MetricsWriter:
                     timeout = 1.0
 
                 measurements = self.queue.get(timeout=timeout)
-                self.queue.task_done()
                 if measurements is None:
+                    self.queue.task_done()
                     break
                 batch.append(measurements)
+                self.queue.task_done()
 
                 if len(batch) >= BATCH_SIZE:
                     self._send_with_retry(batch, MAX_RETRIES, RETRY_BASE_DELAY)
@@ -203,3 +204,4 @@ class MetricsWriter:
             logger.warning(
                 "Metrics worker thread did not stop gracefully, some data may be lost"
             )
+        self.session.close()

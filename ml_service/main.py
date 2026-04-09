@@ -182,9 +182,20 @@ def health():
     ), 200
 
 
+def _verify_upload_auth():
+    api_key = request.headers.get("X-API-Key", "")
+    expected = os.environ.get("INTERNAL_API_KEY", "")
+    if not expected or not api_key or api_key != expected:
+        return False
+    return True
+
+
 @health_app.route("/model/upload", methods=["POST"])
 def upload_model():
     try:
+        if not _verify_upload_auth():
+            return jsonify({"error": "Unauthorized"}), 401
+
         if "file" not in request.files:
             return jsonify({"error": "No file part"}), 400
         file = request.files["file"]

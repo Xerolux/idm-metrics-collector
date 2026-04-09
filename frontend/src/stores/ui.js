@@ -44,6 +44,7 @@ export const useUiStore = defineStore('ui', {
         this.darkModeMediaQuery = null
         this._darkModeChangeListener = null
       }
+      this.initialized = false
     },
     setEditMode(value) {
       this.editMode = value
@@ -61,7 +62,7 @@ export const useUiStore = defineStore('ui', {
       }
       if (value) {
         document.documentElement.classList.add('my-app-dark')
-        document.documentElement.classList.remove('dark')
+        document.documentElement.classList.add('dark')
       } else {
         document.documentElement.classList.remove('my-app-dark')
         document.documentElement.classList.remove('dark')

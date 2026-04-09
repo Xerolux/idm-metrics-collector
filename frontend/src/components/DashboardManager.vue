@@ -441,6 +441,7 @@
       modal
       :style="{ width: '90vw', maxWidth: '600px' }"
       :closable="true"
+      @hide="onAlarmDialogHide"
     >
       <template #header>
         <div class="flex items-center justify-between w-full pr-2">
@@ -1073,10 +1074,14 @@ const applyTemplate = async (template) => {
   }
 }
 
+const _anomalyDismissedKey = 'idm_alarm_dialog_dismissed'
+
 const loadUnacknowledgedAnomalies = async () => {
   try {
+    const dismissed = sessionStorage.getItem(_anomalyDismissedKey)
+    if (dismissed) return
+
     const response = await api.get('/api/annotations')
-    // Filter client-side for simplicity
     unacknowledgedAnomalies.value = response.data.filter(
       (a) => a.tags && a.tags.includes('anomaly') && !a.acknowledged
     )
@@ -1099,6 +1104,7 @@ const acknowledgeAnomaly = async (anomaly) => {
 
     if (unacknowledgedAnomalies.value.length === 0) {
       showAlarmDialog.value = false
+      sessionStorage.removeItem(_anomalyDismissedKey)
     }
 
     toast.add({
@@ -1125,6 +1131,7 @@ const acknowledgeAllAnomalies = async () => {
     const count = response.data?.acknowledged ?? unacknowledgedAnomalies.value.length
     unacknowledgedAnomalies.value = []
     showAlarmDialog.value = false
+    sessionStorage.removeItem(_anomalyDismissedKey)
     toast.add({
       severity: 'success',
       summary: 'Alle quittiert',
@@ -1141,6 +1148,12 @@ const acknowledgeAllAnomalies = async () => {
     })
   } finally {
     acknowledgingAll.value = false
+  }
+}
+
+const onAlarmDialogHide = () => {
+  if (unacknowledgedAnomalies.value.length > 0) {
+    sessionStorage.setItem(_anomalyDismissedKey, '1')
   }
 }
 </script>
