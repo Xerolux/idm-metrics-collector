@@ -68,12 +68,9 @@ def _decode_registers(
             registers = list(reversed(registers))
 
     # Pack registers to bytes (each register is 16 bits)
-    byte_data = b""
-    for reg in registers:
-        if byteorder.lower() == "big":
-            byte_data += struct.pack(">H", reg)  # Big endian 16-bit
-        else:
-            byte_data += struct.pack("<H", reg)  # Little endian 16-bit
+    # ⚡ Bolt: Optimized: Use vectorized struct.pack instead of loop concatenation
+    fmt_char = ">" if byteorder.lower() == "big" else "<"
+    byte_data = struct.pack(f"{fmt_char}{len(registers)}H", *registers)
 
     # Decode based on datatype
     if datatype == "float32":
@@ -138,12 +135,10 @@ def _encode_value(
         byte_data = struct.pack(">H", int(value))
 
     # Convert bytes to registers (16-bit chunks)
-    registers = []
-    for i in range(0, len(byte_data), 2):
-        if byteorder.lower() == "big":
-            registers.append(struct.unpack(">H", byte_data[i : i + 2])[0])
-        else:
-            registers.append(struct.unpack("<H", byte_data[i : i + 2])[0])
+    # ⚡ Bolt: Optimized: Use vectorized struct.unpack instead of loop slicing
+    fmt_char = ">" if byteorder.lower() == "big" else "<"
+    num_registers = len(byte_data) // 2
+    registers = list(struct.unpack(f"{fmt_char}{num_registers}H", byte_data))
 
     # Apply word order
     if wordorder.lower() == "little" and len(registers) > 1:
