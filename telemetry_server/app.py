@@ -128,10 +128,12 @@ RATE_LIMIT_WINDOW = rate_limit_config.window
 MAX_RATE_LIMIT_ENTRIES = rate_limit_config.max_entries
 RATE_LIMITS = rate_limit_config.limits
 
-ADMIN_RUNTIME_SETTINGS: Dict[str, int] = {
+ADMIN_RUNTIME_SETTINGS: Dict[str, Any] = {
     "admin_rate_limit": int(RATE_LIMITS.get("admin", 20)),
     "max_training_queue": int(os.environ.get("MAX_TRAINING_QUEUE", "10")),
     "max_parallel_training": int(os.environ.get("MAX_PARALLEL_TRAINING", "1")),
+    "min_installations": MIN_INSTALLATIONS_FOR_MODEL,
+    "min_data_points": MIN_DATA_POINTS_FOR_MODEL,
 }
 
 PERMISSION_PRESETS: Dict[str, List[str]] = {
@@ -583,9 +585,12 @@ async def get_data_pool_stats(request: Request) -> Dict[str, Any]:
         stats["models_available"] = models_available
 
         # Determine if data is sufficient
-        stats["data_sufficient"] = (
-            stats["total_installations"] >= MIN_INSTALLATIONS_FOR_MODEL
-            and stats["total_data_points"] >= MIN_DATA_POINTS_FOR_MODEL
+        stats["data_sufficient"] = stats[
+            "total_installations"
+        ] >= ADMIN_RUNTIME_SETTINGS.get(
+            "min_installations", MIN_INSTALLATIONS_FOR_MODEL
+        ) and stats["total_data_points"] >= ADMIN_RUNTIME_SETTINGS.get(
+            "min_data_points", MIN_DATA_POINTS_FOR_MODEL
         )
 
         # Generate user-friendly messages
@@ -655,6 +660,8 @@ class RuntimeLimitsUpdate(BaseModel):
     admin_rate_limit: Optional[int] = None
     max_training_queue: Optional[int] = None
     max_parallel_training: Optional[int] = None
+    min_installations: Optional[int] = None
+    min_data_points: Optional[int] = None
 
 
 class PermissionPresetApply(BaseModel):
@@ -2892,6 +2899,18 @@ async def admin_update_runtime_limits(
                 detail="max_parallel_training currently supports only value 1",
             )
         updates["max_parallel_training"] = int(payload.max_parallel_training)
+    if payload.min_installations is not None:
+        if payload.min_installations < 1 or payload.min_installations > 1000:
+            raise HTTPException(
+                status_code=400, detail="min_installations must be 1..1000"
+            )
+        updates["min_installations"] = int(payload.min_installations)
+    if payload.min_data_points is not None:
+        if payload.min_data_points < 0 or payload.min_data_points > 10_000_000:
+            raise HTTPException(
+                status_code=400, detail="min_data_points must be 0..10000000"
+            )
+        updates["min_data_points"] = int(payload.min_data_points)
 
     ADMIN_RUNTIME_SETTINGS.update(updates)
     audit_logger.log(
