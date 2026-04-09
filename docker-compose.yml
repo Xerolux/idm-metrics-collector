@@ -22,7 +22,8 @@ services:
       # Internal API Key (Shared Secret)
       - INTERNAL_API_KEY=change_me_secure_key
       # Telemetry shared token (must match AUTH_TOKEN on the telemetry server)
-      # - TELEMETRY_SHARED_TOKEN=COMMUNITY-CONTRIBUTOR-TOKEN-2026
+      - TELEMETRY_SHARED_TOKEN=COMMUNITY-CONTRIBUTOR-TOKEN-2026
+      - TELEMETRY_ENABLED=false
       # MQTT settings (optional - configure via web UI or uncomment below)
       # - MQTT_ENABLED=false
       # - MQTT_BROKER=mqtt.example.com

@@ -106,6 +106,10 @@ class OnlineStandardScaler:
                 delta = value - self.means[key]
                 self.means[key] += delta / count
                 delta2 = value - self.means[key]
+                if key not in self.m2:
+                    self.m2[key] = 0.0
+                if key not in self.vars:
+                    self.vars[key] = 0.0
                 self.m2[key] += delta * delta2
                 self.vars[key] = self.m2[key] / count if count > 1 else 0.0
 
@@ -420,6 +424,7 @@ class AutoencoderModel:
             "scaler_means": dict(self.scaler.means),
             "scaler_vars": dict(self.scaler.vars),
             "scaler_n": dict(self.scaler.n),
+            "scaler_m2": dict(self.scaler.m2),
             "ema_loss": self.ema_loss,
             "ema_loss_sq": self.ema_loss_sq,
             "net_state": self.net.state_dict() if self.net else None,
@@ -444,6 +449,7 @@ class AutoencoderModel:
                 self.scaler.n[key] = scaler_n
         else:
             self.scaler.n = scaler_n
+        self.scaler.m2 = state.get("scaler_m2", {})
         self.ema_loss = state.get("ema_loss")
         self.ema_loss_sq = state.get("ema_loss_sq")
 
