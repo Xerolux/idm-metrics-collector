@@ -26,6 +26,29 @@ RECONNECT_MAX_DELAY = config.get("modbus.reconnect_max_delay", 60.0)
 RECONNECT_MULTIPLIER = config.get("modbus.reconnect_multiplier", 2.0)
 
 
+def _normalize_binary_value(value):
+    """Normalize binary sensor input to a strict bool value."""
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, int):
+        if value in (0, 1):
+            return bool(value)
+        raise ValueError("Binary sensors accept only 0/1 for integer values")
+
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "off"}:
+            return False
+        raise ValueError(
+            "Binary sensors accept only true/false, yes/no, on/off, or 0/1"
+        )
+
+    raise ValueError("Binary sensors accept only bool, int, or string values")
+
+
 class ModbusClient:
     def __init__(self, host, port):
         self.host = host
@@ -374,6 +397,30 @@ class ModbusClient:
                         self._read_block_individually(block, data)
                         continue
 
+                    if not hasattr(rr, "registers"):
+                        logger.warning(
+                            f"Bulk read returned malformed response for block {start_addr}-{end_addr}. "
+                            "Falling back to individual reads."
+                        )
+                        self._stats["total_read_errors"] += 1
+                        self._stats["last_error"] = (
+                            "Malformed Modbus response: missing registers"
+                        )
+                        self._read_block_individually(block, data)
+                        continue
+
+                    if len(rr.registers) < count:
+                        logger.warning(
+                            f"Bulk read returned {len(rr.registers)} registers for block {start_addr}-{end_addr}, "
+                            f"expected at least {count}. Falling back to individual reads."
+                        )
+                        self._stats["total_read_errors"] += 1
+                        self._stats["last_error"] = (
+                            f"Short Modbus response: got {len(rr.registers)}, expected {count}"
+                        )
+                        self._read_block_individually(block, data)
+                        continue
+
                     # Parse sensors in this block
                     for sensor in block:
                         # Calculate offset in the response registers
@@ -455,22 +502,7 @@ class ModbusClient:
 
         try:
             if name in self.binary_sensors:
-                if isinstance(value, bool):
-                    pass
-                elif isinstance(value, int):
-                    value = bool(value)
-                elif isinstance(value, str):
-                    normalized = value.strip().lower()
-                    if normalized in {"true", "1", "yes", "on"}:
-                        value = True
-                    elif normalized in {"false", "0", "no", "off"}:
-                        value = False
-                    else:
-                        raise ValueError("Binary sensors accept only true/false or 0/1")
-                else:
-                    raise ValueError(
-                        "Binary sensors accept only bool, int, or string values"
-                    )
+                value = _normalize_binary_value(value)
 
             # If it's a float sensor
             elif hasattr(sensor, "scale"):
