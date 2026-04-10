@@ -158,9 +158,7 @@ All workflows are in `.github/workflows/`:
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `ci.yml` | push/PR to main | Lint (Ruff + ESLint) + pytest + Vite build |
-| `docker-image.yml` | `v*` tags, manual | Multi-arch Docker build → GHCR + Docker Hub |
-| `docker-ml-service.yml` | tags/manual | ML service container |
-| `docker-telemetry.yml` | tags/manual | Telemetry server container |
+| `release.yml` | `v*` tags, manual | Multi-arch Docker build (main + ML + telemetry) → GHCR + Docker Hub |
 | `wiki-sync.yml` | push to main | Sync docs/ to GitHub Wiki |
 
 **Before pushing:** always run `ruff check .` and `pytest` locally to avoid CI failures.
