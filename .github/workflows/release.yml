@@ -28,8 +28,7 @@ permissions:
 jobs:
   prepare:
     name: Determine version
-    runs-on: self-hosted
-    # runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     outputs:
       docker_tag: ${{ steps.resolve.outputs.docker_tag }}
       app_version: ${{ steps.resolve.outputs.app_version }}
@@ -99,8 +98,7 @@ jobs:
     name: Build Main App
     needs: prepare
     if: always() && needs.prepare.result == 'success'
-    runs-on: self-hosted
-    # runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -156,8 +154,7 @@ jobs:
     needs: prepare
     if: always() && needs.prepare.result == 'success'
     runs-on: self-hosted
-    #     runs-on: self-hosted
-    # runs-on: ubuntu-latest
+    #     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -210,8 +207,7 @@ jobs:
     needs: prepare
     if: always() && needs.prepare.result == 'success'
     runs-on: self-hosted
-    #     runs-on: self-hosted
-    # runs-on: ubuntu-latest
+    #     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
