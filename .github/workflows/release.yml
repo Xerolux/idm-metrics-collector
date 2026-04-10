@@ -7,19 +7,97 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Docker tag (e.g. v1.0.0 or latest)'
+      release_mode:
+        description: 'Release mode'
         required: true
         default: 'latest'
+        type: choice
+        options:
+          - latest
+          - auto-bump
+          - custom
+      custom_version:
+        description: 'Custom version (only for "custom" mode, e.g. v1.2.3)'
+        required: false
         type: string
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
+  prepare:
+    name: Determine version
+    runs-on: ubuntu-latest
+    outputs:
+      docker_tag: ${{ steps.resolve.outputs.docker_tag }}
+      app_version: ${{ steps.resolve.outputs.app_version }}
+      is_latest: ${{ steps.resolve.outputs.is_latest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: resolve
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG#v}"
+            echo "docker_tag=${TAG}" >> $GITHUB_OUTPUT
+            echo "app_version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "is_latest=false" >> $GITHUB_OUTPUT
+
+          elif [[ "${{ inputs.release_mode }}" == "latest" ]]; then
+            SHA=$(git rev-parse --short HEAD)
+            BASE=$(cat VERSION | tr -d '[:space:]')
+            echo "docker_tag=latest" >> $GITHUB_OUTPUT
+            echo "app_version=${BASE}+dev.${SHA}" >> $GITHUB_OUTPUT
+            echo "is_latest=true" >> $GITHUB_OUTPUT
+
+          elif [[ "${{ inputs.release_mode }}" == "auto-bump" ]]; then
+            CURRENT=$(cat VERSION | tr -d '[:space:]')
+            MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+            MINOR=$(echo "$CURRENT" | cut -d. -f2)
+            PATCH=$(echo "$CURRENT" | cut -d. -f3)
+            NEW_PATCH=$((PATCH + 1))
+            NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+            NEW_TAG="v${NEW_VERSION}"
+            echo "docker_tag=${NEW_TAG}" >> $GITHUB_OUTPUT
+            echo "app_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+            echo "is_latest=false" >> $GITHUB_OUTPUT
+
+          elif [[ "${{ inputs.release_mode }}" == "custom" ]]; then
+            INPUT="${{ inputs.custom_version }}"
+            VERSION="${INPUT#v}"
+            echo "docker_tag=v${VERSION}" >> $GITHUB_OUTPUT
+            echo "app_version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "is_latest=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Auto-bump VERSION file and tag
+        if: inputs.release_mode == 'auto-bump'
+        run: |
+          CURRENT=$(cat VERSION | tr -d '[:space:]')
+          MAJOR=$(echo "$CURRENT" | cut -d. -f1)
+          MINOR=$(echo "$CURRENT" | cut -d. -f2)
+          PATCH=$(echo "$CURRENT" | cut -d. -f3)
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+          NEW_TAG="v${NEW_VERSION}"
+          echo "${NEW_VERSION}" > VERSION
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "Bump version to ${NEW_VERSION}"
+          git tag "${NEW_TAG}"
+          git push origin main --tags
+
   build-main:
     name: Build Main App
+    needs: prepare
+    if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -53,29 +131,7 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/idm-metrics-collector
           tags: |
             type=ref,event=tag
-            type=raw,value=latest,enable=${{ github.event_name == 'workflow_dispatch' }}
-            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.version != 'latest' }}
-          labels: |
-            org.opencontainers.image.description=Modern dashboard for IDM Heatpumps. Monitoring, control and automation for IDM Navigator 2.0.
-          annotations: |
-            org.opencontainers.image.description=Modern dashboard for IDM Heatpumps. Monitoring, control and automation for IDM Navigator 2.0.
-
-      - name: Get short SHA
-        id: vars
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Determine Version
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "app_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          elif [[ "${{ inputs.version }}" != "latest" ]]; then
-            VERSION_INPUT="${{ inputs.version }}"
-            echo "app_version=${VERSION_INPUT#v}" >> $GITHUB_OUTPUT
-          else
-            BASE_VERSION=$(cat VERSION | tr -d '[:space:]')
-            echo "app_version=${BASE_VERSION}.${{ steps.vars.outputs.sha_short }}" >> $GITHUB_OUTPUT
-          fi
+            type=raw,value=${{ needs.prepare.outputs.docker_tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push (Multi-Arch)
         uses: docker/build-push-action@v6
@@ -84,7 +140,7 @@ jobs:
           pull: true
           push: true
           build-args: |
-            APP_VERSION=${{ steps.version.outputs.app_version }}
+            APP_VERSION=${{ needs.prepare.outputs.app_version }}
             CACHEBUST=${{ github.run_id }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -95,6 +151,8 @@ jobs:
 
   build-ml:
     name: Build ML Service
+    needs: prepare
+    if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -128,28 +186,7 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/idm-metrics-collector-ml
           tags: |
             type=ref,event=tag
-            type=raw,value=latest,enable=${{ github.event_name == 'workflow_dispatch' }}
-            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.version != 'latest' }}
-          labels: |
-            org.opencontainers.image.description=ML Service for IDM Metrics Collector - Anomaly detection and predictive analytics.
-          annotations: |
-            org.opencontainers.image.description=ML Service for IDM Metrics Collector - Anomaly detection and predictive analytics.
-
-      - name: Get short SHA
-        id: vars
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Determine Version
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "app_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          elif [[ "${{ inputs.version }}" != "latest" ]]; then
-            VERSION_INPUT="${{ inputs.version }}"
-            echo "app_version=${VERSION_INPUT#v}" >> $GITHUB_OUTPUT
-          else
-            echo "app_version=0.6.${{ steps.vars.outputs.sha_short }}" >> $GITHUB_OUTPUT
-          fi
+            type=raw,value=${{ needs.prepare.outputs.docker_tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push ML Service
         uses: docker/build-push-action@v6
@@ -158,7 +195,7 @@ jobs:
           file: ml_service/Dockerfile
           push: true
           build-args: |
-            APP_VERSION=${{ steps.version.outputs.app_version }}
+            APP_VERSION=${{ needs.prepare.outputs.app_version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
@@ -166,6 +203,8 @@ jobs:
 
   build-telemetry:
     name: Build Telemetry Server
+    needs: prepare
+    if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -199,28 +238,7 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/idm-metrics-collector-telemetry
           tags: |
             type=ref,event=tag
-            type=raw,value=latest,enable=${{ github.event_name == 'workflow_dispatch' }}
-            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.version != 'latest' }}
-          labels: |
-            org.opencontainers.image.description=Telemetry Server for IDM Metrics Collector - Central metrics aggregation and analytics.
-          annotations: |
-            org.opencontainers.image.description=Telemetry Server for IDM Metrics Collector - Central metrics aggregation and analytics.
-
-      - name: Get short SHA
-        id: vars
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Determine Version
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "app_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          elif [[ "${{ inputs.version }}" != "latest" ]]; then
-            VERSION_INPUT="${{ inputs.version }}"
-            echo "app_version=${VERSION_INPUT#v}" >> $GITHUB_OUTPUT
-          else
-            echo "app_version=0.7.${{ steps.vars.outputs.sha_short }}" >> $GITHUB_OUTPUT
-          fi
+            type=raw,value=${{ needs.prepare.outputs.docker_tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push Telemetry Server
         uses: docker/build-push-action@v6
@@ -229,7 +247,7 @@ jobs:
           file: telemetry_server/Dockerfile
           push: true
           build-args: |
-            APP_VERSION=${{ steps.version.outputs.app_version }}
+            APP_VERSION=${{ needs.prepare.outputs.app_version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
