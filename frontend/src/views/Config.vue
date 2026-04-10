@@ -1024,6 +1024,7 @@
                         size="small"
                         @click="uploadToCloud(backup.filename)"
                         title="Upload to WebDAV"
+                        aria-label="Upload to WebDAV"
                       />
                       <Button
                         icon="pi pi-download"
@@ -1801,6 +1802,7 @@
                             severity="info"
                             @click="openPermissionDialog(admin)"
                             v-tooltip="'Edit Permissions'"
+                            aria-label="Edit Permissions"
                           />
                         </td>
                       </tr>
@@ -1833,6 +1835,7 @@
                     size="small"
                     @click="fetchTrainingInfo"
                     v-tooltip="'Refresh'"
+                    aria-label="Refresh"
                   />
                 </div>
 
@@ -2876,7 +2879,8 @@ const normalizeTokenValue = (value) => {
 }
 
 const getAdminHeaders = () => {
-  const authToken = normalizeTokenValue(config.value.telemetry?.admin_auth_token) ||
+  const authToken =
+    normalizeTokenValue(config.value.telemetry?.admin_auth_token) ||
     normalizeTokenValue(config.value.telemetry?.auth_token)
   return authToken ? { Authorization: `Bearer ${authToken}` } : {}
 }
