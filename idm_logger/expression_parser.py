@@ -269,18 +269,63 @@ class ExpressionParser:
         Returns:
             List of (timestamp, value) tuples
         """
-        # Get all unique timestamps from all queries
         all_timestamps = set()
-        for values in self.query_results.values():
-            for ts, _ in values:
-                all_timestamps.add(ts)
+        query_dicts = {}
 
-        # Evaluate expression at each timestamp
+        # We process query results into dicts to make O(1) lookups
+        for query_label, values in self.query_results.items():
+            d = {ts: val for ts, val in values}
+            query_dicts[query_label] = d
+            all_timestamps.update(d.keys())
+
+        # Determine which queries are used
+        queries_in_expr = self.parse_expression(expression)
+        queries_dicts_to_check = [query_dicts.get(q) for q in queries_in_expr]
+
+        # Fast fail if a query is missing entirely
+        if any(d is None for d in queries_dicts_to_check):
+            return []
+
+        try:
+            tree = ast.parse(expression.strip(), mode="eval")
+        except Exception as e:
+            logger.error(f"Error parsing expression '{expression}': {e}")
+            return []
+
+        variables = {}
+
+        # Local evaluator using a closure for ultra-fast variable lookup
+        class LocalEvaluator(SafeExpressionEvaluator):
+            def visit_Name(self, node):
+                if node.id in variables:
+                    return variables[node.id]
+                # Default to base behavior (which throws ValueError, preserving error semantics)
+                return self.generic_visit(node)
+
+        evaluator = LocalEvaluator()
+
         results = []
-        for timestamp in sorted(all_timestamps):
-            value = self.evaluate_expression(expression, timestamp)
-            if value is not None:
-                results.append((timestamp, value))
+        body = tree.body
+        visit = evaluator.visit
+
+        # Sort timestamps once
+        sorted_timestamps = sorted(all_timestamps)
+
+        num_queries = len(queries_in_expr)
+
+        for timestamp in sorted_timestamps:
+            try:
+                # We need to fill variables for the evaluator
+                for i in range(num_queries):
+                    variables[queries_in_expr[i]] = queries_dicts_to_check[i][timestamp]
+
+                result = visit(body)
+                results.append((timestamp, float(result)))
+            except KeyError:
+                continue
+            except Exception as e:
+                logger.error(f"Error evaluating expression '{expression}' at {timestamp}: {e}")
+                continue
 
         return results
 
