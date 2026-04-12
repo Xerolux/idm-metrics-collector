@@ -324,7 +324,9 @@ class ExpressionParser:
             except KeyError:
                 continue
             except Exception as e:
-                logger.error(f"Error evaluating expression '{expression}' at {timestamp}: {e}")
+                logger.error(
+                    f"Error evaluating expression '{expression}' at {timestamp}: {e}"
+                )
                 continue
 
         return results
