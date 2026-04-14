@@ -48,16 +48,28 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
     # Allowed function names
     ALLOWED_FUNCTIONS = {"min", "max", "abs", "sum", "avg"}
 
-    def __init__(self):
+    def __init__(self, variables=None):
+        self.variables = variables or {}
         self.result = None
 
-    def evaluate(self, expr: str) -> float:
+    def evaluate(self, expr: Union[str, ast.AST]) -> float:
         """Safely evaluate a mathematical expression."""
         try:
-            tree = ast.parse(expr, mode="eval")
-            return self.visit(tree.body)
+            if isinstance(expr, str):
+                tree = ast.parse(expr, mode="eval")
+                body = tree.body
+            elif hasattr(expr, "body"):
+                body = expr.body
+            else:
+                body = expr
+            return self.visit(body)
         except (SyntaxError, ValueError, TypeError) as e:
             raise ValueError(f"Invalid expression: {e}")
+
+    def visit_Name(self, node):
+        if node.id in self.variables:
+            return self.variables[node.id]
+        return self.generic_visit(node)
 
     def visit_BinOp(self, node):
         left = self.visit(node.left)
@@ -230,34 +242,24 @@ class ExpressionParser:
             logger.error(f"Error evaluating expression '{expression}': {e}")
             return None
 
-    def _evaluate_with_values(self, expression: str, values: Dict[str, float]) -> float:
+    def _evaluate_with_values(self, expression: Union[str, ast.AST], values: Dict[str, float]) -> float:
         """
         Evaluate an expression with given query values.
 
         Args:
-            expression: The expression to evaluate
+            expression: The expression to evaluate (can be a string or a pre-parsed AST node)
             values: Dictionary mapping query labels to their values
 
         Returns:
             The calculated value
         """
-        # Replace query references with their values
-        expr = expression
-        for query_label, value in values.items():
-            # Use word boundaries to avoid partial replacements
-            expr = re.sub(r"\b" + re.escape(query_label) + r"\b", str(value), expr)
-
-        # Removed regex-based function replacement to prevent ReDoS
-        # Functions are now handled directly by SafeExpressionEvaluator
-
         # Safe evaluation using AST-based evaluator (no eval!)
-        expr = expr.strip()
         try:
-            evaluator = SafeExpressionEvaluator()
-            result = evaluator.evaluate(expr)
+            evaluator = SafeExpressionEvaluator(variables=values)
+            result = evaluator.evaluate(expression)
             return float(result)
         except Exception as e:
-            raise ValueError(f"Failed to evaluate expression '{expr}': {e}")
+            raise ValueError(f"Failed to evaluate expression '{expression}': {e}")
 
     def evaluate_expression_series(self, expression: str) -> List[tuple]:
         """
@@ -269,18 +271,54 @@ class ExpressionParser:
         Returns:
             List of (timestamp, value) tuples
         """
-        # Get all unique timestamps from all queries
+        # Parse the expression once
+        try:
+            parsed_ast = ast.parse(expression, mode="eval")
+        except Exception as e:
+            logger.error(f"Failed to parse expression '{expression}': {e}")
+            return []
+
+        required_queries = self.parse_expression(expression)
+
+        # Restructure query_results for O(1) lookups per timestamp
+        query_dicts = {}
+        for q in required_queries:
+            if q not in self.query_results:
+                return []  # Missing required data
+            query_dicts[q] = {ts: val for ts, val in self.query_results[q]}
+
+        # Get all unique timestamps from required queries
+        if not required_queries:
+            return []
+
         all_timestamps = set()
-        for values in self.query_results.values():
-            for ts, _ in values:
-                all_timestamps.add(ts)
+        for q in required_queries:
+            all_timestamps.update(query_dicts[q].keys())
 
         # Evaluate expression at each timestamp
         results = []
         for timestamp in sorted(all_timestamps):
-            value = self.evaluate_expression(expression, timestamp)
-            if value is not None:
-                results.append((timestamp, value))
+            # Gather values for this timestamp
+            query_values = {}
+            valid_timestamp = True
+
+            for q in required_queries:
+                if timestamp in query_dicts[q]:
+                    query_values[q] = query_dicts[q][timestamp]
+                else:
+                    valid_timestamp = False
+                    break
+
+            if not valid_timestamp:
+                continue
+
+            # Evaluate with gathered values
+            try:
+                value = self._evaluate_with_values(parsed_ast, query_values)
+                if value is not None:
+                    results.append((timestamp, value))
+            except Exception as e:
+                logger.error(f"Error evaluating expression '{expression}' at {timestamp}: {e}")
 
         return results
 
