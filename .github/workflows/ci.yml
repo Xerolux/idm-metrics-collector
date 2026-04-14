@@ -58,7 +58,7 @@ jobs:
     - name: Run Root Tests
       run: |
         if ls tests/test_*.py >/dev/null 2>&1; then
-          pytest -q tests
+          PYTHONPATH=. pytest -q tests
         else
           echo "No root tests found."
         fi

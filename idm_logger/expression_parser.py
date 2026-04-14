@@ -242,7 +242,9 @@ class ExpressionParser:
             logger.error(f"Error evaluating expression '{expression}': {e}")
             return None
 
-    def _evaluate_with_values(self, expression: Union[str, ast.AST], values: Dict[str, float]) -> float:
+    def _evaluate_with_values(
+        self, expression: Union[str, ast.AST], values: Dict[str, float]
+    ) -> float:
         """
         Evaluate an expression with given query values.
 
@@ -318,7 +320,9 @@ class ExpressionParser:
                 if value is not None:
                     results.append((timestamp, value))
             except Exception as e:
-                logger.error(f"Error evaluating expression '{expression}' at {timestamp}: {e}")
+                logger.error(
+                    f"Error evaluating expression '{expression}' at {timestamp}: {e}"
+                )
 
         return results
 
