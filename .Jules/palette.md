@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2024-06-25 - Using standard buttons as custom toggle elements
+**Learning:** When using standard `<button>` elements styled as custom toggle switches or mutually exclusive selection cards (like in `ExportDialog.vue`), visual styling (like a colored border or background) alone is insufficient for screen readers to identify which option is selected.
+**Action:** Always add a dynamic `:aria-pressed` binding (e.g., `:aria-pressed="currentValue === 'option'"`) to such buttons to explicitly communicate their toggle state to assistive technologies.
