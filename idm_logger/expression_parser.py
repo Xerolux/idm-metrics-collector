@@ -316,7 +316,9 @@ class ExpressionParser:
                 result = float(evaluator.visit(tree.body))
                 results.append((timestamp, result))
             except Exception as e:
-                logger.error(f"Error evaluating expression '{expression}' at timestamp {timestamp}: {e}")
+                logger.error(
+                    f"Error evaluating expression '{expression}' at timestamp {timestamp}: {e}"
+                )
                 continue
 
         return results
