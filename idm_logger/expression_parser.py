@@ -48,8 +48,14 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
     # Allowed function names
     ALLOWED_FUNCTIONS = {"min", "max", "abs", "sum", "avg"}
 
-    def __init__(self):
+    def __init__(self, variables: Dict[str, float] = None):
         self.result = None
+        self.variables = variables or {}
+
+    def visit_Name(self, node):
+        if node.id in self.variables:
+            return self.variables[node.id]
+        return self.generic_visit(node)
 
     def evaluate(self, expr: str) -> float:
         """Safely evaluate a mathematical expression."""
@@ -241,19 +247,10 @@ class ExpressionParser:
         Returns:
             The calculated value
         """
-        # Replace query references with their values
-        expr = expression
-        for query_label, value in values.items():
-            # Use word boundaries to avoid partial replacements
-            expr = re.sub(r"\b" + re.escape(query_label) + r"\b", str(value), expr)
-
-        # Removed regex-based function replacement to prevent ReDoS
-        # Functions are now handled directly by SafeExpressionEvaluator
-
         # Safe evaluation using AST-based evaluator (no eval!)
-        expr = expr.strip()
+        expr = expression.strip()
         try:
-            evaluator = SafeExpressionEvaluator()
+            evaluator = SafeExpressionEvaluator(variables=values)
             result = evaluator.evaluate(expr)
             return float(result)
         except Exception as e:
@@ -269,18 +266,58 @@ class ExpressionParser:
         Returns:
             List of (timestamp, value) tuples
         """
+        # Parse queries needed
+        queries_needed = self.parse_expression(expression)
+
+        # Verify all needed queries exist
+        if not all(q in self.query_results for q in queries_needed):
+            return []
+
         # Get all unique timestamps from all queries
         all_timestamps = set()
         for values in self.query_results.values():
             for ts, _ in values:
                 all_timestamps.add(ts)
 
+        # Build dictionary for fast O(1) lookups: query_label -> {timestamp: value}
+        query_dicts = {}
+        for q in queries_needed:
+            query_dicts[q] = {ts: val for ts, val in self.query_results[q]}
+
+        # Precompile AST outside the loop
+        expr = expression.strip()
+        try:
+            tree = ast.parse(expr, mode="eval")
+        except (SyntaxError, ValueError, TypeError) as e:
+            logger.error(f"Error parsing expression '{expr}': {e}")
+            return []
+
+        evaluator = SafeExpressionEvaluator()
+
         # Evaluate expression at each timestamp
         results = []
         for timestamp in sorted(all_timestamps):
-            value = self.evaluate_expression(expression, timestamp)
-            if value is not None:
-                results.append((timestamp, value))
+            # Fetch values for this timestamp
+            values = {}
+            missing_val = False
+            for q in queries_needed:
+                val = query_dicts[q].get(timestamp)
+                if val is None:
+                    missing_val = True
+                    break
+                values[q] = val
+
+            if missing_val:
+                continue
+
+            evaluator.variables = values
+            try:
+                # directly visit compiled tree
+                result = float(evaluator.visit(tree.body))
+                results.append((timestamp, result))
+            except Exception as e:
+                logger.error(f"Error evaluating expression '{expression}' at timestamp {timestamp}: {e}")
+                continue
 
         return results
 
