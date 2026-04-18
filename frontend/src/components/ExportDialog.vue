@@ -19,6 +19,7 @@
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
             ]"
+            :aria-pressed="exportType === 'visual'"
           >
             <i class="pi pi-image text-xl mb-1"></i>
             <div class="font-medium text-sm">Visuell</div>
@@ -33,6 +34,7 @@
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
             ]"
+            :aria-pressed="exportType === 'data'"
           >
             <i class="pi pi-database text-xl mb-1"></i>
             <div class="font-medium text-sm">Daten</div>
@@ -54,6 +56,7 @@
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
             ]"
+            :aria-pressed="selectedFormat === 'png'"
           >
             <i class="pi pi-image text-2xl mb-2"></i>
             <div class="font-medium">PNG</div>
@@ -68,6 +71,7 @@
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
             ]"
+            :aria-pressed="selectedFormat === 'pdf'"
           >
             <i class="pi pi-file-pdf text-2xl mb-2"></i>
             <div class="font-medium">PDF</div>
@@ -84,6 +88,7 @@
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
             ]"
+            :aria-pressed="selectedFormat === 'csv'"
           >
             <i class="pi pi-file text-2xl mb-2"></i>
             <div class="font-medium">CSV</div>
@@ -98,6 +103,7 @@
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
             ]"
+            :aria-pressed="selectedFormat === 'excel'"
           >
             <i class="pi pi-table text-2xl mb-2"></i>
             <div class="font-medium">Excel</div>
@@ -112,6 +118,7 @@
                 ? 'border-blue-500 bg-blue-50 text-blue-700'
                 : 'border-gray-200 hover:border-gray-300'
             ]"
+            :aria-pressed="selectedFormat === 'json'"
           >
             <i class="pi pi-code text-2xl mb-2"></i>
             <div class="font-medium">JSON</div>
