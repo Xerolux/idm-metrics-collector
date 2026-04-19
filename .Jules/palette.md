@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2024-06-25 - Checkboxes without interactive labels
+**Learning:** In `Config.vue`, specifically for feature flags (`next_gen_ai`, `new_dashboard`, `beta_training`), `Checkbox` components were used next to `<span>` tags instead of `<label>` tags. This means users couldn't click the text to toggle the checkbox, making the click target tiny and frustrating, which is a major accessibility/usability issue.
+**Action:** Always pair `Checkbox` components with `<label>` tags that have a `for` attribute matching the checkbox's `inputId`. This increases the click target area and ensures screen readers correctly associate the label with the input.

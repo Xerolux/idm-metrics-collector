@@ -2297,16 +2297,34 @@
             </div>
             <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div class="flex items-center gap-2">
-                <Checkbox v-model="installationSettings.feature_flags.next_gen_ai" binary />
-                <span class="text-sm text-gray-300">Feature: next_gen_ai</span>
+                <Checkbox
+                  v-model="installationSettings.feature_flags.next_gen_ai"
+                  binary
+                  inputId="feature_next_gen_ai"
+                />
+                <label for="feature_next_gen_ai" class="text-sm text-gray-300 cursor-pointer"
+                  >Feature: next_gen_ai</label
+                >
               </div>
               <div class="flex items-center gap-2">
-                <Checkbox v-model="installationSettings.feature_flags.new_dashboard" binary />
-                <span class="text-sm text-gray-300">Feature: new_dashboard</span>
+                <Checkbox
+                  v-model="installationSettings.feature_flags.new_dashboard"
+                  binary
+                  inputId="feature_new_dashboard"
+                />
+                <label for="feature_new_dashboard" class="text-sm text-gray-300 cursor-pointer"
+                  >Feature: new_dashboard</label
+                >
               </div>
               <div class="flex items-center gap-2">
-                <Checkbox v-model="installationSettings.feature_flags.beta_training" binary />
-                <span class="text-sm text-gray-300">Feature: beta_training</span>
+                <Checkbox
+                  v-model="installationSettings.feature_flags.beta_training"
+                  binary
+                  inputId="feature_beta_training"
+                />
+                <label for="feature_beta_training" class="text-sm text-gray-300 cursor-pointer"
+                  >Feature: beta_training</label
+                >
               </div>
             </div>
           </div>
