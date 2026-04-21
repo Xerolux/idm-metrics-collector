@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 import json
 import sqlite3
-from idm_logger.scheduler import Scheduler, MutableRow
+from idm_logger.scheduler import Scheduler
 
 
 class TestSchedulerRowHandling(unittest.TestCase):
@@ -44,8 +44,8 @@ class TestSchedulerRowHandling(unittest.TestCase):
         self.assertEqual(len(scheduler.jobs), 1)
         job = scheduler.jobs[0]
 
-        # Verify it is wrapped in MutableRow
-        self.assertIsInstance(job, MutableRow)
+        # Verify it is converted to dict natively
+        self.assertIsInstance(job, dict)
 
         # Verify access
         self.assertEqual(job["id"], "job1")
@@ -58,7 +58,7 @@ class TestSchedulerRowHandling(unittest.TestCase):
         job["last_run"] = 12345.6
         self.assertEqual(job["last_run"], 12345.6)
 
-        # Verify original row is untouched (optional, but good to know)
+        # Verify original row is untouched
         self.assertEqual(row["last_run"], 0)
 
     def test_mixed_inputs(self):
@@ -105,7 +105,7 @@ class TestSchedulerRowHandling(unittest.TestCase):
         job1 = scheduler.jobs[0]  # From DB
         job2 = scheduler.jobs[1]  # From API
 
-        self.assertIsInstance(job1, MutableRow)
+        self.assertIsInstance(job1, dict)
         self.assertIsInstance(job2, dict)
 
         # Verify uniform access
@@ -122,46 +122,6 @@ class TestSchedulerRowHandling(unittest.TestCase):
 
         self.assertEqual(job1["last_run"], 1000)
         self.assertEqual(job2["last_run"], 1000)
-
-    def test_mutable_row_dict_interface(self):
-        conn = sqlite3.connect(":memory:")
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute("CREATE TABLE t (a TEXT, b INTEGER)")
-        cursor.execute("INSERT INTO t VALUES ('test', 1)")
-        cursor.execute("SELECT * FROM t")
-        row = cursor.fetchone()
-
-        mr = MutableRow(row)
-
-        # Test len
-        self.assertEqual(len(mr), 2)
-
-        # Test keys
-        keys = list(mr.keys())
-        self.assertIn("a", keys)
-        self.assertIn("b", keys)
-
-        # Test items
-        items = dict(mr.items())
-        self.assertEqual(items["a"], "test")
-        self.assertEqual(items["b"], 1)
-
-        # Test mutation affects keys/items/len
-        mr["c"] = 3
-        self.assertEqual(len(mr), 3)
-        self.assertIn("c", mr.keys())
-        self.assertEqual(dict(mr)["c"], 3)
-
-        # Test override existing
-        mr["b"] = 99
-        self.assertEqual(mr["b"], 99)
-        self.assertEqual(dict(mr)["b"], 99)
-
-        # Test repr
-        r = repr(mr)
-        self.assertIn("'a': 'test'", r)
-        self.assertIn("'c': 3", r)
 
 
 if __name__ == "__main__":
