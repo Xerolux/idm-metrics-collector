@@ -133,7 +133,10 @@
       @change="onVariableChange"
     />
 
-    <div v-if="!isLoadingDashboards" class="flex-grow min-h-0 flex flex-col lg:flex-row gap-3 lg:overflow-hidden">
+    <div
+      v-if="!isLoadingDashboards"
+      class="flex-grow min-h-0 flex flex-col lg:flex-row gap-3 lg:overflow-hidden"
+    >
       <!-- Left Sidebar: Current Values -->
       <div class="w-full lg:w-72 flex-shrink-0 overflow-y-auto">
         <SensorValues @sensor-drag-start="onSensorDragStart" />
@@ -304,8 +307,13 @@
         <!-- Add Chart Button in Edit Mode -->
         <div
           v-if="editMode"
-          class="mt-3 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-teal-500 hover:bg-teal-50 cursor-pointer transition-colors"
+          class="mt-3 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-teal-500 hover:bg-teal-50 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-teal-500"
           @click="showAddChartDialog = true"
+          @keydown.enter="showAddChartDialog = true"
+          @keydown.space.prevent="showAddChartDialog = true"
+          role="button"
+          tabindex="0"
+          aria-label="Chart manuell hinzufügen"
         >
           <div class="text-center text-gray-500">
             <i class="pi pi-plus text-4xl mb-2"></i>
