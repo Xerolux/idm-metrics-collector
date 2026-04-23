@@ -123,5 +123,6 @@ class TestSchedulerRowHandling(unittest.TestCase):
         self.assertEqual(job1["last_run"], 1000)
         self.assertEqual(job2["last_run"], 1000)
 
+
 if __name__ == "__main__":
     unittest.main()
