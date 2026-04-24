@@ -32,3 +32,7 @@
 ## 2026-04-09 - Optimize Modbus Struct Pack/Unpack Loops
 **Learning:** In Python loops handling struct operations (like encoding/decoding Modbus registers), manual string concatenation and list slicing inside the loop is very slow and memory-intensive. However, using vectorized C-level `struct.pack` and `struct.unpack` with format multipliers (e.g., `f"{fmt_char}{len(registers)}H"`) to pack/unpack items concurrently significantly reduces CPU time and memory allocation overhead on hot paths, cutting execution times by over 30% for these methods.
 **Action:** Always prefer vectorized `struct` operations with format multipliers over manual iterations and slicing when parsing arrays of binary registers in performance-sensitive contexts.
+
+## 2026-04-10 - Custom Wrapper Class Attribute Overhead
+**Learning:** Using custom Python wrapper classes (like `MutableRow`) for `sqlite3.Row` objects introduces significant attribute access overhead in hot loops when dealing with database mutability.
+**Action:** When mutability is needed for database rows fetched into memory, convert the `sqlite3.Row` directly to a native dictionary using `dict(row)` instead of wrapping it in a custom class.
