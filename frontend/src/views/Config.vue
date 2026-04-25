@@ -16,6 +16,7 @@
           v-for="cat in categories"
           :key="cat.id"
           @click="activeCategory = cat.id"
+          :aria-pressed="activeCategory === cat.id"
           class="flex items-center gap-3 p-3 rounded-lg text-left transition-colors whitespace-nowrap"
           :class="
             activeCategory === cat.id
