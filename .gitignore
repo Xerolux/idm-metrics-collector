@@ -47,3 +47,4 @@ verification_*.png
 # AI assistant directories
 .Jules/
 .claude/
+.flask_secret.key
