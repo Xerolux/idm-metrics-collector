@@ -13,6 +13,7 @@
           <button
             type="button"
             @click="exportType = 'visual'"
+            :aria-pressed="exportType === 'visual'"
             :class="[
               'p-3 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               exportType === 'visual'
@@ -27,6 +28,7 @@
           <button
             type="button"
             @click="exportType = 'data'"
+            :aria-pressed="exportType === 'data'"
             :class="[
               'p-3 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               exportType === 'data'
@@ -48,6 +50,7 @@
           <button
             type="button"
             @click="selectedFormat = 'png'"
+            :aria-pressed="selectedFormat === 'png'"
             :class="[
               'p-4 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               selectedFormat === 'png'
@@ -62,6 +65,7 @@
           <button
             type="button"
             @click="selectedFormat = 'pdf'"
+            :aria-pressed="selectedFormat === 'pdf'"
             :class="[
               'p-4 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               selectedFormat === 'pdf'
@@ -78,6 +82,7 @@
           <button
             type="button"
             @click="selectedFormat = 'csv'"
+            :aria-pressed="selectedFormat === 'csv'"
             :class="[
               'p-4 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               selectedFormat === 'csv'
@@ -92,6 +97,7 @@
           <button
             type="button"
             @click="selectedFormat = 'excel'"
+            :aria-pressed="selectedFormat === 'excel'"
             :class="[
               'p-4 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               selectedFormat === 'excel'
@@ -106,6 +112,7 @@
           <button
             type="button"
             @click="selectedFormat = 'json'"
+            :aria-pressed="selectedFormat === 'json'"
             :class="[
               'p-4 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
               selectedFormat === 'json'
