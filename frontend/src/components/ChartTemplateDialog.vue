@@ -10,12 +10,14 @@
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Kategorie</label>
         <div class="flex flex-wrap gap-2">
-          <button type="button"
+          <button
+            type="button"
             v-for="cat in categories"
             :key="cat.id"
             @click="selectedCategory = cat.id"
+            :aria-pressed="selectedCategory === cat.id"
             :class="[
-              'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+              'px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
               selectedCategory === cat.id
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -32,9 +34,14 @@
         <div
           v-for="template in filteredTemplates"
           :key="template.id"
+          role="button"
+          tabindex="0"
+          :aria-pressed="selectedTemplate?.id === template.id"
           @click="selectTemplate(template)"
+          @keydown.enter="selectTemplate(template)"
+          @keydown.space.prevent="selectTemplate(template)"
           :class="[
-            'p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md',
+            'p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
             selectedTemplate?.id === template.id
               ? 'border-blue-500 bg-blue-50'
               : 'border-gray-200 hover:border-gray-300'
