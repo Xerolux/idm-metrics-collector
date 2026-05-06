@@ -143,8 +143,12 @@
           <div
             v-for="example in examples"
             :key="example.expression"
+            role="button"
+            tabindex="0"
             @click="expression = example.expression"
-            class="p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100 flex justify-between items-center"
+            @keydown.enter="expression = example.expression"
+            @keydown.space.prevent="expression = example.expression"
+            class="p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100 flex justify-between items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             <span class="font-mono text-sm">{{ example.expression }}</span>
             <span class="text-xs text-gray-500">{{ example.description }}</span>

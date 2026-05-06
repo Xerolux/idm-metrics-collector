@@ -182,8 +182,12 @@ onUnmounted(() => {
     <!-- Update Available Banner -->
     <div
       v-if="updateAvailable && showUpdateBanner"
-      class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 flex items-center justify-between cursor-pointer hover:from-blue-500 hover:to-blue-600 transition-all"
+      role="button"
+      tabindex="0"
+      class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 flex items-center justify-between cursor-pointer hover:from-blue-500 hover:to-blue-600 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-inset"
       @click="goToUpdate"
+      @keydown.enter="goToUpdate"
+      @keydown.space.prevent="goToUpdate"
     >
       <div class="flex items-center gap-3">
         <i class="pi pi-sync text-lg"></i>
