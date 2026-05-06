@@ -299,7 +299,9 @@ class ExpressionParser:
                     all_timestamps.add(ts)
         else:
             for query_label in required_queries:
-                query_dicts[query_label] = {ts: val for ts, val in self.query_results[query_label]}
+                query_dicts[query_label] = {
+                    ts: val for ts, val in self.query_results[query_label]
+                }
                 all_timestamps.update(query_dicts[query_label].keys())
 
         # Precompile AST once
@@ -329,7 +331,9 @@ class ExpressionParser:
                 result = evaluator.evaluate(tree)
                 results.append((timestamp, float(result)))
             except Exception as e:
-                logger.error(f"Error evaluating expression '{expression}' at timestamp {timestamp}: {e}")
+                logger.error(
+                    f"Error evaluating expression '{expression}' at timestamp {timestamp}: {e}"
+                )
 
         return results
 
