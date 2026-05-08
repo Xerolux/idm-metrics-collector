@@ -129,8 +129,18 @@
 
       <!-- Quality Options (PNG only) -->
       <div v-if="exportType === 'visual' && selectedFormat === 'png'">
-        <label class="block text-sm font-medium text-gray-700 mb-2"> Qualität: {{ scale }}x </label>
-        <input v-model.number="scale" type="range" min="1" max="4" step="0.5" class="w-full" />
+        <label for="export-quality" class="block text-sm font-medium text-gray-700 mb-2">
+          Qualität: {{ scale }}x
+        </label>
+        <input
+          id="export-quality"
+          v-model.number="scale"
+          type="range"
+          min="1"
+          max="4"
+          step="0.5"
+          class="w-full"
+        />
         <div class="flex justify-between text-xs text-gray-500 mt-1">
           <span>Klein</span>
           <span>Standard</span>
@@ -142,8 +152,11 @@
       <div v-if="exportType === 'data'" class="space-y-3">
         <!-- Time Range -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Zeitraum</label>
+          <label for="export-time-range" class="block text-sm font-medium text-gray-700 mb-2"
+            >Zeitraum</label
+          >
           <select
+            id="export-time-range"
             v-model="timeRange"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
@@ -160,16 +173,22 @@
         <!-- Custom Time Range (if selected) -->
         <div v-if="timeRange === 'custom'" class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Von</label>
+            <label for="custom-start-date" class="block text-xs font-medium text-gray-600 mb-1"
+              >Von</label
+            >
             <input
+              id="custom-start-date"
               v-model="customStartDate"
               type="datetime-local"
               class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Bis</label>
+            <label for="custom-end-date" class="block text-xs font-medium text-gray-600 mb-1"
+              >Bis</label
+            >
             <input
+              id="custom-end-date"
               v-model="customEndDate"
               type="datetime-local"
               class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
@@ -179,8 +198,11 @@
 
         <!-- Metrics Selection -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Metriken</label>
+          <label for="export-metrics-selection" class="block text-sm font-medium text-gray-700 mb-2"
+            >Metriken</label
+          >
           <select
+            id="export-metrics-selection"
             v-model="metricsSelection"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
