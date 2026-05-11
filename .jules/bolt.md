@@ -32,3 +32,9 @@
 ## 2026-04-09 - Optimize Modbus Struct Pack/Unpack Loops
 **Learning:** In Python loops handling struct operations (like encoding/decoding Modbus registers), manual string concatenation and list slicing inside the loop is very slow and memory-intensive. However, using vectorized C-level `struct.pack` and `struct.unpack` with format multipliers (e.g., `f"{fmt_char}{len(registers)}H"`) to pack/unpack items concurrently significantly reduces CPU time and memory allocation overhead on hot paths, cutting execution times by over 30% for these methods.
 **Action:** Always prefer vectorized `struct` operations with format multipliers over manual iterations and slicing when parsing arrays of binary registers in performance-sensitive contexts.
+## 2026-05-11 - O(N^2) Expression Evaluation Fix
+**Learning:** AST parsing combined with string replacement inside evaluation loops scales quadratically. Parsing  times and replacing variables with string regex per timestamp kills performance.
+**Action:** Always parse ASTs *once* outside evaluation loops. Use  dictionary inside AST NodeVisitors () and dictionary lookups instead of slow string replacements or N+1 list searches.
+## 2024-05-11 - O(N^2) Expression Evaluation Fix
+**Learning:** AST parsing combined with string replacement inside evaluation loops scales quadratically. Parsing O(N) times and replacing variables with string regex per timestamp kills performance.
+**Action:** Always parse ASTs *once* outside evaluation loops. Use variables dictionary inside AST NodeVisitors (visit_Name) and dictionary lookups instead of slow string replacements or N+1 list searches.
