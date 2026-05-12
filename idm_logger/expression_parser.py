@@ -306,7 +306,7 @@ class ExpressionParser:
                 try:
                     result = evaluator.visit(tree.body)
                     results.append((timestamp, float(result)))
-                except Exception as e:
+                except Exception:
                     # Ignore timestamps where evaluation fails (e.g., div by zero)
                     pass
 
