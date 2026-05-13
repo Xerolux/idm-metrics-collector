@@ -227,7 +227,10 @@ class ExpressionParser:
         queries_needed = self.parse_expression(expression)
         query_values = {}
         for query_label in queries_needed:
-            if query_label not in self._query_results_dict or timestamp not in self._query_results_dict[query_label]:
+            if (
+                query_label not in self._query_results_dict
+                or timestamp not in self._query_results_dict[query_label]
+            ):
                 return None
             query_values[query_label] = self._query_results_dict[query_label][timestamp]
 
@@ -270,10 +273,15 @@ class ExpressionParser:
             missing = False
             query_values = {}
             for query_label in queries_needed:
-                if query_label not in self._query_results_dict or timestamp not in self._query_results_dict[query_label]:
+                if (
+                    query_label not in self._query_results_dict
+                    or timestamp not in self._query_results_dict[query_label]
+                ):
                     missing = True
                     break
-                query_values[query_label] = self._query_results_dict[query_label][timestamp]
+                query_values[query_label] = self._query_results_dict[query_label][
+                    timestamp
+                ]
 
             if missing:
                 continue
@@ -283,7 +291,9 @@ class ExpressionParser:
                 result = evaluator.evaluate(tree)
                 results.append((timestamp, float(result)))
             except Exception as e:
-                logger.error(f"Error evaluating expression '{expression}' at {timestamp}: {e}")
+                logger.error(
+                    f"Error evaluating expression '{expression}' at {timestamp}: {e}"
+                )
 
         return results
 
