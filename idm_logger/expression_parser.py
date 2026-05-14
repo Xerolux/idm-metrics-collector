@@ -300,7 +300,8 @@ class ExpressionParser:
 
             # Filter to only timestamps that have all variables
             valid_timestamps = [
-                ts for ts in sorted(all_timestamps)
+                ts
+                for ts in sorted(all_timestamps)
                 if len(data_by_ts.get(ts, {})) == len(queries_found)
             ]
 
