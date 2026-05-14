@@ -48,8 +48,9 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
     # Allowed function names
     ALLOWED_FUNCTIONS = {"min", "max", "abs", "sum", "avg"}
 
-    def __init__(self):
+    def __init__(self, variables=None):
         self.result = None
+        self.variables = variables or {}
 
     def evaluate(self, expr: str) -> float:
         """Safely evaluate a mathematical expression."""
@@ -58,6 +59,11 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
             return self.visit(tree.body)
         except (SyntaxError, ValueError, TypeError) as e:
             raise ValueError(f"Invalid expression: {e}")
+
+    def visit_Name(self, node):
+        if node.id in self.variables:
+            return float(self.variables[node.id])
+        return self.generic_visit(node)
 
     def visit_BinOp(self, node):
         left = self.visit(node.left)
@@ -241,19 +247,13 @@ class ExpressionParser:
         Returns:
             The calculated value
         """
-        # Replace query references with their values
-        expr = expression
-        for query_label, value in values.items():
-            # Use word boundaries to avoid partial replacements
-            expr = re.sub(r"\b" + re.escape(query_label) + r"\b", str(value), expr)
-
-        # Removed regex-based function replacement to prevent ReDoS
-        # Functions are now handled directly by SafeExpressionEvaluator
+        # Removed regex-based variable replacement.
+        # Variables and functions are now handled directly by SafeExpressionEvaluator
 
         # Safe evaluation using AST-based evaluator (no eval!)
-        expr = expr.strip()
+        expr = expression.strip()
         try:
-            evaluator = SafeExpressionEvaluator()
+            evaluator = SafeExpressionEvaluator(variables=values)
             result = evaluator.evaluate(expr)
             return float(result)
         except Exception as e:
@@ -269,18 +269,52 @@ class ExpressionParser:
         Returns:
             List of (timestamp, value) tuples
         """
-        # Get all unique timestamps from all queries
-        all_timestamps = set()
-        for values in self.query_results.values():
-            for ts, _ in values:
-                all_timestamps.add(ts)
+        # Fast path parsing check
+        try:
+            # ⚡ Bolt: Precompile AST outside the loop for O(1) performance
+            tree = ast.parse(expression, mode="eval")
+        except SyntaxError:
+            return []
 
-        # Evaluate expression at each timestamp
+        all_timestamps = set()
+
+        # Collect all timestamps if there are no variables (e.g. constant expressions)
+        queries_found = self.parse_expression(expression)
+        if not queries_found:
+            for values in self.query_results.values():
+                for ts, _ in values:
+                    all_timestamps.add(ts)
+            valid_timestamps = sorted(all_timestamps)
+            data_by_ts = {ts: {} for ts in valid_timestamps}
+        else:
+            # ⚡ Bolt: Structure time-series data into O(1) dictionary lookups
+            data_by_ts = {}
+            for q in queries_found:
+                if q not in self.query_results:
+                    return []
+                for ts, val in self.query_results[q]:
+                    all_timestamps.add(ts)
+                    if ts not in data_by_ts:
+                        data_by_ts[ts] = {}
+                    data_by_ts[ts][q] = val
+
+            # Filter to only timestamps that have all variables
+            valid_timestamps = [
+                ts for ts in sorted(all_timestamps)
+                if len(data_by_ts.get(ts, {})) == len(queries_found)
+            ]
+
         results = []
-        for timestamp in sorted(all_timestamps):
-            value = self.evaluate_expression(expression, timestamp)
-            if value is not None:
-                results.append((timestamp, value))
+        evaluator = SafeExpressionEvaluator()
+
+        for ts in valid_timestamps:
+            try:
+                # ⚡ Bolt: Inject variables directly and reuse the precompiled AST tree
+                evaluator.variables = data_by_ts[ts]
+                val = evaluator.visit(tree.body)
+                results.append((ts, float(val)))
+            except Exception:
+                continue
 
         return results
 
