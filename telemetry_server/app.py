@@ -2707,7 +2707,9 @@ async def admin_get_metrics(
             for collector in REGISTRY._collector_to_names.keys():
                 for metric in collector.collect():
                     for sample in metric.samples:
-                        cached_metrics.append((metric.name, sample.labels, sample.value))
+                        cached_metrics.append(
+                            (metric.name, sample.labels, sample.value)
+                        )
         except Exception as e:
             logger.error("metrics_collection_failed", error=str(e))
 
