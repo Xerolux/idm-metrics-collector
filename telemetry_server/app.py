@@ -2698,23 +2698,28 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # ⚡ Bolt: Cache metrics to fix N+1 collection issue
+        # REGISTRY.collect() evaluates all system metrics and is extremely slow.
+        # Calling it repeatedly for each metric lookup causes severe request lag.
+        # We collect once into a flat list of tuples, turning O(N*M) collection into O(1) collection + O(N) lookup.
+        cached_metrics = []
+        try:
+            for collector in REGISTRY._collector_to_names.keys():
+                for metric in collector.collect():
+                    for sample in metric.samples:
+                        cached_metrics.append((metric.name, sample.labels, sample.value))
+        except Exception as e:
+            logger.error("metrics_collection_failed", error=str(e))
+
         def get_metric_value(metric_name, labels=None):
-            try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
-                return 0
-            except Exception:
-                return 0
+            for name, sample_labels, value in cached_metrics:
+                if name == metric_name:
+                    if labels:
+                        if all(sample_labels.get(k) == v for k, v in labels.items()):
+                            return value
+                    else:
+                        return value
+            return 0
 
         metrics_data["requests"] = {
             "total": get_metric_value("telemetry_requests_total"),
