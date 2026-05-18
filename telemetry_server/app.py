@@ -2711,7 +2711,9 @@ async def admin_get_metrics(
                 for name, sample_labels, value in metrics_cache:
                     if name == metric_name:
                         if labels:
-                            if all(sample_labels.get(k) == v for k, v in labels.items()):
+                            if all(
+                                sample_labels.get(k) == v for k, v in labels.items()
+                            ):
                                 return value
                         else:
                             return value
