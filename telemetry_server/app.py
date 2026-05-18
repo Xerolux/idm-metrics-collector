@@ -2697,21 +2697,24 @@ async def admin_get_metrics(
         from prometheus_client import REGISTRY
 
         metrics_data = {}
+        metrics_cache = []
+        try:
+            for collector in REGISTRY._collector_to_names.keys():
+                for metric in collector.collect():
+                    for sample in metric.samples:
+                        metrics_cache.append((metric.name, sample.labels, sample.value))
+        except Exception as e:
+            logger.warning("metrics_collection_partial_failure", error=str(e))
 
         def get_metric_value(metric_name, labels=None):
             try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
+                for name, sample_labels, value in metrics_cache:
+                    if name == metric_name:
+                        if labels:
+                            if all(sample_labels.get(k) == v for k, v in labels.items()):
+                                return value
+                        else:
+                            return value
                 return 0
             except Exception:
                 return 0
