@@ -2698,23 +2698,25 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # Pre-collect all metrics into a cache dictionary for O(1) lookup
+        # to avoid O(N) iteration and expensive re-collection per metric lookup
+        metrics_cache = {}
+        try:
+            for collector in REGISTRY._collector_to_names.keys():
+                for metric in collector.collect():
+                    metrics_cache[metric.name] = metric.samples
+        except Exception as e:
+            logger.warning("admin_metrics_collection_failed", error=str(e))
+
         def get_metric_value(metric_name, labels=None):
-            try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
-                return 0
-            except Exception:
-                return 0
+            samples = metrics_cache.get(metric_name, [])
+            for sample in samples:
+                if labels:
+                    if all(sample.labels.get(k) == v for k, v in labels.items()):
+                        return sample.value
+                else:
+                    return sample.value
+            return 0
 
         metrics_data["requests"] = {
             "total": get_metric_value("telemetry_requests_total"),
