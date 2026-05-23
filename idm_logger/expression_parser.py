@@ -312,7 +312,9 @@ class ExpressionParser:
                 ts_values[ts][q_label] = val
 
         # Only keep timestamps that have all variables
-        valid_timestamps = [ts for ts, vals in ts_values.items() if len(vals) == len(set(query_labels))]
+        valid_timestamps = [
+            ts for ts, vals in ts_values.items() if len(vals) == len(set(query_labels))
+        ]
         valid_timestamps.sort()
 
         results = []
