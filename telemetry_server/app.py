@@ -2714,9 +2714,13 @@ async def admin_get_metrics(
                     return 0
                 for sample in samples:
                     # Account for suffixes like _total or _seconds in sample.name
-                    if sample.name == metric_name or sample.name.startswith(metric_name + "_"):
+                    if sample.name == metric_name or sample.name.startswith(
+                        metric_name + "_"
+                    ):
                         if labels:
-                            if all(sample.labels.get(k) == v for k, v in labels.items()):
+                            if all(
+                                sample.labels.get(k) == v for k, v in labels.items()
+                            ):
                                 return sample.value
                         else:
                             return sample.value
