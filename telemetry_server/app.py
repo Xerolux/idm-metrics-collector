@@ -2698,20 +2698,28 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # Cache metrics by name for O(1) lookup
+        cached_metrics = {}
+        try:
+            for collector in REGISTRY._collector_to_names.keys():
+                for metric in collector.collect():
+                    cached_metrics[metric.name] = metric.samples
+        except Exception:
+            pass
+
         def get_metric_value(metric_name, labels=None):
             try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
+                samples = cached_metrics.get(metric_name)
+                if not samples:
+                    return 0
+                for sample in samples:
+                    # Account for suffixes like _total or _seconds in sample.name
+                    if sample.name == metric_name or sample.name.startswith(metric_name + "_"):
+                        if labels:
+                            if all(sample.labels.get(k) == v for k, v in labels.items()):
+                                return sample.value
+                        else:
+                            return sample.value
                 return 0
             except Exception:
                 return 0
