@@ -2698,20 +2698,36 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # Cache metrics to avoid O(N^2) collector loop
+        cached_metrics = {}
+        try:
+            for collector in REGISTRY._collector_to_names.keys():
+                for metric in collector.collect():
+                    cached_metrics[metric.name] = metric.samples
+        except Exception as e:
+            logger.warning("metrics_collection_warning", error=str(e))
+
         def get_metric_value(metric_name, labels=None):
             try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
+                base_name = metric_name
+                if base_name.endswith("_total"):
+                    base_name = base_name[:-6]
+
+                samples = (
+                    cached_metrics.get(base_name)
+                    or cached_metrics.get(metric_name)
+                    or []
+                )
+
+                for sample in samples:
+                    if sample.name == metric_name or sample.name == base_name:
+                        if labels:
+                            if all(
+                                sample.labels.get(k) == v for k, v in labels.items()
+                            ):
+                                return sample.value
+                        else:
+                            return sample.value
                 return 0
             except Exception:
                 return 0
