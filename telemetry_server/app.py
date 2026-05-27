@@ -2698,23 +2698,31 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # Cache samples in a single collection pass (O(1) lookups instead of O(N) list iterations)
+        cached_samples = {}
+        try:
+            for collector in REGISTRY._collector_to_names.keys():
+                for metric in collector.collect():
+                    for sample in metric.samples:
+                        if sample.name not in cached_samples:
+                            cached_samples[sample.name] = []
+                        cached_samples[sample.name].append(sample)
+
+                    # Also map by base metric name in case metric_name parameter doesn't include suffix
+                    if metric.name not in cached_samples:
+                        cached_samples[metric.name] = metric.samples
+        except Exception:
+            pass
+
         def get_metric_value(metric_name, labels=None):
-            try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
-                return 0
-            except Exception:
-                return 0
+            samples = cached_samples.get(metric_name, [])
+            for sample in samples:
+                if labels:
+                    if all(sample.labels.get(k) == v for k, v in labels.items()):
+                        return sample.value
+                else:
+                    return sample.value
+            return 0
 
         metrics_data["requests"] = {
             "total": get_metric_value("telemetry_requests_total"),
