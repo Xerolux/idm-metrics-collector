@@ -2698,20 +2698,25 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # ⚡ Bolt Optimization: Pre-collect metrics into an O(1) cache keyed by metric.name
+        # This avoids N*M iteration over collectors.
+        sample_cache = {}
+        for collector in list(REGISTRY._collector_to_names.keys()):
+            for metric in collector.collect():
+                if metric.name not in sample_cache:
+                    sample_cache[metric.name] = []
+                for sample in metric.samples:
+                    sample_cache[metric.name].append(sample)
+
         def get_metric_value(metric_name, labels=None):
             try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
+                samples = sample_cache.get(metric_name, [])
+                for sample in samples:
+                    if labels:
+                        if all(sample.labels.get(k) == v for k, v in labels.items()):
+                            return sample.value
+                    else:
+                        return sample.value
                 return 0
             except Exception:
                 return 0
