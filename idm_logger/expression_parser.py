@@ -311,7 +311,9 @@ class ExpressionParser:
                 if result is not None:
                     results.append((timestamp, float(result)))
             except Exception as e:
-                logger.error(f"Error evaluating expression '{expression}' at timestamp {timestamp}: {e}")
+                logger.error(
+                    f"Error evaluating expression '{expression}' at timestamp {timestamp}: {e}"
+                )
 
         return results
 
