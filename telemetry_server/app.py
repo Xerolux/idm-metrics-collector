@@ -2698,20 +2698,28 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # ⚡ Bolt: Cache metrics to avoid calling collector.collect() in a loop
+        metric_cache = {}
+        for collector in REGISTRY._collector_to_names.keys():
+            try:
+                for metric in collector.collect():
+                    metric_cache[metric.name] = metric
+            except Exception:
+                pass
+
         def get_metric_value(metric_name, labels=None):
             try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
+                metric = metric_cache.get(metric_name)
+                if metric:
+                    for sample in metric.samples:
+                        if labels:
+                            if all(
+                                sample.labels.get(k) == v
+                                for k, v in labels.items()
+                            ):
+                                return sample.value
+                        else:
+                            return sample.value
                 return 0
             except Exception:
                 return 0
