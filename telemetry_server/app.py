@@ -2698,20 +2698,29 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # Pre-collect all metrics to avoid O(N*M) lookup penalty inside get_metric_value
+        metric_cache = {}
+        try:
+            for collector in REGISTRY._collector_to_names.keys():
+                for metric in collector.collect():
+                    # Keying by metric.name instead of sample.name is crucial
+                    # to maintain existing lookup semantics without regressions.
+                    metric_cache[metric.name] = metric
+        except Exception as e:
+            logger.warning("failed_to_pre_collect_metrics", error=str(e))
+
         def get_metric_value(metric_name, labels=None):
+            metric = metric_cache.get(metric_name)
+            if not metric:
+                return 0
+
             try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
+                for sample in metric.samples:
+                    if labels:
+                        if all(sample.labels.get(k) == v for k, v in labels.items()):
+                            return sample.value
+                    else:
+                        return sample.value
                 return 0
             except Exception:
                 return 0
