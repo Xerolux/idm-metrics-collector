@@ -83,10 +83,12 @@ watch([isBrowserOnline, isBackendOnline], () => {
   <Transition name="slide-down">
     <div
       v-if="showOfflineBanner"
+      role="alert"
+      aria-live="assertive"
       class="fixed top-0 left-0 right-0 bg-warning-900 border-b border-warning-600 text-warning-200 p-3 z-50"
     >
       <div class="container mx-auto flex items-center gap-2">
-        <i class="pi pi-wifi-slash"></i>
+        <i class="pi pi-wifi-slash" aria-hidden="true"></i>
         <span class="text-sm font-medium">
           {{
             !isBrowserOnline
@@ -102,10 +104,13 @@ watch([isBrowserOnline, isBackendOnline], () => {
   <div class="fixed bottom-4 right-4 z-40">
     <div
       :class="[
-        'w-3 h-3 rounded-full border-2 border-gray-700',
+        'w-3 h-3 rounded-full border-2 border-gray-700 focus-visible:ring-2 outline-none',
         isOnline ? 'bg-success-500' : isBrowserOnline ? 'bg-warning-500' : 'bg-error-500'
       ]"
       :title="getStatusText()"
+      :aria-label="getStatusText()"
+      role="status"
+      tabindex="0"
     ></div>
   </div>
 </template>
