@@ -2698,23 +2698,27 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
-        def get_metric_value(metric_name, labels=None):
+        # ⚡ Bolt Optimization: Pre-collect and cache all metrics to avoid O(N^2) collector.collect() loops
+        metric_cache = {}
+        for collector in REGISTRY._collector_to_names.keys():
             try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
-                return 0
-            except Exception:
-                return 0
+                for metric in collector.collect():
+                    # Key by metric.name to maintain base name lookup compatibility, not sample.name
+                    if metric.name not in metric_cache:
+                        metric_cache[metric.name] = []
+                    metric_cache[metric.name].extend(metric.samples)
+            except Exception as collect_error:
+                logger.warning(f"Failed to collect from {collector}: {collect_error}")
+
+        def get_metric_value(metric_name, labels=None):
+            samples = metric_cache.get(metric_name, [])
+            for sample in samples:
+                if labels:
+                    if all(sample.labels.get(k) == v for k, v in labels.items()):
+                        return sample.value
+                else:
+                    return sample.value
+            return 0
 
         metrics_data["requests"] = {
             "total": get_metric_value("telemetry_requests_total"),
