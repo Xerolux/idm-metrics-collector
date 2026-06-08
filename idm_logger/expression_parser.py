@@ -48,16 +48,25 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
     # Allowed function names
     ALLOWED_FUNCTIONS = {"min", "max", "abs", "sum", "avg"}
 
-    def __init__(self):
+    def __init__(self, variables: Dict[str, float] = None):
         self.result = None
+        self.variables = variables or {}
 
-    def evaluate(self, expr: str) -> float:
+    def evaluate(self, expr: Union[str, ast.AST]) -> float:
         """Safely evaluate a mathematical expression."""
         try:
-            tree = ast.parse(expr, mode="eval")
-            return self.visit(tree.body)
+            if isinstance(expr, str):
+                tree = ast.parse(expr, mode="eval")
+            else:
+                tree = expr
+            return self.visit(tree.body if hasattr(tree, "body") else tree)
         except (SyntaxError, ValueError, TypeError) as e:
             raise ValueError(f"Invalid expression: {e}")
+
+    def visit_Name(self, node):
+        if node.id in self.variables:
+            return self.variables[node.id]
+        return self.generic_visit(node)
 
     def visit_BinOp(self, node):
         left = self.visit(node.left)
@@ -269,18 +278,51 @@ class ExpressionParser:
         Returns:
             List of (timestamp, value) tuples
         """
-        # Get all unique timestamps from all queries
+        try:
+            tree = ast.parse(expression, mode="eval")
+        except Exception as e:
+            logger.error(f"Failed to parse expression '{expression}': {e}")
+            return []
+
+        query_labels = self.parse_expression(expression)
+
+        # Get all unique timestamps and create O(1) lookups
         all_timestamps = set()
-        for values in self.query_results.values():
+        series_dicts = {}
+        for label, values in self.query_results.items():
+            if label in query_labels:
+                series_dicts[label] = dict(values)
             for ts, _ in values:
                 all_timestamps.add(ts)
 
-        # Evaluate expression at each timestamp
+        # If expression is a constant (e.g. "100"), evaluate it over all available timestamps
+        # If there are NO timestamps at all, return empty
+        if not all_timestamps:
+            return []
+
         results = []
+        evaluator = SafeExpressionEvaluator()
+
         for timestamp in sorted(all_timestamps):
-            value = self.evaluate_expression(expression, timestamp)
-            if value is not None:
+            variables = {}
+            missing_variable = False
+            for label in query_labels:
+                # If a needed variable isn't present for this timestamp, skip
+                if label not in series_dicts or timestamp not in series_dicts[label]:
+                    missing_variable = True
+                    break
+                variables[label] = series_dicts[label][timestamp]
+
+            if missing_variable:
+                continue
+
+            evaluator.variables = variables
+            try:
+                # Safely evaluate with injected variables
+                value = float(evaluator.evaluate(tree))
                 results.append((timestamp, value))
+            except Exception:
+                pass
 
         return results
 
