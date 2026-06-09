@@ -2708,7 +2708,10 @@ async def admin_get_metrics(
             try:
                 lookup_name = metric_name
                 # Fallback for metrics that have _total in sample.name but not in base metric.name
-                if lookup_name.endswith("_total") and lookup_name not in collected_metrics:
+                if (
+                    lookup_name.endswith("_total")
+                    and lookup_name not in collected_metrics
+                ):
                     base_name = lookup_name[:-6]
                     if base_name in collected_metrics:
                         lookup_name = base_name
@@ -2718,7 +2721,9 @@ async def admin_get_metrics(
                     for sample in metric.samples:
                         if sample.name == metric_name or metric.name == metric_name:
                             if labels:
-                                if all(sample.labels.get(k) == v for k, v in labels.items()):
+                                if all(
+                                    sample.labels.get(k) == v for k, v in labels.items()
+                                ):
                                     return sample.value
                             else:
                                 return sample.value
