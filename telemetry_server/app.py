@@ -2698,20 +2698,30 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # Cache metrics in a single pass to avoid O(N^2) collector.collect() overhead
+        collected_metrics = {}
+        for collector in REGISTRY._collector_to_names.keys():
+            for metric in collector.collect():
+                collected_metrics[metric.name] = metric
+
         def get_metric_value(metric_name, labels=None):
             try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
+                lookup_name = metric_name
+                # Fallback for metrics that have _total in sample.name but not in base metric.name
+                if lookup_name.endswith("_total") and lookup_name not in collected_metrics:
+                    base_name = lookup_name[:-6]
+                    if base_name in collected_metrics:
+                        lookup_name = base_name
+
+                metric = collected_metrics.get(lookup_name)
+                if metric:
+                    for sample in metric.samples:
+                        if sample.name == metric_name or metric.name == metric_name:
+                            if labels:
+                                if all(sample.labels.get(k) == v for k, v in labels.items()):
                                     return sample.value
+                            else:
+                                return sample.value
                 return 0
             except Exception:
                 return 0
