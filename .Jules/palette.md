@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2024-06-10 - Consistent Tooltips for PrimeVue Icon Buttons
+**Learning:** While `title` attributes provide basic tooltips, using the `v-tooltip` directive on PrimeVue buttons provides a much more consistent, styled, and accessible visual experience within the design system, especially for grouped actions like table rows or lists.
+**Action:** When working with PrimeVue icon-only buttons, prefer using `v-tooltip` over native `title` attributes for visual hints, while ensuring `aria-label` is always present for screen readers.

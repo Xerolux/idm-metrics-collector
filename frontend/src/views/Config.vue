@@ -1023,7 +1023,7 @@
                         text
                         size="small"
                         @click="uploadToCloud(backup.filename)"
-                        title="Upload to WebDAV"
+                        v-tooltip="'Upload to WebDAV'"
                         aria-label="Upload to WebDAV"
                       />
                       <Button
@@ -1031,6 +1031,7 @@
                         text
                         size="small"
                         @click="downloadBackup(backup.filename)"
+                        v-tooltip="'Herunterladen'"
                         aria-label="Herunterladen"
                       />
                       <Button
@@ -1039,6 +1040,7 @@
                         severity="danger"
                         size="small"
                         @click="confirmDeleteBackup(backup.filename)"
+                        v-tooltip="'Löschen'"
                         aria-label="Löschen"
                       />
                     </div>
