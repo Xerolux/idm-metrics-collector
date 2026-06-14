@@ -57,6 +57,7 @@
                         severity="secondary"
                         @click="copyId"
                         aria-label="Installation ID kopieren"
+                        title="Installation ID kopieren"
                       />
                     </div>
                   </div>
