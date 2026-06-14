@@ -2698,20 +2698,30 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # Perform a single collection pass to avoid O(N^2) performance degradation
+        # caused by calling collector.collect() repeatedly. Cache metrics keyed by their base name.
+        cached_metrics = {}
+        try:
+            for collector in REGISTRY._collector_to_names.keys():
+                for metric in collector.collect():
+                    # Use the base metric name as the dictionary key
+                    cached_metrics[metric.name] = metric
+        except Exception as e:
+            logger.error("admin_metrics_collection_failed", error=str(e))
+
         def get_metric_value(metric_name, labels=None):
             try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
+                metric = cached_metrics.get(metric_name)
+                if metric:
+                    for sample in metric.samples:
+                        if labels:
+                            if all(
+                                sample.labels.get(k) == v
+                                for k, v in labels.items()
+                            ):
+                                return sample.value
+                        else:
+                            return sample.value
                 return 0
             except Exception:
                 return 0
