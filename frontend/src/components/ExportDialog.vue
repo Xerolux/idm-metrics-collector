@@ -129,8 +129,8 @@
 
       <!-- Quality Options (PNG only) -->
       <div v-if="exportType === 'visual' && selectedFormat === 'png'">
-        <label class="block text-sm font-medium text-gray-700 mb-2"> Qualität: {{ scale }}x </label>
-        <input v-model.number="scale" type="range" min="1" max="4" step="0.5" class="w-full" />
+        <label for="export-quality" class="block text-sm font-medium text-gray-700 mb-2"> Qualität: {{ scale }}x </label>
+        <input id="export-quality" v-model.number="scale" type="range" min="1" max="4" step="0.5" class="w-full" />
         <div class="flex justify-between text-xs text-gray-500 mt-1">
           <span>Klein</span>
           <span>Standard</span>
@@ -160,16 +160,18 @@
         <!-- Custom Time Range (if selected) -->
         <div v-if="timeRange === 'custom'" class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Von</label>
+            <label for="custom-start-date" class="block text-xs font-medium text-gray-600 mb-1">Von</label>
             <input
+              id="custom-start-date"
               v-model="customStartDate"
               type="datetime-local"
               class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Bis</label>
+            <label for="custom-end-date" class="block text-xs font-medium text-gray-600 mb-1">Bis</label>
             <input
+              id="custom-end-date"
               v-model="customEndDate"
               type="datetime-local"
               class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
