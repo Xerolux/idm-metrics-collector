@@ -48,8 +48,14 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
     # Allowed function names
     ALLOWED_FUNCTIONS = {"min", "max", "abs", "sum", "avg"}
 
-    def __init__(self):
+    def __init__(self, variables=None):
         self.result = None
+        self.variables = variables or {}
+
+    def visit_Name(self, node):
+        if node.id in self.variables:
+            return self.variables[node.id]
+        return self.generic_visit(node)
 
     def evaluate(self, expr: str) -> float:
         """Safely evaluate a mathematical expression."""
@@ -241,19 +247,10 @@ class ExpressionParser:
         Returns:
             The calculated value
         """
-        # Replace query references with their values
-        expr = expression
-        for query_label, value in values.items():
-            # Use word boundaries to avoid partial replacements
-            expr = re.sub(r"\b" + re.escape(query_label) + r"\b", str(value), expr)
-
-        # Removed regex-based function replacement to prevent ReDoS
-        # Functions are now handled directly by SafeExpressionEvaluator
-
         # Safe evaluation using AST-based evaluator (no eval!)
-        expr = expr.strip()
+        expr = expression.strip()
         try:
-            evaluator = SafeExpressionEvaluator()
+            evaluator = SafeExpressionEvaluator(variables=values)
             result = evaluator.evaluate(expr)
             return float(result)
         except Exception as e:
@@ -269,6 +266,26 @@ class ExpressionParser:
         Returns:
             List of (timestamp, value) tuples
         """
+        # Precompile the expression AST once outside the loop
+        expr = expression.strip()
+        try:
+            tree = ast.parse(expr, mode="eval")
+        except Exception as e:
+            logger.error(f"Error parsing expression '{expression}': {e}")
+            return []
+
+        evaluator = SafeExpressionEvaluator()
+
+        # Parse query labels needed for this expression
+        query_labels = set(self.parse_expression(expression))
+
+        # Structure time-series data into dictionaries for O(1) lookups
+        lookup_data = {}
+        for label in query_labels:
+            if label not in self.query_results:
+                return [] # Missing required label
+            lookup_data[label] = {ts: val for ts, val in self.query_results[label]}
+
         # Get all unique timestamps from all queries
         all_timestamps = set()
         for values in self.query_results.values():
@@ -278,9 +295,24 @@ class ExpressionParser:
         # Evaluate expression at each timestamp
         results = []
         for timestamp in sorted(all_timestamps):
-            value = self.evaluate_expression(expression, timestamp)
-            if value is not None:
+            # Resolve variables for this timestamp
+            query_values = {}
+            missing_value = False
+            for label in query_labels:
+                if timestamp not in lookup_data[label]:
+                    missing_value = True
+                    break
+                query_values[label] = lookup_data[label][timestamp]
+
+            if missing_value:
+                continue
+
+            try:
+                evaluator.variables = query_values
+                value = float(evaluator.visit(tree.body))
                 results.append((timestamp, value))
+            except Exception as e:
+                logger.error(f"Error evaluating expression '{expression}' at {timestamp}: {e}")
 
         return results
 
