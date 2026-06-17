@@ -1,6 +1,6 @@
 <script setup>
 // Xerolux 2026
-import { defineProps, defineEmits, computed } from 'vue'
+import { defineProps, defineEmits, computed, useId } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -85,12 +85,15 @@ const inputClasses = computed(() => {
 
   return classes.join(' ')
 })
+
+const inputId = useId()
 </script>
 
 <template>
   <div class="space-y-2">
     <label
       v-if="label"
+      :for="inputId"
       :class="['text-sm font-medium', !isValid ? 'text-error-400' : 'text-gray-300']"
     >
       {{ label }}
@@ -98,6 +101,7 @@ const inputClasses = computed(() => {
     </label>
 
     <input
+      :id="inputId"
       :type="type"
       :value="inputValue"
       :placeholder="placeholder"

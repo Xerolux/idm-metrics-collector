@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2025-05-19 - Accessible Form Components with useId()
+**Learning:** Reusable form components (like `FormInput` and `FormSelect`) often lack unique IDs, making it impossible to correctly associate their internal `<label>` tags with their `<input>` or `<select>` elements using `for` and `id` attributes. This breaks screen reader support and clicking on labels to focus inputs.
+**Action:** Always use Vue 3.5's `useId()` composable in reusable form components to generate a unique, SSR-safe ID. Bind this ID to the input element's `id` attribute and the corresponding label's `for` attribute to ensure proper accessibility linkages.
