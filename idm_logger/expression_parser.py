@@ -283,7 +283,7 @@ class ExpressionParser:
         lookup_data = {}
         for label in query_labels:
             if label not in self.query_results:
-                return [] # Missing required label
+                return []  # Missing required label
             lookup_data[label] = {ts: val for ts, val in self.query_results[label]}
 
         # Get all unique timestamps from all queries
@@ -312,7 +312,9 @@ class ExpressionParser:
                 value = float(evaluator.visit(tree.body))
                 results.append((timestamp, value))
             except Exception as e:
-                logger.error(f"Error evaluating expression '{expression}' at {timestamp}: {e}")
+                logger.error(
+                    f"Error evaluating expression '{expression}' at {timestamp}: {e}"
+                )
 
         return results
 
