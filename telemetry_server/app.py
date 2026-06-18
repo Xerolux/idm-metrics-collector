@@ -2698,20 +2698,26 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # ⚡ Bolt Optimization: Cache metrics in a single pass to avoid O(N^2) performance degradation
+        # Calling collector.collect() is expensive. Doing it once and caching by metric.name gives O(1) lookups.
+        metrics_cache = {}
+        try:
+            for collector in REGISTRY._collector_to_names.keys():
+                for metric in collector.collect():
+                    metrics_cache[metric.name] = metric.samples
+        except Exception:
+            pass
+
         def get_metric_value(metric_name, labels=None):
             try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
+                samples = metrics_cache.get(metric_name)
+                if samples:
+                    for sample in samples:
+                        if labels:
+                            if all(sample.labels.get(k) == v for k, v in labels.items()):
+                                return sample.value
+                        else:
+                            return sample.value
                 return 0
             except Exception:
                 return 0
