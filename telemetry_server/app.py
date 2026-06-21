@@ -2698,24 +2698,29 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # ⚡ Bolt: Cache metrics to avoid O(N^2) collector loop
+        _metrics_cache = {}
+        for collector in REGISTRY._collector_to_names.keys():
+            try:
+                for metric in collector.collect():
+                    _metrics_cache[metric.name] = metric
+            except Exception:
+                pass
+
         def get_metric_value(metric_name, labels=None):
             try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
+                metric = _metrics_cache.get(metric_name)
+                if not metric:
+                    return 0
+                for sample in metric.samples:
+                    if labels:
+                        if all(sample.labels.get(k) == v for k, v in labels.items()):
+                            return sample.value
+                    else:
+                        return sample.value
                 return 0
             except Exception:
                 return 0
-
         metrics_data["requests"] = {
             "total": get_metric_value("telemetry_requests_total"),
             "errors": get_metric_value("telemetry_errors_total"),
