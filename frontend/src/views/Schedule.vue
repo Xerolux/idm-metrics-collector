@@ -45,7 +45,14 @@
                 @click="toggleJob(job.id, job.enabled)"
                 :aria-label="job.enabled ? t('pause_job') : t('enable_job')"
               />
-              <Button icon="pi pi-trash" text severity="danger" @click="deleteJob(job.id)" :aria-label="t('delete')" v-tooltip="t('delete')" />
+              <Button
+                icon="pi pi-trash"
+                text
+                severity="danger"
+                @click="deleteJob(job.id)"
+                :aria-label="t('delete')"
+                v-tooltip="t('delete')"
+              />
             </div>
           </template>
         </Card>
@@ -72,8 +79,9 @@
     >
       <div class="flex flex-col gap-4 min-w-[300px] md:min-w-[400px]">
         <div class="flex flex-col gap-2">
-          <label>Sensor</label>
+          <label :for="sensorInputId">Sensor</label>
           <Select
+            :inputId="sensorInputId"
             v-model="newJob.sensor"
             :options="sensors"
             optionLabel="name"
@@ -83,16 +91,22 @@
           />
         </div>
         <div class="flex flex-col gap-2">
-          <label>Wert</label>
-          <InputText v-model="newJob.value" />
+          <label :for="valueInputId">Wert</label>
+          <InputText :id="valueInputId" v-model="newJob.value" />
         </div>
         <div class="flex flex-col gap-2">
-          <label>Zeit (HH:MM)</label>
-          <InputMask v-model="newJob.time" mask="99:99" placeholder="HH:MM" />
+          <label :for="timeInputId">Zeit (HH:MM)</label>
+          <InputMask
+            :inputId="timeInputId"
+            v-model="newJob.time"
+            mask="99:99"
+            placeholder="HH:MM"
+          />
         </div>
         <div class="flex flex-col gap-2">
-          <label>Tage</label>
+          <label :for="daysInputId">Tage</label>
           <MultiSelect
+            :inputId="daysInputId"
             v-model="newJob.days"
             :options="days"
             placeholder="Tage wählen"
@@ -108,7 +122,7 @@
 
 <script setup>
 // Xerolux 2026
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, useId } from 'vue'
 import api from '@/utils/api.js'
 import Card from 'primevue/card'
 import Button from 'primevue/button'
@@ -129,6 +143,11 @@ const saving = ref(false)
 const showAddDialog = ref(false)
 const toast = useToast()
 const { t } = useI18n()
+
+const sensorInputId = useId()
+const valueInputId = useId()
+const timeInputId = useId()
+const daysInputId = useId()
 
 const newJob = ref({
   sensor: null,

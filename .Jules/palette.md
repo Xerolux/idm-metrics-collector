@@ -4,3 +4,7 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+
+## 2026-06-21 - Schedule Dialog Labels
+**Learning:** When linking HTML labels to PrimeVue wrapper components (like Select, InputMask, or MultiSelect) inside dialogs, static IDs can conflict or fail to bind correctly. Vue 3.5's `useId()` provides robust, unique IDs safe for these components.
+**Action:** Use `useId()` alongside `:inputId` bindings for PrimeVue wrappers and `:id` for standard inputs to ensure screen readers associate the labels correctly and clicking the label focuses the input.
