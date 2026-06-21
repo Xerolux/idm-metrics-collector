@@ -2721,6 +2721,7 @@ async def admin_get_metrics(
                 return 0
             except Exception:
                 return 0
+
         metrics_data["requests"] = {
             "total": get_metric_value("telemetry_requests_total"),
             "errors": get_metric_value("telemetry_errors_total"),
