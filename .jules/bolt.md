@@ -32,3 +32,7 @@
 ## 2026-04-09 - Optimize Modbus Struct Pack/Unpack Loops
 **Learning:** In Python loops handling struct operations (like encoding/decoding Modbus registers), manual string concatenation and list slicing inside the loop is very slow and memory-intensive. However, using vectorized C-level `struct.pack` and `struct.unpack` with format multipliers (e.g., `f"{fmt_char}{len(registers)}H"`) to pack/unpack items concurrently significantly reduces CPU time and memory allocation overhead on hot paths, cutting execution times by over 30% for these methods.
 **Action:** Always prefer vectorized `struct` operations with format multipliers over manual iterations and slicing when parsing arrays of binary registers in performance-sensitive contexts.
+
+## 2026-06-24 - O(1) Time-Series Mathematical Expression Evaluation
+**Learning:** When evaluating complex mathematical expressions over thousands of time-series points (e.g. `(A+B)*100`), regex string replacement of variables inside the evaluation loop combined with repeated parsing causes severe O(N) evaluation time overhead.
+**Action:** Achieve O(1) evaluation speed over time-series data by pre-compiling the AST outside the loop (`ast.parse`), restructuring the time-series points into O(1) dictionaries (`{timestamp: {label: value}}`), and injecting variables directly via an overridden `visit_Name` in a custom `ast.NodeVisitor` instead of string substitution.
