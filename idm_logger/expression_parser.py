@@ -59,7 +59,7 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
                 tree = ast.parse(expr_or_ast, mode="eval")
             else:
                 tree = expr_or_ast
-            return self.visit(tree.body if hasattr(tree, 'body') else tree)
+            return self.visit(tree.body if hasattr(tree, "body") else tree)
         except (SyntaxError, ValueError, TypeError) as e:
             raise ValueError(f"Invalid expression: {e}")
 
@@ -290,7 +290,9 @@ class ExpressionParser:
                 for timestamp in sorted(all_timestamps):
                     results.append((timestamp, float(val)))
             except Exception as e:
-                logger.error(f"Error evaluating constant expression '{expression}': {e}")
+                logger.error(
+                    f"Error evaluating constant expression '{expression}': {e}"
+                )
             return results
 
         # ⚡ Bolt: O(1) lookup dictionary structure: {timestamp: {query_label: value}}
@@ -325,7 +327,9 @@ class ExpressionParser:
                     val = evaluator.evaluate(tree)
                     results.append((timestamp, float(val)))
                 except Exception as e:
-                    logger.debug(f"Failed to evaluate expression '{expression}' at timestamp {timestamp}: {e}")
+                    logger.debug(
+                        f"Failed to evaluate expression '{expression}' at timestamp {timestamp}: {e}"
+                    )
 
         return results
 
