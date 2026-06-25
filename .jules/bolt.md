@@ -32,3 +32,6 @@
 ## 2026-04-09 - Optimize Modbus Struct Pack/Unpack Loops
 **Learning:** In Python loops handling struct operations (like encoding/decoding Modbus registers), manual string concatenation and list slicing inside the loop is very slow and memory-intensive. However, using vectorized C-level `struct.pack` and `struct.unpack` with format multipliers (e.g., `f"{fmt_char}{len(registers)}H"`) to pack/unpack items concurrently significantly reduces CPU time and memory allocation overhead on hot paths, cutting execution times by over 30% for these methods.
 **Action:** Always prefer vectorized `struct` operations with format multipliers over manual iterations and slicing when parsing arrays of binary registers in performance-sensitive contexts.
+## 2025-10-24 - O(N^2) Prometheus Metric Collection Overhead
+**Learning:** Calling `collector.collect()` inside a loop for `REGISTRY` significantly degrades performance as it rescans all metrics multiple times. Calling it inside a nested loop inside an endpoint causes a severe O(N^2) CPU overhead bottleneck.
+**Action:** When retrieving multiple specific Prometheus metrics in Python applications, perform a single collection pass (`collector.collect()`) and cache the `metric.samples` in a dictionary keyed by `metric.name` for O(1) lookups.
