@@ -50,12 +50,16 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
 
     def __init__(self):
         self.result = None
+        self.variables = {}
 
-    def evaluate(self, expr: str) -> float:
+    def evaluate(self, expr: Union[str, ast.AST]) -> float:
         """Safely evaluate a mathematical expression."""
         try:
-            tree = ast.parse(expr, mode="eval")
-            return self.visit(tree.body)
+            if isinstance(expr, str):
+                tree = ast.parse(expr, mode="eval")
+            else:
+                tree = expr
+            return self.visit(tree.body if hasattr(tree, 'body') else tree)
         except (SyntaxError, ValueError, TypeError) as e:
             raise ValueError(f"Invalid expression: {e}")
 
@@ -79,6 +83,11 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
         if isinstance(node.value, (int, float)):
             return node.value
         raise ValueError(f"Unsupported constant type: {type(node.value)}")
+
+    def visit_Name(self, node):
+        if node.id in self.variables:
+            return float(self.variables[node.id])
+        return self.generic_visit(node)
 
     def visit_Call(self, node):
         if not isinstance(node.func, ast.Name):
@@ -241,23 +250,13 @@ class ExpressionParser:
         Returns:
             The calculated value
         """
-        # Replace query references with their values
-        expr = expression
-        for query_label, value in values.items():
-            # Use word boundaries to avoid partial replacements
-            expr = re.sub(r"\b" + re.escape(query_label) + r"\b", str(value), expr)
-
-        # Removed regex-based function replacement to prevent ReDoS
-        # Functions are now handled directly by SafeExpressionEvaluator
-
-        # Safe evaluation using AST-based evaluator (no eval!)
-        expr = expr.strip()
         try:
             evaluator = SafeExpressionEvaluator()
-            result = evaluator.evaluate(expr)
+            evaluator.variables = values
+            result = evaluator.evaluate(expression.strip())
             return float(result)
         except Exception as e:
-            raise ValueError(f"Failed to evaluate expression '{expr}': {e}")
+            raise ValueError(f"Failed to evaluate expression '{expression}': {e}")
 
     def evaluate_expression_series(self, expression: str) -> List[tuple]:
         """
@@ -269,18 +268,47 @@ class ExpressionParser:
         Returns:
             List of (timestamp, value) tuples
         """
-        # Get all unique timestamps from all queries
         all_timestamps = set()
         for values in self.query_results.values():
             for ts, _ in values:
                 all_timestamps.add(ts)
 
-        # Evaluate expression at each timestamp
+        if not all_timestamps:
+            return []
+
+        query_labels = set(self.parse_expression(expression))
+        lookup_data = {}
+        for label in query_labels:
+            if label not in self.query_results:
+                return []
+            lookup_data[label] = {ts: val for ts, val in self.query_results[label]}
+
+        # Precompile AST outside the loop for O(1) execution speed
+        try:
+            tree = ast.parse(expression.strip(), mode="eval")
+        except SyntaxError:
+            return []
+
+        evaluator = SafeExpressionEvaluator()
         results = []
         for timestamp in sorted(all_timestamps):
-            value = self.evaluate_expression(expression, timestamp)
-            if value is not None:
-                results.append((timestamp, value))
+            has_all_vars = True
+            evaluator.variables.clear()
+
+            for label in query_labels:
+                if timestamp not in lookup_data[label]:
+                    has_all_vars = False
+                    break
+                evaluator.variables[label] = lookup_data[label][timestamp]
+
+            if not has_all_vars:
+                continue
+
+            try:
+                result = evaluator.evaluate(tree)
+                results.append((timestamp, float(result)))
+            except Exception:
+                pass
 
         return results
 
