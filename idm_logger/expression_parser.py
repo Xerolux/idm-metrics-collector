@@ -59,7 +59,7 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
                 tree = ast.parse(expr, mode="eval")
             else:
                 tree = expr
-            return self.visit(tree.body if hasattr(tree, 'body') else tree)
+            return self.visit(tree.body if hasattr(tree, "body") else tree)
         except (SyntaxError, ValueError, TypeError) as e:
             raise ValueError(f"Invalid expression: {e}")
 
