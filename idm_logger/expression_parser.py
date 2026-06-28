@@ -52,7 +52,9 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
         self.result = None
         self.variables = {}
 
-    def evaluate(self, expr: Union[str, ast.AST], variables: Dict[str, float] = None) -> float:
+    def evaluate(
+        self, expr: Union[str, ast.AST], variables: Dict[str, float] = None
+    ) -> float:
         """Safely evaluate a mathematical expression."""
         self.variables = variables or {}
         try:
