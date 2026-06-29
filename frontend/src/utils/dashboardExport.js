@@ -4,10 +4,11 @@
  *
  * Exports dashboards as PNG or PDF using html2canvas and jsPDF
  * Also exports metrics data as CSV, Excel, or JSON
+ *
+ * Note: html2canvas and jsPDF are loaded dynamically (lazy) so they only
+ * impact the bundle when the user actually triggers an image/PDF export.
  */
 
-import html2canvas from 'html2canvas'
-import jsPDF from 'jspdf'
 import api from '@/utils/api.js'
 
 /**
@@ -24,6 +25,7 @@ export async function exportAsPNG(element, options = {}) {
   } = options
 
   try {
+    const { default: html2canvas } = await import('html2canvas')
     const canvas = await html2canvas(element, {
       scale,
       backgroundColor,
@@ -59,6 +61,12 @@ export async function exportAsPDF(element, options = {}) {
   } = options
 
   try {
+    // Lazy-load heavy capture/PDF libraries only when needed
+    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf')
+    ])
+
     // First capture as canvas
     const canvas = await html2canvas(element, {
       scale,
@@ -163,6 +171,7 @@ export async function exportChartsGrid(elements, options = {}) {
   const { columns = 2, padding = 20, scale = 2 } = options
 
   try {
+    const { default: html2canvas } = await import('html2canvas')
     // Capture all charts
     const canvases = await Promise.all(
       elements.map((el) =>

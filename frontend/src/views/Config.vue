@@ -3033,7 +3033,6 @@ const saveRole = async () => {
   savingRole.value = true
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const authToken = config.value.telemetry?.auth_token || ''
     await adminPost(
       `${telemetryUrl}/api/v1/admin/installations/${selectedInstallationForAction.value}/role`,
       null,
@@ -3074,7 +3073,6 @@ const saveBan = async () => {
   savingBan.value = true
   try {
     const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const authToken = config.value.telemetry?.auth_token || ''
     const params = {
       installation_id: config.value.installation_id,
       ban_type: banType.value,
@@ -3461,23 +3459,6 @@ const applyPermissionPreset = async () => {
       detail: err.response?.data?.detail || 'Preset konnte nicht angewendet werden',
       life: 5000
     })
-  }
-}
-
-const fetchInstallationSettings = async (instId) => {
-  if (!telemetryStatus.value?.is_admin || !instId) return
-  installationSettingsLoading.value = true
-  try {
-    const telemetryUrl = config.value.telemetry?.server_url || 'https://collector.xerolux.de'
-    const res = await adminGet(`${telemetryUrl}/api/v1/admin/installations/${instId}/settings`, {
-      params: { installation_id: config.value.installation_id },
-      headers: getAdminHeaders()
-    })
-    installationSettings.value = res.data.settings || installationSettings.value
-  } catch (err) {
-    console.error('Failed to fetch installation settings:', err)
-  } finally {
-    installationSettingsLoading.value = false
   }
 }
 
