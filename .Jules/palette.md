@@ -4,3 +4,7 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+
+## 2026-06-29 - Accessible Network Status Indicators
+**Learning:** Dynamic global status indicators like offline banners or colored connection dots are often inaccessible to screen reader users or keyboard navigators because they lack semantic roles and focus states. If a colored dot only uses visual cues, visually impaired users miss the status update entirely.
+**Action:** When implementing global status indicators, always add `role="alert"` and `aria-live="assertive"` to critical banners. Ensure smaller visual indicators (like connection dots) are keyboard focusable (`tabindex="0"`), include visible focus rings, and describe their current state using `aria-label` and `role="status"`.
