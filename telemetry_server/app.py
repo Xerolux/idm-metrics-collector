@@ -8,7 +8,7 @@ from fastapi.responses import (
     JSONResponse,
     Response,
 )
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from typing import List, Optional, Dict, Any, Tuple
 from urllib.parse import urlparse
 import os
@@ -631,7 +631,8 @@ class TelemetryPayload(BaseModel):
     version: str
     data: List[Dict[str, Any]]
 
-    @validator("installation_id")
+    @field_validator("installation_id")
+    @classmethod
     def validate_id(cls, v):
         try:
             uuid.UUID(v)
@@ -639,13 +640,15 @@ class TelemetryPayload(BaseModel):
         except ValueError:
             raise ValueError("installation_id must be a valid UUID")
 
-    @validator("heatpump_model")
+    @field_validator("heatpump_model")
+    @classmethod
     def validate_model(cls, v):
         if not re.match(r"^[a-zA-Z0-9_\-\. \(\)]+$", v):
             raise ValueError("heatpump_model contains invalid characters")
         return v
 
-    @validator("data")
+    @field_validator("data")
+    @classmethod
     def validate_data_size(cls, v):
         """Validate payload size to prevent DoS."""
         import sys

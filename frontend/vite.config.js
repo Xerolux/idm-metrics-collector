@@ -28,7 +28,7 @@ export default defineConfig({
             },
             {
               name: 'primevue',
-              test: /[\\/]node_modules[\\/](primevue|@primevue)[\\/]/,
+              test: /[\\/]node_modules[\\/](primevue|@primevue|@primeuix)[\\/]/,
               priority: 10
             }
           ]

@@ -14,7 +14,7 @@ This file provides AI assistant guidance for the IDM Metrics Collector codebase.
 - VictoriaMetrics for time-series storage
 - MQTT publishing, multi-channel notifications, WebSocket streaming
 
-**Version:** 1.0.6
+**Version:** 1.0.9
 **Primary Language:** Python (backend) + JavaScript/Vue (frontend)
 **No TypeScript** — pure JS throughout the frontend.
 
