@@ -87,6 +87,14 @@ export class WebSocketClient {
       return
     }
 
+    // Clean up any leftover disconnected socket before creating a new one
+    // (prevents listener leaks / duplicate emissions after error states).
+    if (this.socket) {
+      this.socket.removeAllListeners()
+      this.socket.disconnect()
+      this.socket = null
+    }
+
     this._isIntentionallyDisconnected = false
     this.connectionState = ConnectionState.CONNECTING
     this._emitStateChange()

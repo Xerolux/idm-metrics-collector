@@ -152,10 +152,8 @@ const handleUserActivity = () => {
 
 onMounted(() => {
   ui.init()
-  // Apply dark mode on mount
-  if (ui.darkMode) {
-    document.documentElement.classList.add('my-app-dark')
-  }
+  // Apply dark mode on mount (re-apply both classes for Tailwind + PrimeVue)
+  ui.setDarkMode(ui.darkMode)
   const events = ['click', 'mousemove', 'keypress', 'scroll', 'touchstart']
   events.forEach((event) => window.addEventListener(event, handleUserActivity, { passive: true }))
   resetTimer()

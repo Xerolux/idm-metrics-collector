@@ -1,10 +1,16 @@
 <script setup>
 import { onErrorCaptured, onMounted, onUnmounted, ref } from 'vue'
 import { useUiStore } from './stores/ui'
+import { useAuthStore } from './stores/auth'
 
 const uiStore = useUiStore()
+const authStore = useAuthStore()
 const hasError = ref(false)
 const errorMessage = ref('')
+
+const handleAuthLogout = () => {
+  authStore.isAuthenticated = false
+}
 
 onMounted(() => {
   uiStore.init()
@@ -14,12 +20,6 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('auth:logout', handleAuthLogout)
 })
-
-const handleAuthLogout = () => {
-  const { useAuthStore } = require('./stores/auth')
-  const authStore = useAuthStore()
-  authStore.isAuthenticated = false
-}
 
 onErrorCaptured((error) => {
   console.error('Unhandled component error:', error)
