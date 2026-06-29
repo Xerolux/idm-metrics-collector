@@ -626,7 +626,7 @@ def setup():
     if config.is_setup():
         return jsonify({"error": "Bereits eingerichtet"}), 400
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     try:
         config.data["idm"]["host"] = data.get("idm_host")
         config.data["idm"]["port"] = int(data.get("idm_port"))
@@ -704,7 +704,7 @@ def login():
       429:
         description: Too many attempts
     """
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     password = data.get("password")
 
     if config.check_admin_password(password):
@@ -733,7 +733,7 @@ def login():
 @limiter.limit("5 per minute")
 def reset_password():
     """Reset the admin password using the configured IDM host and port as a security question."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     idm_host = data.get("idm_host")
     idm_port = data.get("idm_port")
     new_password = data.get("new_password")
@@ -796,7 +796,7 @@ def change_password():
     if not session.get("logged_in") and not session.get("requires_password_change"):
         return jsonify({"error": "Unauthorized"}), 401
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     new_password = data.get("new_password")
 
     if not new_password or len(new_password) < 6:
@@ -913,7 +913,7 @@ def dashboards_api():
         return jsonify(dashboard_manager.get_all_dashboards())
 
     if request.method == "POST":
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         name = data.get("name", "New Dashboard")
         if not name:
             return jsonify({"error": "Name is required"}), 400
@@ -932,7 +932,7 @@ def dashboard_api(dashboard_id):
         return jsonify(dashboard)
 
     if request.method == "PUT":
-        updates = request.get_json()
+        updates = request.get_json(silent=True) or {}
         dashboard = dashboard_manager.update_dashboard(dashboard_id, updates)
         if not dashboard:
             return jsonify({"error": "Dashboard not found"}), 404
@@ -949,7 +949,7 @@ def dashboard_api(dashboard_id):
 @login_required
 def add_chart_api(dashboard_id):
     """Add a chart to a dashboard."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     title = data.get("title")
     queries = data.get("queries", [])
     hours = data.get("hours", 12)
@@ -973,7 +973,7 @@ def add_chart_api(dashboard_id):
 def chart_api(dashboard_id, chart_id):
     """Update or delete a chart."""
     if request.method == "PUT":
-        updates = request.get_json()
+        updates = request.get_json(silent=True) or {}
         chart = dashboard_manager.update_chart(dashboard_id, chart_id, updates)
         if not chart:
             return jsonify({"error": "Chart or dashboard not found"}), 404
@@ -1185,7 +1185,7 @@ def export_metrics_data():
     Returns: File download with appropriate MIME type
     """
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
@@ -1412,7 +1412,7 @@ def evaluate_expression():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         if not data:
             return jsonify({"status": "error", "error": "No data provided"}), 400
 
@@ -1469,7 +1469,7 @@ def ml_alert_endpoint():
         return jsonify({"error": "Unauthorized"}), 401
 
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         if not data:
             return jsonify({"error": "No data provided"}), 400
@@ -1767,7 +1767,7 @@ def config_page():
         return jsonify(response)
 
     if request.method == "POST":
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         try:
             # Heat pump info
             if "hp_model" in data:
@@ -2199,7 +2199,7 @@ def check_update():
 def perform_update():
     try:
         logger.info("Update requested by user")
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         docker_only = data.get("docker_only", False)
 
         # Check if any update method is available
@@ -2252,7 +2252,7 @@ def get_docker_status():
 @app.route("/api/signal/test", methods=["POST"])
 @login_required
 def signal_test():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     message = data.get("message", "Testnachricht vom IDM Metrics Collector")
     try:
         send_signal_message(message)
@@ -2335,7 +2335,7 @@ def control_page():
         return jsonify({"error": "Schreibzugriff deaktiviert"}), 403
 
     if request.method == "POST":
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         sensor_name = data.get("sensor")
         value = data.get("value")
 
@@ -2398,7 +2398,7 @@ def schedule_page():
         return jsonify({"error": "Scheduler nicht verfügbar"}), 503
 
     if request.method == "POST":
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         action = data.get("action")
 
         if action == "add":
@@ -2498,7 +2498,7 @@ def alerts_api():
         return jsonify(alert_manager.alerts)
 
     if request.method == "POST":
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         if not data.get("name"):
             return jsonify({"error": "Name fehlt"}), 400
@@ -2514,7 +2514,7 @@ def alerts_api():
             return _internal_error_response(e, "Alert konnte nicht erstellt werden")
 
     if request.method == "PUT":
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         alert_id = data.get("id")
         if not alert_id:
             return jsonify({"error": "ID fehlt"}), 400
@@ -2612,7 +2612,7 @@ def download_backup(filename):
 @login_required
 def restore_backup():
     if "file" not in request.files:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         filename = data.get("filename")
         if not filename:
             return jsonify({"error": "Keine Backup-Datei angegeben"}), 400
@@ -2792,7 +2792,7 @@ def get_annotations():
 def create_annotation():
     """Create a new annotation"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         # Validate required fields
         if not data.get("text"):
@@ -2843,7 +2843,7 @@ def get_annotation(annotation_id):
 def update_annotation(annotation_id):
     """Update an annotation"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         # Convert time to timestamp if provided as string
         time = data.get("time")
@@ -2932,7 +2932,7 @@ def get_variables():
 def create_variable():
     """Create a new variable"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         # Validate required fields
         if not data.get("id") or not data.get("name") or not data.get("type"):
@@ -2983,7 +2983,7 @@ def get_variable(variable_id):
 def update_variable(variable_id):
     """Update a variable"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         variable = variable_manager.update_variable(
             variable_id=variable_id,
@@ -3037,7 +3037,7 @@ def substitute_variables():
     }
     """
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         query = data.get("query", "")
         variables = data.get("variables", {})
 
@@ -3083,7 +3083,7 @@ def get_share_tokens():
 def create_share_token():
     """Create a new share token for a dashboard."""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         # Validate required fields
         if not data.get("dashboard_id"):
@@ -3146,7 +3146,7 @@ def delete_share_token(token_id):
 def validate_share_token(token_id):
     """Validate a share token with optional password."""
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True) or {}
         password = data.get("password")
 
         is_valid = sharing_manager.validate_token(token_id, password)
