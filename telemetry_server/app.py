@@ -2701,20 +2701,27 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # ⚡ Bolt: Pre-collect metrics into a dictionary by base metric name to avoid O(N^2) collector.collect() overhead
+        _cached_metrics = {}
+        try:
+            for collector in REGISTRY._collector_to_names.keys():
+                for metric in collector.collect():
+                    _cached_metrics[metric.name] = metric
+        except Exception:
+            pass
+
         def get_metric_value(metric_name, labels=None):
             try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
+                if metric_name in _cached_metrics:
+                    for sample in _cached_metrics[metric_name].samples:
+                        if labels:
+                            if all(
+                                sample.labels.get(k) == v
+                                for k, v in labels.items()
+                            ):
+                                return sample.value
+                        else:
+                            return sample.value
                 return 0
             except Exception:
                 return 0
