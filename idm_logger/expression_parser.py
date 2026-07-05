@@ -50,14 +50,27 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
 
     def __init__(self):
         self.result = None
+        self.variables = {}
 
-    def evaluate(self, expr: str) -> float:
+    def evaluate(
+        self, expr: Union[str, ast.AST], variables: Dict[str, float] = None
+    ) -> float:
         """Safely evaluate a mathematical expression."""
+        self.variables = variables or {}
         try:
-            tree = ast.parse(expr, mode="eval")
-            return self.visit(tree.body)
+            if isinstance(expr, str):
+                tree = ast.parse(expr, mode="eval")
+                node = tree.body
+            else:
+                node = expr
+            return self.visit(node)
         except (SyntaxError, ValueError, TypeError) as e:
             raise ValueError(f"Invalid expression: {e}")
+
+    def visit_Name(self, node):
+        if node.id in self.variables:
+            return self.variables[node.id]
+        return self.generic_visit(node)
 
     def visit_BinOp(self, node):
         left = self.visit(node.left)
@@ -241,20 +254,11 @@ class ExpressionParser:
         Returns:
             The calculated value
         """
-        # Replace query references with their values
-        expr = expression
-        for query_label, value in values.items():
-            # Use word boundaries to avoid partial replacements
-            expr = re.sub(r"\b" + re.escape(query_label) + r"\b", str(value), expr)
-
-        # Removed regex-based function replacement to prevent ReDoS
-        # Functions are now handled directly by SafeExpressionEvaluator
-
         # Safe evaluation using AST-based evaluator (no eval!)
-        expr = expr.strip()
+        expr = expression.strip()
         try:
             evaluator = SafeExpressionEvaluator()
-            result = evaluator.evaluate(expr)
+            result = evaluator.evaluate(expr, variables=values)
             return float(result)
         except Exception as e:
             raise ValueError(f"Failed to evaluate expression '{expr}': {e}")
@@ -271,16 +275,48 @@ class ExpressionParser:
         """
         # Get all unique timestamps from all queries
         all_timestamps = set()
-        for values in self.query_results.values():
-            for ts, _ in values:
-                all_timestamps.add(ts)
 
-        # Evaluate expression at each timestamp
+        # Structure for O(1) lookups: dict[label][timestamp] = value
+        query_labels = self.parse_expression(expression)
+        lookup = {}
+        for label, values in self.query_results.items():
+            if label not in query_labels:
+                for ts, _ in values:
+                    all_timestamps.add(ts)
+                continue
+
+            lookup[label] = {}
+            for ts, val in values:
+                all_timestamps.add(ts)
+                lookup[label][ts] = val
+
+        # Precompile AST once for the entire series to achieve O(1) loop performance
+        try:
+            tree = ast.parse(expression.strip(), mode="eval")
+            evaluator = SafeExpressionEvaluator()
+        except Exception as e:
+            logger.error(f"Failed to compile expression '{expression}': {e}")
+            return []
+
         results = []
         for timestamp in sorted(all_timestamps):
-            value = self.evaluate_expression(expression, timestamp)
-            if value is not None:
-                results.append((timestamp, value))
+            variables = {}
+            missing_variable = False
+
+            for label in query_labels:
+                if label not in lookup or timestamp not in lookup[label]:
+                    missing_variable = True
+                    break
+                variables[label] = lookup[label][timestamp]
+
+            if missing_variable:
+                continue
+
+            try:
+                val = evaluator.evaluate(tree.body, variables=variables)
+                results.append((timestamp, float(val)))
+            except Exception:
+                pass
 
         return results
 
