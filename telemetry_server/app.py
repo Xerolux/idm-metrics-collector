@@ -2701,23 +2701,27 @@ async def admin_get_metrics(
 
         metrics_data = {}
 
+        # Collect all metrics once to avoid O(N^2) collector loop
+        collected_metrics = {}
+        try:
+            for collector in REGISTRY._collector_to_names.keys():
+                for metric in collector.collect():
+                    collected_metrics[metric.name] = metric.samples
+        except Exception as e:
+            logger.warning("metrics_collection_partial_failure", error=str(e))
+
         def get_metric_value(metric_name, labels=None):
-            try:
-                for collector in REGISTRY._collector_to_names.keys():
-                    for metric in collector.collect():
-                        if metric.name == metric_name:
-                            for sample in metric.samples:
-                                if labels:
-                                    if all(
-                                        sample.labels.get(k) == v
-                                        for k, v in labels.items()
-                                    ):
-                                        return sample.value
-                                else:
-                                    return sample.value
+            samples = collected_metrics.get(metric_name)
+            if not samples:
                 return 0
-            except Exception:
-                return 0
+
+            for sample in samples:
+                if labels:
+                    if all(sample.labels.get(k) == v for k, v in labels.items()):
+                        return sample.value
+                else:
+                    return sample.value
+            return 0
 
         metrics_data["requests"] = {
             "total": get_metric_value("telemetry_requests_total"),
