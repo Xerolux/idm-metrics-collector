@@ -1,11 +1,12 @@
 <template>
   <div class="variable-selector">
     <div v-for="variable in variables" :key="variable.id" class="mb-3">
-      <label class="block text-xs font-medium text-gray-600 mb-1">
+      <label :for="`var-${variable.id}`" class="block text-xs font-medium text-gray-600 mb-1">
         {{ variable.name }}
       </label>
       <Select
         v-if="!variable.multi"
+        :inputId="`var-${variable.id}`"
         v-model="selectedValues[variable.id]"
         :options="variable.values"
         optionLabel="label"
@@ -16,6 +17,7 @@
       />
       <MultiSelect
         v-else
+        :inputId="`var-${variable.id}`"
         v-model="selectedValues[variable.id]"
         :options="variable.values"
         optionLabel="label"
