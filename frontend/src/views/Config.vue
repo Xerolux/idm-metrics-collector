@@ -3944,8 +3944,8 @@ const loadStatus = async (showNotification = false) => {
   statusLoading.value = true
   try {
     const [updateRes, signalRes] = await Promise.all([
-      axios.get('/api/check-update'),
-      axios.get('/api/signal/status')
+      api.get('/api/check-update'),
+      api.get('/api/signal/status')
     ])
     updateStatus.value = updateRes.data
     signalStatus.value = signalRes.data

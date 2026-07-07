@@ -26,6 +26,18 @@ const processQueue = (error, token = null) => {
   failedQueue = []
 }
 
+api.interceptors.request.use(
+  (config) => {
+    // Ensure non-idempotent requests are never cached by browsers/proxies
+    if (['post', 'put', 'delete', 'patch'].includes(config.method?.toLowerCase())) {
+      config.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+      config.headers['Pragma'] = 'no-cache'
+    }
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -75,8 +87,8 @@ api.interceptors.response.use(
       }
     }
 
-    const message = error.response?.data?.error || error.response?.data?.message || error.message
-    return Promise.reject(new Error(message))
+    const rawMessage = error.response?.data?.error || error.response?.data?.message || error.message
+    return Promise.reject(new Error(sanitizeErrorMessage(rawMessage)))
   }
 )
 
@@ -113,6 +125,17 @@ export const withTimeout = (promise, ms = API_TIMEOUT.MEDIUM) => {
     }),
     timeoutPromise
   ])
+}
+
+const sanitizeErrorMessage = (raw) => {
+  if (raw == null) return 'Unbekannter Fehler'
+  let message = typeof raw === 'string' ? raw : String(raw)
+  // Strip HTML tags that reverse proxies may return (e.g. 502 pages)
+  message = message.replace(/<[^>]*>/g, ' ')
+  // Collapse whitespace
+  message = message.replace(/\s+/g, ' ').trim()
+  // Limit length to avoid huge error banners
+  return message.length > 200 ? `${message.slice(0, 200)}…` : message
 }
 
 const buildGetCacheKey = (url, config = {}) => {

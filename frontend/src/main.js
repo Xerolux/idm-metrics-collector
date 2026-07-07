@@ -28,6 +28,25 @@ const i18n = createI18n({
 
 const app = createApp(App)
 
+app.config.errorHandler = (err, instance, info) => {
+  // Log to console for debugging but avoid leaking internals to the UI
+  console.error('Unhandled Vue error:', err, info)
+  // Try to show a toast if the app is mounted far enough
+  try {
+    const toast = instance?.$.appContext?.config?.globalProperties?.$toast
+    if (toast) {
+      toast.add({
+        severity: 'error',
+        summary: 'Anwendungsfehler',
+        detail: 'Ein unerwarteter Fehler ist aufgetreten. Bitte Seite neu laden.',
+        life: 5000
+      })
+    }
+  } catch {
+    // ignore
+  }
+}
+
 app.use(createPinia())
 app.use(router)
 app.use(i18n)
@@ -41,5 +60,13 @@ app.use(PrimeVue, {
 })
 app.use(ToastService)
 app.use(ConfirmationService)
+
+window.addEventListener('unhandledrejection', (event) => {
+  // Prevent unhandled promise rejections from flooding the console with stack traces
+  // that may contain internal paths. The api interceptor already surfaces user-safe messages.
+  if (event.reason?.message?.includes('Netzwerkfehler') || event.reason?.message?.includes('Zeitüberschreitung')) {
+    event.preventDefault()
+  }
+})
 
 app.mount('#app')

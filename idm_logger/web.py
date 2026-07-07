@@ -187,6 +187,19 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 # Secure cookie flag - enable for HTTPS deployments (set web.secure_cookies: true)
 app.config["SESSION_COOKIE_SECURE"] = config.get("web.secure_cookies", False)
+# Limit session lifetime to reduce window for session hijacking
+app.config["PERMANENT_SESSION_LIFETIME"] = int(
+    config.get("web.session_lifetime_seconds", 86400)
+)
+
+
+@app.before_request
+def _configure_secure_session_cookie():
+    """Auto-enable secure cookies when the request arrived over HTTPS."""
+    if not config.get("web.secure_cookies"):
+        forwarded_proto = request.environ.get("HTTP_X_FORWARDED_PROTO")
+        if forwarded_proto == "https":
+            app.config["SESSION_COOKIE_SECURE"] = True
 
 # Initialize SocketIO with configurable CORS
 # Security: Read allowed origins from config, default to same-origin only
@@ -260,6 +273,20 @@ _net_sec_cache = {
     "ip_results": {},  # Performance: Cache IP check results {ip_str: (allowed, timestamp)}
     "ip_cache_ttl": 300,  # Cache results for 5 minutes
 }
+_MAX_IP_CACHE_SIZE = 1024  # Prevent unbounded memory growth under DoS
+
+
+def _cache_ip_result(client_ip: str, allowed: bool, now: float) -> None:
+    """Cache an IP check result, evicting oldest entries if over max size."""
+    with _net_sec_cache_lock:
+        _net_sec_cache["ip_results"][client_ip] = (allowed, now)
+        if len(_net_sec_cache["ip_results"]) > _MAX_IP_CACHE_SIZE:
+            # Evict oldest entries by timestamp to bound memory usage
+            items = sorted(
+                _net_sec_cache["ip_results"].items(), key=lambda item: item[1][1]
+            )
+            for key, _ in items[: _MAX_IP_CACHE_SIZE // 10]:
+                _net_sec_cache["ip_results"].pop(key, None)
 
 # AI Status Cache
 _ai_status_lock = threading.Lock()
@@ -453,8 +480,7 @@ def check_ip_whitelist():
     ip = get_ip_obj(client_ip)
     if not ip:
         logger.warning(f"Invalid client IP: {client_ip}")
-        with _net_sec_cache_lock:
-            _net_sec_cache["ip_results"][client_ip] = (False, now)
+        _cache_ip_result(client_ip, False, now)
         abort(403)
 
     whitelist = config.get("network_security.whitelist", [])
@@ -481,7 +507,7 @@ def check_ip_whitelist():
                 logger.warning(
                     f"Blocked IP {client_ip} (matched blacklist {original_block})"
                 )
-                _net_sec_cache["ip_results"][client_ip] = (False, now)
+                _cache_ip_result(client_ip, False, now)
                 abort(403)
 
     # Update whitelist cache if needed (under lock)
@@ -510,13 +536,11 @@ def check_ip_whitelist():
 
         if not is_allowed:
             logger.warning(f"Blocked IP {client_ip} (not in whitelist)")
-            with _net_sec_cache_lock:
-                _net_sec_cache["ip_results"][client_ip] = (False, now)
+            _cache_ip_result(client_ip, False, now)
             abort(403)
 
     # Cache successful result
-    with _net_sec_cache_lock:
-        _net_sec_cache["ip_results"][client_ip] = (True, now)
+    _cache_ip_result(client_ip, True, now)
 
 
 # Default CSP - can be overridden via config
@@ -719,6 +743,7 @@ def login():
             session["logged_in"] = False
         else:
             session["logged_in"] = True
+            session["user"] = "admin"
             session.pop("requires_password_change", None)
 
         return jsonify(
@@ -829,12 +854,14 @@ def check_auth():
     return jsonify({"authenticated": session.get("logged_in", False)})
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["POST"])
+@app.route("/api/auth/logout", methods=["POST"])
 @limiter.limit(
     "10 per minute"
 )  # Rate limit logout to prevent session manipulation attacks
 def logout():
     session.pop("logged_in", None)
+    session.pop("requires_password_change", None)
     return jsonify({"success": True})
 
 
@@ -1166,6 +1193,88 @@ def query_metrics_range():
         return jsonify({"status": "error", "error": "Query failed"}), 500
 
 
+@app.route("/api/metrics/query", methods=["GET"])
+@login_required
+def query_metrics_instant():
+    """
+    Proxy request to VictoriaMetrics /api/v1/query (instant query).
+    Used by cards that need a single current value for a target query.
+    """
+    try:
+        query = request.args.get("query")
+        if not query:
+            return jsonify({"status": "error", "error": "Missing query parameter"}), 400
+
+        metrics_url = config.data.get("metrics", {}).get(
+            "url", "http://victoriametrics:8428/write"
+        )
+        base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
+        query_url = f"{base_url}/api/v1/query"
+
+        response = requests.get(query_url, params={"query": query}, timeout=10)
+        if response.status_code != 200:
+            logger.error(f"VictoriaMetrics instant query failed: {response.text}")
+            return jsonify(
+                {"status": "error", "error": response.text}
+            ), response.status_code
+        return jsonify(response.json())
+    except Exception as e:
+        logger.error(f"Metrics instant query failed: {e}")
+        return jsonify({"status": "error", "error": "Query failed"}), 500
+
+
+@app.route("/api/query", methods=["GET"])
+@login_required
+def query_metrics_legacy():
+    """
+    Legacy simplified range-query endpoint used by BarCard, HeatmapCard,
+    StateTimelineCard and TableCard. Returns {data: {values: [[ts, val], ...]}}
+    for the first result series to match the original frontend contract.
+    """
+    try:
+        query = request.args.get("query")
+        start = request.args.get("start")
+        end = request.args.get("end")
+        step = request.args.get("step", "1m")
+
+        if not query:
+            return jsonify({"status": "error", "error": "Missing query parameter"}), 400
+        if not start or not end:
+            return (
+                jsonify({"status": "error", "error": "Missing start/end parameters"}),
+                400,
+            )
+
+        metrics_url = config.data.get("metrics", {}).get(
+            "url", "http://victoriametrics:8428/write"
+        )
+        base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
+        query_url = f"{base_url}/api/v1/query_range"
+
+        response = requests.get(
+            query_url,
+            params={"query": query, "start": start, "end": end, "step": step},
+            timeout=10,
+        )
+        if response.status_code != 200:
+            logger.error(f"VictoriaMetrics legacy query failed: {response.text}")
+            return jsonify(
+                {"status": "error", "error": response.text}
+            ), response.status_code
+
+        payload = response.json()
+        result_values = []
+        if payload.get("status") == "success":
+            results = payload.get("data", {}).get("result", [])
+            if results:
+                result_values = results[0].get("values", [])
+
+        return jsonify({"status": "success", "data": {"values": result_values}})
+    except Exception as e:
+        logger.error(f"Legacy metrics query failed: {e}")
+        return jsonify({"status": "error", "error": "Query failed"}), 500
+
+
 @app.route("/api/export/data", methods=["POST"])
 @login_required
 def export_metrics_data():
@@ -1204,7 +1313,27 @@ def export_metrics_data():
         if not start or not end:
             return jsonify({"error": "start and end timestamps are required"}), 400
 
-        # Get VictoriaMetrics URL
+        try:
+            start_ts = float(start)
+            end_ts = float(end)
+        except (ValueError, TypeError):
+            return jsonify({"error": "start and end must be numeric timestamps"}), 400
+
+        if start_ts >= end_ts:
+            return jsonify({"error": "start must be before end"}), 400
+
+        duration_seconds = end_ts - start_ts
+        max_duration = 90 * 24 * 3600  # 90 days for csv/json
+        if export_format == "excel":
+            max_duration = 30 * 24 * 3600  # 30 days for excel (memory)
+        if duration_seconds > max_duration:
+            return jsonify(
+                {
+                    "error": f"Time range too large for {export_format} export (max {max_duration // 86400} days)"
+                }
+            ), 400
+
+
         metrics_url = config.data.get("metrics", {}).get(
             "url", "http://victoriametrics:8428/write"
         )
@@ -1229,6 +1358,17 @@ def export_metrics_data():
                 for item in result_data.get("data", {}).get("result", [])
             ]
             metrics = [m for m in metrics if m]  # Filter empty names
+
+        if not isinstance(metrics, list):
+            metrics = [metrics]
+        if len(metrics) > 50:
+            return jsonify({"error": "Too many metrics selected (max 50)"}), 400
+
+        valid, err = _validate_string(
+            dashboard_name, "Dashboard Name", max_length=100, allow_empty=False
+        )
+        if not valid:
+            return jsonify({"error": err}), 400
 
         if not metrics:
             return jsonify({"error": "No metrics selected"}), 400
@@ -1562,7 +1702,6 @@ def health_check():
         {
             "status": "healthy",
             "setup_completed": config.is_setup(),
-            "client_ip": request.remote_addr,
         }
     ), 200
 
@@ -2161,6 +2300,7 @@ def config_page():
 
 @app.route("/api/restart", methods=["POST"])
 @login_required
+@limiter.limit("5 per hour")  # Service restart
 def restart_service():
     logger.info("Service restart requested by user")
 
@@ -2196,6 +2336,7 @@ def check_update():
 
 @app.route("/api/perform-update", methods=["POST"])
 @login_required
+@limiter.limit("5 per hour")  # Software update
 def perform_update():
     try:
         logger.info("Update requested by user")
@@ -2251,6 +2392,7 @@ def get_docker_status():
 
 @app.route("/api/signal/test", methods=["POST"])
 @login_required
+@limiter.limit("5 per minute")  # SMS/Signal test messages
 def signal_test():
     data = request.get_json(silent=True) or {}
     message = data.get("message", "Testnachricht vom IDM Metrics Collector")
@@ -2610,6 +2752,7 @@ def download_backup(filename):
 
 @app.route("/api/backup/restore", methods=["POST"])
 @login_required
+@limiter.limit("10 per hour")  # Restore from backup
 def restore_backup():
     if "file" not in request.files:
         data = request.get_json(silent=True) or {}
@@ -2665,6 +2808,7 @@ def delete_backup(filename):
 
 @app.route("/api/database/delete", methods=["POST"])
 @login_required
+@limiter.limit("3 per hour")  # Highly destructive operation
 def delete_database():
     try:
         metrics_url = config.data.get("metrics", {}).get(
@@ -3110,6 +3254,7 @@ def create_share_token():
 
 
 @app.route("/api/sharing/tokens/<token_id>", methods=["GET"])
+@limiter.limit("30 per minute")  # Public token lookup
 def get_share_token(token_id):
     """Get a share token by ID (no auth required for accessing)."""
     try:
@@ -3143,6 +3288,7 @@ def delete_share_token(token_id):
 
 
 @app.route("/api/sharing/tokens/<token_id>/validate", methods=["POST"])
+@limiter.limit("10 per minute")  # Brute-force protection for share token passwords
 def validate_share_token(token_id):
     """Validate a share token with optional password."""
     try:
@@ -3165,6 +3311,7 @@ def validate_share_token(token_id):
 
 
 @app.route("/api/sharing/tokens/<token_id>/dashboard", methods=["GET", "POST"])
+@limiter.limit("60 per minute")  # Public shared dashboard access
 def get_shared_dashboard(token_id):
     """Get shared dashboard data by token (read-only, no login required)."""
     try:
@@ -3247,6 +3394,17 @@ def run_web(modbus_client, scheduler):
 
     # Start background tasks
     _start_ai_status_thread()
+
+    # Register graceful shutdown handler for background threads
+    def _signal_handler(signum, frame):
+        logger.info(f"Received signal {signum}, shutting down background threads...")
+        _stop_ai_status_thread()
+        # Re-raise default handler to terminate the process
+        signal.signal(signum, signal.SIG_DFL)
+        os.kill(os.getpid(), signum)
+
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
 
     if config.get("web.enabled"):
         host = config.get("web.host", "0.0.0.0")
