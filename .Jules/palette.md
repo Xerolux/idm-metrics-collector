@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2025-04-06 - Fixing aria-labelledby for PrimeVue SelectButton
+**Learning:** When using PrimeVue's `<SelectButton>` (or similar custom input components) and linking it to a label via `aria-labelledby`, ensure the target ID actually exists on a related `<label>` element in the DOM. In this app, many labels lacked an explicit `id`, meaning the `aria-labelledby="basic"` on the component was broken and generic.
+**Action:** Always assign a specific, unique `id` (e.g., `id="qos_label"`) to the adjacent `<label>` element and ensure the PrimeVue component's `aria-labelledby` attribute matches this `id` for proper screen reader accessibility.

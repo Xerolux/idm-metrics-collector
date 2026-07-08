@@ -429,11 +429,11 @@
                     <InputText v-model="config.mqtt.topic_prefix" class="w-full" />
                   </div>
                   <div class="flex flex-col gap-2">
-                    <label class="font-bold text-sm text-gray-300">QoS Level</label>
+                    <label id="qos_label" class="font-bold text-sm text-gray-300">QoS Level</label>
                     <SelectButton
                       v-model="config.mqtt.qos"
                       :options="[0, 1, 2]"
-                      aria-labelledby="basic"
+                      aria-labelledby="qos_label"
                       class="w-full"
                     />
                   </div>
