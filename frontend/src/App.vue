@@ -38,8 +38,8 @@ onErrorCaptured((error) => {
         <button
           class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white transition-colors"
           @click="
-            hasError = false
-            errorMessage = ''
+            hasError = false;
+            errorMessage = '';
           "
         >
           Retry
