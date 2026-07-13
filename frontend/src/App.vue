@@ -37,7 +37,10 @@ onErrorCaptured((error) => {
         <p class="text-gray-400 mb-6">{{ errorMessage }}</p>
         <button
           class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white transition-colors"
-          @click="hasError = false; errorMessage = ''"
+          @click="
+            hasError = false
+            errorMessage = ''
+          "
         >
           Retry
         </button>

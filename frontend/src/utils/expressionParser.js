@@ -151,20 +151,77 @@ function evaluateWithValues(expression, values) {
  * @returns {Array} - List of [timestamp, value] pairs
  */
 export function evaluateExpressionSeries(expression, queryData) {
+  const queryLabels = parseExpression(expression)
+
   // Get all unique timestamps from all queries
   const allTimestamps = new Set()
-  for (const data of Object.values(queryData)) {
-    for (const [ts] of data) {
-      allTimestamps.add(ts)
+  const lookupMap = {}
+
+  for (const [label, data] of Object.entries(queryData)) {
+    if (queryLabels.includes(label)) {
+      lookupMap[label] = new Map()
+      for (const [ts, val] of data) {
+        allTimestamps.add(ts)
+        lookupMap[label].set(ts, val)
+      }
+    } else {
+      for (const [ts] of data) {
+        allTimestamps.add(ts)
+      }
     }
+  }
+
+  // Precompile the expression into a function to avoid O(N) regex and recompilations
+  let func
+  try {
+    let expr = expression
+    expr = expr.replace(/avg\s*\(([^)]+)\)/g, (match, args) => {
+      const argList = args.split(',').map((a) => a.trim())
+      return `(${argList.join('+')})/${argList.length}`
+    })
+    expr = expr.replace(/sum\s*\(([^)]+)\)/g, (match, args) => {
+      const argList = args.split(',').map((a) => a.trim())
+      return `(${argList.join('+')})`
+    })
+    expr = expr.replace(/min\s*\(([^)]+)\)/g, (match, args) => {
+      return `Math.min(${args})`
+    })
+    expr = expr.replace(/max\s*\(([^)]+)\)/g, (match, args) => {
+      return `Math.max(${args})`
+    })
+
+    func = new Function(...queryLabels, 'return ' + expr)
+  } catch (error) {
+    console.error(`Failed to compile expression '${expression}':`, error)
+    return []
   }
 
   // Evaluate expression at each timestamp
   const results = []
   for (const timestamp of Array.from(allTimestamps).sort((a, b) => a - b)) {
-    const value = evaluateExpression(expression, timestamp, queryData)
-    if (value !== null) {
-      results.push([timestamp, value])
+    let hasAllVals = true
+    const argValues = []
+
+    for (const label of queryLabels) {
+      const val = lookupMap[label].get(timestamp)
+      if (val === undefined) {
+        hasAllVals = false
+        break
+      }
+      argValues.push(val)
+    }
+
+    if (hasAllVals) {
+      try {
+        const result = func(...argValues)
+        if (result !== null && result !== undefined && !Number.isNaN(result)) {
+          results.push([timestamp, parseFloat(result)])
+        } else if (Number.isNaN(result)) {
+          results.push([timestamp, NaN])
+        }
+      } catch {
+        // ignore errors for specific timestamps
+      }
     }
   }
 
