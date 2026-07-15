@@ -168,6 +168,7 @@ const handleReset = async () => {
                 type="button"
                 @click="showPassword = !showPassword"
                 :aria-label="showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'"
+                :title="showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'"
               />
             </div>
             <div

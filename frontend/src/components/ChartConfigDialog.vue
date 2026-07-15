@@ -81,7 +81,6 @@
                   text
                   v-tooltip.top="'Expression bearbeiten'"
                   aria-label="Expression bearbeiten"
-                  title="Expression bearbeiten"
                 />
               </div>
             </div>
