@@ -57,6 +57,7 @@
                         severity="secondary"
                         @click="copyId"
                         aria-label="Installation ID kopieren"
+                        title="Installation ID kopieren"
                       />
                     </div>
                   </div>
@@ -1032,6 +1033,7 @@
                         size="small"
                         @click="downloadBackup(backup.filename)"
                         aria-label="Herunterladen"
+                        title="Herunterladen"
                       />
                       <Button
                         icon="pi pi-trash"
@@ -1040,6 +1042,7 @@
                         size="small"
                         @click="confirmDeleteBackup(backup.filename)"
                         aria-label="Löschen"
+                        title="Löschen"
                       />
                     </div>
                   </div>

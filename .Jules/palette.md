@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2025-05-18 - Missing Tooltips on Backup/Admin Icon Buttons
+**Learning:** Icon-only actions in `Config.vue` (like copy ID, backup download, backup delete) had `aria-label` but lacked visual hover text (`title`). This degrades usability for sighted mouse users.
+**Action:** When adding new icon-only PrimeVue buttons, ensure `title` attributes are present alongside `aria-label` to provide both visual and screen-reader accessibility.
