@@ -88,7 +88,7 @@ export function evaluateExpression(expression, timestamp, queryData) {
   // Evaluate the expression with these values
   try {
     return evaluateWithValues(expression, queryValues)
-  } catch (error) {
+  } catch {
     console.error(`Error evaluating expression '${expression}':`, error)
     return null
   }
@@ -159,12 +159,75 @@ export function evaluateExpressionSeries(expression, queryData) {
     }
   }
 
-  // Evaluate expression at each timestamp
+  const queryLabels = parseExpression(expression)
+
+  const lookup = {}
+  for (const label of queryLabels) {
+    lookup[label] = new Map()
+    if (queryData[label]) {
+      for (const [ts, val] of queryData[label]) {
+        lookup[label].set(ts, val)
+      }
+    }
+  }
+
+  let expr = expression
+  for (const label of queryLabels) {
+    const regex = new RegExp(`\\b${label}\\b`, 'g')
+    expr = expr.replace(regex, `vars['${label}']`)
+  }
+
+  expr = expr.replace(/avg\s*\(([^)]+)\)/g, (match, args) => {
+    const argList = args.split(',').map((a) => a.trim())
+    return `((${argList.join('+')})/${argList.length})`
+  })
+
+  expr = expr.replace(/sum\s*\(([^)]+)\)/g, (match, args) => {
+    const argList = args.split(',').map((a) => a.trim())
+    return `(${argList.join('+')})`
+  })
+
+  expr = expr.replace(/min\s*\(([^)]+)\)/g, (match, args) => {
+    return `Math.min(${args})`
+  })
+
+  expr = expr.replace(/max\s*\(([^)]+)\)/g, (match, args) => {
+    return `Math.max(${args})`
+  })
+
+  let compiledFunc
+  try {
+    compiledFunc = new Function('vars', 'return ' + expr)
+  } catch (error) {
+    console.error(`Failed to compile expression '${expr}':`, error)
+    return []
+  }
+
   const results = []
-  for (const timestamp of Array.from(allTimestamps).sort((a, b) => a - b)) {
-    const value = evaluateExpression(expression, timestamp, queryData)
-    if (value !== null) {
-      results.push([timestamp, value])
+  const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b)
+
+  for (const timestamp of sortedTimestamps) {
+    let missingVariable = false
+    const vars = {}
+
+    for (const label of queryLabels) {
+      const val = lookup[label].get(timestamp)
+      if (val === undefined) {
+        missingVariable = true
+        break
+      }
+      vars[label] = val
+    }
+
+    if (!missingVariable) {
+      try {
+        const val = compiledFunc(vars)
+        if (!isNaN(val) && val !== null) {
+          results.push([timestamp, parseFloat(val)])
+        }
+      } catch {
+        // Skip failed evaluations
+      }
     }
   }
 
