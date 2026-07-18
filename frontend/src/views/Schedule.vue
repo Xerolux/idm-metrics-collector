@@ -45,7 +45,14 @@
                 @click="toggleJob(job.id, job.enabled)"
                 :aria-label="job.enabled ? t('pause_job') : t('enable_job')"
               />
-              <Button icon="pi pi-trash" text severity="danger" @click="deleteJob(job.id)" :aria-label="t('delete')" v-tooltip="t('delete')" />
+              <Button
+                icon="pi pi-trash"
+                text
+                severity="danger"
+                @click="deleteJob(job.id)"
+                :aria-label="t('delete')"
+                v-tooltip="t('delete')"
+              />
             </div>
           </template>
         </Card>
