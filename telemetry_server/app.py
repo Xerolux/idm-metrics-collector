@@ -1649,12 +1649,14 @@ async def list_available_models(request: Request, auth: None = Depends(verify_to
     if model_dir.exists():
 
         async def _get_model_info(model_file):
+            # ⚡ Bolt: Cache stat() result to prevent redundant I/O syscalls without thread overhead
+            stat = model_file.stat()
             return {
                 "name": model_file.stem.replace("_", " "),
                 "filename": model_file.name,
-                "size_bytes": model_file.stat().st_size,
+                "size_bytes": stat.st_size,
                 "hash": await get_file_hash(str(model_file)),
-                "modified": model_file.stat().st_mtime,
+                "modified": stat.st_mtime,
             }
 
         tasks = [_get_model_info(f) for f in model_dir.glob("*.enc")]
