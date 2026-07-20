@@ -110,19 +110,26 @@ function getCompiledExpression(expression) {
 
   const queryLabels = parseExpression(expression)
   const sum = (...args) => args.reduce((a, b) => a + b, 0)
-  const avg = (...args) => args.length ? sum(...args) / args.length : 0
+  const avg = (...args) => (args.length ? sum(...args) / args.length : 0)
   const min = Math.min
   const max = Math.max
 
   let compiledFunc
   try {
-    compiledFunc = new Function(...queryLabels, 'sum', 'avg', 'min', 'max', 'return ' + expression)
+    compiledFunc = new Function(
+      ...queryLabels,
+      'sum',
+      'avg',
+      'min',
+      'max',
+      'return ' + expression
+    )
   } catch (error) {
     throw new Error(`Failed to compile expression '${expression}': ${error.message}`)
   }
 
   const evaluator = (values) => {
-    const args = queryLabels.map(label => values[label])
+    const args = queryLabels.map((label) => values[label])
     return compiledFunc(...args, sum, avg, min, max)
   }
 
