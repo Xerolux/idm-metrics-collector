@@ -1975,7 +1975,7 @@ async def admin_delete_model(
         file_hash = "unknown"
 
     try:
-        await asyncio.to_thread(os.remove, model_file)
+        os.remove(model_file)
 
         logger.info(
             "model_deleted",
