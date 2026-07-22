@@ -15,13 +15,14 @@
             :key="cat.id"
             @click="selectedCategory = cat.id"
             :class="[
-              'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+              'px-4 py-2 rounded-lg text-sm font-medium transition-all focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none',
               selectedCategory === cat.id
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             ]"
+            :aria-pressed="selectedCategory === cat.id"
           >
-            <i :class="cat.icon" class="mr-2"></i>
+            <i :class="cat.icon" class="mr-2" aria-hidden="true"></i>
             {{ cat.name }}
           </button>
         </div>

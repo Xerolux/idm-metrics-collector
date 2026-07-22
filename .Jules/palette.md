@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2024-05-19 - Accessible focus and state attributes on custom UI elements
+**Learning:** For custom status banners (`ErrorDisplay.vue`) and toggle buttons (`ChartTemplateDialog.vue`, `SensorSidebar.vue`), visual-only implementation hurts accessibility. Decorative icons (`<i class="pi...">`) without `aria-hidden="true"` can confuse screen readers. Selectable category buttons need `:aria-pressed="<condition>"` to communicate state, and custom focus boundaries must be visible to keyboard users via `focus-visible`.
+**Action:** When implementing custom banners or category toggles, ensure decorative elements use `aria-hidden="true"`, selectable buttons bind `:aria-pressed`, and `focus-visible:ring-2` is consistently applied.

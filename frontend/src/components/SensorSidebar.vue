@@ -41,9 +41,9 @@
               v-for="metric in metrics"
               :key="metric.name"
               @click="selectSensor(metric)"
-              class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-teal-50 hover:text-teal-700 transition-colors flex items-center gap-2"
+              class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-teal-50 hover:text-teal-700 transition-colors flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:outline-none"
             >
-              <i class="pi pi-chart-line text-teal-600"></i>
+              <i class="pi pi-chart-line text-teal-600" aria-hidden="true"></i>
               <span>{{ metric.display }}</span>
             </button>
           </div>
