@@ -151,20 +151,70 @@ function evaluateWithValues(expression, values) {
  * @returns {Array} - List of [timestamp, value] pairs
  */
 export function evaluateExpressionSeries(expression, queryData) {
-  // Get all unique timestamps from all queries
+  const queryLabels = parseExpression(expression)
+
+  // Get all unique timestamps and build a lookup map
   const allTimestamps = new Set()
-  for (const data of Object.values(queryData)) {
-    for (const [ts] of data) {
+  const lookup = {}
+
+  for (const [label, data] of Object.entries(queryData)) {
+    if (!queryLabels.includes(label)) {
+      for (const [ts] of data) {
+        allTimestamps.add(ts)
+      }
+      continue
+    }
+
+    lookup[label] = new Map()
+    for (const [ts, val] of data) {
       allTimestamps.add(ts)
+      lookup[label].set(ts, val)
     }
   }
 
-  // Evaluate expression at each timestamp
+  // Prepare utility functions
+  const avg = (...args) => args.reduce((a, b) => a + b, 0) / args.length
+  const sum = (...args) => args.reduce((a, b) => a + b, 0)
+  const min = Math.min
+  const max = Math.max
+
+  const paramNames = ["avg", "sum", "min", "max", ...queryLabels]
+
+  let func
+  try {
+    // Compile the expression once outside the loop to avoid O(N) regex and function instantiations
+    func = new Function(...paramNames, 'return ' + expression)
+  } catch (error) {
+    console.error(`Failed to compile expression '${expression}':`, error)
+    return []
+  }
+
   const results = []
-  for (const timestamp of Array.from(allTimestamps).sort((a, b) => a - b)) {
-    const value = evaluateExpression(expression, timestamp, queryData)
-    if (value !== null) {
-      results.push([timestamp, value])
+  const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b)
+
+  for (const timestamp of sortedTimestamps) {
+    const args = [avg, sum, min, max]
+    let missingVariable = false
+
+    for (const label of queryLabels) {
+      if (!lookup[label] || !lookup[label].has(timestamp)) {
+        missingVariable = true
+        break
+      }
+      args.push(lookup[label].get(timestamp))
+    }
+
+    if (missingVariable) {
+      continue
+    }
+
+    try {
+      const val = func(...args)
+      if (val !== null && val !== undefined && !isNaN(val) && isFinite(val)) {
+        results.push([timestamp, parseFloat(val)])
+      }
+    } catch {
+      // Ignore evaluation errors for individual timestamps
     }
   }
 
