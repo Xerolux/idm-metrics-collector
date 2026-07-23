@@ -151,6 +151,45 @@ function evaluateWithValues(expression, values) {
  * @returns {Array} - List of [timestamp, value] pairs
  */
 export function evaluateExpressionSeries(expression, queryData) {
+  const validation = validateExpression(expression)
+  if (!validation.valid) {
+    console.error(`Invalid expression: ${validation.error}`)
+    return []
+  }
+
+  const queryLabels = parseExpression(expression)
+
+  const sum = (...args) => args.reduce((a, b) => a + b, 0)
+  const avg = (...args) => (args.length ? sum(...args) / args.length : 0)
+  const min = Math.min
+  const max = Math.max
+
+  let compiledFunc
+  try {
+    compiledFunc = new Function(
+      'sum',
+      'avg',
+      'min',
+      'max',
+      ...queryLabels,
+      'return ' + expression
+    )
+  } catch (error) {
+    console.error(`Failed to compile expression '${expression}':`, error)
+    return []
+  }
+
+  // Create O(1) time-based Map for variable lookups
+  const timeMaps = {}
+  for (const label of queryLabels) {
+    timeMaps[label] = new Map()
+    if (queryData[label]) {
+      for (const [ts, val] of queryData[label]) {
+        timeMaps[label].set(ts, val)
+      }
+    }
+  }
+
   // Get all unique timestamps from all queries
   const allTimestamps = new Set()
   for (const data of Object.values(queryData)) {
@@ -162,9 +201,27 @@ export function evaluateExpressionSeries(expression, queryData) {
   // Evaluate expression at each timestamp
   const results = []
   for (const timestamp of Array.from(allTimestamps).sort((a, b) => a - b)) {
-    const value = evaluateExpression(expression, timestamp, queryData)
-    if (value !== null) {
-      results.push([timestamp, value])
+    const args = [sum, avg, min, max]
+    let hasAllArgs = true
+
+    for (const label of queryLabels) {
+      const val = timeMaps[label].get(timestamp)
+      if (val === undefined) {
+        hasAllArgs = false
+        break
+      }
+      args.push(val)
+    }
+
+    if (hasAllArgs) {
+      try {
+        const value = parseFloat(compiledFunc(...args))
+        if (!isNaN(value)) {
+          results.push([timestamp, value])
+        }
+      } catch {
+        // Skip on error
+      }
     }
   }
 
