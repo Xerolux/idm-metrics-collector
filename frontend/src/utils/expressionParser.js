@@ -58,6 +58,45 @@ export function parseExpression(expression) {
   return [...new Set(matches)]
 }
 
+// Cache for compiled expression functions (keyed by expression string)
+const _compiledCache = new Map()
+const _MAX_CACHE = 200
+
+/**
+ * Compile an expression into a reusable function.
+ * Translates avg/sum/min/max macros, then builds a Function with named parameters.
+ *
+ * @param {string} expression - The expression to compile
+ * @param {Array<string>} queryLabels - Variable names extracted from the expression
+ * @returns {Function} - Function that takes (...values) and returns the result
+ */
+function compileExpression(expression, queryLabels) {
+  if (_compiledCache.has(expression)) {
+    return _compiledCache.get(expression)
+  }
+
+  let expr = expression
+  expr = expr.replace(/avg\s*\(([^)]+)\)/g, (_match, args) => {
+    const argList = args.split(',').map((a) => a.trim())
+    return `(${argList.join('+')})/${argList.length}`
+  })
+  expr = expr.replace(/sum\s*\(([^)]+)\)/g, (_match, args) => {
+    const argList = args.split(',').map((a) => a.trim())
+    return `(${argList.join('+')})`
+  })
+  expr = expr.replace(/min\s*\(/g, 'Math.min(')
+  expr = expr.replace(/max\s*\(/g, 'Math.max(')
+
+  const func = new Function(...queryLabels, 'return ' + expr)
+
+  if (_compiledCache.size >= _MAX_CACHE) {
+    const firstKey = _compiledCache.keys().next().value
+    _compiledCache.delete(firstKey)
+  }
+  _compiledCache.set(expression, func)
+  return func
+}
+
 /**
  * Evaluate an expression at a specific timestamp.
  *
@@ -70,24 +109,17 @@ export function parseExpression(expression) {
 export function evaluateExpression(expression, timestamp, queryData) {
   const queryLabels = parseExpression(expression)
 
-  // Get the value for each query at this timestamp
-  const queryValues = {}
+  const args = []
   for (const label of queryLabels) {
-    if (!queryData[label]) {
-      return null
-    }
-
+    if (!queryData[label]) return null
     const value = queryData[label].find(([ts]) => ts === timestamp)?.[1]
-    if (value === undefined) {
-      return null
-    }
-
-    queryValues[label] = value
+    if (value === undefined) return null
+    args.push(value)
   }
 
-  // Evaluate the expression with these values
   try {
-    return evaluateWithValues(expression, queryValues)
+    const func = compileExpression(expression, queryLabels)
+    return parseFloat(func(...args))
   } catch (error) {
     console.error(`Error evaluating expression '${expression}':`, error)
     return null
@@ -95,76 +127,65 @@ export function evaluateExpression(expression, timestamp, queryData) {
 }
 
 /**
- * Evaluate an expression with given query values.
- *
- * @param {string} expression - The expression to evaluate
- * @param {Object} values - Dictionary mapping query labels to their values
- * @returns {number} - The calculated value
- */
-function evaluateWithValues(expression, values) {
-  // Replace query references with their values
-  let expr = expression
-  for (const [label, value] of Object.entries(values)) {
-    // Use word boundaries to avoid partial replacements
-    const regex = new RegExp(`\\b${label}\\b`, 'g')
-    expr = expr.replace(regex, value.toString())
-  }
-
-  // Replace functions with Python equivalents
-  // avg(A,B,C) -> (A+B+C)/3
-  expr = expr.replace(/avg\s*\(([^)]+)\)/g, (match, args) => {
-    const argList = args.split(',').map((a) => a.trim())
-    return `(${argList.join('+')})/${argList.length}`
-  })
-
-  // sum(A,B) -> (A+B)
-  expr = expr.replace(/sum\s*\(([^)]+)\)/g, (match, args) => {
-    const argList = args.split(',').map((a) => a.trim())
-    return `(${argList.join('+')})`
-  })
-
-  // min(A,B) -> Math.min(A,B)
-  expr = expr.replace(/min\s*\(([^)]+)\)/g, (match, args) => {
-    return `Math.min(${args})`
-  })
-
-  // max(A,B) -> Math.max(A,B)
-  expr = expr.replace(/max\s*\(([^)]+)\)/g, (match, args) => {
-    return `Math.max(${args})`
-  })
-
-  // Safe evaluation using Function constructor (safer than eval)
-  try {
-    const func = new Function('return ' + expr)
-    const result = func()
-    return parseFloat(result)
-  } catch (error) {
-    throw new Error(`Failed to evaluate expression '${expr}': ${error.message}`)
-  }
-}
-
-/**
  * Evaluate an expression over all timestamps.
+ * Uses O(1) Map lookups and pre-compiled functions for performance.
  *
  * @param {string} expression - The expression to evaluate
  * @param {Object} queryData - Dictionary mapping query labels to their data
  * @returns {Array} - List of [timestamp, value] pairs
  */
 export function evaluateExpressionSeries(expression, queryData) {
-  // Get all unique timestamps from all queries
+  const queryLabels = parseExpression(expression)
+
   const allTimestamps = new Set()
-  for (const data of Object.values(queryData)) {
-    for (const [ts] of data) {
-      allTimestamps.add(ts)
+  const lookups = {}
+
+  for (const [label, data] of Object.entries(queryData)) {
+    if (queryLabels.includes(label)) {
+      const map = new Map()
+      for (const [ts, val] of data) {
+        allTimestamps.add(ts)
+        map.set(ts, val)
+      }
+      lookups[label] = map
+    } else {
+      for (const [ts] of data) {
+        allTimestamps.add(ts)
+      }
     }
   }
 
-  // Evaluate expression at each timestamp
+  let func
+  try {
+    func = compileExpression(expression, queryLabels)
+  } catch (error) {
+    console.error(`Failed to compile expression '${expression}':`, error)
+    return []
+  }
+
   const results = []
-  for (const timestamp of Array.from(allTimestamps).sort((a, b) => a - b)) {
-    const value = evaluateExpression(expression, timestamp, queryData)
-    if (value !== null) {
-      results.push([timestamp, value])
+  const sorted = Array.from(allTimestamps).sort((a, b) => a - b)
+
+  for (const ts of sorted) {
+    const args = []
+    let complete = true
+    for (const label of queryLabels) {
+      const val = lookups[label]?.get(ts)
+      if (val === undefined) {
+        complete = false
+        break
+      }
+      args.push(val)
+    }
+    if (!complete) continue
+
+    try {
+      const result = func(...args)
+      if (result !== null && result !== undefined && !Number.isNaN(result)) {
+        results.push([ts, parseFloat(result)])
+      }
+    } catch {
+      // skip evaluation errors for individual timestamps
     }
   }
 

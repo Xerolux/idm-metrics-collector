@@ -1,6 +1,7 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import logging
+import threading
 import time
 from pymodbus.client import ModbusTcpClient
 
@@ -56,6 +57,7 @@ class ModbusClient:
         self.client = ModbusTcpClient(
             host, port=port, timeout=MODBUS_TIMEOUT, retries=MODBUS_RETRIES
         )
+        self._lock = threading.Lock()
 
         # Initialize with common sensors
         self.sensors = {s.name: s for s in COMMON_SENSORS}
@@ -368,9 +370,10 @@ class ModbusClient:
                     rr = None
                     for attempt in range(2):
                         try:
-                            rr = self.client.read_holding_registers(
-                                start_addr, count=count, device_id=1
-                            )
+                            with self._lock:
+                                rr = self.client.read_holding_registers(
+                                    start_addr, count=count, device_id=1
+                                )
                             if not rr.isError():
                                 break
                             time.sleep(0.2)  # Wait before retry
@@ -470,9 +473,10 @@ class ModbusClient:
         """Reads each sensor in a block individually and updates the data dictionary."""
         for sensor in block:
             try:
-                sensor_rr = self.client.read_holding_registers(
-                    sensor.address, count=sensor.size, device_id=1
-                )
+                with self._lock:
+                    sensor_rr = self.client.read_holding_registers(
+                        sensor.address, count=sensor.size, device_id=1
+                    )
                 if sensor_rr.isError():
                     logger.debug(
                         f"Individual read failed for {sensor.name} @ {sensor.address}: {sensor_rr}"
@@ -533,7 +537,8 @@ class ModbusClient:
         # Write
         try:
             # Pymodbus 3.x API: write_registers(address, values, device_id=1)
-            rr = self.client.write_registers(sensor.address, registers, device_id=1)
+            with self._lock:
+                rr = self.client.write_registers(sensor.address, registers, device_id=1)
             if rr.isError():
                 self._stats["total_write_errors"] += 1
                 self._stats["last_error"] = f"Write error: {rr}"

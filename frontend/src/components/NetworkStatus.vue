@@ -8,16 +8,19 @@ const showOfflineBanner = ref(!navigator.onLine)
 
 // Check backend connectivity
 const checkBackendHealth = async () => {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 5000)
   try {
     const response = await fetch('/api/health', {
       method: 'GET',
       cache: 'no-cache',
-      timeout: 5000
+      signal: controller.signal
     })
     isBackendOnline.value = response.ok
-  } catch (error) {
-    console.error(error)
+  } catch {
     isBackendOnline.value = false
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
@@ -49,14 +52,13 @@ const updateOnlineStatus = () => {
   }
 }
 
-window.addEventListener('online', handleBrowserOnline)
-window.addEventListener('offline', handleBrowserOffline)
-
 // Check backend status periodically
 let healthCheckInterval
 onMounted(() => {
   checkBackendHealth()
   healthCheckInterval = setInterval(checkBackendHealth, 30000) // Check every 30 seconds
+  window.addEventListener('online', handleBrowserOnline)
+  window.addEventListener('offline', handleBrowserOffline)
 })
 
 onUnmounted(() => {

@@ -59,7 +59,7 @@
 
       <!-- Controls -->
       <div class="flex items-center gap-2 mb-2 flex-shrink-0">
-        <InputText v-model="filterText" placeholder="Filtern..." class="text-sm w-48" />
+        <InputText v-model="filterText" placeholder="Filtern..." aria-label="Tabelle filtern" class="text-sm w-48" />
         <Select
           v-model="sortBy"
           :options="sortOptions"
@@ -67,6 +67,7 @@
           optionValue="value"
           class="text-sm w-40"
           placeholder="Sortieren"
+          aria-label="Sortieren nach"
         />
         <Button
           @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
@@ -369,10 +370,14 @@ watch(currentPage, () => {
   }
 })
 
+let _refreshInterval
+
 onMounted(() => {
   fetchData()
-  const interval = setInterval(fetchData, 60000)
+  _refreshInterval = setInterval(fetchData, 60000)
+})
 
-  return () => clearInterval(interval)
+onUnmounted(() => {
+  clearInterval(_refreshInterval)
 })
 </script>

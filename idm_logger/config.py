@@ -435,7 +435,9 @@ class Config:
 
     def save(self):
         # Encrypt sensitive fields before saving
-        to_save = json.loads(json.dumps(self.data))
+        import copy
+
+        to_save = copy.deepcopy(self.data)
 
         if "mqtt" in to_save:
             to_save["mqtt"]["encrypted_password"] = self._encrypt(

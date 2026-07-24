@@ -8,6 +8,7 @@ from fastapi.responses import (
     JSONResponse,
     Response,
 )
+from starlette.background import BackgroundTask
 from pydantic import BaseModel, field_validator
 from typing import List, Optional, Dict, Any, Tuple
 from urllib.parse import urlparse
@@ -1575,8 +1576,8 @@ async def download_model(
                         },
                     )
 
-                    # Clean up temp file after response
-                    response.background = None  # Temp file will be cleaned up by OS
+                    # Clean up temp file after response is sent
+                    response.background = BackgroundTask(os.unlink, temp_file.name)
 
                     logger.info(
                         "model_download_personal_encryption",
@@ -1649,12 +1650,13 @@ async def list_available_models(request: Request, auth: None = Depends(verify_to
     if model_dir.exists():
 
         async def _get_model_info(model_file):
+            stat = model_file.stat()
             return {
                 "name": model_file.stem.replace("_", " "),
                 "filename": model_file.name,
-                "size_bytes": model_file.stat().st_size,
+                "size_bytes": stat.st_size,
                 "hash": await get_file_hash(str(model_file)),
-                "modified": model_file.stat().st_mtime,
+                "modified": stat.st_mtime,
             }
 
         tasks = [_get_model_info(f) for f in model_dir.glob("*.enc")]
@@ -1968,14 +1970,12 @@ async def admin_delete_model(
     model_file = resolve_model_file(model_name)
 
     try:
-        file_hash = (
-            await asyncio.to_thread(file_hash_cache.get, str(model_file)) or "unknown"
-        )
+        file_hash = await file_hash_cache.get(str(model_file)) or "unknown"
     except Exception:
         file_hash = "unknown"
 
     try:
-        await asyncio.to_thread(os.remove, model_file)
+        os.remove(model_file)
 
         logger.info(
             "model_deleted",
@@ -1994,7 +1994,7 @@ async def admin_delete_model(
         )
 
         if PROMETHEUS_AVAILABLE:
-            model_downloads_total.labels(model=model_name).inc()
+            model_deletes_total.labels(model=model_name).inc()
 
         return {"success": True, "message": f"Model {model_name} deleted successfully"}
 
@@ -2735,6 +2735,7 @@ async def admin_get_metrics(
             "submissions": get_metric_value("telemetry_data_submissions_total"),
             "data_points": get_metric_value("telemetry_data_points_submitted_total"),
             "model_downloads": get_metric_value("model_downloads_total"),
+            "model_deletes": get_metric_value("model_deletes_total"),
             "training_runs": get_metric_value("telemetry_training_runs_total"),
             "active_installations": get_metric_value("telemetry_active_installations"),
         }
@@ -3565,6 +3566,9 @@ try:
     )
     model_downloads_total = Counter(
         "model_downloads_total", "Total model downloads", ["model"]
+    )
+    model_deletes_total = Counter(
+        "model_deletes_total", "Total model deletes", ["model"]
     )
     rate_limit_hits_total = Counter(
         "rate_limit_hits_total", "Total rate limit violations"

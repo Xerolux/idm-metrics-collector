@@ -201,10 +201,6 @@ class MQTTPublisher:
             # Stop the background loop and wait for it to complete
             # wait_for=True ensures we wait for the loop thread to finish
             self.client.loop_stop(wait_for=True)
-            # Give a small delay to ensure the loop thread has stopped
-            import time
-
-            time.sleep(0.1)
             # Now disconnect from the broker
             self.client.disconnect()
             self.connected = False

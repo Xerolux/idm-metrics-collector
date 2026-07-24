@@ -48,24 +48,25 @@ class Database:
                 self.db_path, check_same_thread=False, timeout=10.0
             )
             self._conn.row_factory = sqlite3.Row
-        else:
-            # Check if connection was closed and reconnect if needed
-            try:
-                self._conn.execute("SELECT 1")
-            except sqlite3.ProgrammingError:
-                # Connection was closed, reconnect
-                logger.warning("Database connection was closed, reconnecting...")
-                self._conn = sqlite3.connect(
-                    self.db_path, check_same_thread=False, timeout=10.0
-                )
-                self._conn.row_factory = sqlite3.Row
+        return self._conn
+
+    def _ensure_connection(self):
+        """Reconnect if the connection was closed. Called within _get_locked_connection."""
+        try:
+            self._conn.execute("SELECT 1")
+        except (sqlite3.ProgrammingError, sqlite3.OperationalError, AttributeError):
+            logger.warning("Database connection lost, reconnecting...")
+            self._conn = sqlite3.connect(
+                self.db_path, check_same_thread=False, timeout=10.0
+            )
+            self._conn.row_factory = sqlite3.Row
         return self._conn
 
     @contextmanager
     def _get_locked_connection(self):
         """Context manager for thread-safe database operations."""
         with self._lock:
-            conn = self.get_connection()
+            conn = self._ensure_connection()
             try:
                 yield conn
                 conn.commit()

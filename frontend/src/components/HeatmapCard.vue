@@ -363,28 +363,28 @@ watch(isFullscreen, () => {
   }, 100)
 })
 
+let _resizeObserver
+let _refreshInterval
+
 onMounted(() => {
   setupCanvas()
   fetchData()
 
-  const resizeObserver = new ResizeObserver(() => {
+  _resizeObserver = new ResizeObserver(() => {
     setupCanvas()
     renderHeatmap()
   })
 
   if (canvasRef.value) {
-    resizeObserver.observe(canvasRef.value.parentElement)
+    _resizeObserver.observe(canvasRef.value.parentElement)
   }
 
-  const interval = setInterval(fetchData, 60000)
-
-  return () => {
-    resizeObserver.disconnect()
-    clearInterval(interval)
-  }
+  _refreshInterval = setInterval(fetchData, 60000)
 })
 
 onUnmounted(() => {
+  _resizeObserver?.disconnect()
+  clearInterval(_refreshInterval)
   if (chartInstance.value) {
     chartInstance.value.destroy()
   }

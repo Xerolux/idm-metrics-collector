@@ -333,29 +333,27 @@ watch(isFullscreen, () => {
   }, 100)
 })
 
+let _resizeObserver
+let _refreshInterval
+
 onMounted(() => {
   setupCanvas()
   fetchData()
 
-  // Setup resize observer
-  const resizeObserver = new ResizeObserver(() => {
+  _resizeObserver = new ResizeObserver(() => {
     setupCanvas()
     renderTimeline()
   })
 
   if (canvasRef.value) {
-    resizeObserver.observe(canvasRef.value.parentElement)
+    _resizeObserver.observe(canvasRef.value.parentElement)
   }
 
-  const interval = setInterval(fetchData, 60000)
-
-  return () => {
-    resizeObserver.disconnect()
-    clearInterval(interval)
-  }
+  _refreshInterval = setInterval(fetchData, 60000)
 })
 
 onUnmounted(() => {
-  // Cleanup
+  _resizeObserver?.disconnect()
+  clearInterval(_refreshInterval)
 })
 </script>

@@ -77,6 +77,7 @@ class AlertManager:
         Check all alerts against current data.
         Should be called periodically (e.g. every loop or every minute).
         """
+        triggered = []
         with self.lock:
             now = time.time()
             triggered_alerts_ids = []
@@ -96,8 +97,6 @@ class AlertManager:
                         continue
 
                     if alert["type"] == "status":
-                        # Status reports trigger based on interval only
-                        # If interval is 0, it would trigger every loop (bad), so force min interval
                         if interval <= 0:
                             logger.warning(
                                 f"Status alert {alert['name']} has invalid interval 0, skipping"
@@ -117,7 +116,6 @@ class AlertManager:
 
                         val_f = _to_float(current_val)
 
-                        # ⚡ Bolt: Handle legacy alerts in memory that might not have the cache initialized yet
                         if "_parsed_threshold" not in alert:
                             alert["_parsed_threshold"] = _to_float(
                                 alert.get("threshold")
@@ -126,7 +124,6 @@ class AlertManager:
                         thresh_f = alert.get("_parsed_threshold")
 
                         if val_f is not None and thresh_f is not None:
-                            # Numeric comparison
                             if condition == ">":
                                 should_trigger = val_f > thresh_f
                             elif condition == "<":
@@ -136,7 +133,6 @@ class AlertManager:
                             elif condition == "!=":
                                 should_trigger = val_f != thresh_f
                         else:
-                            # String comparison
                             threshold_str = str(alert.get("threshold"))
                             val_s = str(current_val)
                             if condition == "=":
@@ -145,18 +141,24 @@ class AlertManager:
                                 should_trigger = val_s != threshold_str
 
                     if should_trigger:
-                        self._trigger_alert(alert, trigger_value)
-
-                        # Update last_triggered in memory and batch update for db
-                        # Optimization: Batch DB updates to prevent N+1 write performance issue
                         alert["last_triggered"] = now
                         triggered_alerts_ids.append(alert["id"])
+                        triggered.append((dict(alert), trigger_value))
 
                 except Exception as e:
                     logger.error(f"Error checking alert {alert.get('name')}: {e}")
 
             if triggered_alerts_ids:
                 db.update_alerts_last_triggered(triggered_alerts_ids, now)
+
+        # Send notifications outside the lock to avoid blocking concurrent API access
+        for alert_copy, value in triggered:
+            try:
+                self._trigger_alert(alert_copy, value)
+            except Exception as e:
+                logger.error(
+                    f"Error sending notification for alert {alert_copy.get('name')}: {e}"
+                )
 
     def _trigger_alert(self, alert, value):
         logger.info(f"Triggering alert: {alert['name']}")

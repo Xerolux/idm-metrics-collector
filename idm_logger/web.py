@@ -201,6 +201,7 @@ def _configure_secure_session_cookie():
         if forwarded_proto == "https":
             app.config["SESSION_COOKIE_SECURE"] = True
 
+
 # Initialize SocketIO with configurable CORS
 # Security: Read allowed origins from config, default to same-origin only
 _cors_origins = config.get("web.cors_allowed_origins", None)
@@ -287,6 +288,7 @@ def _cache_ip_result(client_ip: str, allowed: bool, now: float) -> None:
             )
             for key, _ in items[: _MAX_IP_CACHE_SIZE // 10]:
                 _net_sec_cache["ip_results"].pop(key, None)
+
 
 # AI Status Cache
 _ai_status_lock = threading.Lock()
@@ -1332,7 +1334,6 @@ def export_metrics_data():
                     "error": f"Time range too large for {export_format} export (max {max_duration // 86400} days)"
                 }
             ), 400
-
 
         metrics_url = config.data.get("metrics", {}).get(
             "url", "http://victoriametrics:8428/write"
