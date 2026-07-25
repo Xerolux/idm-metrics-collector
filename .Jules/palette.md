@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2025-07-25 - Making Clickable Custom Elements Accessible
+**Learning:** We occasionally use non-semantic elements (like `div` or `<Card>`) as interactive buttons for visual layout reasons (e.g., "Add Chart" cards). Sighted users can interact with these using a mouse (`@click`), but they are completely invisible to screen readers and inaccessible to keyboard users because they lack semantic meaning, focus states, and keyboard event handlers.
+**Action:** When turning non-interactive elements into clickable actions, always add `role="button"`, `tabindex="0"`, visual focus outlines (`focus-visible:ring-2 outline-none`), and keyboard event handlers (`@keydown.enter` and `@keydown.space.prevent`) to ensure full accessibility for all users.
