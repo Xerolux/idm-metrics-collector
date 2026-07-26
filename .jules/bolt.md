@@ -32,3 +32,6 @@
 ## 2026-04-09 - Optimize Modbus Struct Pack/Unpack Loops
 **Learning:** In Python loops handling struct operations (like encoding/decoding Modbus registers), manual string concatenation and list slicing inside the loop is very slow and memory-intensive. However, using vectorized C-level `struct.pack` and `struct.unpack` with format multipliers (e.g., `f"{fmt_char}{len(registers)}H"`) to pack/unpack items concurrently significantly reduces CPU time and memory allocation overhead on hot paths, cutting execution times by over 30% for these methods.
 **Action:** Always prefer vectorized `struct` operations with format multipliers over manual iterations and slicing when parsing arrays of binary registers in performance-sensitive contexts.
+## 2026-05-15 - Micro-I/O Overhead in Async Apps
+**Learning:** Offloading very fast microsecond-level synchronous operations (like `Path.stat()`) to a background thread pool (`asyncio.to_thread` or `run_sync`) inside a loop introduces thread dispatch and context-switching overhead that dwarfs the actual execution time, severely degrading performance.
+**Action:** Execute micro-I/O operations synchronously rather than offloading them to the async thread pool.

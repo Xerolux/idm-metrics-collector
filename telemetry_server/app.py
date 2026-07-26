@@ -1907,7 +1907,8 @@ async def admin_list_models(
     model_dir = Path(MODEL_DIR)
 
     async def _get_model_details(model_file):
-        stat = await run_sync(model_file.stat)
+        # ⚡ Bolt: Execute micro-I/O operation synchronously; offloading to thread pool adds overhead
+        stat = model_file.stat()
 
         # Get download count from Prometheus counter
         download_count = 0
