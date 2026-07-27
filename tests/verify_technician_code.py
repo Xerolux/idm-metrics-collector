@@ -1,9 +1,8 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import datetime
-import json
 import re
-
+import json
 from playwright.sync_api import sync_playwright
 
 
@@ -135,7 +134,7 @@ def run(playwright):
     except Exception as e:
         print(f"Verification Failed: {e}")
         page.screenshot(path="verification_failure.png")
-        raise
+        raise e
     finally:
         browser.close()
 

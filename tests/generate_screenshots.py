@@ -1,9 +1,8 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import os
-
-from PIL import Image
 from playwright.sync_api import sync_playwright
+from PIL import Image
 
 # Required dependencies:
 # pip install playwright pillow

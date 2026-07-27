@@ -1,14 +1,14 @@
 # Xerolux 2026
-import base64
-import hashlib
-import hmac
-import json
 import unittest
 from unittest.mock import MagicMock, patch
+import json
+import base64
+import hmac
+import hashlib
 
-from idm_logger.config import config
 from idm_logger.telemetry import TelemetryManager
 from idm_logger.telemetry_config import TelemetryClientConfig
+from idm_logger.config import config
 
 
 class TestTelemetry(unittest.TestCase):
@@ -89,7 +89,7 @@ class TestTelemetry(unittest.TestCase):
         mock_requests.get.assert_called()
         mock_requests.post.assert_called()
 
-        args, _kwargs = mock_requests.post.call_args
+        args, kwargs = mock_requests.post.call_args
         self.assertEqual(args[0], "http://test-server/api/v1/submit")
 
     @patch("idm_logger.http_client.requests.Session")
@@ -168,7 +168,7 @@ class TestTelemetry(unittest.TestCase):
 
         metadata = {"filename": "model.pkl"}
         metadata_json = json.dumps(metadata, sort_keys=True)
-        msg = f"{payload_b64}.{metadata_json}".encode()
+        msg = f"{payload_b64}.{metadata_json}".encode("utf-8")
         signature = hmac.new(key, msg, hashlib.sha256).hexdigest()
 
         envelope = {
