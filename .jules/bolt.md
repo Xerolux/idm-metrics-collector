@@ -32,3 +32,7 @@
 ## 2026-04-09 - Optimize Modbus Struct Pack/Unpack Loops
 **Learning:** In Python loops handling struct operations (like encoding/decoding Modbus registers), manual string concatenation and list slicing inside the loop is very slow and memory-intensive. However, using vectorized C-level `struct.pack` and `struct.unpack` with format multipliers (e.g., `f"{fmt_char}{len(registers)}H"`) to pack/unpack items concurrently significantly reduces CPU time and memory allocation overhead on hot paths, cutting execution times by over 30% for these methods.
 **Action:** Always prefer vectorized `struct` operations with format multipliers over manual iterations and slicing when parsing arrays of binary registers in performance-sensitive contexts.
+
+## 2026-04-10 - Blocking File I/O in Async APIs vs Micro-I/O Overheads
+**Learning:** While large, blocking file I/O operations (like parsing large JSON files or reading logs) must be offloaded using `asyncio.to_thread` (as learned on 2026-03-09), offloading micro-I/O operations (like `os.stat()`, `Path.exists()`, or `Path.glob()`) creates a severe performance anti-pattern. The overhead of context switching and dispatching to a background thread pool significantly outweighs the few microseconds it takes to execute these fast OS metadata syscalls, unnecessarily degrading performance in hot loops or parallel tasks.
+**Action:** Always execute micro-I/O operations like `os.stat()` and `os.path.exists()` synchronously in async APIs. Reserve `asyncio.to_thread` strictly for expensive I/O blocks or CPU-bound tasks.
