@@ -1331,16 +1331,16 @@ async def check_eligibility(
             metadata_file = (model_dir / "community_model_metadata.json").resolve()
 
         # Helper to check existence asynchronously
-        exists = await run_sync(model_file.exists) if model_file else False
+        # ⚡ Bolt: Execute micro-I/O operations synchronously to avoid context switching overhead
+        exists = model_file.exists() if model_file else False
 
         if exists:
             result["model_available"] = True
             result["model_hash"] = await get_file_hash(str(model_file))
 
             # Load metadata if available
-            meta_exists = (
-                await run_sync(metadata_file.exists) if metadata_file else False
-            )
+            # ⚡ Bolt: Execute micro-I/O synchronously
+            meta_exists = metadata_file.exists() if metadata_file else False
             if meta_exists:
                 try:
 
@@ -1907,7 +1907,8 @@ async def admin_list_models(
     model_dir = Path(MODEL_DIR)
 
     async def _get_model_details(model_file):
-        stat = await run_sync(model_file.stat)
+        # ⚡ Bolt: Execute stat() synchronously to avoid asyncio thread pool overhead
+        stat = model_file.stat()
 
         # Get download count from Prometheus counter
         download_count = 0
@@ -1935,9 +1936,10 @@ async def admin_list_models(
         }
 
     models = []
-    exists = await run_sync(model_dir.exists)
+    # ⚡ Bolt: Avoid asyncio thread pool for fast micro-I/O
+    exists = model_dir.exists()
     if exists:
-        model_files = await run_sync(lambda: list(model_dir.glob("*.enc")))
+        model_files = list(model_dir.glob("*.enc"))
         if model_files:
             models = await asyncio.gather(
                 *[_get_model_details(mf) for mf in model_files]
