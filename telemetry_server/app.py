@@ -550,14 +550,16 @@ async def get_data_pool_stats(request: Request) -> Dict[str, Any]:
                 return [f.stem.replace("_", " ") for f in model_dir.glob("*.enc")]
             return []
 
-        # Run all queries and model listing in parallel
+        # Micro-I/O is faster synchronously than thread dispatch overhead
+        models_available = _list_models()
+
+        # Run all queries in parallel
         results = await asyncio.gather(
             client.get(VM_QUERY_URL, params={"query": query_installations}),
             client.get(VM_QUERY_URL, params={"query": query_points}),
-            asyncio.to_thread(_list_models),
         )
 
-        resp_installations, resp_points, models_available = results
+        resp_installations, resp_points = results
 
         if resp_installations.status_code == 200:
             data = resp_installations.json()
@@ -1265,8 +1267,9 @@ async def check_eligibility(
                             )
                     return models
 
+                # Micro-I/O is faster synchronously than thread dispatch overhead
                 result["server_stats"] = {
-                    "models": await run_sync(_get_admin_models),
+                    "models": _get_admin_models(),
                     "active_installations": result["data_pool"]["total_installations"],
                     "total_points": result["data_pool"]["total_data_points"],
                 }
@@ -1330,17 +1333,15 @@ async def check_eligibility(
             model_file = (model_dir / "community_model.enc").resolve()
             metadata_file = (model_dir / "community_model_metadata.json").resolve()
 
-        # Helper to check existence asynchronously
-        exists = await run_sync(model_file.exists) if model_file else False
+        # Micro-I/O is faster synchronously than thread dispatch overhead
+        exists = model_file.exists() if model_file else False
 
         if exists:
             result["model_available"] = True
             result["model_hash"] = await get_file_hash(str(model_file))
 
             # Load metadata if available
-            meta_exists = (
-                await run_sync(metadata_file.exists) if metadata_file else False
-            )
+            meta_exists = metadata_file.exists() if metadata_file else False
             if meta_exists:
                 try:
 
@@ -1907,7 +1908,7 @@ async def admin_list_models(
     model_dir = Path(MODEL_DIR)
 
     async def _get_model_details(model_file):
-        stat = await run_sync(model_file.stat)
+        stat = model_file.stat()
 
         # Get download count from Prometheus counter
         download_count = 0
@@ -1935,9 +1936,9 @@ async def admin_list_models(
         }
 
     models = []
-    exists = await run_sync(model_dir.exists)
+    exists = model_dir.exists()
     if exists:
-        model_files = await run_sync(lambda: list(model_dir.glob("*.enc")))
+        model_files = list(model_dir.glob("*.enc"))
         if model_files:
             models = await asyncio.gather(
                 *[_get_model_details(mf) for mf in model_files]
@@ -2622,7 +2623,8 @@ async def admin_server_health(
                 "disk": psutil.disk_usage("/"),
             }
 
-        sys_stats = await asyncio.to_thread(_get_system_stats)
+        # Micro-I/O is faster synchronously than thread dispatch overhead
+        sys_stats = _get_system_stats()
 
         vm_response = await request.app.state.http_client.get(f"{VM_QUERY_URL}/health")
         vm_healthy = vm_response.status_code == 200
@@ -2636,7 +2638,7 @@ async def admin_server_health(
             size = sum(f.stat().st_size for f in files)
             return count, size
 
-        model_count, total_size = await asyncio.to_thread(_get_model_stats)
+        model_count, total_size = _get_model_stats()
 
         return {
             "server": {
