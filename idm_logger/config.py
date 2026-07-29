@@ -364,16 +364,6 @@ class Config:
                 "mode": "apply",
                 "target": "all",
             },
-            "telemetry": {
-                "enabled": True,  # Enabled by default per user request
-                "server_url": "https://collector.xerolux.de",
-                "auth_token": "",  # To be filled by user/admin
-                "admin_auth_token": "",  # Optional separate token for admin endpoints
-                "last_submission": 0,
-                "last_model_check": 0,
-                "manual_downloads_today": 0,
-                "last_manual_download": 0,
-            },
             "backup": {
                 "enabled": False,
                 "interval": 24,
@@ -412,20 +402,13 @@ class Config:
                     data["webdav"]["password"] = self._decrypt(
                         data["webdav"].get("encrypted_password", "")
                     )
-                if "telemetry" in data:
-                    data["telemetry"]["auth_token"] = self._decrypt(
-                        data["telemetry"].get("encrypted_auth_token", "")
-                    )
-                    data["telemetry"]["admin_auth_token"] = self._decrypt(
-                        data["telemetry"].get("encrypted_admin_auth_token", "")
-                    )
 
                 # Merge loaded data into defaults
                 merged = self._merge_dicts(defaults, data)
-                # Enforce hardcoded URL
-                if "telemetry" not in merged:
-                    merged["telemetry"] = {}
-                merged["telemetry"]["server_url"] = "https://collector.xerolux.de"
+                # Remove credentials from installations upgraded from the former
+                # community telemetry service and migrate to the local model.
+                merged.pop("telemetry", None)
+                merged["ai"]["model"] = "rolling"
                 return merged
             except json.JSONDecodeError:
                 pass
@@ -460,17 +443,6 @@ class Config:
             if "password" in to_save["webdav"]:
                 del to_save["webdav"]["password"]
 
-        if "telemetry" in to_save:
-            to_save["telemetry"]["encrypted_auth_token"] = self._encrypt(
-                to_save["telemetry"].get("auth_token", "")
-            )
-            to_save["telemetry"]["encrypted_admin_auth_token"] = self._encrypt(
-                to_save["telemetry"].get("admin_auth_token", "")
-            )
-            if "auth_token" in to_save["telemetry"]:
-                del to_save["telemetry"]["auth_token"]
-            if "admin_auth_token" in to_save["telemetry"]:
-                del to_save["telemetry"]["admin_auth_token"]
 
         db.set_setting("config", json.dumps(to_save))
 

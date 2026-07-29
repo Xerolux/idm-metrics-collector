@@ -92,9 +92,9 @@
 // Xerolux 2026
 import { ref, watch } from 'vue'
 import Dialog from 'primevue/dialog'
-import Calendar from 'primevue/calendar'
+import Calendar from 'primevue/datepicker'
 import Textarea from 'primevue/textarea'
-import Chips from 'primevue/chips'
+import Chips from 'primevue/inputtags'
 import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'

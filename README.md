@@ -21,6 +21,13 @@
 
 </div>
 
+### 🔒 Local First
+
+Alle Messdaten, Dashboards und KI-Auswertungen bleiben in deiner eigenen Installation. Die lokale
+KI läuft im mitgelieferten `ml-service`; es gibt keinen Telemetrie-Upload und keinen zentralen
+Community- oder Modellserver. Ausgehende Integrationen wie MQTT, Benachrichtigungen, WebDAV und
+Update-Prüfungen sind optional und standardmäßig deaktiviert.
+
 ---
 
 **Keywords:** *Heat Pump Monitoring, IDM Wärmepumpe, AI Anomaly Detection, Machine Learning HVAC, Smart Heating Control, Home Automation, MQTT Integration, Modbus TCP, Energy Efficiency Monitor, COP Analysis, Predictive Maintenance, Smart Home Heat Pump, KI-gesteuerte Heizung, Intelligente Heizungssteuerung, Wärmepumpen-Überwachung, IoT Heating System*

@@ -101,23 +101,6 @@
             </div>
           </div>
 
-          <div class="flex flex-col gap-2 border-t border-gray-700 pt-4">
-            <div class="flex items-center gap-2">
-              <Checkbox v-model="form.telemetry_enabled" binary inputId="telemetry" />
-              <label for="telemetry" class="font-bold">Community Daten & KI (Empfohlen)</label>
-            </div>
-            <p class="text-sm text-gray-100 ml-8">
-              Aktiviere die Übermittlung anonymisierter Daten, um das Community-Modell zur
-              Anomalie-Erkennung zu nutzen. Dies verbessert die Genauigkeit der KI für alle.
-              <a
-                href="#"
-                @click.prevent="privacyDialog.open()"
-                class="text-blue-300 hover:text-blue-200 underline font-medium"
-                >Mehr Infos</a
-              >
-            </p>
-          </div>
-
           <div class="flex items-center gap-2 border-t border-gray-700 pt-4">
             <Checkbox v-model="privacyAccepted" binary inputId="privacy" />
             <label for="privacy" class="text-sm text-gray-100">
@@ -163,7 +146,7 @@ import Button from 'primevue/button'
 import Message from 'primevue/message'
 import Toast from 'primevue/toast'
 import Checkbox from 'primevue/checkbox'
-import Dropdown from 'primevue/dropdown'
+import Dropdown from 'primevue/select'
 import { useToast } from 'primevue/usetoast'
 import AppFooter from '../components/AppFooter.vue'
 import PrivacyPolicyDialog from '../components/PrivacyPolicyDialog.vue'
@@ -184,7 +167,6 @@ const form = ref({
   circuits: ['A'],
   zones: [],
   metrics_url: 'http://victoriametrics:8428/write',
-  telemetry_enabled: true,
   password: ''
 })
 
