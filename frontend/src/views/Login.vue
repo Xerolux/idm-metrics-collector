@@ -90,7 +90,8 @@ const handlePasswordChange = async () => {
     showPasswordChangeDialog.value = false
     router.push('/')
   } catch (err) {
-    passwordChangeError.value = err.response?.data?.message || err.message || 'Fehler beim Passwortwechsel'
+    passwordChangeError.value =
+      err.response?.data?.message || err.message || 'Fehler beim Passwortwechsel'
   } finally {
     isChangingPassword.value = false
   }
@@ -176,7 +177,7 @@ const handleReset = async () => {
               class="text-xs text-error-400 flex items-center gap-1"
               role="alert"
             >
-              <i class="pi pi-exclamation-circle"></i>
+              <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
               {{ passwordError }}
             </div>
           </div>
@@ -190,7 +191,11 @@ const handleReset = async () => {
               class="w-full"
             />
             <div class="text-center mt-2">
-              <a href="#" @click.prevent="showReset = true" class="text-sm text-blue-400 hover:text-blue-300">
+              <a
+                href="#"
+                @click.prevent="showReset = true"
+                class="text-sm text-blue-400 hover:text-blue-300"
+              >
                 Passwort vergessen?
               </a>
             </div>
@@ -199,7 +204,8 @@ const handleReset = async () => {
           <template v-else>
             <div class="flex flex-col gap-3">
               <p class="text-sm text-gray-300">
-                Geben Sie zur Sicherheit die IP/Host und den Port Ihrer konfigurierten IDM-Anlage ein.
+                Geben Sie zur Sicherheit die IP/Host und den Port Ihrer konfigurierten IDM-Anlage
+                ein.
               </p>
               <div class="flex flex-col gap-1">
                 <label for="resetHost" class="text-xs font-medium text-white">IDM Host / IP</label>
@@ -210,18 +216,35 @@ const handleReset = async () => {
                 <InputText id="resetPort" v-model="resetPort" placeholder="502" />
               </div>
               <div class="flex flex-col gap-1">
-                <label for="resetNewPassword" class="text-xs font-medium text-white">Neues Passwort</label>
-                <InputText id="resetNewPassword" v-model="resetNewPassword" type="password" placeholder="Min. 6 Zeichen" />
+                <label for="resetNewPassword" class="text-xs font-medium text-white"
+                  >Neues Passwort</label
+                >
+                <InputText
+                  id="resetNewPassword"
+                  v-model="resetNewPassword"
+                  type="password"
+                  placeholder="Min. 6 Zeichen"
+                />
               </div>
 
               <ErrorDisplay v-if="resetError" :error="resetError" @dismiss="resetError = null" />
               <div v-if="resetSuccess" class="text-green-400 text-sm mb-2 text-center">
-                <i class="pi pi-check-circle mr-1"></i>{{ resetSuccess }}
+                <i class="pi pi-check-circle mr-1" aria-hidden="true"></i>{{ resetSuccess }}
               </div>
 
               <div class="flex justify-between gap-2 mt-2">
-                <Button label="Abbrechen" severity="secondary" @click="showReset = false" class="w-1/2" />
-                <Button label="Zurücksetzen" @click="handleReset" :loading="isResetting" class="w-1/2" />
+                <Button
+                  label="Abbrechen"
+                  severity="secondary"
+                  @click="showReset = false"
+                  class="w-1/2"
+                />
+                <Button
+                  label="Zurücksetzen"
+                  @click="handleReset"
+                  :loading="isResetting"
+                  class="w-1/2"
+                />
               </div>
             </div>
           </template>
@@ -237,7 +260,8 @@ const handleReset = async () => {
       :closable="false"
     >
       <p class="text-gray-300 mb-4">
-        Bitte ändern Sie das Standardpasswort in ein neues, sicheres Passwort (mindestens 6 Zeichen).
+        Bitte ändern Sie das Standardpasswort in ein neues, sicheres Passwort (mindestens 6
+        Zeichen).
       </p>
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
@@ -251,7 +275,9 @@ const handleReset = async () => {
           />
         </div>
         <div class="flex flex-col gap-2">
-          <label for="confirmPassword" class="text-sm font-medium text-white">Passwort bestätigen</label>
+          <label for="confirmPassword" class="text-sm font-medium text-white"
+            >Passwort bestätigen</label
+          >
           <InputText
             id="confirmPassword"
             v-model="confirmPassword"
@@ -260,7 +286,11 @@ const handleReset = async () => {
             @keyup.enter="handlePasswordChange"
           />
         </div>
-        <ErrorDisplay v-if="passwordChangeError" :error="passwordChangeError" @dismiss="passwordChangeError = null" />
+        <ErrorDisplay
+          v-if="passwordChangeError"
+          :error="passwordChangeError"
+          @dismiss="passwordChangeError = null"
+        />
       </div>
       <template #footer>
         <Button
