@@ -594,7 +594,6 @@ _SENSITIVE_CONFIG_KEYS = frozenset(
 )
 
 
-
 def _filter_sensitive_config(data: dict, parent_key: str = "") -> dict:
     """Recursively filter sensitive data from config."""
     filtered = {}

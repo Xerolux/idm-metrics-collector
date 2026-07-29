@@ -443,7 +443,6 @@ class Config:
             if "password" in to_save["webdav"]:
                 del to_save["webdav"]["password"]
 
-
         db.set_setting("config", json.dumps(to_save))
 
     def get(self, path, default=None):
