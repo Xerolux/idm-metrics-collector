@@ -8,6 +8,8 @@ from flask import (
     abort,
     send_from_directory,
     send_file,
+    Response,
+    stream_with_context,
 )
 from flask_socketio import SocketIO
 from waitress import serve
@@ -49,6 +51,7 @@ from .paste import upload
 from shutil import which
 import threading
 import logging
+import json
 import requests
 import functools
 import os
@@ -1527,6 +1530,86 @@ def export_metrics_data():
     except Exception as e:
         logger.error(f"Export failed: {e}", exc_info=True)
         return jsonify({"error": "Export failed"}), 500
+
+
+@app.route("/api/export/database", methods=["GET", "POST"])
+@login_required
+def export_metrics_database():
+    """Stream every time series and data point from VictoriaMetrics as JSON."""
+    metrics_url = config.data.get("metrics", {}).get(
+        "url", "http://victoriametrics:8428/write"
+    )
+    base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
+    export_url = f"{base_url}/api/v1/export"
+
+    try:
+        upstream = requests.get(
+            export_url,
+            params={
+                "match[]": '{__name__=~".+"}',
+                "start": 0,
+                "end": int(time.time()),
+            },
+            stream=True,
+            # Keep the connection timeout bounded, but intentionally disable the
+            # read timeout: a full database export may legitimately take hours.
+            timeout=(10, None),
+        )
+    except requests.RequestException as exc:
+        logger.error("Database export request failed: %s", exc)
+        return jsonify({"error": "Datenbank-Export konnte nicht gestartet werden"}), 502
+
+    if upstream.status_code != 200:
+        logger.error("Database export failed with status %s", upstream.status_code)
+        upstream.close()
+        return jsonify({"error": "Metrikdaten konnten nicht exportiert werden"}), 502
+
+    exported_at = datetime.now().isoformat()
+
+    @stream_with_context
+    def generate_json():
+        first = True
+        yield (
+            '{"export_info":'
+            + json.dumps(
+                {
+                    "exported_at": exported_at,
+                    "source": "VictoriaMetrics",
+                    "scope": "all",
+                },
+                separators=(",", ":"),
+            )
+            + ',"series":['
+        )
+        try:
+            for line in upstream.iter_lines():
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    logger.warning("Skipping malformed record during database export")
+                    continue
+                if not first:
+                    yield ","
+                yield json.dumps(record, separators=(",", ":"), ensure_ascii=False)
+                first = False
+        finally:
+            upstream.close()
+        yield "]}"
+
+    timestamp_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    return Response(
+        generate_json(),
+        mimetype="application/json",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="metrics_database_export_{timestamp_str}.json"'
+            ),
+            "Cache-Control": "no-store",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.route("/api/query/evaluate", methods=["POST"])
