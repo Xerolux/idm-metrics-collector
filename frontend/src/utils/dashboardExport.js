@@ -309,11 +309,27 @@ export async function exportMetricsData(options) {
   }
 }
 
+/**
+ * Start a lossless JSON export using the browser's native download handling.
+ * This avoids buffering the complete database in JavaScript memory and is not
+ * subject to Axios' request timeout.
+ */
+export async function exportMetricsDatabase() {
+  const link = document.createElement('a')
+  link.href = '/api/export/database'
+  link.download = ''
+  link.hidden = true
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+}
+
 export default {
   exportAsPNG,
   exportAsPDF,
   exportDashboard,
   exportChartsGrid,
   downloadBlob,
-  exportMetricsData
+  exportMetricsData,
+  exportMetricsDatabase
 }

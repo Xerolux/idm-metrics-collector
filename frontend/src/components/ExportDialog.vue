@@ -9,7 +9,7 @@
       <!-- Export Type Selection -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Export-Typ</label>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-3 gap-3">
           <button
             type="button"
             @click="exportType = 'visual'"
@@ -40,11 +40,26 @@
             <div class="font-medium text-sm">Daten</div>
             <div class="text-xs text-gray-500 mt-1">CSV / Excel / JSON</div>
           </button>
+          <button
+            type="button"
+            @click="exportType = 'database'"
+            :aria-pressed="exportType === 'database'"
+            :class="[
+              'p-3 rounded-lg border-2 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1',
+              exportType === 'database'
+                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                : 'border-gray-200 hover:border-gray-300'
+            ]"
+          >
+            <i class="pi pi-server text-xl mb-1"></i>
+            <div class="font-medium text-sm">Datenbank</div>
+            <div class="text-xs text-gray-500 mt-1">Alles als JSON</div>
+          </button>
         </div>
       </div>
 
       <!-- Format Selection -->
-      <div>
+      <div v-if="exportType !== 'database'">
         <label class="block text-sm font-medium text-gray-700 mb-2">Format</label>
         <div v-if="exportType === 'visual'" class="grid grid-cols-2 gap-3">
           <button
@@ -229,7 +244,7 @@
                 angepasst.
               </span>
             </p>
-            <p v-else>
+            <p v-else-if="exportType === 'data'">
               <span v-if="selectedFormat === 'csv'">
                 CSV-Dateien können in Excel, Google Sheets oder jeder Analyse-Software geöffnet
                 werden.
@@ -242,6 +257,11 @@
                 JSON-Format für Datenaustausch und Automatisierung. Enthält Metadaten und
                 Statistiken.
               </span>
+            </p>
+            <p v-else>
+              Exportiert alle gespeicherten Zeitreihen, Messwerte und Labels der Metrikdatenbank
+              verlustfrei in eine JSON-Datei. Der Download wird direkt im Browser gestreamt und
+              läuft auch bei großen Datenbanken ohne Zeitlimit weiter.
             </p>
           </div>
         </div>
@@ -266,7 +286,11 @@
 import { ref, watch, onMounted } from 'vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
-import { exportDashboard, exportMetricsData } from '../utils/dashboardExport'
+import {
+  exportDashboard,
+  exportMetricsData,
+  exportMetricsDatabase
+} from '../utils/dashboardExport'
 import api from '@/utils/api.js'
 
 const props = defineProps({
@@ -377,7 +401,7 @@ const handleExport = async () => {
       await exportDashboard(props.dashboardElement, selectedFormat.value, props.dashboardName, {
         scale: scale.value
       })
-    } else {
+    } else if (exportType.value === 'data') {
       // Data export
       const { start, end } = getTimeRange()
       const metrics = getMetricsToExport()
@@ -390,6 +414,8 @@ const handleExport = async () => {
         step: '1m',
         dashboard_name: props.dashboardName
       })
+    } else {
+      await exportMetricsDatabase()
     }
 
     visible.value = false
@@ -405,8 +431,10 @@ const handleExport = async () => {
 watch(exportType, (newType) => {
   if (newType === 'visual') {
     selectedFormat.value = 'png'
-  } else {
+  } else if (newType === 'data') {
     selectedFormat.value = 'csv'
+  } else {
+    selectedFormat.value = 'json'
   }
 })
 
