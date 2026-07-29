@@ -39,7 +39,6 @@ idm-metrics-collector/
 │   ├── websocket_handler.py
 │   ├── backup.py
 │   ├── update_manager.py
-│   ├── telemetry.py
 │   ├── technician_auth.py
 │   └── static/           # Built frontend assets (Vite output)
 ├── frontend/             # Vue 3 + Vite SPA
@@ -60,10 +59,6 @@ idm-metrics-collector/
 │   ├── models.py         # Autoencoder model
 │   ├── service.py        # Data collection & scoring
 │   └── config.py
-├── telemetry_server/     # Central telemetry aggregation (FastAPI)
-│   ├── app.py
-│   ├── tests/
-│   └── requirements.txt
 ├── tests/                # All backend tests (pytest)
 ├── grafana/              # Grafana dashboard provisioning
 ├── docs/                 # Documentation, architecture, modbus registers
@@ -158,7 +153,7 @@ All workflows are in `.github/workflows/`:
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `ci.yml` | push/PR to main | Lint (Ruff + ESLint) + pytest + Vite build |
-| `release.yml` | `v*` tags, manual | Multi-arch Docker build (main + ML + telemetry) → GHCR + Docker Hub |
+| `release.yml` | `v*` tags, manual | Multi-arch Docker build (main + local ML service) → GHCR + Docker Hub |
 | `wiki-sync.yml` | push to main | Sync docs/ to GitHub Wiki |
 
 **Before pushing:** always run `ruff check .` and `pytest` locally to avoid CI failures.
@@ -208,7 +203,7 @@ All workflows are in `.github/workflows/`:
 - Test files named `test_*.py`, test functions `test_*`.
 - Integration tests that need a live Modbus device are in `manual_test_*.py` — these are not run in CI.
 - No frontend test runner is configured — frontend is validated by build + lint only.
-- Telemetry server has its own tests in `telemetry_server/tests/`.
+- Local AI behavior is covered by the root tests and `tests/test_ml_*.py`.
 
 ---
 

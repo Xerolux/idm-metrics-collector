@@ -39,31 +39,16 @@
           einen Link zum Teilen zu generieren.
         </p>
 
-        <h4 class="font-bold mt-3 mb-1">3. Community Telemetrie (Optional)</h4>
+        <h4 class="font-bold mt-3 mb-1">3. Lokale KI</h4>
         <p class="mb-2">
-          Wenn Sie die <strong>Community-Daten</strong> Funktion aktivieren, werden täglich
-          aggregierte Betriebsdaten an unseren zentralen Telemetrie-Server (collector.xerolux.de)
-          gesendet.
+          Die Anomalie-Erkennung wird vom lokalen ML-Dienst ausgeführt. Messdaten, trainierte
+          Modelle und Analyseergebnisse bleiben in Ihrer Installation und werden nicht an einen
+          zentralen Telemetrie- oder Modellserver übertragen.
         </p>
         <ul class="list-disc ml-5 mb-2 space-y-1">
-          <li>
-            <strong>Zweck:</strong> Training eines KI-Modells zur Anomalie-Erkennung ("Community
-            Model"). Dieses Modell hilft, Fehler frühzeitig zu erkennen.
-          </li>
-          <li>
-            <strong>Anonymisierung:</strong> Ihre IP-Adresse wird auf dem Server automatisch
-            maskiert (z.B. 192.168.xxx.xxx). Es werden keine persönlichen Daten übertragen.
-          </li>
-          <li>
-            <strong>Voraussetzung:</strong> Das Community-Modell wird erst generiert, wenn Daten von
-            mindestens <strong>5 verschiedenen Anlagen</strong> vorliegen. Dies stellt sicher, dass
-            das Modell robust ist und nicht auf Einzeldaten basiert.
-          </li>
-          <li>
-            <strong>Nutzen:</strong> Als Teilnehmer erhalten Sie Zugriff auf das trainierte
-            Community-Modell, welches oft genauer ist als ein nur lokal trainiertes Modell
-            (besonders in der ersten Woche).
-          </li>
+          <li><strong>Training:</strong> Verwendet ausschließlich Ihre lokal gespeicherten Werte.</li>
+          <li><strong>Kontrolle:</strong> Die KI kann jederzeit in den Einstellungen deaktiviert werden.</li>
+          <li><strong>Netzwerk:</strong> Die lokale KI benötigt keine Internetverbindung.</li>
         </ul>
       </section>
 

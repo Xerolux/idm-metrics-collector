@@ -46,7 +46,6 @@ from .variables import VariableManager
 from .expression_parser import ExpressionParser
 from .websocket_handler import websocket_handler
 from .sharing import SharingManager
-from .telemetry import telemetry_manager
 from .paste import upload
 from shutil import which
 import threading
@@ -594,13 +593,6 @@ _SENSITIVE_CONFIG_KEYS = frozenset(
     }
 )
 
-# Tokens needed by the authenticated local admin UI for telemetry/admin calls.
-_SENSITIVE_EXPOSED_KEYS = frozenset(
-    {
-        "telemetry.auth_token",
-        "telemetry.admin_auth_token",
-    }
-)
 
 
 def _filter_sensitive_config(data: dict, parent_key: str = "") -> dict:
@@ -611,7 +603,7 @@ def _filter_sensitive_config(data: dict, parent_key: str = "") -> dict:
         # Check if key contains sensitive patterns
         key_lower = key.lower()
         is_sensitive = any(s in key_lower for s in _SENSITIVE_CONFIG_KEYS)
-        if is_sensitive and full_key not in _SENSITIVE_EXPOSED_KEYS:
+        if is_sensitive:
             # Mask sensitive values
             filtered[key] = "***" if value else None
         elif isinstance(value, dict):
@@ -674,12 +666,6 @@ def setup():
         if "metrics" not in config.data:
             config.data["metrics"] = {}
         config.data["metrics"]["url"] = data.get("metrics_url")
-
-        # Telemetry opt-in
-        if "telemetry_enabled" in data:
-            if "telemetry" not in config.data:
-                config.data["telemetry"] = {}
-            config.data["telemetry"]["enabled"] = bool(data["telemetry_enabled"])
 
         password = data.get("password")
         if not password or len(password) < 6:
@@ -2221,8 +2207,6 @@ def config_page():
             # AI
             if "ai_enabled" in data:
                 config.data["ai"]["enabled"] = bool(data["ai_enabled"])
-            if "ai_model" in data:
-                config.data["ai"]["model"] = data["ai_model"]
             if "ai_sensitivity" in data:
                 try:
                     sens = float(data["ai_sensitivity"])
@@ -2236,31 +2220,6 @@ def config_page():
                     return jsonify(
                         {"error": "Ungültiger Wert für AI Sensitivität"}
                     ), 400
-
-            # Telemetry
-            if "telemetry_enabled" in data:
-                if "telemetry" not in config.data:
-                    config.data["telemetry"] = {}
-                config.data["telemetry"]["enabled"] = bool(data["telemetry_enabled"])
-            if "telemetry_auth_token" in data:
-                if "telemetry" not in config.data:
-                    config.data["telemetry"] = {}
-                config.data["telemetry"]["auth_token"] = data["telemetry_auth_token"]
-            if "telemetry_admin_auth_token" in data:
-                if "telemetry" not in config.data:
-                    config.data["telemetry"] = {}
-                config.data["telemetry"]["admin_auth_token"] = data[
-                    "telemetry_admin_auth_token"
-                ]
-            if "telemetry_server_url" in data:
-                if "telemetry" not in config.data:
-                    config.data["telemetry"] = {}
-                url_val = data["telemetry_server_url"]
-                if url_val:
-                    valid, err = _validate_url(url_val)
-                    if not valid:
-                        return jsonify({"error": f"Telemetry Server URL: {err}"}), 400
-                config.data["telemetry"]["server_url"] = url_val
 
             # Updates
             if "updates_enabled" in data:
@@ -2910,80 +2869,6 @@ def delete_database():
     except Exception as e:
         logger.error(f"Failed to delete database: {e}")
         return _internal_error_response(e, "Datenbank-Löschung fehlgeschlagen")
-
-
-# ============================================================================
-# Telemetry API
-# ============================================================================
-
-
-@app.route("/api/telemetry/status", methods=["GET"])
-@login_required
-def get_telemetry_status():
-    return jsonify(telemetry_manager.get_status())
-
-
-@app.route("/api/telemetry/submit", methods=["POST"])
-@login_required
-def submit_telemetry_data():
-    try:
-        success = telemetry_manager.submit_data(hours=24)
-        if success:
-            return jsonify(
-                {"success": True, "message": "Daten erfolgreich übermittelt"}
-            )
-        else:
-            return jsonify(
-                {
-                    "success": False,
-                    "message": "Übermittlung fehlgeschlagen (siehe Logs)",
-                }
-            ), 500
-    except Exception as e:
-        logger.error(f"Share error: {e}")
-        return jsonify({"error": "Share failed"}), 500
-
-
-@app.route("/api/telemetry/retrieve_credentials", methods=["POST"])
-@login_required
-def retrieve_telemetry_credentials():
-    try:
-        success = telemetry_manager.retrieve_credentials()
-        if success:
-            telemetry_manager._load_state()
-            return jsonify(
-                {
-                    "success": True,
-                    "message": "Telemetry-Zugangsdaten erfolgreich aktualisiert",
-                    "status": telemetry_manager.get_status(),
-                }
-            )
-        return jsonify(
-            {
-                "success": False,
-                "message": "Telemetry-Zugangsdaten konnten nicht aktualisiert werden",
-            }
-        ), 500
-    except Exception as e:
-        logger.error(f"Telemetry credential retrieval failed: {e}")
-        return jsonify({"error": "Credential retrieval failed"}), 500
-
-
-@app.route("/api/telemetry/check", methods=["POST"])
-@login_required
-def check_telemetry_model():
-    try:
-        updated = telemetry_manager.download_and_install_model(manual=True)
-        if updated:
-            return jsonify(
-                {"success": True, "message": "Modell erfolgreich aktualisiert"}
-            )
-        else:
-            return jsonify(
-                {"success": True, "message": "Kein Update erforderlich oder verfügbar"}
-            )
-    except Exception as e:
-        return _internal_error_response(e, "Telemetry-Updateprüfung fehlgeschlagen")
 
 
 # ============================================================================

@@ -20,7 +20,6 @@ from .update_manager import (
 )
 from .alerts import alert_manager
 from .backup import backup_manager
-from .telemetry import telemetry_manager
 
 # Get logger instance (configure in main())
 logger = logging.getLogger("idm_logger")
@@ -218,12 +217,6 @@ def main():
 
         web_module.modbus_client_instance = modbus
         web_module.scheduler_instance = scheduler
-
-    # Start Telemetry Manager (after scheduler is ready)
-    # We pass the scheduler even if write_enabled is False, because Telemetry might use it for read-only jobs if supported,
-    # but currently telemetry jobs are mainly background tasks.
-    # Note: If scheduler is None (because modbus failed), telemetry will run in manual-only mode.
-    telemetry_manager.start(scheduler)
 
     logger.info("Entering main loop...")
 
