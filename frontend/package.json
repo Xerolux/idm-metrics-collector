@@ -62,11 +62,5 @@
     "Edge >= 90",
     "iOS >= 13",
     "Android >= 5"
-  ],
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "core-js"
-    ]
-  }
+  ]
 }
