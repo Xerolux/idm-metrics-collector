@@ -87,7 +87,10 @@ const handlePasswordChange = async () => {
       new_password: newPassword.value
     })
 
+    newPassword.value = ''
+    confirmPassword.value = ''
     showPasswordChangeDialog.value = false
+    auth.isAuthenticated = true
     router.push('/')
   } catch (err) {
     passwordChangeError.value = err.response?.data?.message || err.message || 'Fehler beim Passwortwechsel'
@@ -119,13 +122,21 @@ const handleReset = async () => {
     })
     if (res.data.success) {
       resetSuccess.value = 'Passwort erfolgreich zurückgesetzt!'
+      const newPwd = resetNewPassword.value
+      resetHost.value = ''
+      resetPort.value = '502'
+      resetNewPassword.value = ''
+      // Password was just set: log straight in instead of forcing the user
+      // back to the login form.
+      const loginRes = await auth.login(newPwd)
+      if (loginRes.success && !loginRes.requiresPasswordChange) {
+        router.push('/')
+        return
+      }
       setTimeout(() => {
         showReset.value = false
         resetSuccess.value = ''
-        resetHost.value = ''
-        resetPort.value = '502'
-        resetNewPassword.value = ''
-      }, 2500)
+      }, 1500)
     } else {
       resetError.value = res.data.message || 'Fehler beim Zurücksetzen'
     }

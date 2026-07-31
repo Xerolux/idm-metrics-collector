@@ -54,8 +54,17 @@ api.interceptors.response.use(
     }
 
     if (error.response.status === 401 && !originalRequest._retry) {
-      if (originalRequest.url === '/api/auth/check') {
-        if (typeof window !== 'undefined') {
+      const url = originalRequest.url || ''
+      // Auth endpoints use 401 as an expected result (wrong password, wrong
+      // security answer). Do not attempt a session refresh or force-logout;
+      // surface the backend message to the caller directly.
+      const isAuthEndpoint =
+        url === '/api/auth/check' ||
+        url === '/api/auth/login' ||
+        url === '/api/auth/reset_password' ||
+        url === '/api/auth/change_password'
+      if (isAuthEndpoint) {
+        if (url === '/api/auth/check' && typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('auth:logout'))
         }
         return Promise.reject(error)

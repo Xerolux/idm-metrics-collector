@@ -76,7 +76,10 @@ router.beforeEach(async (to, from, next) => {
   const auth = useAuthStore()
 
   if (to.meta.requiresAuth) {
-    const valid = await auth.checkAuth()
+    // Trust the in-memory auth state once verified per session; protected API
+    // calls still trigger a logout via the axios 401 interceptor if the server
+    // session expires. Avoids a network round-trip on every navigation.
+    const valid = auth.isAuthenticated ? true : await auth.checkAuth()
     if (!valid) {
       next('/login')
       return

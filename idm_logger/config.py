@@ -100,8 +100,13 @@ class Config:
                 "WEB_WRITE_ENABLED"
             ].lower() in ("true", "1", "yes")
 
-        # Secure Admin Password Initialization
-        if os.environ.get("ADMIN_PASSWORD"):
+        # Secure Admin Password Initialization (bootstrap only).
+        # ADMIN_PASSWORD seeds the initial password but never overwrites a
+        # password the user has set via the UI, so UI changes persist across
+        # restarts. Use the "forgot password" flow to recover instead.
+        if os.environ.get("ADMIN_PASSWORD") and "admin_password_hash" not in (
+            self.data.get("web") or {}
+        ):
             self.data["web"]["admin_password_hash"] = generate_password_hash(
                 os.environ["ADMIN_PASSWORD"]
             )
