@@ -55,6 +55,7 @@ import requests
 import functools
 import os
 import signal
+import atexit
 import ipaddress
 import time
 import re
@@ -3364,16 +3365,11 @@ def run_web(modbus_client, scheduler):
     # Start background tasks
     _start_ai_status_thread()
 
-    # Register graceful shutdown handler for background threads
-    def _signal_handler(signum, frame):
-        logger.info(f"Received signal {signum}, shutting down background threads...")
-        _stop_ai_status_thread()
-        # Re-raise default handler to terminate the process
-        signal.signal(signum, signal.SIG_DFL)
-        os.kill(os.getpid(), signum)
-
-    signal.signal(signal.SIGTERM, _signal_handler)
-    signal.signal(signal.SIGINT, _signal_handler)
+    # run_web() executes in a background thread, so signal.signal() cannot be
+    # used here (it raises ValueError outside the main thread). Process signals
+    # (SIGINT/SIGTERM) are handled by logger.py in the main thread; we only
+    # register an atexit hook to stop the AI status thread gracefully.
+    atexit.register(_stop_ai_status_thread)
 
     if config.get("web.enabled"):
         host = config.get("web.host", "0.0.0.0")
