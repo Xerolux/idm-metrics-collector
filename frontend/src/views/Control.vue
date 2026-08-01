@@ -41,7 +41,8 @@
             </div>
 
             <div v-if="sensor.enum" class="flex flex-col gap-2">
-              <Select
+              <label :for="`control-${sensor.name}`" class="sr-only">Wert wählen für {{ sensor.name }}</label>
+              <Select :inputId="`control-${sensor.name}`"
                 v-model="formValues[sensor.name]"
                 :options="sensor.enum"
                 optionLabel="name"
@@ -51,7 +52,8 @@
               />
             </div>
             <div v-else class="flex flex-col gap-2">
-              <InputText v-model="formValues[sensor.name]" type="text" placeholder="Wert" />
+              <label :for="`control-${sensor.name}`" class="sr-only">Wert eingeben für {{ sensor.name }}</label>
+              <InputText :id="`control-${sensor.name}`" v-model="formValues[sensor.name]" type="text" placeholder="Wert" />
               <small v-if="sensor.min !== null || sensor.max !== null" class="text-gray-500">
                 Bereich: {{ sensor.min ?? '-∞' }} bis {{ sensor.max ?? '+∞' }}
               </small>

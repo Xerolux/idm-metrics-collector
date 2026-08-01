@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2026-08-01 - Added accessible form labels to Control inputs
+**Learning:** PrimeVue `Select` and `InputText` fields generated dynamically from a loop without an explicit `<label>` or `aria-label` fail to properly associate context for screen readers.
+**Action:** Linked inputs to explicitly provided, visually hidden (`sr-only`) labels utilizing unique dynamic `for` and `id` (or `inputId`) pairs generated from the sensor's name.
