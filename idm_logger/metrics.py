@@ -1,12 +1,14 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import logging
-import requests
 import os
 import queue
 import threading
 import time
-from typing import List, Union, Dict
+from typing import Dict, List, Union
+
+import requests
+
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -104,12 +106,12 @@ class MetricsWriter:
                     batch = []
                     last_send = time.time()
                 continue
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error in metrics worker: {e}")
                 if batch:
                     try:
                         self._send_with_retry(batch, MAX_RETRIES, RETRY_BASE_DELAY)
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         logger.warning(
                             f"Error flushing metrics after worker error: {e}"
                         )
@@ -118,7 +120,7 @@ class MetricsWriter:
         if batch:
             try:
                 self._send_with_retry(batch, MAX_RETRIES, RETRY_BASE_DELAY)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error flushing metrics on exit: {e}")
 
     def _send_with_retry(self, data, max_retries=3, base_delay=0.5):
@@ -146,7 +148,11 @@ class MetricsWriter:
         items = data if isinstance(data, list) else [data]
         lines = []
 
-        tags = self._get_tags()
+        # ⚡ Bolt: Pre-calculate common string prefix outside the loop
+        prefix = f"idm_heatpump{self._get_tags()} "
+
+        # ⚡ Bolt: Memoize key formatting to avoid redundant string allocations
+        key_cache = getattr(self, "_key_cache", {})
 
         for measurements in items:
             fields = []
@@ -154,14 +160,25 @@ class MetricsWriter:
             for key, value in measurements.items():
                 if key.endswith("_str"):
                     continue
+
+                # Bolt: convert bools to 1/0, format others as strings. Keep isinstance for robustness against sub-types
                 if isinstance(value, bool):
-                    value = int(value)
-                if isinstance(value, (int, float)):
-                    fields.append(f"{key}={value}")
+                    val_str = "1" if value else "0"
+                elif isinstance(value, (int, float)):
+                    val_str = str(value)
+                else:
+                    continue
+
+                # Use cache for key string to avoid repeated allocations
+                if key not in key_cache:
+                    key_cache[key] = f"{key}="
+                fields.append(f"{key_cache[key]}{val_str}")
 
             if fields:
                 field_str = ",".join(fields)
-                lines.append(f"idm_heatpump{tags} {field_str}")
+                lines.append(prefix + field_str)
+
+        self._key_cache = key_cache
 
         if not lines:
             return False
@@ -180,7 +197,7 @@ class MetricsWriter:
                 )
                 self._connected = False
                 return False
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Exception writing metrics: {e}")
             self._connected = False
             return False
