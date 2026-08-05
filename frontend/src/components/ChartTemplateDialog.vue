@@ -10,18 +10,20 @@
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Kategorie</label>
         <div class="flex flex-wrap gap-2">
-          <button type="button"
+          <button
+            type="button"
             v-for="cat in categories"
             :key="cat.id"
             @click="selectedCategory = cat.id"
+            :aria-pressed="selectedCategory === cat.id"
             :class="[
-              'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+              'px-4 py-2 rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
               selectedCategory === cat.id
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             ]"
           >
-            <i :class="cat.icon" class="mr-2"></i>
+            <i :class="cat.icon" class="mr-2" aria-hidden="true"></i>
             {{ cat.name }}
           </button>
         </div>
@@ -33,8 +35,14 @@
           v-for="template in filteredTemplates"
           :key="template.id"
           @click="selectTemplate(template)"
+          @keydown.enter="selectTemplate(template)"
+          @keydown.space.prevent="selectTemplate(template)"
+          role="button"
+          tabindex="0"
+          :aria-pressed="selectedTemplate?.id === template.id"
+          :aria-label="'Vorlage ' + template.name + ' auswählen'"
           :class="[
-            'p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md',
+            'p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
             selectedTemplate?.id === template.id
               ? 'border-blue-500 bg-blue-50'
               : 'border-gray-200 hover:border-gray-300'
@@ -42,13 +50,13 @@
         >
           <div class="flex items-start gap-3">
             <div class="p-2 bg-blue-100 rounded-lg text-blue-600">
-              <i :class="template.icon" class="text-xl"></i>
+              <i :class="template.icon" class="text-xl" aria-hidden="true"></i>
             </div>
             <div class="flex-grow min-w-0">
               <h4 class="font-semibold text-gray-900 truncate">{{ template.name }}</h4>
               <p class="text-sm text-gray-500 mt-1">{{ template.description }}</p>
               <div class="mt-2 text-xs text-gray-400">
-                <i class="pi pi-chart-bar mr-1"></i>
+                <i class="pi pi-chart-bar mr-1" aria-hidden="true"></i>
                 {{ template.charts.length }} Charts
               </div>
             </div>
@@ -65,7 +73,7 @@
             :key="chart.title"
             class="flex items-center gap-2"
           >
-            <i class="pi pi-chart-line text-gray-400"></i>
+            <i class="pi pi-chart-line text-gray-400" aria-hidden="true"></i>
             <span class="truncate">{{ chart.title }}</span>
           </div>
         </div>
