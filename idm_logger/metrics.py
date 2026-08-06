@@ -147,6 +147,8 @@ class MetricsWriter:
         lines = []
 
         tags = self._get_tags()
+        # ⚡ Bolt: Pre-calculate common string prefix to avoid redundant allocations
+        prefix = f"idm_heatpump{tags} "
 
         for measurements in items:
             fields = []
@@ -161,7 +163,7 @@ class MetricsWriter:
 
             if fields:
                 field_str = ",".join(fields)
-                lines.append(f"idm_heatpump{tags} {field_str}")
+                lines.append(f"{prefix}{field_str}")
 
         if not lines:
             return False
