@@ -1,14 +1,14 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import math
-import threading
 import random
+import threading
 from collections import deque
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from .config import config
 
@@ -84,12 +84,12 @@ class Autoencoder(nn.Module):
 class OnlineStandardScaler:
     def __init__(self):
         self._lock = threading.Lock()
-        self.n: Dict[str, int] = {}
-        self.means: Dict[str, float] = {}
-        self.m2: Dict[str, float] = {}
-        self.vars: Dict[str, float] = {}
+        self.n: dict[str, int] = {}
+        self.means: dict[str, float] = {}
+        self.m2: dict[str, float] = {}
+        self.vars: dict[str, float] = {}
 
-    def partial_fit(self, data: Dict[str, Any]) -> None:
+    def partial_fit(self, data: dict[str, Any]) -> None:
         with self._lock:
             for key, value in data.items():
                 if not isinstance(value, (int, float)) or (
@@ -113,7 +113,7 @@ class OnlineStandardScaler:
                 self.m2[key] += delta * delta2
                 self.vars[key] = self.m2[key] / count if count > 1 else 0.0
 
-    def transform(self, data: Dict[str, Any], feature_order: List[str]) -> List[float]:
+    def transform(self, data: dict[str, Any], feature_order: list[str]) -> list[float]:
         with self._lock:
             result = []
             for key in feature_order:
@@ -128,7 +128,7 @@ class OnlineStandardScaler:
                     result.append(0.0)
             return result
 
-    def get_stats(self) -> Dict[str, Dict[str, float]]:
+    def get_stats(self) -> dict[str, dict[str, float]]:
         with self._lock:
             return {k: {"mean": self.means[k], "var": self.vars[k]} for k in self.means}
 
@@ -142,7 +142,7 @@ class ReplayBuffer:
         with self._lock:
             self._buffer.append(tensor.clone().detach())
 
-    def sample(self, batch_size: int) -> Optional[torch.Tensor]:
+    def sample(self, batch_size: int) -> torch.Tensor | None:
         with self._lock:
             if len(self._buffer) < batch_size:
                 return None
@@ -158,10 +158,10 @@ class AnomalyResult:
     score: float
     is_anomaly: bool
     mode: str
-    features: Dict[str, float]
-    top_contributors: List[Dict[str, Any]]
+    features: dict[str, float]
+    top_contributors: list[dict[str, Any]]
     reconstruction_error: float
-    per_feature_errors: Dict[str, float]
+    per_feature_errors: dict[str, float]
 
 
 class AutoencoderModel:
@@ -186,17 +186,17 @@ class AutoencoderModel:
         self.gradient_clip = gradient_clip
 
         self.scaler = OnlineStandardScaler()
-        self.feature_order: List[str] = []
-        self.net: Optional[Autoencoder] = None
-        self.optimizer: Optional[torch.optim.Adam] = None
-        self.scheduler: Optional[torch.optim.lr_scheduler.ReduceLROnPlateau] = None
+        self.feature_order: list[str] = []
+        self.net: Autoencoder | None = None
+        self.optimizer: torch.optim.Adam | None = None
+        self.scheduler: torch.optim.lr_scheduler.ReduceLROnPlateau | None = None
         self.criterion = nn.HuberLoss(delta=1.0, reduction="mean")
 
         self.replay_buffer = ReplayBuffer(capacity=500)
         self.min_replay_batch = 16
 
-        self.ema_loss: Optional[float] = None
-        self.ema_loss_sq: Optional[float] = None
+        self.ema_loss: float | None = None
+        self.ema_loss_sq: float | None = None
         self.sample_count: int = 0
         self.total_steps: int = 0
         self._lock = threading.RLock()
@@ -216,7 +216,7 @@ class AutoencoderModel:
                 self.optimizer, mode="min", factor=0.5, patience=200, min_lr=1e-6
             )
 
-    def _prepare_input(self, data: Dict[str, Any]) -> torch.Tensor:
+    def _prepare_input(self, data: dict[str, Any]) -> torch.Tensor:
         numeric_data = {
             k: v
             for k, v in data.items()
@@ -230,7 +230,7 @@ class AutoencoderModel:
         scaled = self.scaler.transform(numeric_data, self.feature_order)
         return torch.tensor([scaled], dtype=torch.float32)
 
-    def score_one(self, data: Dict[str, Any]) -> float:
+    def score_one(self, data: dict[str, Any]) -> float:
         if not self.feature_order or self.sample_count < 50:
             return 0.0
 
@@ -249,7 +249,7 @@ class AutoencoderModel:
 
         return self._compute_score(mse)
 
-    def score_one_detailed(self, data: Dict[str, Any]) -> AnomalyResult:
+    def score_one_detailed(self, data: dict[str, Any]) -> AnomalyResult:
         if not self.feature_order or self.sample_count < 50:
             return AnomalyResult(
                 score=0.0,
@@ -309,8 +309,8 @@ class AutoencoderModel:
         return float(max(0.0, min(1.0, score)))
 
     def _rank_features(
-        self, data: Dict[str, Any], per_feature_errors: Dict[str, float]
-    ) -> List[Dict[str, Any]]:
+        self, data: dict[str, Any], per_feature_errors: dict[str, float]
+    ) -> list[dict[str, Any]]:
         scaler = self.scaler
         if not scaler.means or not per_feature_errors:
             return []
@@ -340,7 +340,7 @@ class AutoencoderModel:
         contributions.sort(key=lambda x: x["score"], reverse=True)
         return contributions[:3]
 
-    def learn_one(self, data: Dict[str, Any]) -> float:
+    def learn_one(self, data: dict[str, Any]) -> float:
         with self._lock:
             self.sample_count += 1
         self.scaler.partial_fit(data)
@@ -411,12 +411,12 @@ class AutoencoderModel:
         return loss_val
 
     def get_top_features(
-        self, data: Dict[str, Any], n: int = 3
-    ) -> List[Dict[str, Any]]:
+        self, data: dict[str, Any], n: int = 3
+    ) -> list[dict[str, Any]]:
         result = self.score_one_detailed(data)
         return result.top_contributors[:n]
 
-    def get_state(self) -> Dict[str, Any]:
+    def get_state(self) -> dict[str, Any]:
         return {
             "sample_count": self.sample_count,
             "total_steps": self.total_steps,
@@ -437,7 +437,7 @@ class AutoencoderModel:
             "gradient_clip": self.gradient_clip,
         }
 
-    def load_state(self, state: Dict[str, Any]) -> None:
+    def load_state(self, state: dict[str, Any]) -> None:
         self.sample_count = state.get("sample_count", 0)
         self.total_steps = state.get("total_steps", 0)
         self.feature_order = state.get("feature_order", [])

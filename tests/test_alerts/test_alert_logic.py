@@ -1,10 +1,10 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-import unittest
-import time
-from unittest.mock import MagicMock, patch, ANY
-import sys
 import os
+import sys
+import time
+import unittest
+from unittest.mock import ANY, MagicMock, patch
 
 # Add repo root to path
 sys.path.append(os.getcwd())
