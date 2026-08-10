@@ -1,12 +1,13 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import logging
-import requests
 import os
 import queue
 import threading
 import time
-from typing import List, Union, Dict
+
+import requests
+
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -142,11 +143,13 @@ class MetricsWriter:
         s = s.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
         return s
 
-    def _send_data(self, data: Union[Dict, List[Dict]]) -> bool:
+    def _send_data(self, data: dict | list[dict]) -> bool:
         items = data if isinstance(data, list) else [data]
         lines = []
 
         tags = self._get_tags()
+        # ⚡ Bolt: Optimized string allocation by pre-calculating common prefix
+        prefix = f"idm_heatpump{tags} "
 
         for measurements in items:
             fields = []
@@ -155,13 +158,14 @@ class MetricsWriter:
                 if key.endswith("_str"):
                     continue
                 if isinstance(value, bool):
-                    value = int(value)
+                    # ⚡ Bolt: Inline boolean conversion avoids slow function call overhead
+                    value = 1 if value else 0
                 if isinstance(value, (int, float)):
                     fields.append(f"{key}={value}")
 
             if fields:
                 field_str = ",".join(fields)
-                lines.append(f"idm_heatpump{tags} {field_str}")
+                lines.append(f"{prefix}{field_str}")
 
         if not lines:
             return False
