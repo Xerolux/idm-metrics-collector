@@ -8,8 +8,11 @@
     <div class="space-y-4">
       <!-- Variable ID -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1"> Variable ID * </label>
+        <label for="var-id" class="block text-sm font-medium text-gray-700 mb-1">
+          Variable ID *
+        </label>
         <InputText
+          id="var-id"
           v-model="localVariable.id"
           placeholder="z.B. circuit, period, sensor_id"
           :disabled="!!variable"
@@ -22,8 +25,9 @@
 
       <!-- Name -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1"> Name * </label>
+        <label for="var-name" class="block text-sm font-medium text-gray-700 mb-1"> Name * </label>
         <InputText
+          id="var-name"
           v-model="localVariable.name"
           placeholder="z.B. Heizkreis, Zeitraum, Sensor"
           class="w-full"
@@ -32,8 +36,9 @@
 
       <!-- Type -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1"> Typ * </label>
+        <label for="var-type" class="block text-sm font-medium text-gray-700 mb-1"> Typ * </label>
         <Select
+          inputId="var-type"
           v-model="localVariable.type"
           :options="typeOptions"
           optionLabel="label"
@@ -45,8 +50,9 @@
 
       <!-- Query (for type=query) -->
       <div v-if="localVariable.type === 'query'">
-        <label class="block text-sm font-medium text-gray-700 mb-1"> Query </label>
+        <label for="var-query" class="block text-sm font-medium text-gray-700 mb-1"> Query </label>
         <Textarea
+          id="var-query"
           v-model="localVariable.query"
           placeholder="z.B. query_result{circuit='A'}"
           rows="3"
@@ -57,15 +63,27 @@
 
       <!-- Values (for type=custom) -->
       <div v-if="localVariable.type === 'custom'">
-        <label class="block text-sm font-medium text-gray-700 mb-1"> Werte </label>
-        <Chips v-model="localVariable.values" placeholder="Werte hinzufügen" class="w-full" />
+        <label for="var-values" class="block text-sm font-medium text-gray-700 mb-1"> Werte </label>
+        <Chips
+          inputId="var-values"
+          v-model="localVariable.values"
+          placeholder="Werte hinzufügen"
+          class="w-full"
+        />
         <p class="text-xs text-gray-500 mt-1">Vordefinierte Werte für das Select</p>
       </div>
 
       <!-- Default Value -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1"> Standardwert </label>
-        <InputText v-model="localVariable.default" placeholder="Standardwert" class="w-full" />
+        <label for="var-default" class="block text-sm font-medium text-gray-700 mb-1">
+          Standardwert
+        </label>
+        <InputText
+          id="var-default"
+          v-model="localVariable.default"
+          placeholder="Standardwert"
+          class="w-full"
+        />
       </div>
 
       <!-- Options -->
