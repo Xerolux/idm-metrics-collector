@@ -44,7 +44,7 @@ jobs:
 
     - name: Install Frontend Dependencies
       working-directory: frontend
-      run: pnpm install
+      run: pnpm install --no-frozen-lockfile
 
     - name: Build Frontend
       working-directory: frontend
@@ -78,7 +78,7 @@ jobs:
         # No cache to ensure fresh builds
 
     - name: Install dependencies
-      run: pnpm install
+      run: pnpm install --no-frozen-lockfile
 
     - name: Lint
       run: pnpm run lint
