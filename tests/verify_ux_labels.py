@@ -1,3 +1,4 @@
+import sys
 # Xerolux 2026
 from playwright.sync_api import sync_playwright, expect
 import json
@@ -250,11 +251,11 @@ def verify_ux_labels():
             for f in failures:
                 print(f"- {f}")
             page.screenshot(path="verification_failures.png")
-            exit(1)
+            sys.exit(1)
         else:
             print("\nVerification PASSED! All buttons have accessible labels.")
             page.screenshot(path="verification_success.png")
-            exit(0)
+            sys.exit(0)
 
 
 if __name__ == "__main__":
