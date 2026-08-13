@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2026-08-13 - Accessible Inline Validation & Feedback Messages
+**Learning:** When displaying inline validation errors (like in `Login.vue`) or dynamic global messages (like `ErrorDisplay.vue`), decorative icons (e.g., `<i>`) can be redundantly announced by screen readers. Furthermore, the role and live region need to be explicitly managed (using `role="alert"` / `aria-live="assertive"` for errors, or `role="status"` / `aria-live="polite"` for success messages).
+**Action:** Add `aria-hidden="true"` to decorative icons inside message containers, and ensure the containers themselves are marked with appropriate `role` and `aria-live` attributes for immediate and proper announcement.
