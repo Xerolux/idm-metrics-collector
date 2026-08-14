@@ -11,10 +11,11 @@ Types:
 - interval: Time intervals (1h, 6h, 24h, 7d, etc.)
 """
 
-from typing import List, Dict, Optional, Any
-import requests
 import logging
 import re
+from typing import Any
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +33,11 @@ class Variable:
         var_id: str,
         name: str,
         var_type: str,
-        query: Optional[str] = None,
-        values: Optional[List[str]] = None,
-        default: Optional[str] = None,
+        query: str | None = None,
+        values: list[str] | None = None,
+        default: str | None = None,
         multi: bool = False,
-        regex: Optional[str] = None,
+        regex: str | None = None,
     ):
         self.id = var_id
         self.name = name  # Display name (e.g., "Heizkreis")
@@ -47,7 +48,7 @@ class Variable:
         self.multi = multi  # Allow multiple selections
         self.regex = regex  # Regex to filter query results
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary"""
         return {
             "id": self.id,
@@ -61,7 +62,7 @@ class Variable:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "Variable":
+    def from_dict(cls, data: dict) -> "Variable":
         """Create from dictionary"""
         return cls(
             var_id=data.get("id"),
@@ -74,7 +75,7 @@ class Variable:
             regex=data.get("regex"),
         )
 
-    def get_values(self, metrics_url: str) -> List[str]:
+    def get_values(self, metrics_url: str) -> list[str]:
         """Get possible values for this variable"""
         if self.type == self.TYPE_QUERY:
             return self._fetch_query_values(metrics_url)
@@ -84,7 +85,7 @@ class Variable:
             return self.values
         return []
 
-    def _fetch_query_values(self, metrics_url: str) -> List[str]:
+    def _fetch_query_values(self, metrics_url: str) -> list[str]:
         """Fetch values from metric query"""
         if not self.query:
             return []
@@ -114,7 +115,7 @@ class Variable:
 
         return []
 
-    def _get_interval_values(self) -> List[str]:
+    def _get_interval_values(self) -> list[str]:
         """Get predefined interval values"""
         return ["5m", "15m", "30m", "1h", "6h", "12h", "24h", "7d", "30d"]
 
@@ -128,12 +129,12 @@ class VariableManager:
     def __init__(self, config):
         self.config = config
 
-    def get_all_variables(self) -> List[Variable]:
+    def get_all_variables(self) -> list[Variable]:
         """Get all variables"""
         data = self.config.data.get("variables", [])
         return [Variable.from_dict(v) for v in data]
 
-    def get_variable(self, variable_id: str) -> Optional[Variable]:
+    def get_variable(self, variable_id: str) -> Variable | None:
         """Get a specific variable by ID"""
         variables = self.get_all_variables()
         for var in variables:
@@ -147,7 +148,7 @@ class VariableManager:
         name: str,
         var_type: str,
         query: str = None,
-        values: List[str] = None,
+        values: list[str] = None,
         default: str = None,
         multi: bool = False,
         regex: str = None,
@@ -172,7 +173,7 @@ class VariableManager:
 
         return variable
 
-    def update_variable(self, variable_id: str, **kwargs) -> Optional[Variable]:
+    def update_variable(self, variable_id: str, **kwargs) -> Variable | None:
         """Update an existing variable"""
         variables = self.config.data.get("variables", [])
 
@@ -200,7 +201,7 @@ class VariableManager:
 
         return False
 
-    def get_variable_values(self, variable_id: str, metrics_url: str) -> Dict[str, Any]:
+    def get_variable_values(self, variable_id: str, metrics_url: str) -> dict[str, Any]:
         """Get values for a variable (for dropdown population)"""
         variable = self.get_variable(variable_id)
         if not variable:
@@ -216,7 +217,7 @@ class VariableManager:
             "multi": variable.multi,
         }
 
-    def get_all_variable_values(self, metrics_url: str) -> List[Dict[str, Any]]:
+    def get_all_variable_values(self, metrics_url: str) -> list[dict[str, Any]]:
         """Get values for all variables"""
         variables = self.get_all_variables()
         result = []
@@ -236,7 +237,7 @@ class VariableManager:
 
         return result
 
-    def substitute_variables(self, query: str, variable_values: Dict[str, Any]) -> str:
+    def substitute_variables(self, query: str, variable_values: dict[str, Any]) -> str:
         """
         Substitute variables in a query string.
 

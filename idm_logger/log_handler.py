@@ -1,9 +1,9 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-import logging
-from collections import deque
 import datetime
+import logging
 import threading
+from collections import deque
 
 
 class MemoryLogHandler(logging.Handler):
