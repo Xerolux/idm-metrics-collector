@@ -64,10 +64,7 @@ app.use(ConfirmationService)
 window.addEventListener('unhandledrejection', (event) => {
   // Prevent unhandled promise rejections from flooding the console with stack traces
   // that may contain internal paths. The api interceptor already surfaces user-safe messages.
-  if (
-    event.reason?.message?.includes('Netzwerkfehler') ||
-    event.reason?.message?.includes('Zeitüberschreitung')
-  ) {
+  if (event.reason?.message?.includes('Netzwerkfehler') || event.reason?.message?.includes('Zeitüberschreitung')) {
     event.preventDefault()
   }
 })

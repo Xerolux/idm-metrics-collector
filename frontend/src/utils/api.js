@@ -101,11 +101,7 @@ api.interceptors.response.use(
   }
 )
 
-export const retryRequest = async (
-  requestFn,
-  maxRetries = RETRY_CONFIG.MAX_RETRIES,
-  delay = RETRY_CONFIG.INITIAL_DELAY
-) => {
+export const retryRequest = async (requestFn, maxRetries = RETRY_CONFIG.MAX_RETRIES, delay = RETRY_CONFIG.INITIAL_DELAY) => {
   let lastError
 
   for (let i = 0; i < maxRetries; i++) {

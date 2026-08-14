@@ -54,12 +54,7 @@
         </p>
         <div class="flex gap-2">
           <InputText v-model="shareLink" class="w-full" readonly />
-          <Button
-            icon="pi pi-copy"
-            @click="copyLink"
-            :aria-label="t('copy_link')"
-            v-tooltip="t('copy_link')"
-          />
+          <Button icon="pi pi-copy" @click="copyLink" :aria-label="t('copy_link')" v-tooltip="t('copy_link')" />
         </div>
       </div>
       <template #footer>

@@ -1,18 +1,11 @@
 <template>
-  <div
-    class="bg-white dark:bg-gray-800 rounded-lg p-2 h-full flex flex-col shadow-sm border border-gray-200 dark:border-gray-700"
-  >
+  <div class="bg-white dark:bg-gray-800 rounded-lg p-2 h-full flex flex-col shadow-sm border border-gray-200 dark:border-gray-700">
     <div class="flex justify-between items-start mb-1 px-1">
       <div>
-        <h3 class="text-gray-900 dark:text-gray-100 font-bold text-sm leading-tight">
-          {{ title }}
-        </h3>
-        <span class="text-xs text-gray-500 dark:text-gray-400"
-          >Verlauf - letzte {{ hours }} Stunden</span
-        >
+        <h3 class="text-gray-900 dark:text-gray-100 font-bold text-sm leading-tight">{{ title }}</h3>
+        <span class="text-xs text-gray-500 dark:text-gray-400">Verlauf - letzte {{ hours }} Stunden</span>
       </div>
-      <button
-        type="button"
+      <button type="button"
         class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500 rounded"
         title="Vollbild umschalten"
         aria-label="Vollbild umschalten"
@@ -32,9 +25,7 @@
     <div class="flex flex-wrap gap-x-3 gap-y-1 justify-center mt-1 px-1">
       <div v-for="(dataset, idx) in chartData.datasets" :key="idx" class="flex items-center gap-1">
         <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: dataset.borderColor }"></span>
-        <span class="text-[10px] text-gray-600 dark:text-gray-400 leading-none">{{
-          dataset.label
-        }}</span>
+        <span class="text-[10px] text-gray-600 dark:text-gray-400 leading-none">{{ dataset.label }}</span>
       </div>
     </div>
   </div>
@@ -87,12 +78,10 @@ const fetchData = async () => {
     const promises = props.queries.map((q) =>
       cachedGet('/api/metrics/query_range', {
         params: { query: q.query, start, end, step }
+      }).then((res) => ({ q, res })).catch((e) => {
+        console.error(`Chart data fetch error for ${q.label}:`, e)
+        return { q, res: null }
       })
-        .then((res) => ({ q, res }))
-        .catch((e) => {
-          console.error(`Chart data fetch error for ${q.label}:`, e)
-          return { q, res: null }
-        })
     )
 
     const results = await Promise.all(promises)
@@ -147,13 +136,10 @@ onUnmounted(() => {
   }
 })
 
-watch(
-  () => props.hours,
-  () => {
-    loading.value = true
-    fetchData()
-  }
-)
+watch(() => props.hours, () => {
+  loading.value = true
+  fetchData()
+})
 
 watch(
   () => props.queries,

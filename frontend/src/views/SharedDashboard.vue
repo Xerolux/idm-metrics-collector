@@ -9,7 +9,9 @@
           <p class="text-sm text-slate-600">Read-only Ansicht via Share-Link</p>
         </div>
 
-        <div v-if="loading" class="py-12 text-center text-slate-600">Dashboard wird geladen...</div>
+        <div v-if="loading" class="py-12 text-center text-slate-600">
+          Dashboard wird geladen...
+        </div>
 
         <div
           v-else-if="error"

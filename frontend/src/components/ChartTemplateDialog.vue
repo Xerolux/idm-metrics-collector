@@ -10,8 +10,7 @@
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Kategorie</label>
         <div class="flex flex-wrap gap-2">
-          <button
-            type="button"
+          <button type="button"
             v-for="cat in categories"
             :key="cat.id"
             @click="selectedCategory = cat.id"
