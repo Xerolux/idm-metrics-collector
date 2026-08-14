@@ -117,7 +117,7 @@ export class WebSocketClient {
   disconnect() {
     this._isIntentionallyDisconnected = true
     this._stopPingMonitor()
-    
+
     if (this._metricUpdateTimer) {
       clearTimeout(this._metricUpdateTimer)
       this._metricUpdateTimer = null
@@ -139,7 +139,7 @@ export class WebSocketClient {
   subscribe(metrics, dashboardId = null) {
     const newMetrics = metrics.filter((m) => !this.subscriptions.has(m))
     newMetrics.forEach((m) => this.subscriptions.add(m))
-    
+
     if (dashboardId) {
       this.dashboardId = dashboardId
     }

@@ -50,7 +50,7 @@ export const getChartColors = (isDark = false) => ({
 
 export const createBaseOptions = (isDual = false, isDark = false) => {
   const colors = getChartColors(isDark)
-  
+
   return {
     responsive: true,
     maintainAspectRatio: false,
