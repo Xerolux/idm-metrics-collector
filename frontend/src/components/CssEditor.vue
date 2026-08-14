@@ -29,20 +29,17 @@
           <div>
             <strong>Hintergrundfarbe ändern:</strong>
             <pre class="bg-white p-2 rounded mt-1 overflow-x-auto">
-.dashboard-container { background: #f0f9ff; }</pre
-            >
+.dashboard-container { background: #f0f9ff; }</pre>
           </div>
           <div>
             <strong>Chart-Titel anpassen:</strong>
             <pre class="bg-white p-2 rounded mt-1 overflow-x-auto">
-.chart-title { font-size: 18px; color: #1e40af; }</pre
-            >
+.chart-title { font-size: 18px; color: #1e40af; }</pre>
           </div>
           <div>
             <strong>Border entfernen:</strong>
             <pre class="bg-white p-2 rounded mt-1 overflow-x-auto">
-.chart-card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }</pre
-            >
+.chart-card { border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }</pre>
           </div>
         </div>
       </details>

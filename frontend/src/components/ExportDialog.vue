@@ -286,11 +286,7 @@
 import { ref, watch, onMounted } from 'vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
-import {
-  exportDashboard,
-  exportMetricsData,
-  exportMetricsDatabase
-} from '../utils/dashboardExport'
+import { exportDashboard, exportMetricsData, exportMetricsDatabase } from '../utils/dashboardExport'
 import api from '@/utils/api.js'
 
 const props = defineProps({
