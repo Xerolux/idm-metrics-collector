@@ -32,6 +32,3 @@
 ## 2026-04-09 - Optimize Modbus Struct Pack/Unpack Loops
 **Learning:** In Python loops handling struct operations (like encoding/decoding Modbus registers), manual string concatenation and list slicing inside the loop is very slow and memory-intensive. However, using vectorized C-level `struct.pack` and `struct.unpack` with format multipliers (e.g., `f"{fmt_char}{len(registers)}H"`) to pack/unpack items concurrently significantly reduces CPU time and memory allocation overhead on hot paths, cutting execution times by over 30% for these methods.
 **Action:** Always prefer vectorized `struct` operations with format multipliers over manual iterations and slicing when parsing arrays of binary registers in performance-sensitive contexts.
-## 2026-08-14 - Optimizing Python Hot Loops
-**Learning:** In hot loops formatting Line Protocol metrics, relying heavily on `isinstance` with broad type tuples (e.g., `(int, float)`) and performing string allocations for fixed prefixes on every iteration creates measurable CPU and memory overhead.
-**Action:** When optimizing loop performance in Python, hoist list append methods (e.g., `lines_append = lines.append`), pre-calculate common string fragments, and use `elif` branches for mutually exclusive type checks to minimize evaluation overhead.

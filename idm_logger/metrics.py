@@ -1,12 +1,13 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import logging
-import requests
 import os
 import queue
 import threading
 import time
-from typing import List, Union, Dict
+
+import requests
+
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -142,32 +143,26 @@ class MetricsWriter:
         s = s.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
         return s
 
-    def _send_data(self, data: Union[Dict, List[Dict]]) -> bool:
+    def _send_data(self, data: dict | list[dict]) -> bool:
         items = data if isinstance(data, list) else [data]
         lines = []
 
         tags = self._get_tags()
-        # Pre-calculate common prefix to avoid redundant string allocations in the loop
-        prefix = f"idm_heatpump{tags} "
-        # Hoist list append method to local variable for faster lookups
-        lines_append = lines.append
 
         for measurements in items:
             fields = []
-            append = fields.append
 
             for key, value in measurements.items():
                 if key.endswith("_str"):
                     continue
-                # Use elif to prevent redundant type checking
                 if isinstance(value, bool):
-                    append(f"{key}={1 if value else 0}")
-                elif isinstance(value, (int, float)):
-                    append(f"{key}={value}")
+                    value = int(value)
+                if isinstance(value, (int, float)):
+                    fields.append(f"{key}={value}")
 
             if fields:
                 field_str = ",".join(fields)
-                lines_append(f"{prefix}{field_str}")
+                lines.append(f"idm_heatpump{tags} {field_str}")
 
         if not lines:
             return False
