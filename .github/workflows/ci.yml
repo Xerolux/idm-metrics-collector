@@ -35,11 +35,12 @@ jobs:
     - uses: pnpm/action-setup@v4
       with:
         version: 9
+        package_json_file: frontend/package.json
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22'
         # No cache to ensure fresh builds
 
     - name: Install Frontend Dependencies
@@ -70,11 +71,12 @@ jobs:
     - uses: pnpm/action-setup@v4
       with:
         version: 9
+        package_json_file: frontend/package.json
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22'
         # No cache to ensure fresh builds
 
     - name: Install dependencies
