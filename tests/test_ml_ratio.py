@@ -20,6 +20,7 @@ class TestMlRatio(unittest.TestCase):
                 "schedule": MagicMock(),
                 "joblib": MagicMock(),
                 "flask": MagicMock(),
+                "requests": MagicMock(),
             },
         )
         self.modules_patcher.start()
