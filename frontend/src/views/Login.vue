@@ -185,9 +185,9 @@ const handleReset = async () => {
               id="password-error"
               v-if="showPasswordError"
               class="text-xs text-error-400 flex items-center gap-1"
-              role="alert"
+              role="alert" aria-live="assertive"
             >
-              <i class="pi pi-exclamation-circle"></i>
+              <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
               {{ passwordError }}
             </div>
           </div>
@@ -226,8 +226,8 @@ const handleReset = async () => {
               </div>
 
               <ErrorDisplay v-if="resetError" :error="resetError" @dismiss="resetError = null" />
-              <div v-if="resetSuccess" class="text-green-400 text-sm mb-2 text-center">
-                <i class="pi pi-check-circle mr-1"></i>{{ resetSuccess }}
+              <div v-if="resetSuccess" class="text-green-400 text-sm mb-2 text-center" role="status" aria-live="polite">
+                <i class="pi pi-check-circle mr-1" aria-hidden="true"></i>{{ resetSuccess }}
               </div>
 
               <div class="flex justify-between gap-2 mt-2">
