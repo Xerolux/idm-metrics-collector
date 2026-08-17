@@ -145,23 +145,27 @@ class MetricsWriter:
     def _send_data(self, data: Union[Dict, List[Dict]]) -> bool:
         items = data if isinstance(data, list) else [data]
         lines = []
+        lines_append = lines.append
 
         tags = self._get_tags()
+        # Pre-calculate common string prefix outside the batch loop
+        prefix = f"idm_heatpump{tags} "
 
         for measurements in items:
             fields = []
+            fields_append = fields.append
 
             for key, value in measurements.items():
                 if key.endswith("_str"):
                     continue
+                # Use elif to prevent redundant type checking and inline conditional for bool
                 if isinstance(value, bool):
-                    value = int(value)
-                if isinstance(value, (int, float)):
-                    fields.append(f"{key}={value}")
+                    fields_append(f"{key}={1 if value else 0}")
+                elif isinstance(value, (int, float)):
+                    fields_append(f"{key}={value}")
 
             if fields:
-                field_str = ",".join(fields)
-                lines.append(f"idm_heatpump{tags} {field_str}")
+                lines_append(f"{prefix}{','.join(fields)}")
 
         if not lines:
             return False
