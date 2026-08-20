@@ -1,7 +1,8 @@
 # Xerolux 2026
+import datetime
 import unittest
 from unittest.mock import MagicMock, patch
-import datetime
+
 from idm_logger.scheduler import Scheduler
 
 
@@ -21,7 +22,7 @@ class TestScheduler(unittest.TestCase):
 
     def test_process_jobs_batching(self):
         # Use a fixed time for testing to avoid day mismatch issues
-        fixed_now = datetime.datetime(2024, 1, 1, 12, 0, 0)  # A Monday
+        fixed_now = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)  # A Monday
         current_time = fixed_now.strftime("%H:%M")
         current_day = fixed_now.strftime("%a")
 
