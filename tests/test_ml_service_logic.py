@@ -1,10 +1,11 @@
 # Xerolux 2026
-import unittest
-from unittest.mock import MagicMock, patch, mock_open
-import sys
-import os
 import importlib
+import os
 import pickle
+import sys
+import unittest
+from unittest.mock import MagicMock, mock_open, patch
+
 from idm_logger.const import HeatPumpStatus
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -40,8 +41,8 @@ class TestMLServiceLogic(unittest.TestCase):
             self.torch_patcher = None
 
         try:
-            import ml_service.main as main
             import ml_service.config as ml_config
+            from ml_service import main
 
             importlib.reload(ml_config)
             importlib.reload(main)
@@ -162,12 +163,12 @@ class TestMLServiceLogic(unittest.TestCase):
         if not hasattr(self.main, "pickle"):
             self.main.pickle = pickle
 
-        with patch("ml_service.main.USE_JOBLIB", False):
-            with (
-                patch("ml_service.main.threading.Thread") as mock_thread,
-                patch("ml_service.main.pickle.dumps") as mock_dumps,
-                patch("os.makedirs"),
-            ):
+        with (
+            patch("ml_service.main.USE_JOBLIB", False),
+            patch("ml_service.main.threading.Thread") as mock_thread,
+            patch("ml_service.main.pickle.dumps") as mock_dumps,
+            patch("os.makedirs"),
+        ):
                 mock_dumps.return_value = b"serialized_data"
 
                 res = self.main.save_model_state()
@@ -279,8 +280,10 @@ class TestMLServiceLogic(unittest.TestCase):
                 },
             }
 
-            with patch("ml_service.config.config.measurement_name", "idm_heatpump"):
-                with patch("ml_service.main.config") as mock_cfg:
+            with (
+                patch("ml_service.config.config.measurement_name", "idm_heatpump"),
+                patch("ml_service.main.config") as mock_cfg,
+            ):
                     mock_cfg.measurement_name = "idm_heatpump"
                     mock_cfg.metrics_url = "http://test-vm"
                     data = self.main.fetch_latest_data()
@@ -290,7 +293,7 @@ class TestMLServiceLogic(unittest.TestCase):
             self.assertEqual(data["sensor2"], 20.0)
 
             mock_post.assert_called_once()
-            args, kwargs = mock_post.call_args
+            __, kwargs = mock_post.call_args
             self.assertIn("data", kwargs)
             self.assertIn("query", kwargs["data"])
 
