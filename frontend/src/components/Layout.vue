@@ -180,11 +180,16 @@ onUnmounted(() => {
     <!-- Update Available Banner -->
     <div
       v-if="updateAvailable && showUpdateBanner"
-      class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 flex items-center justify-between cursor-pointer hover:from-blue-500 hover:to-blue-600 transition-all"
+      class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 flex items-center justify-between cursor-pointer hover:from-blue-500 hover:to-blue-600 transition-all focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 outline-none dark:focus-visible:ring-offset-gray-900"
       @click="goToUpdate"
+      @keydown.enter.self="goToUpdate"
+      @keydown.space.prevent.self="goToUpdate"
+      role="button"
+      tabindex="0"
+      aria-label="Update verfügbar, zum Update-Bereich navigieren"
     >
       <div class="flex items-center gap-3">
-        <i class="pi pi-sync text-lg"></i>
+        <i class="pi pi-sync text-lg" aria-hidden="true"></i>
         <span class="font-medium">
           Update verfügbar!
           <span v-if="updateInfo?.docker?.updates_available" class="hidden sm:inline">
@@ -195,7 +200,7 @@ onUnmounted(() => {
           </span>
         </span>
         <span class="text-blue-200 text-sm hidden lg:inline">
-          <i class="pi pi-info-circle mr-1"></i>Manuelles Update erforderlich
+          <i class="pi pi-info-circle mr-1" aria-hidden="true"></i>Manuelles Update erforderlich
         </span>
       </div>
       <button
@@ -205,7 +210,7 @@ onUnmounted(() => {
         title="Ausblenden"
         aria-label="Ausblenden"
       >
-        <i class="pi pi-times"></i>
+        <i class="pi pi-times" aria-hidden="true"></i>
       </button>
     </div>
 
