@@ -1,12 +1,14 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import logging
-import requests
 import os
 import queue
 import threading
 import time
-from typing import List, Union, Dict
+from typing import Dict, List, Union
+
+import requests
+
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -147,6 +149,9 @@ class MetricsWriter:
         lines = []
 
         tags = self._get_tags()
+        # ⚡ Bolt: Pre-calculate common string prefix outside the hot loop
+        # to avoid redundant string allocations for every batch item.
+        prefix = f"idm_heatpump{tags} "
 
         for measurements in items:
             fields = []
@@ -155,13 +160,14 @@ class MetricsWriter:
                 if key.endswith("_str"):
                     continue
                 if isinstance(value, bool):
-                    value = int(value)
-                if isinstance(value, (int, float)):
+                    # ⚡ Bolt: Inline conditional evaluation for speed
+                    fields.append(f"{key}={1 if value else 0}")
+                elif isinstance(value, (int, float)):
+                    # ⚡ Bolt: Use elif to prevent redundant type checking
                     fields.append(f"{key}={value}")
 
             if fields:
-                field_str = ",".join(fields)
-                lines.append(f"idm_heatpump{tags} {field_str}")
+                lines.append(f"{prefix}{','.join(fields)}")
 
         if not lines:
             return False
