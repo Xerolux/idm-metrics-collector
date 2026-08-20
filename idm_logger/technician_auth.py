@@ -8,10 +8,11 @@
 # SECURITY NOTE: This module uses encrypted code execution which is a security risk.
 # Consider replacing with a proper authentication module in the future.
 
-import logging
 import ast
-from cryptography.fernet import Fernet
+import logging
 from datetime import datetime
+
+from cryptography.fernet import Fernet
 
 logger = logging.getLogger(__name__)
 
@@ -70,16 +71,15 @@ def _validate_code(code_str: str) -> bool:
                 return False
             # Block dangerous function calls
             if isinstance(node, ast.Call):
-                if isinstance(node.func, ast.Name):
-                    if node.func.id in (
-                        "exec",
-                        "eval",
-                        "compile",
-                        "__import__",
-                        "open",
-                    ):
-                        logger.error(f"Security: {node.func.id}() not allowed")
-                        return False
+                if isinstance(node.func, ast.Name) and node.func.id in (
+                    "exec",
+                    "eval",
+                    "compile",
+                    "__import__",
+                    "open",
+                ):
+                    logger.error(f"Security: {node.func.id}() not allowed")
+                    return False
         return True
     except SyntaxError as e:
         logger.error(f"Security: Code validation failed: {e}")

@@ -8,7 +8,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
@@ -22,14 +22,14 @@ logger = logging.getLogger("ml-service")
 
 try:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    from idm_logger.const import HeatPumpStatus
     from idm_logger.sensor_addresses import (
-        COMMON_SENSORS,
         BINARY_SENSOR_ADDRESSES,
+        COMMON_SENSORS,
         HeatingCircuit,
         heating_circuit_sensors,
         zone_sensors,
     )
-    from idm_logger.const import HeatPumpStatus
 except ImportError:
     logger.warning("Could not import idm_logger modules, using defaults")
     COMMON_SENSORS = []
@@ -47,9 +47,9 @@ except ImportError:
 @dataclass
 class ConnectionState:
     metrics_connected: bool = False
-    metrics_last_success: Optional[float] = None
+    metrics_last_success: float | None = None
     metrics_consecutive_failures: int = 0
-    alert_last_success: Optional[float] = None
+    alert_last_success: float | None = None
     alert_consecutive_failures: int = 0
     total_fetch_errors: int = 0
     total_write_errors: int = 0
@@ -66,8 +66,8 @@ class ServiceState:
     last_model_save: float = field(default_factory=time.time)
     current_mode: str = "unknown"
     last_mode: str = "unknown"
-    last_data_points: Dict[str, float] = field(default_factory=dict)
-    consecutive_anomalies: Dict[str, int] = field(default_factory=dict)
+    last_data_points: dict[str, float] = field(default_factory=dict)
+    consecutive_anomalies: dict[str, int] = field(default_factory=dict)
     connection: ConnectionState = field(default_factory=ConnectionState)
 
 
@@ -75,7 +75,7 @@ class MLService:
     def __init__(self):
         self.config = config
         self.state = ServiceState()
-        self.models: Dict[str, AutoencoderModel] = {}
+        self.models: dict[str, AutoencoderModel] = {}
         self.model_lock = threading.Lock()
         self.executor = ThreadPoolExecutor(max_workers=2)
         self._initialize_models()
@@ -95,14 +95,14 @@ class MLService:
             self.sensors.append("status_heat_pump")
         logger.info(f"Monitoring {len(self.sensors)} sensors")
 
-    def _get_all_readable_sensors(self) -> List[str]:
+    def _get_all_readable_sensors(self) -> list[str]:
         sensors = []
 
         for sensor in COMMON_SENSORS:
             if getattr(sensor, "read_supported", True):
                 sensors.append(sensor.name)
 
-        for sensor_name, sensor in BINARY_SENSOR_ADDRESSES.items():
+        for sensor in BINARY_SENSOR_ADDRESSES.values():
             if getattr(sensor, "read_supported", True):
                 sensors.append(sensor.name)
 
@@ -127,7 +127,7 @@ class MLService:
         seen = set()
         return [s for s in sensors if not (s in seen or seen.add(s))]
 
-    def determine_mode(self, data: Dict[str, Any]) -> str:
+    def determine_mode(self, data: dict[str, Any]) -> str:
         status_raw = data.get("status_heat_pump", 0)
         try:
             status_val = int(status_raw)
@@ -144,7 +144,7 @@ class MLService:
             pass
         return "standby"
 
-    def enrich_features(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def enrich_features(self, data: dict[str, Any]) -> dict[str, Any]:
         now = datetime.now()
         data["hour_of_day"] = now.hour
         data["day_of_week"] = now.weekday()
@@ -185,7 +185,7 @@ class MLService:
 
         return data
 
-    def fetch_data(self) -> Optional[Dict[str, Any]]:
+    def fetch_data(self) -> dict[str, Any] | None:
         query_url = f"{self.config.metrics_url.rstrip('/')}/api/v1/query"
         regex = "|".join([f"{self.config.measurement_name}_{s}" for s in self.sensors])
         query = f'{{__name__=~"{regex}"}}'
@@ -296,9 +296,9 @@ class MLService:
     def send_alert(
         self,
         score: float,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         mode: str,
-        top_features: List[Dict[str, Any]],
+        top_features: list[dict[str, Any]],
     ) -> bool:
         if not self.config.enable_alerts:
             return False
@@ -549,7 +549,7 @@ class MLService:
                 delay * self.config.retry_multiplier, self.config.retry_max_delay
             )
 
-    def get_health_status(self) -> Dict[str, Any]:
+    def get_health_status(self) -> dict[str, Any]:
         is_healthy = (
             self.state.connection.metrics_connected or self.state.update_counter > 0
         )

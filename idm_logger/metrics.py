@@ -5,7 +5,6 @@ import os
 import queue
 import threading
 import time
-from typing import Dict, List, Union
 
 import requests
 
@@ -144,7 +143,7 @@ class MetricsWriter:
         s = s.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
         return s
 
-    def _send_data(self, data: Union[Dict, List[Dict]]) -> bool:
+    def _send_data(self, data: dict | list[dict]) -> bool:
         items = data if isinstance(data, list) else [data]
         lines = []
 
