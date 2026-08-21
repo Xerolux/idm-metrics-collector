@@ -12,11 +12,15 @@
       v-else
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4"
     >
-      <Card v-for="sensor in sensors" :key="sensor.name" class="bg-gray-800 text-white">
+      <Card v-for="(sensor, index) in sensors" :key="sensor.name" class="bg-gray-800 text-white">
         <template #title>
-          <div class="text-base sm:text-lg font-medium truncate" :title="sensor.name">
+          <label
+            class="block text-base sm:text-lg font-medium truncate"
+            :title="sensor.name"
+            :for="`sensor-input-${index}`"
+          >
             {{ sensor.name }}
-          </div>
+          </label>
         </template>
         <template #content>
           <div class="flex flex-col gap-3">
@@ -48,10 +52,16 @@
                 optionValue="value"
                 placeholder="Wert wählen"
                 class="w-full"
+                :inputId="`sensor-input-${index}`"
               />
             </div>
             <div v-else class="flex flex-col gap-2">
-              <InputText v-model="formValues[sensor.name]" type="text" placeholder="Wert" />
+              <InputText
+                v-model="formValues[sensor.name]"
+                type="text"
+                placeholder="Wert"
+                :id="`sensor-input-${index}`"
+              />
               <small v-if="sensor.min !== null || sensor.max !== null" class="text-gray-500">
                 Bereich: {{ sensor.min ?? '-∞' }} bis {{ sensor.max ?? '+∞' }}
               </small>
@@ -62,6 +72,7 @@
               icon="pi pi-send"
               @click="writeSensor(sensor)"
               :loading="writing[sensor.name]"
+              :aria-label="`Wert für ${sensor.name} schreiben`"
             />
           </div>
         </template>
