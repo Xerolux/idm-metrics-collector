@@ -148,20 +148,26 @@ class MetricsWriter:
 
         tags = self._get_tags()
 
+        # Pre-calculate common string prefix outside the loop to avoid redundant string allocations
+        prefix = f"idm_heatpump{tags} "
+
         for measurements in items:
             fields = []
+
+            # Hoist list append method for inner loop speed
+            append = fields.append
 
             for key, value in measurements.items():
                 if key.endswith("_str"):
                     continue
+                # Prefer inline conditional over int(value) and use elif to prevent redundant type checking
                 if isinstance(value, bool):
-                    value = int(value)
-                if isinstance(value, (int, float)):
-                    fields.append(f"{key}={value}")
+                    append(f"{key}={1 if value else 0}")
+                elif isinstance(value, (int, float)):
+                    append(f"{key}={value}")
 
             if fields:
-                field_str = ",".join(fields)
-                lines.append(f"idm_heatpump{tags} {field_str}")
+                lines.append(f"{prefix}{','.join(fields)}")
 
         if not lines:
             return False
