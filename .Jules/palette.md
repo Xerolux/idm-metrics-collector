@@ -4,3 +4,7 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+
+## 2024-03-20 - Dynamic ARIA Roles for Error and Success Display
+**Learning:** Hardcoding `role="alert"` for all message banners can cause issues if the banner is used for informational/success messages. Alert roles with `aria-live="assertive"` interrupt screen readers, which is correct for errors/warnings, but success/info messages should use `role="status"` and `aria-live="polite"`. In Vue components, these must be dynamically bound based on the variant.
+**Action:** When creating reusable notification or display components, bind `:role` and `:aria-live` based on the message type. Additionally, ensure decorative icons within these components use `aria-hidden="true"` to prevent screen readers from reading raw icon classes or adding confusing interruptions.
