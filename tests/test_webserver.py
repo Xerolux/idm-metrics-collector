@@ -1,16 +1,16 @@
-#!/usr/bin/env python3
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 """
 Test script to verify webserver functionality
 """
 
-import sys
-import os
-import time
-import threading
-import urllib.request
 import json
+import os
+import sys
+import threading
+import time
+import urllib.request
+
 import pytest
 
 # Add the project directory to path
@@ -24,8 +24,9 @@ def test_webserver():
     print("=" * 60)
 
     # Import after path is set
-    from idm_logger.web import app
     from waitress import serve
+
+    from idm_logger.web import app
 
     # Configure for testing
     app.config["TESTING"] = True

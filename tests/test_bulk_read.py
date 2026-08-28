@@ -1,17 +1,16 @@
-#!/usr/bin/env python3
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 """Test script to verify bulk read optimization and log completeness."""
 
-import sys
-import os
 import logging
+import os
+import sys
 
 # Add the project directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from idm_logger.modbus import ModbusClient
 from idm_logger.config import config
+from idm_logger.modbus import ModbusClient
 
 # Configure logging to see debug output
 logging.basicConfig(
@@ -96,7 +95,7 @@ def main():
     # Check if we got all sensors
     expected_keys = set(modbus.sensors.keys()) | set(modbus.binary_sensors.keys())
     # Also account for _str variants
-    actual_keys = set(k for k in data.keys() if not k.endswith("_str"))
+    actual_keys = {k for k in data if not k.endswith("_str")}
 
     missing_data = expected_keys - actual_keys
     if missing_data:

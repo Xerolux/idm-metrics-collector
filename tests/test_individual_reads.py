@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 """Test individual sensor reads to find which addresses work."""
 
-import sys
 import logging
+import sys
+
 from pymodbus.client import ModbusTcpClient
 
 logging.basicConfig(level=logging.WARNING)
