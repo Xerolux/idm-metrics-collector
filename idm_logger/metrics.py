@@ -148,6 +148,9 @@ class MetricsWriter:
 
         tags = self._get_tags()
 
+        # ⚡ Bolt optimization: Pre-calculate common prefix for all lines to avoid redundant string allocations in the hot loop
+        prefix = f"idm_heatpump{tags} "
+
         for measurements in items:
             fields = []
 
@@ -155,13 +158,16 @@ class MetricsWriter:
                 if key.endswith("_str"):
                     continue
                 if isinstance(value, bool):
-                    value = int(value)
-                if isinstance(value, (int, float)):
+                    # ⚡ Bolt optimization: Inline conditional is faster than type casting with int(value)
+                    fields.append(f"{key}={1 if value else 0}")
+                elif isinstance(value, (int, float)):
+                    # ⚡ Bolt optimization: Use elif to prevent redundant isinstance checking.
+                    # Stringify values only when appending.
                     fields.append(f"{key}={value}")
 
             if fields:
                 field_str = ",".join(fields)
-                lines.append(f"idm_heatpump{tags} {field_str}")
+                lines.append(f"{prefix}{field_str}")
 
         if not lines:
             return False
