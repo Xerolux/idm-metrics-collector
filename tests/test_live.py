@@ -1,12 +1,11 @@
-#!/usr/bin/env python3
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 """Live test script for IDM heat pump - READ ONLY"""
 
 import logging
-import sys
-import struct
 import os
+import struct
+import sys
 
 import pytest
 
