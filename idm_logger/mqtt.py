@@ -342,6 +342,9 @@ class MQTTPublisher:
         qos = config.get("mqtt.qos", 1)
 
         try:
+            # Pre-calculate timestamp for the entire batch to avoid redundant system calls
+            current_time = int(time.time())
+
             # Publish each sensor value to its own topic
             for sensor_name, value in data.items():
                 # Skip the string-representation variants of enums
@@ -361,7 +364,7 @@ class MQTTPublisher:
                     unit = getattr(sensor_def, "unit", "")
 
                 # Prepare payload for individual sensor topic
-                payload = {"value": value, "unit": unit, "timestamp": int(time.time())}
+                payload = {"value": value, "unit": unit, "timestamp": current_time}
 
                 # For enums, add the string representation if it exists
                 if f"{sensor_name}_str" in data:
