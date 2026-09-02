@@ -105,13 +105,7 @@ const inputClasses = computed(() => {
       </option>
     </select>
 
-    <div
-      v-if="error"
-      :id="`${selectId}-error`"
-      class="text-xs text-error-400 flex items-center gap-1"
-      role="alert"
-      aria-live="assertive"
-    >
+    <div v-if="error" :id="`${selectId}-error`" class="text-xs text-error-400 flex items-center gap-1" role="alert" aria-live="assertive">
       <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
       {{ error }}
     </div>
