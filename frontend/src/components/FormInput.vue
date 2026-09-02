@@ -110,17 +110,25 @@ const inputClasses = computed(() => {
       :max="max"
       :step="step"
       :class="inputClasses"
+      :aria-invalid="!isValid"
+      :aria-describedby="error ? `${inputId}-error` : helpText ? `${inputId}-help` : undefined"
       @input="inputValue = $event.target.value"
       @blur="emit('blur')"
       @focus="emit('focus')"
     />
 
-    <div v-if="error" class="text-xs text-error-400 flex items-center gap-1">
-      <i class="pi pi-exclamation-circle"></i>
+    <div
+      v-if="error"
+      :id="`${inputId}-error`"
+      class="text-xs text-error-400 flex items-center gap-1"
+      role="alert"
+      aria-live="assertive"
+    >
+      <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
       {{ error }}
     </div>
 
-    <div v-else-if="helpText" class="text-xs text-gray-400">
+    <div v-else-if="helpText" :id="`${inputId}-help`" class="text-xs text-gray-400">
       {{ helpText }}
     </div>
 
