@@ -3,16 +3,17 @@
 import logging
 import threading
 import time
+
 from pymodbus.client import ModbusTcpClient
 
 from .config import config
 from .sensor_addresses import (
     BINARY_SENSOR_ADDRESSES,
     COMMON_SENSORS,
-    heating_circuit_sensors,
-    zone_sensors,
     HeatingCircuit,
     SensorFeatures,
+    heating_circuit_sensors,
+    zone_sensors,
 )
 
 logger = logging.getLogger(__name__)
@@ -252,7 +253,8 @@ class ModbusClient:
         """Groups sensors into contiguous blocks for optimized reading."""
         # Combine all read-supported sensors
         all_sensors = []
-        for s in list(self.sensors.values()) + list(self.binary_sensors.values()):
+        import itertools
+        for s in itertools.chain(self.sensors.values(), self.binary_sensors.values()):
             if s.read_supported:
                 all_sensors.append(s)
 
@@ -273,7 +275,8 @@ class ModbusClient:
 
         # Addresses that MUST NOT be read (read_supported=False)
         forbidden_addresses = set()
-        for s in list(self.sensors.values()) + list(self.binary_sensors.values()):
+        import itertools
+        for s in itertools.chain(self.sensors.values(), self.binary_sensors.values()):
             if not s.read_supported:
                 # Mark all registers occupied by this sensor as forbidden
                 for i in range(s.size):
@@ -532,7 +535,7 @@ class ModbusClient:
             raise ValueError(f"Invalid value for {name}: {e}")
 
         if not self._ensure_connection():
-            raise IOError("Could not connect to Modbus")
+            raise OSError("Could not connect to Modbus")
 
         # Write
         try:
@@ -542,8 +545,8 @@ class ModbusClient:
             if rr.isError():
                 self._stats["total_write_errors"] += 1
                 self._stats["last_error"] = f"Write error: {rr}"
-                raise IOError(f"Modbus write error: {rr}")
-        except IOError:
+                raise OSError(f"Modbus write error: {rr}")
+        except OSError:
             raise  # Re-raise IOError without additional handling
         except Exception as e:
             logger.error(f"Write failed: {e}")
