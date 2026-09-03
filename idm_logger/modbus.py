@@ -1,6 +1,5 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-import itertools
 import logging
 import threading
 import time
@@ -254,6 +253,7 @@ class ModbusClient:
         """Groups sensors into contiguous blocks for optimized reading."""
         # Combine all read-supported sensors
         all_sensors = []
+        import itertools
         for s in itertools.chain(self.sensors.values(), self.binary_sensors.values()):
             if s.read_supported:
                 all_sensors.append(s)
@@ -275,7 +275,7 @@ class ModbusClient:
 
         # Addresses that MUST NOT be read (read_supported=False)
         forbidden_addresses = set()
-        # ⚡ Bolt: Optimized: Avoid list concatenation and temporary lists in the hot loop
+        import itertools
         for s in itertools.chain(self.sensors.values(), self.binary_sensors.values()):
             if not s.read_supported:
                 # Mark all registers occupied by this sensor as forbidden
