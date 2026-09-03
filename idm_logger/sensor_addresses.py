@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: MIT
 """Sensor addresses."""
 
+import logging
+import struct
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, IntEnum, IntFlag
@@ -24,9 +26,6 @@ from .const import (
     ValveStateStorageHeatSource,
     ZoneMode,
 )
-
-import logging
-import struct
 
 LOGGER = logging.getLogger(__name__)
 
@@ -107,7 +106,7 @@ def _decode_registers(
 
 
 def _encode_value(
-    value: int | float, datatype: str, byteorder: str = "big", wordorder: str = "little"
+    value: float, datatype: str, byteorder: str = "big", wordorder: str = "little"
 ) -> list[int]:
     """Encode value to registers using struct (replacement for BinaryPayloadBuilder)."""
     # ⚡ Bolt: Optimized: normalize once
@@ -188,7 +187,7 @@ class BaseSensorAddress(ABC, Generic[_T]):
             registers, self.datatype, byteorder="big", wordorder="little"
         )
 
-    def _encode_raw(self, value: int | float) -> list[int]:
+    def _encode_raw(self, value: float) -> list[int]:
         return _encode_value(value, self.datatype, byteorder="big", wordorder="little")
 
     @abstractmethod

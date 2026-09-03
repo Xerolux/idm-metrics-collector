@@ -1,19 +1,20 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
+import itertools
 import logging
 import threading
 import time
-import itertools
+
 from pymodbus.client import ModbusTcpClient
 
 from .config import config
 from .sensor_addresses import (
     BINARY_SENSOR_ADDRESSES,
     COMMON_SENSORS,
-    heating_circuit_sensors,
-    zone_sensors,
     HeatingCircuit,
     SensorFeatures,
+    heating_circuit_sensors,
+    zone_sensors,
 )
 
 logger = logging.getLogger(__name__)
@@ -534,7 +535,7 @@ class ModbusClient:
             raise ValueError(f"Invalid value for {name}: {e}")
 
         if not self._ensure_connection():
-            raise IOError("Could not connect to Modbus")
+            raise OSError("Could not connect to Modbus")
 
         # Write
         try:
@@ -544,8 +545,8 @@ class ModbusClient:
             if rr.isError():
                 self._stats["total_write_errors"] += 1
                 self._stats["last_error"] = f"Write error: {rr}"
-                raise IOError(f"Modbus write error: {rr}")
-        except IOError:
+                raise OSError(f"Modbus write error: {rr}")
+        except OSError:
             raise  # Re-raise IOError without additional handling
         except Exception as e:
             logger.error(f"Write failed: {e}")
