@@ -3,6 +3,7 @@
 import logging
 import threading
 import time
+import itertools
 from pymodbus.client import ModbusTcpClient
 
 from .config import config
@@ -252,7 +253,7 @@ class ModbusClient:
         """Groups sensors into contiguous blocks for optimized reading."""
         # Combine all read-supported sensors
         all_sensors = []
-        for s in list(self.sensors.values()) + list(self.binary_sensors.values()):
+        for s in itertools.chain(self.sensors.values(), self.binary_sensors.values()):
             if s.read_supported:
                 all_sensors.append(s)
 
@@ -273,7 +274,8 @@ class ModbusClient:
 
         # Addresses that MUST NOT be read (read_supported=False)
         forbidden_addresses = set()
-        for s in list(self.sensors.values()) + list(self.binary_sensors.values()):
+        # ⚡ Bolt: Optimized: Avoid list concatenation and temporary lists in the hot loop
+        for s in itertools.chain(self.sensors.values(), self.binary_sensors.values()):
             if not s.read_supported:
                 # Mark all registers occupied by this sensor as forbidden
                 for i in range(s.size):

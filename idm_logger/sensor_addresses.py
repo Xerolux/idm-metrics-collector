@@ -60,41 +60,46 @@ def _decode_registers(
     wordorder: str = "little",
 ):
     """Decode registers to value using struct (replacement for BinaryPayloadDecoder)."""
+    # ⚡ Bolt: Optimized: normalize once
+    byteorder = byteorder.lower()
+    wordorder = wordorder.lower()
+
     # Convert registers to bytes
     # With Big endian byte order and Little endian word order
-    if wordorder.lower() == "little":
+    if wordorder == "little":
         # Reverse word order for multi-register values
         if len(registers) > 1:
-            registers = list(reversed(registers))
+            # ⚡ Bolt: Optimized: use slicing for list reversal
+            registers = registers[::-1]
 
     # Pack registers to bytes (each register is 16 bits)
     # ⚡ Bolt: Optimized: Use vectorized struct.pack instead of loop concatenation
-    fmt_char = ">" if byteorder.lower() == "big" else "<"
+    fmt_char = ">" if byteorder == "big" else "<"
     byte_data = struct.pack(f"{fmt_char}{len(registers)}H", *registers)
 
     # Decode based on datatype
     if datatype == "float32":
-        if byteorder.lower() == "big":
+        if byteorder == "big":
             return struct.unpack(">f", byte_data)[0]
         else:
             return struct.unpack("<f", byte_data)[0]
     elif datatype == "int16":
-        if byteorder.lower() == "big":
+        if byteorder == "big":
             return struct.unpack(">h", byte_data[:2])[0]
         else:
             return struct.unpack("<h", byte_data[:2])[0]
     elif datatype == "uint16":
-        if byteorder.lower() == "big":
+        if byteorder == "big":
             return struct.unpack(">H", byte_data[:2])[0]
         else:
             return struct.unpack("<H", byte_data[:2])[0]
     elif datatype == "int32":
-        if byteorder.lower() == "big":
+        if byteorder == "big":
             return struct.unpack(">i", byte_data)[0]
         else:
             return struct.unpack("<i", byte_data)[0]
     elif datatype == "uint32":
-        if byteorder.lower() == "big":
+        if byteorder == "big":
             return struct.unpack(">I", byte_data)[0]
         else:
             return struct.unpack("<I", byte_data)[0]
@@ -105,29 +110,33 @@ def _encode_value(
     value: int | float, datatype: str, byteorder: str = "big", wordorder: str = "little"
 ) -> list[int]:
     """Encode value to registers using struct (replacement for BinaryPayloadBuilder)."""
+    # ⚡ Bolt: Optimized: normalize once
+    byteorder = byteorder.lower()
+    wordorder = wordorder.lower()
+
     # Pack value to bytes based on datatype
     if datatype == "float32":
-        if byteorder.lower() == "big":
+        if byteorder == "big":
             byte_data = struct.pack(">f", float(value))
         else:
             byte_data = struct.pack("<f", float(value))
     elif datatype == "int16":
-        if byteorder.lower() == "big":
+        if byteorder == "big":
             byte_data = struct.pack(">h", int(value))
         else:
             byte_data = struct.pack("<h", int(value))
     elif datatype == "uint16":
-        if byteorder.lower() == "big":
+        if byteorder == "big":
             byte_data = struct.pack(">H", int(value))
         else:
             byte_data = struct.pack("<H", int(value))
     elif datatype == "int32":
-        if byteorder.lower() == "big":
+        if byteorder == "big":
             byte_data = struct.pack(">i", int(value))
         else:
             byte_data = struct.pack("<i", int(value))
     elif datatype == "uint32":
-        if byteorder.lower() == "big":
+        if byteorder == "big":
             byte_data = struct.pack(">I", int(value))
         else:
             byte_data = struct.pack("<I", int(value))
@@ -136,13 +145,14 @@ def _encode_value(
 
     # Convert bytes to registers (16-bit chunks)
     # ⚡ Bolt: Optimized: Use vectorized struct.unpack instead of loop slicing
-    fmt_char = ">" if byteorder.lower() == "big" else "<"
+    fmt_char = ">" if byteorder == "big" else "<"
     num_registers = len(byte_data) // 2
     registers = list(struct.unpack(f"{fmt_char}{num_registers}H", byte_data))
 
     # Apply word order
-    if wordorder.lower() == "little" and len(registers) > 1:
-        registers = list(reversed(registers))
+    if wordorder == "little" and len(registers) > 1:
+        # ⚡ Bolt: Optimized: use slicing for list reversal
+        registers = registers[::-1]
 
     return registers
 
