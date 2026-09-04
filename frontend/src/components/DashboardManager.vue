@@ -133,7 +133,10 @@
       @change="onVariableChange"
     />
 
-    <div v-if="!isLoadingDashboards" class="flex-grow min-h-0 flex flex-col lg:flex-row gap-3 lg:overflow-hidden">
+    <div
+      v-if="!isLoadingDashboards"
+      class="flex-grow min-h-0 flex flex-col lg:flex-row gap-3 lg:overflow-hidden"
+    >
       <!-- Left Sidebar: Current Values -->
       <div class="w-full lg:w-72 flex-shrink-0 overflow-y-auto">
         <SensorValues @sensor-drag-start="onSensorDragStart" />
@@ -206,9 +209,14 @@
               <!-- Drag Handle -->
               <div
                 v-if="editMode"
-                class="drag-handle absolute top-2 left-2 z-20 cursor-move p-1 bg-white/80 rounded hover:bg-white shadow-sm text-gray-400 hover:text-gray-700"
+                class="drag-handle absolute top-2 left-2 z-20 cursor-move p-1 bg-white/80 rounded hover:bg-white shadow-sm text-gray-400 hover:text-gray-700 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-primary-500"
+                role="button"
+                tabindex="0"
+                aria-label="Chart verschieben"
+                title="Chart verschieben"
+                v-tooltip.top="'Chart verschieben'"
               >
-                <i class="pi pi-bars"></i>
+                <i class="pi pi-bars" aria-hidden="true"></i>
               </div>
 
               <!-- Dynamic Chart Component -->
