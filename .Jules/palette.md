@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2025-05-18 - Missing Accessibility on Drag Handles
+**Learning:** Elements that serve as drag handles (like `<div class="drag-handle">` for dashboard components) without native interactive tags are skipped by keyboard focus navigation and provide no context to screen readers, making reordering impossible or confusing for these users.
+**Action:** Always add `role="button"`, `tabindex="0"`, descriptive `aria-label`, standard `title` and `v-tooltip` to drag handle div wrappers. Ensure the internal icon is marked `aria-hidden="true"`, and provide clear keyboard focus indicator classes (like `focus-visible:ring-2 focus-visible:outline-none`).
