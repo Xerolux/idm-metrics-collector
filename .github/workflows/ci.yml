@@ -25,6 +25,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f ml_service/requirements.txt ]; then pip install -r ml_service/requirements.txt; fi
         pip install pytest-asyncio pytest
 
     - name: Lint with Ruff
@@ -53,7 +54,7 @@ jobs:
     - name: Run Root Tests
       run: |
         if ls tests/test_*.py >/dev/null 2>&1; then
-          pytest -q tests
+          PYTHONPATH=. pytest -q tests
         else
           echo "No root tests found."
         fi
