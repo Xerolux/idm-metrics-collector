@@ -3,15 +3,15 @@
 # SPDX-License-Identifier: MIT
 """Test script to verify bulk read optimization and log completeness."""
 
-import logging
-import os
 import sys
+import os
+import logging
 
 # Add the project directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from idm_logger.config import config
 from idm_logger.modbus import ModbusClient
+from idm_logger.config import config
 
 # Configure logging to see debug output
 logging.basicConfig(

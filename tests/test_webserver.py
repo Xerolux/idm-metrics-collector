@@ -5,13 +5,12 @@
 Test script to verify webserver functionality
 """
 
-import json
-import os
 import sys
-import threading
+import os
 import time
+import threading
 import urllib.request
-
+import json
 import pytest
 
 # Add the project directory to path
@@ -25,9 +24,8 @@ def test_webserver():
     print("=" * 60)
 
     # Import after path is set
-    from waitress import serve
-
     from idm_logger.web import app
+    from waitress import serve
 
     # Configure for testing
     app.config["TESTING"] = True

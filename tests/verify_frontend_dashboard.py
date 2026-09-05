@@ -1,7 +1,6 @@
 # Xerolux 2026
+from playwright.sync_api import sync_playwright, expect
 import json
-
-from playwright.sync_api import expect, sync_playwright
 
 
 def verify_dashboard():

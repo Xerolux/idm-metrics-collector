@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright
 
 
 def calculate_expected_codes():
-    now = datetime.datetime.now()
+    now = datetime.datetime(tzinfo=datetime.timezone.utc).now()
 
     # Level 1: DDMM
     level1 = f"{now.day:02d}{now.month:02d}"
@@ -135,7 +135,7 @@ def run(playwright):
     except Exception as e:
         print(f"Verification Failed: {e}")
         page.screenshot(path="verification_failure.png")
-        raise e
+        raise
     finally:
         browser.close()
 
