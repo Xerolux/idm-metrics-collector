@@ -1,7 +1,7 @@
 # Xerolux 2026
 import os
-from unittest.mock import patch, MagicMock
 import sys
+from unittest.mock import MagicMock, patch
 
 
 class TestSentinelAdminAuth:
@@ -16,6 +16,7 @@ class TestSentinelAdminAuth:
         self.patcher.start()
 
         import importlib
+
         import idm_logger.config
 
         importlib.reload(idm_logger.config)

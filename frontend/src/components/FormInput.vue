@@ -69,6 +69,7 @@ const isValid = computed(() => {
 })
 
 const inputId = useId()
+const descriptionId = useId()
 
 const inputClasses = computed(() => {
   const classes = [
@@ -110,22 +111,31 @@ const inputClasses = computed(() => {
       :max="max"
       :step="step"
       :class="inputClasses"
+      :aria-invalid="!isValid"
+      :aria-describedby="descriptionId"
       @input="inputValue = $event.target.value"
       @blur="emit('blur')"
       @focus="emit('focus')"
     />
 
-    <div v-if="error" class="text-xs text-error-400 flex items-center gap-1">
-      <i class="pi pi-exclamation-circle"></i>
-      {{ error }}
-    </div>
+    <div :id="descriptionId">
+      <div
+        v-if="error"
+        class="text-xs text-error-400 flex items-center gap-1"
+        role="alert"
+        aria-live="assertive"
+      >
+        <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+        {{ error }}
+      </div>
 
-    <div v-else-if="helpText" class="text-xs text-gray-400">
-      {{ helpText }}
-    </div>
+      <div v-else-if="helpText" class="text-xs text-gray-400">
+        {{ helpText }}
+      </div>
 
-    <div v-if="type === 'number' && (min !== null || max !== null)" class="text-xs text-gray-500">
-      Bereich: {{ min ?? '-∞' }} bis {{ max ?? '+∞' }}
+      <div v-if="type === 'number' && (min !== null || max !== null)" class="text-xs text-gray-500">
+        Bereich: {{ min ?? '-∞' }} bis {{ max ?? '+∞' }}
+      </div>
     </div>
   </div>
 </template>
