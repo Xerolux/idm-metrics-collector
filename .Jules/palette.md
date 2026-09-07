@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2025-04-06 - Form Field Accessibility Linkage
+**Learning:** We need to explicitly link validation error messages and help texts to their corresponding `<input>` or `<select>` elements in our custom form components to ensure screen readers announce them properly. Simply displaying them nearby visually is insufficient.
+**Action:** When creating or updating form components (like `FormInput.vue` or `FormSelect.vue`), generate a unique ID (e.g., using Vue's `useId()`) for the description block and use the `aria-describedby` attribute on the input. Additionally, correctly set `aria-invalid` to reflect the error state dynamically.

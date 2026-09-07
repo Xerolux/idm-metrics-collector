@@ -59,6 +59,7 @@ const isValid = computed(() => {
 })
 
 const selectId = useId()
+const descriptionId = useId()
 
 const inputClasses = computed(() => {
   const classes = [
@@ -95,6 +96,8 @@ const inputClasses = computed(() => {
       :value="selectedValue"
       :disabled="disabled"
       :class="inputClasses"
+      :aria-invalid="!isValid"
+      :aria-describedby="descriptionId"
       @change="selectedValue = $event.target.value"
     >
       <option value="" disabled>{{ placeholder || 'Bitte wählen...' }}</option>
@@ -103,9 +106,16 @@ const inputClasses = computed(() => {
       </option>
     </select>
 
-    <div v-if="error" class="text-xs text-error-400 flex items-center gap-1">
-      <i class="pi pi-exclamation-circle"></i>
-      {{ error }}
+    <div :id="descriptionId">
+      <div
+        v-if="error"
+        class="text-xs text-error-400 flex items-center gap-1"
+        role="alert"
+        aria-live="assertive"
+      >
+        <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+        {{ error }}
+      </div>
     </div>
   </div>
 </template>
