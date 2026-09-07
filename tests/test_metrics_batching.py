@@ -1,8 +1,10 @@
 # Xerolux 2026
-import pytest
-from unittest.mock import MagicMock, patch
-from idm_logger.metrics import MetricsWriter
 import queue
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from idm_logger.metrics import MetricsWriter
 
 
 class TestMetricsBatching:
