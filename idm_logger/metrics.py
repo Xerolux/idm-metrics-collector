@@ -159,7 +159,9 @@ class MetricsWriter:
                 if isinstance(value, bool):
                     # Inline conditional is faster than int(value)
                     fields.append(f"{key}={1 if value else 0}")
-                elif isinstance(value, (int, float)): # Use elif to prevent redundant type checking
+                elif isinstance(
+                    value, (int, float)
+                ):  # Use elif to prevent redundant type checking
                     fields.append(f"{key}={value}")
 
             if fields:
