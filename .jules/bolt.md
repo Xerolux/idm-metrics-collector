@@ -32,3 +32,6 @@
 ## 2026-04-09 - Optimize Modbus Struct Pack/Unpack Loops
 **Learning:** In Python loops handling struct operations (like encoding/decoding Modbus registers), manual string concatenation and list slicing inside the loop is very slow and memory-intensive. However, using vectorized C-level `struct.pack` and `struct.unpack` with format multipliers (e.g., `f"{fmt_char}{len(registers)}H"`) to pack/unpack items concurrently significantly reduces CPU time and memory allocation overhead on hot paths, cutting execution times by over 30% for these methods.
 **Action:** Always prefer vectorized `struct` operations with format multipliers over manual iterations and slicing when parsing arrays of binary registers in performance-sensitive contexts.
+## 2026-04-10 - System Call Overhead in Hot Loops
+**Learning:** Evaluating invariant system calls like `time.time()` inside loops handling data batches (e.g., generating sensor readings payloads in `idm_logger/mqtt.py`) introduces unnecessary CPU overhead and results in slightly different timestamps for data points that logically belong to the exact same temporal snapshot.
+**Action:** Always pre-calculate `int(time.time())` once outside the loop for data batch iterations to reduce syscall overhead and ensure semantic correctness (all items in the batch share the exact same snapshot timestamp).
