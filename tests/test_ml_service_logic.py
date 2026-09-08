@@ -1,10 +1,11 @@
 # Xerolux 2026
-import unittest
-from unittest.mock import MagicMock, patch, mock_open
-import sys
-import os
 import importlib
+import os
 import pickle
+import sys
+import unittest
+from unittest.mock import MagicMock, mock_open, patch
+
 from idm_logger.const import HeatPumpStatus
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -40,8 +41,8 @@ class TestMLServiceLogic(unittest.TestCase):
             self.torch_patcher = None
 
         try:
-            import ml_service.main as main
             import ml_service.config as ml_config
+            from ml_service import main
 
             importlib.reload(ml_config)
             importlib.reload(main)
