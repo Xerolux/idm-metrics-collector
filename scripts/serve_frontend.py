@@ -1,7 +1,7 @@
 # Xerolux 2026
 import http.server
-import os
 import socketserver
+import os
 
 PORT = 5173
 # Calculate path relative to this script

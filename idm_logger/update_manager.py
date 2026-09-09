@@ -2,13 +2,12 @@
 # SPDX-License-Identifier: MIT
 import logging
 import os
-import re
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Dict, Any, Tuple, Optional
+import re
 
 import requests
-
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -29,7 +28,7 @@ _SAFE_GHCR_REPO = re.compile(
 # Only one channel: "latest" (rolling updates from main / Docker latest)
 
 
-def get_repo_path() -> str | None:
+def get_repo_path() -> Optional[str]:
     """
     Determines the path to the git repository.
     Priority:
@@ -74,7 +73,7 @@ def get_repo_path() -> str | None:
     return None
 
 
-def get_file_version() -> str | None:
+def get_file_version() -> Optional[str]:
     """Reads the base version from VERSION file."""
     # Fallback to VERSION file (usually at /app/VERSION or repo_path/VERSION)
     version_file = Path("/app/VERSION")
@@ -112,7 +111,7 @@ def get_current_version() -> str:
     return "unknown"
 
 
-def get_local_image_id(image_name: str) -> str | None:
+def get_local_image_id(image_name: str) -> Optional[str]:
     """Get the image ID of a locally running container's image."""
     try:
         # First try to get the image ID from running container
@@ -129,7 +128,7 @@ def get_local_image_id(image_name: str) -> str | None:
     return None
 
 
-def get_remote_image_digest(image_name: str, tag: str = "latest") -> str | None:
+def get_remote_image_digest(image_name: str, tag: str = "latest") -> Optional[str]:
     """
     Get the digest of a remote image from GHCR using the registry API.
     Returns the manifest digest which can be compared to check for updates.
@@ -177,7 +176,7 @@ def get_remote_image_digest(image_name: str, tag: str = "latest") -> str | None:
     return None
 
 
-def get_local_image_digest(image_name: str) -> str | None:
+def get_local_image_digest(image_name: str) -> Optional[str]:
     """Get the RepoDigest of a local image (matches remote digest format)."""
     try:
         result = subprocess.run(
@@ -202,7 +201,7 @@ def get_local_image_digest(image_name: str) -> str | None:
     return None
 
 
-def check_docker_updates() -> dict[str, Any]:
+def check_docker_updates() -> Dict[str, Any]:
     """
     Check if Docker image updates are available on GHCR.
     Returns status for each image and whether updates are available.
@@ -288,7 +287,7 @@ def can_run_docker_updates() -> bool:
         return False
 
 
-def perform_docker_update(compose_path: str | None = None) -> None:
+def perform_docker_update(compose_path: Optional[str] = None) -> None:
     """
     Perform a Docker-only update (pull new images and restart).
     Does not require git repository.
@@ -349,7 +348,7 @@ def perform_docker_update(compose_path: str | None = None) -> None:
     logger.info("Docker update completed successfully")
 
 
-def _parse_version(version: str) -> tuple[int, int, int, int, int] | None:
+def _parse_version(version: str) -> Optional[Tuple[int, int, int, int, int]]:
     """
     Parses a version string into a tuple for comparison.
     Format: (major, minor, patch, release_type, pre_release_num)
@@ -441,7 +440,7 @@ def is_update_allowed(update_type: str, target: str) -> bool:
     return update_type == target
 
 
-def get_latest_github_release() -> str | None:
+def get_latest_github_release() -> Optional[str]:
     """Check GitHub API for latest release tag."""
     try:
         url = f"{GITHUB_API_BASE}/releases/latest"
@@ -453,7 +452,7 @@ def get_latest_github_release() -> str | None:
     return None
 
 
-def check_for_update() -> dict[str, Any]:
+def check_for_update() -> Dict[str, Any]:
     current_version = get_current_version()
 
     # Check Docker image updates (Primary source)
@@ -502,7 +501,7 @@ def check_for_update() -> dict[str, Any]:
     }
 
 
-def perform_update(repo_path: str | None = None, docker_only: bool = False) -> None:
+def perform_update(repo_path: Optional[str] = None, docker_only: bool = False) -> None:
     """
     Perform system update.
 
@@ -575,7 +574,7 @@ def perform_update(repo_path: str | None = None, docker_only: bool = False) -> N
     logger.info("Update completed successfully")
 
 
-def can_run_updates(repo_path: str | None = None) -> bool:
+def can_run_updates(repo_path: Optional[str] = None) -> bool:
     if repo_path is None:
         repo_path = get_repo_path()
 

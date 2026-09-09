@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: MIT
 import logging
 import smtplib
-from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-
-from ..config import config
+from email.mime.multipart import MIMEMultipart
 from .base import NotificationProvider
+from ..config import config
 
 logger = logging.getLogger(__name__)
 

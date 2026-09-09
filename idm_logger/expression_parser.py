@@ -13,9 +13,10 @@ Supports operations like:
 """
 
 import ast
-import logging
-import operator
 import re
+from typing import List, Dict, Union
+import operator
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class SafeExpressionEvaluator(ast.NodeVisitor):
         self.variables = {}
 
     def evaluate(
-        self, expr: str | ast.AST, variables: dict[str, float] = None
+        self, expr: Union[str, ast.AST], variables: Dict[str, float] = None
     ) -> float:
         """Safely evaluate a mathematical expression."""
         self.variables = variables or {}
@@ -144,9 +145,9 @@ class ExpressionParser:
 
     def __init__(self):
         """Initialize the expression parser."""
-        self.query_results: dict[str, list[tuple]] = {}
+        self.query_results: Dict[str, List[tuple]] = {}
 
-    def set_query_results(self, query_results: dict[str, list[tuple]]):
+    def set_query_results(self, query_results: Dict[str, List[tuple]]):
         """
         Set query results for expression evaluation.
 
@@ -189,7 +190,7 @@ class ExpressionParser:
 
         return True, ""
 
-    def parse_expression(self, expression: str) -> list[str]:
+    def parse_expression(self, expression: str) -> List[str]:
         """
         Parse an expression and extract query references.
 
@@ -205,7 +206,7 @@ class ExpressionParser:
 
     def evaluate_expression(
         self, expression: str, timestamp: int
-    ) -> float | None:
+    ) -> Union[float, None]:
         """
         Evaluate an expression at a specific timestamp.
 
@@ -242,7 +243,7 @@ class ExpressionParser:
             logger.error(f"Error evaluating expression '{expression}': {e}")
             return None
 
-    def _evaluate_with_values(self, expression: str, values: dict[str, float]) -> float:
+    def _evaluate_with_values(self, expression: str, values: Dict[str, float]) -> float:
         """
         Evaluate an expression with given query values.
 
@@ -262,7 +263,7 @@ class ExpressionParser:
         except Exception as e:
             raise ValueError(f"Failed to evaluate expression '{expr}': {e}")
 
-    def evaluate_expression_series(self, expression: str) -> list[tuple]:
+    def evaluate_expression_series(self, expression: str) -> List[tuple]:
         """
         Evaluate an expression over all timestamps.
 

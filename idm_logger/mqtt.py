@@ -5,17 +5,15 @@ MQTT Publisher for IDM Heat Pump Logger
 Publishes sensor data to MQTT broker with authentication support.
 """
 
-import json
 import logging
+import json
 import os
-import ssl
 import time
+import ssl
 from threading import Event
-
 import paho.mqtt.client as mqtt
-
 from .config import config
-from .sensor_addresses import IdmBinarySensorAddress, SensorFeatures
+from .sensor_addresses import SensorFeatures, IdmBinarySensorAddress
 
 logger = logging.getLogger(__name__)
 
@@ -289,6 +287,7 @@ class MQTTPublisher:
                     payload["value_template"] = (
                         "{{ value_json.value_str }}"  # Use string representation for select
                     )
+                    pass
 
                 # Numerical -> Number
                 elif (

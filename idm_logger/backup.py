@@ -6,17 +6,16 @@ import json
 import logging
 import os
 import re
+import zipfile
 import shutil
 import subprocess
-import threading
-import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any
-
+from typing import Dict, Any
 import requests
+import threading
 
-from .config import DATA_DIR, config
+from .config import config, DATA_DIR
 from .db import db
 
 try:
@@ -465,7 +464,7 @@ class BackupManager:
             return False
 
     @staticmethod
-    def create_backup() -> dict[str, Any]:
+    def create_backup() -> Dict[str, Any]:
         """
         Create a complete backup of the system configuration.
 
@@ -959,7 +958,7 @@ class BackupManager:
     @staticmethod
     def restore_backup(
         backup_file_path: str, restore_secrets: bool = False
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """
         Restore configuration from a backup file.
 
@@ -1008,7 +1007,7 @@ class BackupManager:
                     logger.info("Configuration restored")
 
                 # 3. Restore scheduler rules
-                if backup_data.get("scheduler"):
+                if "scheduler" in backup_data and backup_data["scheduler"]:
                     db.set_setting(
                         "scheduler_rules", json.dumps(backup_data["scheduler"])
                     )
@@ -1132,7 +1131,7 @@ class BackupManager:
         return backups
 
     @staticmethod
-    def delete_backup(filename: str) -> dict[str, Any]:
+    def delete_backup(filename: str) -> Dict[str, Any]:
         """Delete a backup file."""
         # Security check: ensure filename is safe
         if not _SAFE_FILENAME_PATTERN.match(filename) or ".." in filename:
@@ -1154,7 +1153,7 @@ class BackupManager:
             return {"success": False, "error": str(e)}
 
     @staticmethod
-    def cleanup_old_backups(keep_count: int = 10) -> dict[str, Any]:
+    def cleanup_old_backups(keep_count: int = 10) -> Dict[str, Any]:
         """
         Keep only the most recent N backups, delete older ones.
 
@@ -1193,7 +1192,7 @@ class BackupManager:
             return {"success": False, "error": str(e)}
 
     @staticmethod
-    def upload_to_webdav(file_path: str) -> dict[str, Any]:
+    def upload_to_webdav(file_path: str) -> Dict[str, Any]:
         """
         Upload a file to WebDAV/Nextcloud in the background.
         Returns immediately with 'success': True to avoid blocking.

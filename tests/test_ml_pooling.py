@@ -1,8 +1,8 @@
-import importlib
-import os
-import sys
 import unittest
 from unittest.mock import MagicMock, patch
+import sys
+import os
+import importlib
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -24,7 +24,7 @@ class TestMLServicePooling(unittest.TestCase):
         self.addCleanup(self.patcher.stop)
 
         import ml_service.config as ml_config
-        from ml_service import main
+        import ml_service.main as main
 
         importlib.reload(ml_config)
         importlib.reload(main)

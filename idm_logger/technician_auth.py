@@ -8,11 +8,10 @@
 # SECURITY NOTE: This module uses encrypted code execution which is a security risk.
 # Consider replacing with a proper authentication module in the future.
 
-import ast
 import logging
-from datetime import datetime
-
+import ast
 from cryptography.fernet import Fernet
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 

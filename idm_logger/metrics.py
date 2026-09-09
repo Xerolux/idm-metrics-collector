@@ -1,13 +1,12 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import logging
+import requests
 import os
 import queue
 import threading
 import time
-
-import requests
-
+from typing import List, Union, Dict
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -143,7 +142,7 @@ class MetricsWriter:
         s = s.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
         return s
 
-    def _send_data(self, data: dict | list[dict]) -> bool:
+    def _send_data(self, data: Union[Dict, List[Dict]]) -> bool:
         items = data if isinstance(data, list) else [data]
         lines = []
 

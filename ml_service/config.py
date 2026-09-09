@@ -1,8 +1,9 @@
-import os
 from dataclasses import dataclass, field
+from typing import List
+import os
 
 
-def _parse_list(value: str, item_type: type = str) -> list:
+def _parse_list(value: str, item_type: type = str) -> List:
     if not value or not value.strip():
         return []
     return [item_type(x.strip()) for x in value.split(",") if x.strip()]
@@ -89,14 +90,14 @@ class MLConfig:
         default_factory=lambda: int(os.environ.get("RETRY_MAX_ATTEMPTS", "3"))
     )
 
-    ml_circuits: list[str] = field(
+    ml_circuits: List[str] = field(
         default_factory=lambda: _parse_list(os.environ.get("ML_CIRCUITS", "A"))
     )
-    ml_zones: list[int] = field(
+    ml_zones: List[int] = field(
         default_factory=lambda: _parse_list(os.environ.get("ML_ZONES", ""), int)
     )
 
-    modes: list[str] = field(
+    modes: List[str] = field(
         default_factory=lambda: ["heating", "cooling", "water", "standby"]
     )
 

@@ -4,7 +4,3 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
-
-## 2024-05-18 - Keyboard focus for icon-only action buttons
-**Learning:** Icon-only action buttons (like edit/delete/toggle) mapped to native `<button>` elements often lack clear visual focus rings when navigating via keyboard, making them difficult to locate for screen reader and keyboard-only users.
-**Action:** Always verify keyboard focus states (`focus-visible:ring-2`) and spacing (`p-1`) on icon-only buttons to ensure they have accessible and visually distinct focus rings.

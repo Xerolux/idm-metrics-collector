@@ -1,6 +1,6 @@
 # Xerolux 2026
-import os
 import sys
+import os
 
 # Add the project root to the path
 sys.path.append(os.getcwd())

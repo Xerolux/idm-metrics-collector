@@ -1,11 +1,10 @@
-import base64
-import hashlib
-import hmac
-import io
-import json
 import os
+import json
+import base64
+import hmac
+import hashlib
 import pickle
-
+import io
 from cryptography.fernet import Fernet
 
 
@@ -84,7 +83,7 @@ def load_encrypted_model(filepath):
         # 2. Verify signature
         # Reconstruct message to sign: payload + "." + canonical_json(metadata)
         metadata_json = json.dumps(metadata, sort_keys=True)
-        msg = f"{payload_b64}.{metadata_json}".encode()
+        msg = f"{payload_b64}.{metadata_json}".encode("utf-8")
 
         expected_sig = hmac.new(key, msg, hashlib.sha256).hexdigest()
 

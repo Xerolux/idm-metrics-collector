@@ -11,7 +11,7 @@ import asyncio
 import functools
 import logging
 import time
-from collections.abc import Callable
+from typing import Callable, Type, Tuple, Union, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +21,8 @@ def retry_with_backoff(
     initial_delay: float = 1.0,
     backoff_factor: float = 2.0,
     max_delay: float = 60.0,
-    exceptions: type[Exception] | tuple[type[Exception], ...] = Exception,
-    on_retry: Callable[[Exception, int], None] | None = None,
+    exceptions: Union[Type[Exception], Tuple[Type[Exception], ...]] = Exception,
+    on_retry: Optional[Callable[[Exception, int], None]] = None,
 ):
     """
     Decorator to retry a function with exponential backoff.
@@ -96,8 +96,8 @@ def retry_async_with_backoff(
     initial_delay: float = 1.0,
     backoff_factor: float = 2.0,
     max_delay: float = 60.0,
-    exceptions: type[Exception] | tuple[type[Exception], ...] = Exception,
-    on_retry: Callable[[Exception, int], None] | None = None,
+    exceptions: Union[Type[Exception], Tuple[Type[Exception], ...]] = Exception,
+    on_retry: Optional[Callable[[Exception, int], None]] = None,
 ):
     """
     Async decorator to retry an async function with exponential backoff.

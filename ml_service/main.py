@@ -1,15 +1,15 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-import logging
 import math
 import os
-import pickle
 import sys
-import threading
 import time
-import uuid
-
+import logging
 import schedule
+import threading
+import uuid
+import pickle
+
 import torch
 
 try:
@@ -20,8 +20,8 @@ except ImportError:
     USE_JOBLIB = False
     logging.warning("joblib not available, falling back to pickle (less secure)")
 
-import requests
 from flask import Flask, jsonify, request
+import requests
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -29,14 +29,14 @@ from ml_service.config import config
 from ml_service.models import create_model
 
 try:
-    from idm_logger.const import HeatPumpStatus
     from idm_logger.sensor_addresses import (
-        BINARY_SENSOR_ADDRESSES,
         COMMON_SENSORS,
-        HeatingCircuit,
+        BINARY_SENSOR_ADDRESSES,
         heating_circuit_sensors,
         zone_sensors,
+        HeatingCircuit,
     )
+    from idm_logger.const import HeatPumpStatus
 except ImportError:
     logging.warning("Could not import idm_logger modules, using stubs")
     COMMON_SENSORS = []
