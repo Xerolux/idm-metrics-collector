@@ -1,68 +1,72 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-from flask import (
-    Flask,
-    request,
-    jsonify,
-    session,
-    abort,
-    send_from_directory,
-    send_file,
-    Response,
-    stream_with_context,
-)
-from flask_socketio import SocketIO
-from waitress import serve
-from flasgger import Swagger
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from werkzeug.middleware.proxy_fix import ProxyFix
-from werkzeug.utils import secure_filename
-from .technician_auth import calculate_codes
-from .config import config
-from .sensor_addresses import SensorFeatures
-from .const import HEAT_PUMP_MODELS, HEAT_PUMP_MANUFACTURERS
-from .log_handler import memory_handler
-from .backup import backup_manager, BACKUP_DIR
-from .mqtt import mqtt_publisher
-from .modbus import ModbusClient
-from .scheduler import Scheduler
-from .signal_notifications import send_signal_message
-from .notifications import notification_manager
-from .update_manager import (
-    check_for_update,
-    perform_update as run_update,
-    get_current_version,
-    get_file_version,
-    can_run_updates,
-    can_run_docker_updates,
-    check_docker_updates,
-)
-from .alerts import alert_manager
-from .dashboard_config import dashboard_manager
-from .templates import get_alert_templates
-from .annotations import AnnotationManager
-from .variables import VariableManager
-from .expression_parser import ExpressionParser
-from .websocket_handler import websocket_handler
-from .sharing import SharingManager
-from .paste import upload
-from shutil import which
-import threading
-import logging
-import json
-import requests
-import functools
-import os
-import signal
 import atexit
-import ipaddress
-import time
-import re
-import pandas as pd
+import functools
 import io
+import ipaddress
+import json
+import logging
+import os
+import re
+import signal
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
+from shutil import which
+
+import pandas as pd
+import requests
+from flasgger import Swagger
+from flask import (
+    Flask,
+    Response,
+    abort,
+    jsonify,
+    request,
+    send_file,
+    send_from_directory,
+    session,
+    stream_with_context,
+)
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_socketio import SocketIO
+from waitress import serve
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.utils import secure_filename
+
+from .alerts import alert_manager
+from .annotations import AnnotationManager
+from .backup import BACKUP_DIR, backup_manager
+from .config import config
+from .const import HEAT_PUMP_MANUFACTURERS, HEAT_PUMP_MODELS
+from .dashboard_config import dashboard_manager
+from .expression_parser import ExpressionParser
+from .log_handler import memory_handler
+from .modbus import ModbusClient
+from .mqtt import mqtt_publisher
+from .notifications import notification_manager
+from .paste import upload
+from .scheduler import Scheduler
+from .sensor_addresses import SensorFeatures
+from .sharing import SharingManager
+from .signal_notifications import send_signal_message
+from .technician_auth import calculate_codes
+from .templates import get_alert_templates
+from .update_manager import (
+    can_run_docker_updates,
+    can_run_updates,
+    check_docker_updates,
+    check_for_update,
+    get_current_version,
+    get_file_version,
+)
+from .update_manager import (
+    perform_update as run_update,
+)
+from .variables import VariableManager
+from .websocket_handler import websocket_handler
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +189,9 @@ def _sanitize_manager_error(result: dict, fallback_message: str) -> dict:
 
 
 app = Flask(__name__)
+
+# Create a global requests session for connection pooling
+http_client = requests.Session()
 app.secret_key = config.get_flask_secret_key()
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -323,7 +330,7 @@ def _update_ai_status_once():
 
         query = 'last_over_time({__name__=~"idm_anomaly_score(_value)?|idm_anomaly_flag(_value)?"}[2h])'
         try:
-            response = requests.get(query_url, params={"query": query}, timeout=10)
+            response = http_client.get(query_url, params={"query": query}, timeout=10)
         except requests.RequestException as e:
             # Log specific network error but don't crash loop
             logger.debug(f"AI status update network error: {e}")
@@ -888,7 +895,7 @@ def get_current_metrics():
 
         # Query for latest values of all idm_heatpump and idm_anomaly metrics
         query = '{__name__=~"idm_heatpump.*|idm_anomaly.*"}'
-        response = requests.get(query_url, params={"query": query}, timeout=10)
+        response = http_client.get(query_url, params={"query": query}, timeout=10)
 
         if response.status_code != 200:
             logger.error(f"VictoriaMetrics query failed: {response.status_code}")
@@ -1028,7 +1035,7 @@ def get_available_metrics():
 
         logger.debug(f"Fetching metrics from: {query_url} with params: {params}")
 
-        response = requests.get(query_url, params=params, timeout=10)
+        response = http_client.get(query_url, params=params, timeout=10)
 
         if response.status_code != 200:
             logger.error(
@@ -1154,7 +1161,7 @@ def query_metrics_range():
             "step": step,
         }
 
-        response = requests.get(query_url, params=params, timeout=10)
+        response = http_client.get(query_url, params=params, timeout=10)
         if response.status_code != 200:
             logger.error(f"VictoriaMetrics query failed: {response.text}")
             return jsonify(
@@ -1203,7 +1210,7 @@ def query_metrics_instant():
         base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         query_url = f"{base_url}/api/v1/query"
 
-        response = requests.get(query_url, params={"query": query}, timeout=10)
+        response = http_client.get(query_url, params={"query": query}, timeout=10)
         if response.status_code != 200:
             logger.error(f"VictoriaMetrics instant query failed: {response.text}")
             return jsonify(
@@ -1243,7 +1250,7 @@ def query_metrics_legacy():
         base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         query_url = f"{base_url}/api/v1/query_range"
 
-        response = requests.get(
+        response = http_client.get(
             query_url,
             params={"query": query, "start": start, "end": end, "step": step},
             timeout=10,
@@ -1335,7 +1342,7 @@ def export_metrics_data():
             # Query all available idm metrics
             query_url = f"{base_url}/api/v1/query"
             query = '{__name__=~"idm_heatpump.*|idm_anomaly.*"}'
-            response = requests.get(query_url, params={"query": query}, timeout=10)
+            response = http_client.get(query_url, params={"query": query}, timeout=10)
 
             if response.status_code != 200:
                 return jsonify({"error": "Failed to fetch available metrics"}), 500
@@ -1376,7 +1383,7 @@ def export_metrics_data():
                 "step": step,
             }
 
-            response = requests.get(query_range_url, params=params, timeout=30)
+            response = http_client.get(query_range_url, params=params, timeout=30)
             if response.status_code != 200:
                 logger.warning(f"Failed to fetch {metric}: {response.status_code}")
                 continue
@@ -1530,7 +1537,7 @@ def export_metrics_database():
     export_url = f"{base_url}/api/v1/export"
 
     try:
-        upstream = requests.get(
+        upstream = http_client.get(
             export_url,
             params={
                 "match[]": '{__name__=~".+"}',
@@ -2086,7 +2093,7 @@ def config_page():
                 if not valid:
                     return jsonify({"error": err}), 400
                 config.data["mqtt"]["username"] = data["mqtt_username"]
-            if "mqtt_password" in data and data["mqtt_password"]:
+            if data.get("mqtt_password"):
                 # Passwords can contain special chars, just limit length
                 if len(data["mqtt_password"]) > _MAX_STRING_LENGTH:
                     return jsonify({"error": "MQTT Passwort zu lang"}), 400
@@ -2185,7 +2192,7 @@ def config_page():
                     return jsonify({"error": "Ungültiger SMTP Port"}), 400
             if "email_username" in data:
                 config.data["email"]["username"] = data["email_username"]
-            if "email_password" in data and data["email_password"]:
+            if data.get("email_password"):
                 config.data["email"]["password"] = data["email_password"]
             if "email_sender" in data:
                 config.data["email"]["sender"] = data["email_sender"]
@@ -2202,7 +2209,7 @@ def config_page():
                 config.data["webdav"]["url"] = data["webdav_url"]
             if "webdav_username" in data:
                 config.data["webdav"]["username"] = data["webdav_username"]
-            if "webdav_password" in data and data["webdav_password"]:
+            if data.get("webdav_password"):
                 config.data["webdav"]["password"] = data["webdav_password"]
 
             # AI
@@ -2860,7 +2867,7 @@ def delete_database():
         )
         base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         delete_url = f"{base_url}/api/v1/admin/tsdb/delete_series"
-        response = requests.post(delete_url, params={"match[]": '{__name__!=""}'})
+        response = http_client.post(delete_url, params={"match[]": '{__name__!=""}'})
         if response.status_code == 204 or response.status_code == 200:
             return jsonify(
                 {"success": True, "message": "Datenbank erfolgreich bereinigt"}
