@@ -57,7 +57,7 @@
             <div class="flex items-center space-x-2 ml-4">
               <button
                 @click="toggleAlert(alert)"
-                class="text-gray-400 hover:text-blue-500"
+                class="text-gray-400 hover:text-blue-500 p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 :aria-label="alert.enabled ? 'Alarm deaktivieren' : 'Alarm aktivieren'"
                 :title="alert.enabled ? 'Alarm deaktivieren' : 'Alarm aktivieren'"
               >
@@ -86,7 +86,7 @@
               </button>
               <button
                 @click="openModal(alert)"
-                class="text-gray-400 hover:text-yellow-500"
+                class="text-gray-400 hover:text-yellow-500 p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 aria-label="Alarm bearbeiten"
                 title="Alarm bearbeiten"
               >
@@ -103,7 +103,7 @@
               </button>
               <button
                 @click="deleteAlert(alert)"
-                class="text-gray-400 hover:text-red-500"
+                class="text-gray-400 hover:text-red-500 p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 aria-label="Alarm löschen"
                 title="Alarm löschen"
               >
