@@ -32,3 +32,6 @@
 ## 2026-04-09 - Optimize Modbus Struct Pack/Unpack Loops
 **Learning:** In Python loops handling struct operations (like encoding/decoding Modbus registers), manual string concatenation and list slicing inside the loop is very slow and memory-intensive. However, using vectorized C-level `struct.pack` and `struct.unpack` with format multipliers (e.g., `f"{fmt_char}{len(registers)}H"`) to pack/unpack items concurrently significantly reduces CPU time and memory allocation overhead on hot paths, cutting execution times by over 30% for these methods.
 **Action:** Always prefer vectorized `struct` operations with format multipliers over manual iterations and slicing when parsing arrays of binary registers in performance-sensitive contexts.
+## 2024-05-30 - Connection Pooling for Repeated HTTP Requests
+**Learning:** Repeatedly creating HTTP connections by using module-level `requests.get` or `requests.post` inside `idm_logger/web.py` for API calls to VictoriaMetrics and other services introduces significant TCP and TLS overhead, reducing throughput.
+**Action:** Created a global connection pool via `requests.Session()` in `web.py` (e.g. `http_client = requests.Session()`) and refactored API calls to use it. Updated any `@patch("idm_logger.web.requests.get")` decorators in tests to `@patch("idm_logger.web.http_client.get")`.
