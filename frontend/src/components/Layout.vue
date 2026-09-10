@@ -180,8 +180,13 @@ onUnmounted(() => {
     <!-- Update Available Banner -->
     <div
       v-if="updateAvailable && showUpdateBanner"
-      class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 flex items-center justify-between cursor-pointer hover:from-blue-500 hover:to-blue-600 transition-all"
+      class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 flex items-center justify-between cursor-pointer hover:from-blue-500 hover:to-blue-600 transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 outline-none"
       @click="goToUpdate"
+      @keydown.enter.self="goToUpdate"
+      @keydown.space.prevent.self="goToUpdate"
+      role="button"
+      tabindex="0"
+      aria-label="Update verfügbar, Banner anklicken um zu den Updates zu gelangen"
     >
       <div class="flex items-center gap-3">
         <i class="pi pi-sync text-lg"></i>
