@@ -144,7 +144,7 @@ class WebSocketHandler:
     def notify_all(self, metric, value):
         for client_id, subscribed_metrics in self.subscribers.items():
             if metric in subscribed_metrics:
-                socketio.emit('metric_update', {...}, room=client_id)
+                socketio.emit("metric_update", {...}, room=client_id)
 ```
 
 **3. Strategy Pattern** - Notification channels

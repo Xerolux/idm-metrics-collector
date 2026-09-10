@@ -1,0 +1,21 @@
+[lint]
+ignore = [
+    "I",
+    "PL",
+    "SIM",
+    "RUF",
+    "DTZ",
+    "S",
+    "BLE",
+    "TRY",
+    "EXE",
+    "UP",
+    "PERF",
+    "C",
+    "G",
+    "F",
+    "E",
+    "PIE",
+    "PYI",
+    "LOG"
+]
