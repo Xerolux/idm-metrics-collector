@@ -102,7 +102,7 @@ from idm_logger.backup import backup_manager
 
 result = backup_manager.restore_backup(
     backup_file_path="/app/data/backups/idm_backup_20260116_120000.zip",
-    restore_secrets=False
+    restore_secrets=False,
 )
 
 if result["success"]:
@@ -269,11 +269,13 @@ from idm_logger.backup import backup_manager
 import schedule
 import time
 
+
 def scheduled_backup():
     result = backup_manager.create_backup()
     if result["success"]:
         print(f"Automatisches Backup erstellt: {result['filename']}")
         backup_manager.cleanup_old_backups()  # Alte Backups aufräumen
+
 
 # Täglich um 2:00 Uhr
 schedule.every().day.at("02:00").do(scheduled_backup)
