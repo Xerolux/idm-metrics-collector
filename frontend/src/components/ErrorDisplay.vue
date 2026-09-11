@@ -103,6 +103,7 @@ const iconClasses = computed(() => {
         @click="$emit('dismiss')"
         class="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
         aria-label="Schließen"
+        title="Schließen"
       >
         <i class="pi pi-times"></i>
       </button>
