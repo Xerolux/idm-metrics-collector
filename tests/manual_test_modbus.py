@@ -4,6 +4,7 @@
 """Test Modbus connection to IDM Heat Pump."""
 
 import sys
+
 from pymodbus.client import ModbusTcpClient
 
 # Connection settings
@@ -43,7 +44,7 @@ def test_connection():
             print("   - Modbus TCP not enabled on heat pump")
             print("   - Wrong IP address")
             return False
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"   ✗ Connection error: {e}")
         return False
 
@@ -67,7 +68,7 @@ def test_connection():
                 print(f"      Registers: {result.registers}")
                 success_count += 1
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"   ✗ Address {address:4d} ({description})")
             print(f"      Exception: {e}")
             failed_count += 1
@@ -102,7 +103,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n\nTest interrupted by user")
         sys.exit(1)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"\n\nUnexpected error: {e}")
         import traceback
 
