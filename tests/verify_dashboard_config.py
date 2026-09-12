@@ -1,6 +1,6 @@
 # Xerolux 2026
-import sys
 import os
+import sys
 
 # Add the project root to the path
 sys.path.append(os.getcwd())
@@ -53,6 +53,6 @@ if __name__ == "__main__":
     except AssertionError as e:
         print(f"Test failed: {e}")
         sys.exit(1)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"An error occurred: {e}")
         sys.exit(1)
