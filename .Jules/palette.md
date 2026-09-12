@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2024-03-24 - Redundant Aria-Hidden Learning
+**Learning:** Adding `aria-hidden="true"` to PrimeIcons (`<i class="pi..."></i>`) when they are used decoratively inside accessible wrappers (like buttons with `aria-label`) prevents screen readers from redundantly announcing or getting confused by the icon elements. Found missing `aria-hidden` attributes in `ErrorDisplay.vue`.
+**Action:** Always verify decorative `<i>` tags have `aria-hidden="true"`, especially inside components that already provide context via `aria-label` or `title`.
