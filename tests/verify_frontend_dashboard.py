@@ -184,7 +184,7 @@ def verify_dashboard():
         except Exception as e:
             print(f"Verification failed: {e}")
             page.screenshot(path="verification_failure.png")
-            raise e
+            raise
         finally:
             browser.close()
 
