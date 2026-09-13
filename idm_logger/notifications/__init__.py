@@ -2,18 +2,19 @@
 # SPDX-License-Identifier: MIT
 import logging
 from typing import List
+
 from .base import NotificationProvider
-from .signal import SignalProvider
-from .telegram import TelegramProvider
 from .discord import DiscordProvider
 from .email import EmailProvider
+from .signal import SignalProvider
+from .telegram import TelegramProvider
 
 logger = logging.getLogger(__name__)
 
 
 class NotificationManager:
     def __init__(self):
-        self.providers: List[NotificationProvider] = [
+        self.providers: list[NotificationProvider] = [
             SignalProvider(),
             TelegramProvider(),
             DiscordProvider(),
