@@ -1,7 +1,8 @@
 # Xerolux 2026
+import datetime
 import unittest
 from unittest.mock import MagicMock, patch
-import datetime
+
 from idm_logger.scheduler import Scheduler
 
 
