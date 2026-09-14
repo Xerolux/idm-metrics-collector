@@ -1,9 +1,9 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import json
+import pytest
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 import idm_logger.mqtt  # noqa: F401
 

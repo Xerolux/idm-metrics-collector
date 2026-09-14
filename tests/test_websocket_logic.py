@@ -1,16 +1,15 @@
 # Xerolux 2026
-import os
-import sys
-from unittest.mock import MagicMock, patch
-
 import pytest
+from unittest.mock import MagicMock, patch
+import sys
+import os
 
 # Add the project directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import idm_logger.websocket_handler as websocket_handler_module
-from idm_logger.web import app
 from idm_logger.websocket_handler import WebSocketHandler
+from idm_logger.web import app
+import idm_logger.websocket_handler as websocket_handler_module
 
 
 class TestWebSocketHandler:

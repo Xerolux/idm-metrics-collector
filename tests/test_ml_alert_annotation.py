@@ -1,9 +1,9 @@
 # Xerolux 2026
-import json
-import os
-import sys
 import unittest
 from unittest.mock import MagicMock, patch
+import json
+import sys
+import os
 
 # Add repo root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -56,8 +56,7 @@ class TestMLAlertAnnotation(unittest.TestCase):
 
         # Import web
         import importlib
-
-        from idm_logger import web
+        import idm_logger.web as web
 
         importlib.reload(web)
 
@@ -98,7 +97,7 @@ class TestMLAlertAnnotation(unittest.TestCase):
         )
 
         self.web.annotation_manager.add_annotation.assert_called()
-        _args, kwargs = self.web.annotation_manager.add_annotation.call_args
+        args, kwargs = self.web.annotation_manager.add_annotation.call_args
 
         self.assertEqual(kwargs["text"], "Test Alert")
         self.assertEqual(kwargs["tags"], ["ai", "anomaly", "heating"])
