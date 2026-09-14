@@ -1,13 +1,14 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import datetime
-import re
 import json
+import re
+
 from playwright.sync_api import sync_playwright
 
 
 def calculate_expected_codes():
-    now = datetime.datetime.now()
+    now = datetime.datetime.now()  # noqa: DTZ005
 
     # Level 1: DDMM
     level1 = f"{now.day:02d}{now.month:02d}"
@@ -91,7 +92,7 @@ def run(playwright):
         try:
             page.wait_for_selector("input[placeholder='Password']", timeout=2000)
             print("Detected Login Page. Attempting to bypass...")
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
         print("Waiting for Configuration header...")
@@ -134,7 +135,7 @@ def run(playwright):
     except Exception as e:
         print(f"Verification Failed: {e}")
         page.screenshot(path="verification_failure.png")
-        raise e
+        raise
     finally:
         browser.close()
 

@@ -7,9 +7,9 @@ to connected clients without requiring polling.
 """
 
 import logging
-from typing import Dict, Set
-from flask_socketio import emit, join_room, leave_room
+
 from flask import request
+from flask_socketio import emit, join_room, leave_room
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +27,9 @@ class WebSocketHandler:
         """
         self.socketio = socketio
         self.app = app
-        self.subscriptions: Dict[str, Set[str]] = {}  # metric -> set of session ids
-        self.dashboard_subscriptions: Dict[
-            str, Set[str]
+        self.subscriptions: dict[str, set[str]] = {}  # metric -> set of session ids
+        self.dashboard_subscriptions: dict[
+            str, set[str]
         ] = {}  # dashboard_id -> set of session ids
 
         if app:
@@ -175,7 +175,7 @@ class WebSocketHandler:
         data = {"metric": metric, "value": value, "timestamp": timestamp}
         self.socketio.emit("metric_update", data, room=metric)
 
-    def broadcast_metrics(self, data: Dict):
+    def broadcast_metrics(self, data: dict):
         """
         Broadcast multiple metric updates to subscribed clients.
 
@@ -191,7 +191,7 @@ class WebSocketHandler:
             if not isinstance(metric, str):
                 continue
 
-            if metric in self.subscriptions and self.subscriptions[metric]:
+            if self.subscriptions.get(metric):
                 payload = {"metric": metric, "value": value, "timestamp": timestamp}
                 self.socketio.emit("metric_update", payload, room=metric)
 

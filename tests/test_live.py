@@ -4,9 +4,9 @@
 """Live test script for IDM heat pump - READ ONLY"""
 
 import logging
-import sys
-import struct
 import os
+import struct
+import sys
 
 import pytest
 
@@ -119,7 +119,7 @@ def test_connection():
 
             print(f"{name:<35} {value_str:<15} {address}")
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"{name:<35} {'EXCEPTION':<15} {address} - {e}")
 
     # Close connection
