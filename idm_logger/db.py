@@ -1,10 +1,10 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import atexit
-import sqlite3
+import json
 import logging
 import os
-import json
+import sqlite3
 import threading
 from contextlib import contextmanager
 
