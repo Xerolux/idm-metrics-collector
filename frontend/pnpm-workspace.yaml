@@ -1,5 +1,3 @@
-packages:
-  - "."
 allowBuilds:
-  - esbuild
-  - core-js
+  esbuild: true
+  core-js: true
