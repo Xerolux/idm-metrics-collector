@@ -33,8 +33,13 @@
           v-for="template in filteredTemplates"
           :key="template.id"
           @click="selectTemplate(template)"
+          @keydown.enter.self="selectTemplate(template)"
+          @keydown.space.prevent.self="selectTemplate(template)"
+          role="button"
+          tabindex="0"
+          :aria-label="'Vorlage ' + template.title + ' auswählen'"
           :class="[
-            'p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md',
+            'p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none',
             selectedTemplate?.id === template.id
               ? 'border-blue-500 bg-blue-50'
               : 'border-gray-200 hover:border-gray-300'

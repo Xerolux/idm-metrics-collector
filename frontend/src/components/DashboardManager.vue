@@ -304,8 +304,13 @@
         <!-- Add Chart Button in Edit Mode -->
         <div
           v-if="editMode"
-          class="mt-3 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-teal-500 hover:bg-teal-50 cursor-pointer transition-colors"
+          class="mt-3 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-teal-500 hover:bg-teal-50 cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:outline-none"
           @click="showAddChartDialog = true"
+          @keydown.enter.self="showAddChartDialog = true"
+          @keydown.space.prevent.self="showAddChartDialog = true"
+          role="button"
+          tabindex="0"
+          aria-label="Chart manuell hinzufügen"
         >
           <div class="text-center text-gray-500">
             <i class="pi pi-plus text-4xl mb-2"></i>
