@@ -148,24 +148,20 @@ class MetricsWriter:
 
         tags = self._get_tags()
 
-        # Bolt: Pre-calculate common prefix outside the loop to avoid redundant string allocations
-        prefix = f"idm_heatpump{tags} "
-
         for measurements in items:
             fields = []
 
             for key, value in measurements.items():
                 if key.endswith("_str"):
                     continue
-                # Bolt: Use inline conditional and elif to avoid redundant type checking and int() cast overhead
                 if isinstance(value, bool):
-                    fields.append(f"{key}={1 if value else 0}")
-                elif isinstance(value, (int, float)):
+                    value = int(value)
+                if isinstance(value, (int, float)):
                     fields.append(f"{key}={value}")
 
             if fields:
-                # Bolt: Inline stringification instead of using a temporary variable
-                lines.append(f"{prefix}{','.join(fields)}")
+                field_str = ",".join(fields)
+                lines.append(f"idm_heatpump{tags} {field_str}")
 
         if not lines:
             return False
