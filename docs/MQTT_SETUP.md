@@ -320,9 +320,11 @@ Import this flow to subscribe to MQTT data:
 import paho.mqtt.client as mqtt
 import json
 
+
 def on_message(client, userdata, msg):
     data = json.loads(msg.payload)
     print(f"{msg.topic}: {data['value']} {data['unit']}")
+
 
 client = mqtt.Client()
 client.on_message = on_message

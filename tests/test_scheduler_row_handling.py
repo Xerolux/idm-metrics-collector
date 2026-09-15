@@ -1,8 +1,9 @@
 # Xerolux 2026
-import unittest
-from unittest.mock import MagicMock, patch
 import json
 import sqlite3
+import unittest
+from unittest.mock import MagicMock, patch
+
 from idm_logger.scheduler import Scheduler
 
 
