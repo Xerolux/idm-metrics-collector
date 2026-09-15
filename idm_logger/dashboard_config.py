@@ -2,15 +2,16 @@
 # SPDX-License-Identifier: MIT
 """Dashboard configuration management."""
 
-import uuid
 import logging
-from typing import Dict, List, Any, Optional
+import uuid
+from typing import Any
+
 from .config import config
 
 logger = logging.getLogger(__name__)
 
 
-def get_default_dashboards() -> List[Dict[str, Any]]:
+def get_default_dashboards() -> list[dict[str, Any]]:
     """Get default dashboard configuration matching Grafana standard dashboard."""
     return [
         {
@@ -296,11 +297,11 @@ class DashboardManager:
             config.data["dashboards"] = get_default_dashboards()
             config.save()
 
-    def get_all_dashboards(self) -> List[Dict[str, Any]]:
+    def get_all_dashboards(self) -> list[dict[str, Any]]:
         """Get all dashboards."""
         return config.data.get("dashboards", [])
 
-    def get_dashboard(self, dashboard_id: str) -> Optional[Dict[str, Any]]:
+    def get_dashboard(self, dashboard_id: str) -> dict[str, Any] | None:
         """Get a specific dashboard by ID."""
         dashboards = self.get_all_dashboards()
         for dashboard in dashboards:
@@ -308,7 +309,7 @@ class DashboardManager:
                 return dashboard
         return None
 
-    def create_dashboard(self, name: str) -> Dict[str, Any]:
+    def create_dashboard(self, name: str) -> dict[str, Any]:
         """Create a new dashboard."""
         dashboards = self.get_all_dashboards()
         new_dashboard = {
@@ -323,17 +324,17 @@ class DashboardManager:
         return new_dashboard
 
     def update_dashboard(
-        self, dashboard_id: str, updates: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, dashboard_id: str, updates: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Update a dashboard."""
         dashboards = self.get_all_dashboards()
         for i, dashboard in enumerate(dashboards):
             if dashboard["id"] == dashboard_id:
-                dashboards[i].update(updates)
+                dashboard.update(updates)
                 config.data["dashboards"] = dashboards
                 config.save()
                 logger.info(f"Updated dashboard: {dashboard_id}")
-                return dashboards[i]
+                return dashboard
         return None
 
     def delete_dashboard(self, dashboard_id: str) -> bool:
@@ -353,9 +354,9 @@ class DashboardManager:
         self,
         dashboard_id: str,
         title: str,
-        queries: List[Dict[str, str]],
+        queries: list[dict[str, str]],
         hours: int = 12,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Add a chart to a dashboard."""
         dashboard = self.get_dashboard(dashboard_id)
         if not dashboard:
@@ -373,8 +374,8 @@ class DashboardManager:
         return new_chart
 
     def update_chart(
-        self, dashboard_id: str, chart_id: str, updates: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, dashboard_id: str, chart_id: str, updates: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Update a chart in a dashboard."""
         dashboard = self.get_dashboard(dashboard_id)
         if not dashboard:
