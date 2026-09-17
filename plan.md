@@ -1,14 +1,16 @@
-1. **Optimize AuditLogger Synchronous File I/O with `asyncio.to_thread`**
-   - The memory section explicitly mentions: `Audit log retrieval methods (get_recent_events, get_events_by_admin, get_events_by_action) and cleanup_old_logs in telemetry_server/audit_log.py are actually synchronous and block the FastAPI event loop with un-offloaded file I/O operations, representing a clear optimization opportunity to use asyncio.to_thread.`
-   - These methods are currently synchronous and involve blocking file system read operations. In a FastAPI application, synchronous blocking operations halt the event loop, causing poor performance and higher latency when serving concurrent requests.
-   - I will modify `telemetry_server/app.py` to offload the calls to `audit_logger` methods using `asyncio.to_thread()`. This allows the file I/O to run in a separate thread without blocking the event loop.
-2. **Update `app.py` logic**
-   - Update `admin_get_audit_log` to use `await asyncio.to_thread(audit_logger.get_events_by_action, action, limit=limit)` (and similarly for other branches).
-   - Update `cleanup_rate_limits_and_bans` background task to offload `audit_logger.cleanup_old_logs()` and `training_queue.cleanup_old_tasks(max_age_days=30)` using `await asyncio.to_thread(...)`. Note: `cleanup_old_tasks` is mentioned in memory: `cleanup_old_tasks in TrainingQueue is a synchronous method and is called without await in the cleanup_rate_limits_and_bans background task in telemetry_server/app.py.`
-3. **Verify tests**
-   - Run unit tests to ensure `admin_get_audit_log` still functions correctly and no functional regressions are introduced.
-   - Run format and lint on modified code.
-4. **Complete pre-commit steps**
-   - Run `pre_commit_instructions` to ensure proper testing, verification, review, and reflection.
-5. **Submit PR**
-   - Create a PR with title "⚡ Bolt: Offload synchronous AuditLog and TrainingQueue file operations to background thread" describing what, why, impact, and measurement.
+1. **Fix Update Banner Accessibility in `frontend/src/components/Layout.vue`**:
+   - The "Update available" banner is currently a `div` with a `@click` handler on line 128, making it inaccessible via keyboard.
+   - I will add `role="button"`, `tabindex="0"`, and `aria-label="Zum Update-Bereich wechseln"` to make it semantically correct and focusable.
+   - I will add `@keydown.enter.self="goToUpdate"` and `@keydown.space.prevent.self="goToUpdate"` to allow keyboard users to trigger it. The `.self` modifier is crucial to prevent the nested close button's keydown events from bubbling up and unintentionally triggering the banner click.
+   - I will add `focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400 focus-visible:outline-none outline-none` to the banner `div` to provide clear visual feedback when focused via keyboard.
+   - I will add `aria-hidden="true"` to the decorative icon `<i class="pi pi-sync text-lg"></i>` and the inner `<i class="pi pi-info-circle mr-1"></i>` to prevent redundant screen reader announcements.
+   - The inner dismiss `<button>` on line 144 already has `type="button"`, `@click.stop`, and `aria-label`, but lacks keyboard focus styles. I will add `focus-visible:ring-2 focus-visible:ring-white focus:outline-none` to ensure it is clearly visible when focused via keyboard.
+
+2. **Verify Frontend Build**:
+   - I will run `pnpm install` in `frontend/` (if needed) and then run `pnpm build` in the `frontend/` directory to verify that the Vue template changes compile successfully and do not introduce build regressions.
+
+3. **Complete pre-commit steps**:
+   - Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.
+
+4. **Submit PR**:
+   - Commit the changes and open a PR with the Palette formatting.
