@@ -1,16 +1,16 @@
-1. **Fix Update Banner Accessibility in `frontend/src/components/Layout.vue`**:
-   - The "Update available" banner is currently a `div` with a `@click` handler on line 128, making it inaccessible via keyboard.
-   - I will add `role="button"`, `tabindex="0"`, and `aria-label="Zum Update-Bereich wechseln"` to make it semantically correct and focusable.
-   - I will add `@keydown.enter.self="goToUpdate"` and `@keydown.space.prevent.self="goToUpdate"` to allow keyboard users to trigger it. The `.self` modifier is crucial to prevent the nested close button's keydown events from bubbling up and unintentionally triggering the banner click.
-   - I will add `focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-400 focus-visible:outline-none outline-none` to the banner `div` to provide clear visual feedback when focused via keyboard.
-   - I will add `aria-hidden="true"` to the decorative icon `<i class="pi pi-sync text-lg"></i>` and the inner `<i class="pi pi-info-circle mr-1"></i>` to prevent redundant screen reader announcements.
-   - The inner dismiss `<button>` on line 144 already has `type="button"`, `@click.stop`, and `aria-label`, but lacks keyboard focus styles. I will add `focus-visible:ring-2 focus-visible:ring-white focus:outline-none` to ensure it is clearly visible when focused via keyboard.
+1. **Fix `pnpm install` failure in GitHub Actions CI**:
+   - The `.github/workflows/ci.yml` file is failing during the `frontend-check` job when running `pnpm install` in the `frontend` directory because the `packages field missing or empty` error is being thrown.
+   - The memory states: `When running pnpm install in a project with a pnpm-workspace.yaml, if the build fails with ERROR packages field missing or empty, explicitly define the packages array (e.g., packages: ['.']) within the workspace configuration file to resolve it.`
+   - I will create `frontend/pnpm-workspace.yaml` with `packages:\n  - '.'`
 
-2. **Verify Frontend Build**:
-   - I will run `pnpm install` in `frontend/` (if needed) and then run `pnpm build` in the `frontend/` directory to verify that the Vue template changes compile successfully and do not introduce build regressions.
+2. **Fix `backend-test` linter/formatting failures**:
+   - I will run `ruff check --fix .` and `ruff format .` on the `tests/` directory to automatically fix the import sorting and unused import issues that caused the failure.
+   - For `tests/test_scheduler.py` and `tests/test_technician_code_logic.py`, I will manually fix the timezone-naive `datetime()` calls by adding a `tzinfo` parameter (e.g., `tzinfo=datetime.timezone.utc`) as recommended by Ruff (DTZ001, DTZ005).
+   - I will remove the blind `except Exception:` catches or change them to log correctly without blindly swallowing if possible, or add `noqa: BLE001` where necessary if they are within test mocks.
 
-3. **Complete pre-commit steps**:
-   - Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.
+3. **Verify Fixes**:
+   - I will run `pnpm install` in the `frontend` directory again.
+   - I will run `ruff check .` to ensure all Ruff issues in the `tests/` directory are resolved.
 
 4. **Submit PR**:
-   - Commit the changes and open a PR with the Palette formatting.
+   - Commit the changes and push them to the same branch `palette-update-banner-a11y`.
