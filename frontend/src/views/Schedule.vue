@@ -45,18 +45,30 @@
                 @click="toggleJob(job.id, job.enabled)"
                 :aria-label="job.enabled ? t('pause_job') : t('enable_job')"
               />
-              <Button icon="pi pi-trash" text severity="danger" @click="deleteJob(job.id)" :aria-label="t('delete')" v-tooltip="t('delete')" />
+              <Button
+                icon="pi pi-trash"
+                text
+                severity="danger"
+                @click="deleteJob(job.id)"
+                :aria-label="t('delete')"
+                v-tooltip="t('delete')"
+              />
             </div>
           </template>
         </Card>
 
         <Card
-          class="bg-gray-800 text-white border-dashed border-2 border-gray-600 flex justify-center items-center cursor-pointer hover:bg-gray-700 transition-colors"
+          role="button"
+          tabindex="0"
+          aria-label="Zeitplan hinzufügen"
+          class="bg-gray-800 text-white border-dashed border-2 border-gray-600 flex justify-center items-center cursor-pointer hover:bg-gray-700 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 outline-none"
           @click="showAddDialog = true"
+          @keydown.enter="showAddDialog = true"
+          @keydown.space.prevent="showAddDialog = true"
         >
           <template #content>
             <div class="flex flex-col items-center justify-center h-full py-8 text-gray-400">
-              <i class="pi pi-plus text-4xl mb-2"></i>
+              <i class="pi pi-plus text-4xl mb-2" aria-hidden="true"></i>
               <span>Zeitplan hinzufügen</span>
             </div>
           </template>
@@ -72,8 +84,9 @@
     >
       <div class="flex flex-col gap-4 min-w-[300px] md:min-w-[400px]">
         <div class="flex flex-col gap-2">
-          <label>Sensor</label>
+          <label for="sensor-select">Sensor</label>
           <Select
+            inputId="sensor-select"
             v-model="newJob.sensor"
             :options="sensors"
             optionLabel="name"
@@ -83,16 +96,17 @@
           />
         </div>
         <div class="flex flex-col gap-2">
-          <label>Wert</label>
-          <InputText v-model="newJob.value" />
+          <label for="value-input">Wert</label>
+          <InputText id="value-input" v-model="newJob.value" />
         </div>
         <div class="flex flex-col gap-2">
-          <label>Zeit (HH:MM)</label>
-          <InputMask v-model="newJob.time" mask="99:99" placeholder="HH:MM" />
+          <label for="time-input">Zeit (HH:MM)</label>
+          <InputMask inputId="time-input" v-model="newJob.time" mask="99:99" placeholder="HH:MM" />
         </div>
         <div class="flex flex-col gap-2">
-          <label>Tage</label>
+          <label for="days-select">Tage</label>
           <MultiSelect
+            inputId="days-select"
             v-model="newJob.days"
             :options="days"
             placeholder="Tage wählen"
