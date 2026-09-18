@@ -32,6 +32,3 @@
 ## 2026-04-09 - Optimize Modbus Struct Pack/Unpack Loops
 **Learning:** In Python loops handling struct operations (like encoding/decoding Modbus registers), manual string concatenation and list slicing inside the loop is very slow and memory-intensive. However, using vectorized C-level `struct.pack` and `struct.unpack` with format multipliers (e.g., `f"{fmt_char}{len(registers)}H"`) to pack/unpack items concurrently significantly reduces CPU time and memory allocation overhead on hot paths, cutting execution times by over 30% for these methods.
 **Action:** Always prefer vectorized `struct` operations with format multipliers over manual iterations and slicing when parsing arrays of binary registers in performance-sensitive contexts.
-## 2026-05-25 - Redundant Timestamp Generation in MQTT Publish Loop
-**Learning:** Calling `time.time()` inside the inner loop of a data batch publisher (like `mqtt.publish_data`) causes redundant syscalls and evaluates to slightly different timestamps for metrics belonging to the same point-in-time batch, which can lead to inconsistencies in downstream time-series databases.
-**Action:** Always evaluate invariant functions like `time.time()` once outside the hot loop and reuse the stored value. This reduces overhead and ensures time synchronization for all items in the batch.
