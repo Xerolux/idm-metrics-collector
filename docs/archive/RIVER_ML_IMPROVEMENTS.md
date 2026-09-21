@@ -34,10 +34,12 @@ Instead of just HalfSpaceTrees:
 ```python
 from river import ensemble
 
-model = ensemble.VotingClassifier([
-    ('hst', anomaly.HalfSpaceTrees()),
-    ('lof', anomaly.LocalOutlierFactor()),
-])
+model = ensemble.VotingClassifier(
+    [
+        ("hst", anomaly.HalfSpaceTrees()),
+        ("lof", anomaly.LocalOutlierFactor()),
+    ]
+)
 ```
 
 ### Adaptive Thresholds
@@ -46,6 +48,7 @@ Based on history:
 from collections import deque
 
 score_history = deque(maxlen=1000)
+
 
 def adaptive_threshold():
     if len(score_history) < 100:
@@ -59,5 +62,6 @@ def adaptive_threshold():
 For heat pumps with strong seasonal patterns:
 ```python
 from river import time_series
+
 preprocessor = time_series.STLDecompose()
 ```
