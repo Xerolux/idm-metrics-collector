@@ -1,10 +1,10 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-import json
-import os
-import sys
 import unittest
 from unittest.mock import MagicMock, patch
+import json
+import sys
+import os
 
 # Ensure we can import idm_logger
 sys.path.append(os.getcwd())

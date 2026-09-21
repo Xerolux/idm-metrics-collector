@@ -3,7 +3,6 @@
 
 from datetime import datetime
 from unittest.mock import patch
-
 from idm_logger import technician_auth
 from idm_logger.technician_auth import calculate_codes
 

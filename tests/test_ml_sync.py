@@ -1,9 +1,9 @@
-import importlib
-import logging
-import os
-import sys
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch, MagicMock
+import sys
+import os
+import logging
+import importlib
 
 sys.path.insert(0, os.getcwd())
 

@@ -1,9 +1,8 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import datetime
-import json
 import re
-
+import json
 from playwright.sync_api import sync_playwright
 
 
