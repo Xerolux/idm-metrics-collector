@@ -203,9 +203,7 @@ class ExpressionParser:
         queries = _QUERY_LABEL_PATTERN.findall(expression)
         return list(set(queries))
 
-    def evaluate_expression(
-        self, expression: str, timestamp: int
-    ) -> float | None:
+    def evaluate_expression(self, expression: str, timestamp: int) -> float | None:
         """
         Evaluate an expression at a specific timestamp.
 
