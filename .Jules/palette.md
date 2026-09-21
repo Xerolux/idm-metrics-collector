@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2026-09-21 - Accessible Form Inputs using aria-describedby
+**Learning:** Native input fields (like `<input>`, `<select>`) must be programmatically associated with their corresponding help text and error messages to be announced properly by screen readers. Relying purely on visual proximity is insufficient.
+**Action:** When creating form elements with dynamic error or helper text, always use `useId()` to generate a unique base ID, then apply `aria-describedby` dynamically to link the input element with the IDs of its related helper/error `<div>`s. Also ensure error messages use `role="alert"` and `aria-live="assertive"`.
