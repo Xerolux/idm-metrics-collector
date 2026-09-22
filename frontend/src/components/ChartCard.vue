@@ -9,7 +9,7 @@
         title="Bearbeiten"
         aria-label="Bearbeiten"
       >
-        <i class="pi pi-pencil text-xs"></i>
+        <i  class="pi pi-pencil text-xs" aria-hidden="true"></i>
       </button>
       <button type="button"
         @click="confirmDelete"
@@ -17,7 +17,7 @@
         title="Löschen"
         aria-label="Löschen"
       >
-        <i class="pi pi-trash text-xs"></i>
+        <i  class="pi pi-trash text-xs" aria-hidden="true"></i>
       </button>
     </div>
 
@@ -34,7 +34,7 @@
           aria-label="Zoom zurücksetzen"
           v-if="isZoomed"
         >
-          <i class="pi pi-times text-xs"></i>
+          <i  class="pi pi-times text-xs" aria-hidden="true"></i>
         </button>
         <button type="button"
           @click="toggleFullscreen"
@@ -42,7 +42,7 @@
           title="Vollbild umschalten"
           aria-label="Vollbild umschalten"
         >
-          <i :class="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-expand'" class="text-xs"></i>
+          <i  :class="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-expand'" class="text-xs" aria-hidden="true"></i>
         </button>
       </div>
     </div>
@@ -62,7 +62,7 @@
           title="Vollbild schließen"
           aria-label="Vollbild schließen"
         >
-          <i class="pi pi-times text-lg"></i>
+          <i  class="pi pi-times text-lg" aria-hidden="true"></i>
         </button>
       </div>
 
@@ -74,7 +74,7 @@
           class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm"
         >
           <div class="text-center">
-            <i class="pi pi-info-circle text-2xl mb-2"></i>
+            <i  class="pi pi-info-circle text-2xl mb-2" aria-hidden="true"></i>
             <p>Keine Daten verfügbar</p>
             <p class="text-xs mt-1" v-if="queries && queries.length === 0">
               Ziehe Sensoren aus der linken Sidebar in diesen Chart
@@ -86,7 +86,7 @@
           v-if="isLoading"
           class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm"
         >
-          <i class="pi pi-spin pi-spinner text-2xl"></i>
+          <i  class="pi pi-spin pi-spinner text-2xl" aria-hidden="true"></i>
         </div>
         <Line
           v-if="!isLoading"

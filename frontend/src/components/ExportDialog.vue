@@ -21,7 +21,7 @@
                 : 'border-gray-200 hover:border-gray-300'
             ]"
           >
-            <i class="pi pi-image text-xl mb-1"></i>
+            <i  class="pi pi-image text-xl mb-1" aria-hidden="true"></i>
             <div class="font-medium text-sm">Visuell</div>
             <div class="text-xs text-gray-500 mt-1">PNG / PDF Screenshot</div>
           </button>
@@ -36,7 +36,7 @@
                 : 'border-gray-200 hover:border-gray-300'
             ]"
           >
-            <i class="pi pi-database text-xl mb-1"></i>
+            <i  class="pi pi-database text-xl mb-1" aria-hidden="true"></i>
             <div class="font-medium text-sm">Daten</div>
             <div class="text-xs text-gray-500 mt-1">CSV / Excel / JSON</div>
           </button>
@@ -51,7 +51,7 @@
                 : 'border-gray-200 hover:border-gray-300'
             ]"
           >
-            <i class="pi pi-server text-xl mb-1"></i>
+            <i  class="pi pi-server text-xl mb-1" aria-hidden="true"></i>
             <div class="font-medium text-sm">Datenbank</div>
             <div class="text-xs text-gray-500 mt-1">Alles als JSON</div>
           </button>
@@ -73,7 +73,7 @@
                 : 'border-gray-200 hover:border-gray-300'
             ]"
           >
-            <i class="pi pi-image text-2xl mb-2"></i>
+            <i  class="pi pi-image text-2xl mb-2" aria-hidden="true"></i>
             <div class="font-medium">PNG</div>
             <div class="text-xs text-gray-500 mt-1">Bild-Datei</div>
           </button>
@@ -88,7 +88,7 @@
                 : 'border-gray-200 hover:border-gray-300'
             ]"
           >
-            <i class="pi pi-file-pdf text-2xl mb-2"></i>
+            <i  class="pi pi-file-pdf text-2xl mb-2" aria-hidden="true"></i>
             <div class="font-medium">PDF</div>
             <div class="text-xs text-gray-500 mt-1">Dokument</div>
           </button>
@@ -105,7 +105,7 @@
                 : 'border-gray-200 hover:border-gray-300'
             ]"
           >
-            <i class="pi pi-file text-2xl mb-2"></i>
+            <i  class="pi pi-file text-2xl mb-2" aria-hidden="true"></i>
             <div class="font-medium">CSV</div>
             <div class="text-xs text-gray-500 mt-1">Tabelle</div>
           </button>
@@ -120,7 +120,7 @@
                 : 'border-gray-200 hover:border-gray-300'
             ]"
           >
-            <i class="pi pi-table text-2xl mb-2"></i>
+            <i  class="pi pi-table text-2xl mb-2" aria-hidden="true"></i>
             <div class="font-medium">Excel</div>
             <div class="text-xs text-gray-500 mt-1">Arbeitsmappe</div>
           </button>
@@ -135,7 +135,7 @@
                 : 'border-gray-200 hover:border-gray-300'
             ]"
           >
-            <i class="pi pi-code text-2xl mb-2"></i>
+            <i  class="pi pi-code text-2xl mb-2" aria-hidden="true"></i>
             <div class="font-medium">JSON</div>
             <div class="text-xs text-gray-500 mt-1">Daten</div>
           </button>
@@ -226,7 +226,7 @@
       <!-- Info -->
       <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
         <div class="flex items-start gap-2">
-          <i class="pi pi-info-circle text-blue-600 mt-0.5"></i>
+          <i  class="pi pi-info-circle text-blue-600 mt-0.5" aria-hidden="true"></i>
           <div class="text-sm text-blue-800">
             <p v-if="exportType === 'visual'">
               <span v-if="selectedFormat === 'png'">

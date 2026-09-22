@@ -23,7 +23,7 @@ onMounted(async () => {
     >
       <span>Version: {{ version }}</span>
       <span class="hidden sm:inline">|</span>
-      <span>Erstellt mit <i class="pi pi-heart text-red-500"></i> von xerolux</span>
+      <span>Erstellt mit <i  class="pi pi-heart text-red-500" aria-hidden="true"></i> von xerolux</span>
     </div>
   </footer>
 </template>

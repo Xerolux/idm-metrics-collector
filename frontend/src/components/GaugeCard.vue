@@ -1,10 +1,10 @@
 <template>
   <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200 h-full flex flex-col">
     <div v-if="loading" class="flex items-center justify-center h-full">
-      <i class="pi pi-spinner pi-spin text-gray-400"></i>
+      <i  class="pi pi-spinner pi-spin text-gray-400" aria-hidden="true"></i>
     </div>
     <div v-else-if="error" class="flex flex-col items-center justify-center h-full text-center">
-      <i class="pi pi-exclamation-triangle text-red-400 text-2xl mb-2"></i>
+      <i  class="pi pi-exclamation-triangle text-red-400 text-2xl mb-2" aria-hidden="true"></i>
       <span class="text-xs text-gray-500">{{ error }}</span>
     </div>
     <div v-else class="flex flex-col h-full">

@@ -9,7 +9,7 @@
       <!-- Info -->
       <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
         <div class="flex items-start gap-2">
-          <i class="pi pi-info-circle text-blue-600 mt-0.5"></i>
+          <i  class="pi pi-info-circle text-blue-600 mt-0.5" aria-hidden="true"></i>
           <div class="text-sm text-blue-800">
             <p class="font-medium mb-1">Custom CSS für dieses Dashboard</p>
             <p class="text-xs">
@@ -61,7 +61,7 @@
           :class="{ 'border-red-500': hasErrors }"
         />
         <div v-if="hasErrors" class="mt-2 text-sm text-red-600">
-          <i class="pi pi-exclamation-triangle mr-1"></i>
+          <i  class="pi pi-exclamation-triangle mr-1" aria-hidden="true"></i>
           {{ errorMessage }}
         </div>
       </div>

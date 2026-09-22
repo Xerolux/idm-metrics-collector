@@ -2,7 +2,7 @@
   <div class="flex flex-col gap-6">
     <div class="p-4 border border-yellow-500/50 rounded bg-yellow-500/10">
       <div class="flex items-center gap-2 font-bold mb-2 text-yellow-400">
-        <i class="pi pi-exclamation-triangle"></i>
+        <i  class="pi pi-exclamation-triangle" aria-hidden="true"></i>
         <span>Warnung</span>
       </div>
       <p class="text-sm text-gray-200">
