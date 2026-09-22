@@ -146,7 +146,7 @@
           class="absolute inset-0 bg-teal-50/50 z-50 border-2 border-dashed border-teal-500 rounded-lg flex items-center justify-center pointer-events-none"
         >
           <div class="bg-white p-4 rounded shadow-lg text-teal-700 font-bold">
-            <i class="pi pi-plus mr-2"></i>Hier ablegen um Chart zu erstellen
+            <i  class="pi pi-plus mr-2" aria-hidden="true"></i>Hier ablegen um Chart zu erstellen
           </div>
         </div>
 
@@ -161,7 +161,7 @@
             <div
               class="mb-6 text-primary-500 bg-primary-500/10 w-24 h-24 rounded-full flex items-center justify-center mx-auto"
             >
-              <i class="pi pi-chart-bar text-5xl"></i>
+              <i  class="pi pi-chart-bar text-5xl" aria-hidden="true"></i>
             </div>
             <h3 class="text-xl font-bold text-surface-900 dark:text-surface-0 mb-2">
               Dein Dashboard ist leer
@@ -208,7 +208,7 @@
                 v-if="editMode"
                 class="drag-handle absolute top-2 left-2 z-20 cursor-move p-1 bg-white/80 rounded hover:bg-white shadow-sm text-gray-400 hover:text-gray-700"
               >
-                <i class="pi pi-bars"></i>
+                <i  class="pi pi-bars" aria-hidden="true"></i>
               </div>
 
               <!-- Dynamic Chart Component -->
@@ -308,7 +308,7 @@
           @click="showAddChartDialog = true"
         >
           <div class="text-center text-gray-500">
-            <i class="pi pi-plus text-4xl mb-2"></i>
+            <i  class="pi pi-plus text-4xl mb-2" aria-hidden="true"></i>
             <p class="font-medium">Chart manuell hinzufügen</p>
           </div>
         </div>

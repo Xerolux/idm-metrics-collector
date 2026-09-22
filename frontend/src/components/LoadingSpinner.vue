@@ -24,7 +24,7 @@ const sizeClasses = {
 <template>
   <div class="flex items-center justify-center">
     <div :class="['animate-spin text-primary-500', sizeClasses[props.size]]">
-      <i class="pi pi-spinner"></i>
+      <i  class="pi pi-spinner" aria-hidden="true"></i>
     </div>
     <span v-if="text" class="ml-2 text-gray-400">{{ text }}</span>
   </div>

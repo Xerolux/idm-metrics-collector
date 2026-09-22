@@ -9,7 +9,7 @@
         title="Sensoren aktualisieren"
         aria-label="Sensoren aktualisieren"
       >
-        <i :class="loading ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" class="text-gray-500"></i>
+        <i  :class="loading ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" class="text-gray-500" aria-hidden="true"></i>
       </button>
     </div>
 
@@ -21,12 +21,12 @@
     />
 
     <div v-if="loading" class="text-center py-8 text-gray-500 text-sm">
-      <i class="pi pi-spin pi-spinner text-2xl mb-2"></i>
+      <i  class="pi pi-spin pi-spinner text-2xl mb-2" aria-hidden="true"></i>
       <p>Lade Sensoren...</p>
     </div>
 
     <div v-else-if="error" class="text-center py-8 text-red-500 text-sm">
-      <i class="pi pi-exclamation-triangle text-2xl mb-2"></i>
+      <i  class="pi pi-exclamation-triangle text-2xl mb-2" aria-hidden="true"></i>
       <p>{{ error }}</p>
     </div>
 
@@ -43,7 +43,7 @@
               @click="selectSensor(metric)"
               class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-teal-50 hover:text-teal-700 transition-colors flex items-center gap-2"
             >
-              <i class="pi pi-chart-line text-teal-600"></i>
+              <i  class="pi pi-chart-line text-teal-600" aria-hidden="true"></i>
               <span>{{ metric.display }}</span>
             </button>
           </div>
@@ -66,7 +66,7 @@
             title="Sensor entfernen"
             aria-label="Sensor entfernen"
           >
-            <i class="pi pi-times text-xs"></i>
+            <i  class="pi pi-times text-xs" aria-hidden="true"></i>
           </button>
         </span>
       </div>
@@ -75,7 +75,7 @@
         class="w-full mt-3 bg-teal-600 hover:bg-teal-700 text-white py-2 px-3 rounded text-sm font-medium transition-colors"
         :disabled="!canAddToChart"
       >
-        <i class="pi pi-plus mr-1"></i>
+        <i  class="pi pi-plus mr-1" aria-hidden="true"></i>
         Zu Chart hinzufügen
       </button>
     </div>

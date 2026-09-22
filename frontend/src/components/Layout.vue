@@ -184,7 +184,7 @@ onUnmounted(() => {
       @click="goToUpdate"
     >
       <div class="flex items-center gap-3">
-        <i class="pi pi-sync text-lg"></i>
+        <i  class="pi pi-sync text-lg" aria-hidden="true"></i>
         <span class="font-medium">
           Update verfügbar!
           <span v-if="updateInfo?.docker?.updates_available" class="hidden sm:inline">
@@ -195,7 +195,7 @@ onUnmounted(() => {
           </span>
         </span>
         <span class="text-blue-200 text-sm hidden lg:inline">
-          <i class="pi pi-info-circle mr-1"></i>Manuelles Update erforderlich
+          <i  class="pi pi-info-circle mr-1" aria-hidden="true"></i>Manuelles Update erforderlich
         </span>
       </div>
       <button
@@ -205,7 +205,7 @@ onUnmounted(() => {
         title="Ausblenden"
         aria-label="Ausblenden"
       >
-        <i class="pi pi-times"></i>
+        <i  class="pi pi-times" aria-hidden="true"></i>
       </button>
     </div>
 
