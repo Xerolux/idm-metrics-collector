@@ -7,7 +7,7 @@ from playwright.sync_api import sync_playwright
 
 
 def calculate_expected_codes():
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     # Level 1: DDMM
     level1 = f"{now.day:02d}{now.month:02d}"
