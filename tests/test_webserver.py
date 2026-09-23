@@ -5,12 +5,13 @@
 Test script to verify webserver functionality
 """
 
-import sys
-import os
-import time
-import threading
-import urllib.request
 import json
+import os
+import sys
+import threading
+import time
+import urllib.request
+
 import pytest
 
 # Add the project directory to path
