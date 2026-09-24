@@ -18,7 +18,7 @@ def _authenticated_client():
     return client
 
 
-@patch("idm_logger.web.requests.get")
+@patch("idm_logger.web.http_client.get")
 def test_database_export_streams_all_series_as_valid_json(mock_get):
     upstream = MagicMock(status_code=200)
     upstream.iter_lines.return_value = iter(

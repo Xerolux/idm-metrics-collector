@@ -52,6 +52,7 @@ import threading
 import logging
 import json
 import requests
+from .http_client import http_client
 import functools
 import os
 import signal
@@ -323,7 +324,7 @@ def _update_ai_status_once():
 
         query = 'last_over_time({__name__=~"idm_anomaly_score(_value)?|idm_anomaly_flag(_value)?"}[2h])'
         try:
-            response = requests.get(query_url, params={"query": query}, timeout=10)
+            response = http_client.get(query_url, params={"query": query}, timeout=10)
         except requests.RequestException as e:
             # Log specific network error but don't crash loop
             logger.debug(f"AI status update network error: {e}")
@@ -888,7 +889,7 @@ def get_current_metrics():
 
         # Query for latest values of all idm_heatpump and idm_anomaly metrics
         query = '{__name__=~"idm_heatpump.*|idm_anomaly.*"}'
-        response = requests.get(query_url, params={"query": query}, timeout=10)
+        response = http_client.get(query_url, params={"query": query}, timeout=10)
 
         if response.status_code != 200:
             logger.error(f"VictoriaMetrics query failed: {response.status_code}")
@@ -1028,7 +1029,7 @@ def get_available_metrics():
 
         logger.debug(f"Fetching metrics from: {query_url} with params: {params}")
 
-        response = requests.get(query_url, params=params, timeout=10)
+        response = http_client.get(query_url, params=params, timeout=10)
 
         if response.status_code != 200:
             logger.error(
@@ -1154,7 +1155,7 @@ def query_metrics_range():
             "step": step,
         }
 
-        response = requests.get(query_url, params=params, timeout=10)
+        response = http_client.get(query_url, params=params, timeout=10)
         if response.status_code != 200:
             logger.error(f"VictoriaMetrics query failed: {response.text}")
             return jsonify(
@@ -1203,7 +1204,7 @@ def query_metrics_instant():
         base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         query_url = f"{base_url}/api/v1/query"
 
-        response = requests.get(query_url, params={"query": query}, timeout=10)
+        response = http_client.get(query_url, params={"query": query}, timeout=10)
         if response.status_code != 200:
             logger.error(f"VictoriaMetrics instant query failed: {response.text}")
             return jsonify(
@@ -1243,7 +1244,7 @@ def query_metrics_legacy():
         base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         query_url = f"{base_url}/api/v1/query_range"
 
-        response = requests.get(
+        response = http_client.get(
             query_url,
             params={"query": query, "start": start, "end": end, "step": step},
             timeout=10,
@@ -1335,7 +1336,7 @@ def export_metrics_data():
             # Query all available idm metrics
             query_url = f"{base_url}/api/v1/query"
             query = '{__name__=~"idm_heatpump.*|idm_anomaly.*"}'
-            response = requests.get(query_url, params={"query": query}, timeout=10)
+            response = http_client.get(query_url, params={"query": query}, timeout=10)
 
             if response.status_code != 200:
                 return jsonify({"error": "Failed to fetch available metrics"}), 500
@@ -1376,7 +1377,7 @@ def export_metrics_data():
                 "step": step,
             }
 
-            response = requests.get(query_range_url, params=params, timeout=30)
+            response = http_client.get(query_range_url, params=params, timeout=30)
             if response.status_code != 200:
                 logger.warning(f"Failed to fetch {metric}: {response.status_code}")
                 continue
@@ -1530,7 +1531,7 @@ def export_metrics_database():
     export_url = f"{base_url}/api/v1/export"
 
     try:
-        upstream = requests.get(
+        upstream = http_client.get(
             export_url,
             params={
                 "match[]": '{__name__=~".+"}',
@@ -2860,7 +2861,7 @@ def delete_database():
         )
         base_url = metrics_url.replace("/write", "").replace("/api/v1/write", "")
         delete_url = f"{base_url}/api/v1/admin/tsdb/delete_series"
-        response = requests.post(delete_url, params={"match[]": '{__name__!=""}'})
+        response = http_client.post(delete_url, params={"match[]": '{__name__!=""}'})
         if response.status_code == 204 or response.status_code == 200:
             return jsonify(
                 {"success": True, "message": "Datenbank erfolgreich bereinigt"}

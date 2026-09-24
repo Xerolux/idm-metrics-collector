@@ -13,6 +13,7 @@ Types:
 
 from typing import List, Dict, Optional, Any
 import requests
+from .http_client import http_client
 import logging
 import re
 
@@ -95,7 +96,7 @@ class Variable:
             query_url = f"{metrics_url}/api/v1/query"
             params = {"query": self.query}
 
-            response = requests.get(query_url, params=params, timeout=10)
+            response = http_client.get(query_url, params=params, timeout=10)
             response.raise_for_status()
 
             data = response.json()

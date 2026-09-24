@@ -8,6 +8,7 @@ from typing import Dict, Any, Tuple, Optional
 import re
 
 import requests
+from .http_client import http_client
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -147,7 +148,7 @@ def get_remote_image_digest(image_name: str, tag: str = "latest") -> Optional[st
 
         # GHCR uses token auth - get anonymous token first
         token_url = f"https://ghcr.io/token?scope=repository:{repo}:pull"
-        token_resp = requests.get(token_url, timeout=10)
+        token_resp = http_client.get(token_url, timeout=10)
         if token_resp.status_code != 200:
             logger.debug(f"Failed to get GHCR token: {token_resp.status_code}")
             return None
@@ -165,7 +166,7 @@ def get_remote_image_digest(image_name: str, tag: str = "latest") -> Optional[st
             "application/vnd.docker.distribution.manifest.v2+json, "
             "application/vnd.oci.image.manifest.v1+json",
         }
-        manifest_resp = requests.head(manifest_url, headers=headers, timeout=10)
+        manifest_resp = http_client.head(manifest_url, headers=headers, timeout=10)
 
         if manifest_resp.status_code == 200:
             digest = manifest_resp.headers.get("Docker-Content-Digest")
@@ -444,7 +445,7 @@ def get_latest_github_release() -> Optional[str]:
     """Check GitHub API for latest release tag."""
     try:
         url = f"{GITHUB_API_BASE}/releases/latest"
-        resp = requests.get(url, timeout=5)
+        resp = http_client.get(url, timeout=5)
         if resp.status_code == 200:
             return resp.json().get("tag_name")
     except Exception as e:

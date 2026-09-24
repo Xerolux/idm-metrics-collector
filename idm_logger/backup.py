@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 import requests
+from .http_client import http_client
 import threading
 
 from .config import config, DATA_DIR
@@ -136,14 +137,14 @@ class BackupManager:
 
             # Create snapshot via API
             logger.info(f"Creating VictoriaMetrics snapshot at {vm_snapshot_url}...")
-            response = requests.post(f"{vm_snapshot_url}/snapshot/create", timeout=60)
+            response = http_client.post(f"{vm_snapshot_url}/snapshot/create", timeout=60)
 
             if response.status_code != 200:
                 logger.error(f"Failed to create VM snapshot: {response.status_code}")
                 logger.error(f"Response: {response.text}")
                 # Try alternative endpoint
                 logger.info("Trying alternative snapshot endpoint...")
-                response = requests.post(
+                response = http_client.post(
                     f"{vm_snapshot_url}/api/v1/snapshot/create", timeout=60
                 )
                 if response.status_code != 200:
@@ -212,7 +213,7 @@ class BackupManager:
             )
 
             # Clean up snapshot in container to save space
-            delete_response = requests.post(
+            delete_response = http_client.post(
                 f"{vm_url}/snapshot/delete",
                 params={"snapshot": snapshot_name},
                 timeout=30,
@@ -249,7 +250,7 @@ class BackupManager:
 
             try:
                 # Get all dashboards
-                search_response = requests.get(
+                search_response = http_client.get(
                     f"{grafana_url}/api/search",
                     auth=(grafana_user, grafana_password),
                     timeout=10,
@@ -269,7 +270,7 @@ class BackupManager:
                                 safe_uid = _sanitize_filename(uid)
 
                                 # Get full dashboard
-                                dash_response = requests.get(
+                                dash_response = http_client.get(
                                     f"{grafana_url}/api/dashboards/uid/{uid}",
                                     auth=(grafana_user, grafana_password),
                                     timeout=10,
@@ -721,7 +722,7 @@ class BackupManager:
             # Restore snapshot via API
             vm_url = os.environ.get("METRICS_URL", "http://victoriametrics:8428")
 
-            response = requests.post(
+            response = http_client.post(
                 f"{vm_url}/snapshot/restore",
                 params={"snapshot": snapshot_dir.name},
                 timeout=120,
@@ -777,7 +778,7 @@ class BackupManager:
                             "message": "Restored from backup",
                         }
 
-                        response = requests.post(
+                        response = http_client.post(
                             f"{grafana_url}/api/dashboards/db",
                             auth=(grafana_user, grafana_password),
                             json=import_data,

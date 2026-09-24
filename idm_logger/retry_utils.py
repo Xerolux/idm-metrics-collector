@@ -8,6 +8,7 @@ transiently (e.g., network requests, database operations) and should be retried.
 """
 
 import asyncio
+from idm_logger.http_client import http_client
 import functools
 import logging
 import time
@@ -41,7 +42,7 @@ def retry_with_backoff(
     Example:
         @retry_with_backoff(max_retries=3, initial_delay=1.0)
         def fetch_data(url):
-            return requests.get(url)
+            return http_client.get(url)
     """
 
     def decorator(func: Callable) -> Callable:
