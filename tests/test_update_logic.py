@@ -7,8 +7,8 @@ from idm_logger import update_manager
 
 class TestUpdateLogic(unittest.TestCase):
     @patch("idm_logger.update_manager.subprocess.run")
-    @patch("idm_logger.update_manager.requests.get")
-    @patch("idm_logger.update_manager.requests.head")
+    @patch("idm_logger.update_manager.http_client.get")
+    @patch("idm_logger.update_manager.http_client.head")
     def test_update_available_when_digests_differ(self, mock_head, mock_get, mock_run):
         # Mock Docker version check
         mock_run.side_effect = self._mock_subprocess_side_effect
@@ -36,8 +36,8 @@ class TestUpdateLogic(unittest.TestCase):
         self.assertIn("Neues Docker Image verfügbar", result["release_notes"])
 
     @patch("idm_logger.update_manager.subprocess.run")
-    @patch("idm_logger.update_manager.requests.get")
-    @patch("idm_logger.update_manager.requests.head")
+    @patch("idm_logger.update_manager.http_client.get")
+    @patch("idm_logger.update_manager.http_client.head")
     def test_no_update_when_digests_match(self, mock_head, mock_get, mock_run):
         mock_run.side_effect = self._mock_subprocess_side_effect_matching
 

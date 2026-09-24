@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 import logging
 import requests
+from ..http_client import http_client
 from .base import NotificationProvider
 from ..config import config
 
@@ -32,7 +33,7 @@ class TelegramProvider(NotificationProvider):
 
         for chat_id in chat_ids:
             try:
-                response = requests.post(
+                response = http_client.post(
                     url, json={"chat_id": chat_id, "text": message}, timeout=10
                 )
                 if not response.ok:
