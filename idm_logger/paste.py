@@ -1,7 +1,8 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-import requests
 from urllib.parse import urljoin
+
+import requests
 
 
 def upload(text, url="https://paste.blueml.eu"):
