@@ -55,7 +55,7 @@ def test_webserver():
             with open(index_file, "w") as f:
                 f.write('<!doctype html><html><body><div id="app"></div></body></html>')
             created_dummy = True
-        except Exception as e:
+        except OSError as e:
             print(f"✗ Failed to create dummy index.html: {e}")
 
     # Start server in background thread
@@ -64,7 +64,7 @@ def test_webserver():
         try:
             print(f"\n✓ Starting test server on {host}:{port}...")
             serve(app, host=host, port=port, _quiet=True)
-        except Exception as e:
+        except OSError as e:
             print(f"✗ Server error: {e}")
             server_error = e
 
@@ -94,7 +94,7 @@ def test_webserver():
             msg = f"Test 1 FAILED - Unexpected response: {data}"
             print(f"✗ {msg}")
             failures.append(msg)
-    except Exception as e:
+    except OSError as e:
         msg = f"Test 1 FAILED - Error: {e}"
         print(f"✗ {msg}")
         failures.append(msg)
@@ -117,7 +117,7 @@ def test_webserver():
             print(f"✗ {msg}")
             print(f"  First 200 chars: {html[:200]}")
             failures.append(msg)
-    except Exception as e:
+    except OSError as e:
         msg = f"Test 2 FAILED - Error: {e}"
         print(f"✗ {msg}")
         failures.append(msg)
@@ -139,7 +139,7 @@ def test_webserver():
             msg = "Test 3 FAILED - Catch-all route not working"
             print(f"✗ {msg}")
             failures.append(msg)
-    except Exception as e:
+    except OSError as e:
         msg = f"Test 3 FAILED - Error: {e}"
         print(f"✗ {msg}")
         failures.append(msg)
@@ -156,7 +156,7 @@ def test_webserver():
             msg = f"Test 4 FAILED - Unexpected response: {data}"
             print(f"✗ {msg}")
             failures.append(msg)
-    except Exception as e:
+    except OSError as e:
         msg = f"Test 4 FAILED - Error: {e}"
         print(f"✗ {msg}")
         failures.append(msg)
@@ -173,7 +173,7 @@ def test_webserver():
             msg = f"Test 5 FAILED - Status: {response.status}"
             print(f"✗ {msg}")
             failures.append(msg)
-    except Exception as e:
+    except OSError as e:
         msg = f"Test 5 FAILED - Error: {e}"
         print(f"✗ {msg}")
         failures.append(msg)
@@ -188,7 +188,7 @@ def test_webserver():
         print(f"\n✓ Removing dummy {index_file}...")
         try:
             os.remove(index_file)
-        except Exception as e:
+        except OSError as e:
             print(f"✗ Failed to remove dummy index.html: {e}")
 
     if failures:
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n\nTest interrupted by user")
         sys.exit(1)
-    except Exception as e:
+    except OSError as e:
         print(f"\n\n✗ FATAL ERROR: {e}")
         import traceback
 

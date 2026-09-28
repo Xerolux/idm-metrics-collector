@@ -53,7 +53,7 @@ def main():
                 print(f"{address:<10} {size:<6} {name:<30} {'ERROR':<15} {rr}")
             else:
                 print(f"{address:<10} {size:<6} {name:<30} {'OK':<15} {rr.registers}")
-        except Exception as e:
+        except OSError as e:
             print(f"{address:<10} {size:<6} {name:<30} {'EXCEPTION':<15} {e}")
 
     client.close()

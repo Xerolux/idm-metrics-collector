@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright
 
 
 def calculate_expected_codes():
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     # Level 1: DDMM
     level1 = f"{now.day:02d}{now.month:02d}"
@@ -92,7 +92,7 @@ def run(playwright):
         try:
             page.wait_for_selector("input[placeholder='Password']", timeout=2000)
             print("Detected Login Page. Attempting to bypass...")
-        except Exception:
+        except OSError:
             pass
 
         print("Waiting for Configuration header...")
@@ -135,7 +135,7 @@ def run(playwright):
     except Exception as e:
         print(f"Verification Failed: {e}")
         page.screenshot(path="verification_failure.png")
-        raise e
+        raise
     finally:
         browser.close()
 

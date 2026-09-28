@@ -53,6 +53,6 @@ if __name__ == "__main__":
     except AssertionError as e:
         print(f"Test failed: {e}")
         sys.exit(1)
-    except Exception as e:
+    except OSError as e:
         print(f"An error occurred: {e}")
         sys.exit(1)

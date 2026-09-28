@@ -119,7 +119,7 @@ def test_connection():
 
             print(f"{name:<35} {value_str:<15} {address}")
 
-        except Exception as e:
+        except OSError as e:
             print(f"{name:<35} {'EXCEPTION':<15} {address} - {e}")
 
     # Close connection
