@@ -5,15 +5,17 @@ MQTT Publisher for IDM Heat Pump Logger
 Publishes sensor data to MQTT broker with authentication support.
 """
 
-import logging
 import json
+import logging
 import os
-import time
 import ssl
+import time
 from threading import Event
+
 import paho.mqtt.client as mqtt
+
 from .config import config
-from .sensor_addresses import SensorFeatures, IdmBinarySensorAddress
+from .sensor_addresses import IdmBinarySensorAddress, SensorFeatures
 
 logger = logging.getLogger(__name__)
 
@@ -287,7 +289,6 @@ class MQTTPublisher:
                     payload["value_template"] = (
                         "{{ value_json.value_str }}"  # Use string representation for select
                     )
-                    pass
 
                 # Numerical -> Number
                 elif (
@@ -341,6 +342,11 @@ class MQTTPublisher:
         topic_prefix = config.get("mqtt.topic_prefix", "idm/heatpump")
         qos = config.get("mqtt.qos", 1)
 
+        # Performance optimization: Hoist the time.time() evaluation outside the loop.
+        # This avoids redundant system calls and integer casting on every iteration,
+        # saving micro-CPU cycles and ensuring all batch items share exactly the same timestamp.
+        current_timestamp = int(time.time())
+
         try:
             # Publish each sensor value to its own topic
             for sensor_name, value in data.items():
@@ -361,7 +367,7 @@ class MQTTPublisher:
                     unit = getattr(sensor_def, "unit", "")
 
                 # Prepare payload for individual sensor topic
-                payload = {"value": value, "unit": unit, "timestamp": int(time.time())}
+                payload = {"value": value, "unit": unit, "timestamp": current_timestamp}
 
                 # For enums, add the string representation if it exists
                 if f"{sensor_name}_str" in data:

@@ -1,11 +1,11 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import logging
-import re
-import subprocess
-import shutil
 import os
-from typing import Iterable, List
+import re
+import shutil
+import subprocess
+from collections.abc import Iterable
 
 from .config import config
 
@@ -55,7 +55,7 @@ def _validate_phone_number(number: str) -> bool:
     return bool(_PHONE_PATTERN.match(number))
 
 
-def _normalize_recipients(value) -> List[str]:
+def _normalize_recipients(value) -> list[str]:
     if not value:
         return []
     if isinstance(value, str):

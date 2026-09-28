@@ -1,9 +1,11 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import logging
+
 import requests
-from .base import NotificationProvider
+
 from ..config import config
+from .base import NotificationProvider
 
 logger = logging.getLogger(__name__)
 
