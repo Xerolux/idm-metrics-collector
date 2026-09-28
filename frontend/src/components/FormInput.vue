@@ -70,6 +70,16 @@ const isValid = computed(() => {
 
 const inputId = useId()
 
+const describedBy = computed(() => {
+  const ids = []
+  if (props.error) ids.push(`${inputId}-error`)
+  else if (props.helpText) ids.push(`${inputId}-help`)
+  if (props.type === 'number' && (props.min !== null || props.max !== null)) {
+    ids.push(`${inputId}-minmax`)
+  }
+  return ids.length > 0 ? ids.join(' ') : undefined
+})
+
 const inputClasses = computed(() => {
   const classes = [
     'w-full px-3 py-2 rounded-md border transition-all duration-200 focus:outline-none focus:ring-2',
@@ -110,21 +120,23 @@ const inputClasses = computed(() => {
       :max="max"
       :step="step"
       :class="inputClasses"
+      :aria-invalid="error ? 'true' : undefined"
+      :aria-describedby="describedBy"
       @input="inputValue = $event.target.value"
       @blur="emit('blur')"
       @focus="emit('focus')"
     />
 
-    <div v-if="error" class="text-xs text-error-400 flex items-center gap-1">
-      <i class="pi pi-exclamation-circle"></i>
+    <div v-if="error" :id="`${inputId}-error`" role="alert" aria-live="assertive" class="text-xs text-error-400 flex items-center gap-1">
+      <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
       {{ error }}
     </div>
 
-    <div v-else-if="helpText" class="text-xs text-gray-400">
+    <div v-else-if="helpText" :id="`${inputId}-help`" class="text-xs text-gray-400">
       {{ helpText }}
     </div>
 
-    <div v-if="type === 'number' && (min !== null || max !== null)" class="text-xs text-gray-500">
+    <div v-if="type === 'number' && (min !== null || max !== null)" :id="`${inputId}-minmax`" class="text-xs text-gray-500">
       Bereich: {{ min ?? '-∞' }} bis {{ max ?? '+∞' }}
     </div>
   </div>

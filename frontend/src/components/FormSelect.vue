@@ -60,6 +60,10 @@ const isValid = computed(() => {
 
 const selectId = useId()
 
+const describedBy = computed(() => {
+  return props.error ? `${selectId}-error` : undefined
+})
+
 const inputClasses = computed(() => {
   const classes = [
     'w-full px-3 py-2 rounded-md border transition-all duration-200 focus:outline-none focus:ring-2',
@@ -95,6 +99,8 @@ const inputClasses = computed(() => {
       :value="selectedValue"
       :disabled="disabled"
       :class="inputClasses"
+      :aria-invalid="error ? 'true' : undefined"
+      :aria-describedby="describedBy"
       @change="selectedValue = $event.target.value"
     >
       <option value="" disabled>{{ placeholder || 'Bitte wählen...' }}</option>
@@ -103,8 +109,8 @@ const inputClasses = computed(() => {
       </option>
     </select>
 
-    <div v-if="error" class="text-xs text-error-400 flex items-center gap-1">
-      <i class="pi pi-exclamation-circle"></i>
+    <div v-if="error" :id="`${selectId}-error`" role="alert" aria-live="assertive" class="text-xs text-error-400 flex items-center gap-1">
+      <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
       {{ error }}
     </div>
   </div>
