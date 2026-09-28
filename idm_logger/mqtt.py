@@ -341,6 +341,11 @@ class MQTTPublisher:
         topic_prefix = config.get("mqtt.topic_prefix", "idm/heatpump")
         qos = config.get("mqtt.qos", 1)
 
+        # Performance optimization: Hoist the time.time() evaluation outside the loop.
+        # This avoids redundant system calls and integer casting on every iteration,
+        # saving micro-CPU cycles and ensuring all batch items share exactly the same timestamp.
+        current_timestamp = int(time.time())
+
         try:
             # Publish each sensor value to its own topic
             for sensor_name, value in data.items():
@@ -361,7 +366,7 @@ class MQTTPublisher:
                     unit = getattr(sensor_def, "unit", "")
 
                 # Prepare payload for individual sensor topic
-                payload = {"value": value, "unit": unit, "timestamp": int(time.time())}
+                payload = {"value": value, "unit": unit, "timestamp": current_timestamp}
 
                 # For enums, add the string representation if it exists
                 if f"{sensor_name}_str" in data:
