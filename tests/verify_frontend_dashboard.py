@@ -1,6 +1,7 @@
 # Xerolux 2026
-from playwright.sync_api import sync_playwright, expect
 import json
+
+from playwright.sync_api import expect, sync_playwright
 
 
 def verify_dashboard():
@@ -180,10 +181,10 @@ def verify_dashboard():
             page.screenshot(path="verification_dashboard.png", full_page=True)
             print("Screenshot saved to verification_dashboard.png")
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Verification failed: {e}")
             page.screenshot(path="verification_failure.png")
-            raise e
+            raise
         finally:
             browser.close()
 
