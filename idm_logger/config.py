@@ -4,8 +4,10 @@ import json
 import logging
 import os
 import uuid
+
 from cryptography.fernet import Fernet, InvalidToken
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
+
 from .db import db
 
 logger = logging.getLogger(__name__)
@@ -447,7 +449,6 @@ class Config:
             )
             if "password" in to_save["webdav"]:
                 del to_save["webdav"]["password"]
-
 
         db.set_setting("config", json.dumps(to_save))
 

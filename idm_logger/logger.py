@@ -1,25 +1,26 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-import time
 import logging
-import threading
 import signal
 import sys
-from .config import config
-from .modbus import ModbusClient
-from .metrics import MetricsWriter
-from .web import run_web, update_current_data, set_metrics_writer
-from .scheduler import Scheduler
-from .log_handler import memory_handler
-from .mqtt import mqtt_publisher
-from .update_manager import (
-    check_for_update,
-    perform_update,
-    can_run_updates,
-    is_update_allowed,
-)
+import threading
+import time
+
 from .alerts import alert_manager
 from .backup import backup_manager
+from .config import config
+from .log_handler import memory_handler
+from .metrics import MetricsWriter
+from .modbus import ModbusClient
+from .mqtt import mqtt_publisher
+from .scheduler import Scheduler
+from .update_manager import (
+    can_run_updates,
+    check_for_update,
+    is_update_allowed,
+    perform_update,
+)
+from .web import run_web, set_metrics_writer, update_current_data
 
 # Get logger instance (configure in main())
 logger = logging.getLogger("idm_logger")

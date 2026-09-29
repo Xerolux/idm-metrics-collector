@@ -1,10 +1,11 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
+import logging
 import threading
 import time
-import logging
 import uuid
-from typing import Dict, Any
+from typing import Any
+
 from .db import db
 from .notifications import notification_manager
 
@@ -72,7 +73,7 @@ class AlertManager:
             db.delete_alert(alert_id)
             self.alerts = [a for a in self.alerts if a["id"] != alert_id]
 
-    def check_alerts(self, current_data: Dict[str, Any]):
+    def check_alerts(self, current_data: dict[str, Any]):
         """
         Check all alerts against current data.
         Should be called periodically (e.g. every loop or every minute).
