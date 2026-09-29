@@ -78,6 +78,7 @@ class MLService:
         self.models: Dict[str, AutoencoderModel] = {}
         self.model_lock = threading.Lock()
         self.executor = ThreadPoolExecutor(max_workers=2)
+        self.http_session = requests.Session()
         self._initialize_models()
         self._initialize_sensors()
 
@@ -193,7 +194,7 @@ class MLService:
         delay = self.config.retry_base_delay
         for attempt in range(self.config.retry_max_attempts):
             try:
-                response = requests.post(query_url, data={"query": query}, timeout=10)
+                response = self.http_session.post(query_url, data={"query": query}, timeout=10)
                 if response.status_code != 200:
                     if attempt < self.config.retry_max_attempts - 1:
                         time.sleep(delay)
@@ -267,7 +268,7 @@ class MLService:
         delay = self.config.retry_base_delay
         for attempt in range(self.config.retry_max_attempts):
             try:
-                response = requests.post(write_url, data="\n".join(lines), timeout=5)
+                response = self.http_session.post(write_url, data="\n".join(lines), timeout=5)
                 if response.status_code in (200, 204):
                     return True
                 if attempt < self.config.retry_max_attempts - 1:
@@ -332,7 +333,7 @@ class MLService:
         delay = self.config.retry_base_delay
         for attempt in range(self.config.retry_max_attempts):
             try:
-                response = requests.post(
+                response = self.http_session.post(
                     alert_url, json=payload, headers=headers, timeout=5
                 )
                 if response.status_code in (200, 201):
@@ -373,7 +374,7 @@ class MLService:
             headers["X-Internal-Secret"] = self.config.internal_api_key
 
         try:
-            response = requests.get(url, headers=headers, timeout=2)
+            response = self.http_session.get(url, headers=headers, timeout=2)
             if response.status_code == 200:
                 data = response.json()
                 new_threshold = data.get("threshold")
@@ -533,7 +534,7 @@ class MLService:
         while True:
             attempt += 1
             try:
-                response = requests.get(query_url, params={"query": "up"}, timeout=5)
+                response = self.http_session.get(query_url, params={"query": "up"}, timeout=5)
                 if response.status_code == 200:
                     logger.info(f"Connected after {attempt} attempt(s)")
                     self.state.connection.metrics_connected = True
