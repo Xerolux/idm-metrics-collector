@@ -3,8 +3,9 @@
 # SPDX-License-Identifier: MIT
 """Test individual sensor reads to find which addresses work."""
 
-import sys
 import logging
+import sys
+
 from pymodbus.client import ModbusTcpClient
 
 logging.basicConfig(level=logging.WARNING)
@@ -52,7 +53,7 @@ def main():
                 print(f"{address:<10} {size:<6} {name:<30} {'ERROR':<15} {rr}")
             else:
                 print(f"{address:<10} {size:<6} {name:<30} {'OK':<15} {rr.registers}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"{address:<10} {size:<6} {name:<30} {'EXCEPTION':<15} {e}")
 
     client.close()

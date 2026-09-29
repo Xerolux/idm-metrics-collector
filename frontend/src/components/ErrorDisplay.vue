@@ -81,9 +81,13 @@ const iconClasses = computed(() => {
 </script>
 
 <template>
-  <div :class="['rounded-lg border p-4 animate-slide-up', variantClasses]" role="alert">
+  <div
+    :class="['rounded-lg border p-4 animate-slide-up', variantClasses]"
+    :role="variant === 'error' ? 'alert' : 'status'"
+    :aria-live="variant === 'error' ? 'assertive' : 'polite'"
+  >
     <div class="flex items-start gap-3">
-      <i :class="[iconClasses, 'text-lg mt-0.5']"></i>
+      <i :class="[iconClasses, 'text-lg mt-0.5']" aria-hidden="true"></i>
       <div class="flex-1">
         <div class="font-medium mb-1">
           <template v-if="variant === 'error'">Fehler</template>
@@ -103,8 +107,9 @@ const iconClasses = computed(() => {
         @click="$emit('dismiss')"
         class="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
         aria-label="Schließen"
+        title="Schließen"
       >
-        <i class="pi pi-times"></i>
+        <i class="pi pi-times" aria-hidden="true"></i>
       </button>
     </div>
   </div>
