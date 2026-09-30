@@ -1,0 +1,2 @@
+[lint]
+extend-ignore = ["I001", "PLR0402", "SIM117", "RUF059", "DTZ001", "BLE001", "TRY201", "DTZ005", "S110", "PLR1722", "EXE001", "C401", "SIM118"]
