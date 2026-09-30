@@ -147,6 +147,8 @@ class MetricsWriter:
         lines = []
 
         tags = self._get_tags()
+        # Optimization: Pre-calculate common prefix to avoid redundant f-string allocations in the loop
+        line_prefix = f"idm_heatpump{tags} "
 
         for measurements in items:
             fields = []
@@ -155,13 +157,14 @@ class MetricsWriter:
                 if key.endswith("_str"):
                     continue
                 if isinstance(value, bool):
-                    value = int(value)
-                if isinstance(value, (int, float)):
+                    # Optimization: Use inline conditional instead of int() cast and avoid redundant type check
+                    fields.append(f"{key}={1 if value else 0}")
+                elif isinstance(value, (int, float)):
                     fields.append(f"{key}={value}")
 
             if fields:
                 field_str = ",".join(fields)
-                lines.append(f"idm_heatpump{tags} {field_str}")
+                lines.append(f"{line_prefix}{field_str}")
 
         if not lines:
             return False
