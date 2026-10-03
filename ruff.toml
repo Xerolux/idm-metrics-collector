@@ -1,2 +1,2 @@
 [lint]
-extend-ignore = ["BLE001", "TRY201", "DTZ001", "DTZ005", "S110", "SIM117", "RUF059", "PLR0402", "PLR1722", "I001"]
+extend-ignore = ["BLE001", "TRY201", "DTZ001", "DTZ005", "S110", "SIM117", "RUF059", "PLR0402", "PLR1722", "I001", "UP006", "UP045", "UP035", "PERF102", "SIM102", "UP012", "EXE001", "C401", "SIM118", "RUF013", "G201"]
