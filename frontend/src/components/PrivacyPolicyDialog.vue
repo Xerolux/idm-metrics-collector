@@ -46,8 +46,13 @@
           zentralen Telemetrie- oder Modellserver übertragen.
         </p>
         <ul class="list-disc ml-5 mb-2 space-y-1">
-          <li><strong>Training:</strong> Verwendet ausschließlich Ihre lokal gespeicherten Werte.</li>
-          <li><strong>Kontrolle:</strong> Die KI kann jederzeit in den Einstellungen deaktiviert werden.</li>
+          <li>
+            <strong>Training:</strong> Verwendet ausschließlich Ihre lokal gespeicherten Werte.
+          </li>
+          <li>
+            <strong>Kontrolle:</strong> Die KI kann jederzeit in den Einstellungen deaktiviert
+            werden.
+          </li>
           <li><strong>Netzwerk:</strong> Die lokale KI benötigt keine Internetverbindung.</li>
         </ul>
       </section>

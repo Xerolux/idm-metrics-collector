@@ -2,7 +2,8 @@
   <div class="bg-white rounded-lg p-3 shadow-sm border border-gray-200 overflow-y-auto">
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-gray-900 font-bold text-sm">Verfügbare Sensoren</h3>
-      <button type="button"
+      <button
+        type="button"
         @click="refreshMetrics"
         class="p-1 hover:bg-gray-100 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
         :disabled="loading"
@@ -37,7 +38,8 @@
             {{ getCategoryLabel(category) }}
           </h4>
           <div class="space-y-1">
-            <button type="button"
+            <button
+              type="button"
               v-for="metric in metrics"
               :key="metric.name"
               @click="selectSensor(metric)"
@@ -60,7 +62,8 @@
           class="inline-flex items-center gap-1 px-2 py-1 bg-teal-100 text-teal-800 rounded text-xs"
         >
           {{ sensor.display }}
-          <button type="button"
+          <button
+            type="button"
             @click="removeSensor(sensor)"
             class="hover:text-teal-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-teal-500 rounded-sm"
             title="Sensor entfernen"
@@ -70,7 +73,8 @@
           </button>
         </span>
       </div>
-      <button type="button"
+      <button
+        type="button"
         @click="addToChart"
         class="w-full mt-3 bg-teal-600 hover:bg-teal-700 text-white py-2 px-3 rounded text-sm font-medium transition-colors"
         :disabled="!canAddToChart"
