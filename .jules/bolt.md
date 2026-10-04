@@ -36,3 +36,7 @@
 ## 2026-05-25 - Optimize Line Protocol string formatting
 **Learning:** Checking type repeatedly with `isinstance` on different conditions within the loop when evaluating Line Protocol metrics adds redundancy, as well as reconstructing the complete string in the loop rather than appending to a static prefix. Casting `int(value)` on booleans can be faster using a simple `1 if value else 0` ternary expression.
 **Action:** Always precalculate invariant parts of a formatted string outside the loop and simplify type checking with `elif` to skip non-matching types for speed.
+
+## 2026-05-25 - Fix build CI workflows
+**Learning:** `ruff check .` with automatic autofix in a CI environment might fail if there's pre-existing legacy issues from upgrading the framework, causing `ruff` to find errors that break the step. In addition, when setting up frontend repositories via `pnpm v9/v10` relying on workspace components, the `pnpm install` can fail with `packages field missing or empty` error if `packages` property is missing in `pnpm-workspace.yaml`.
+**Action:** Exclude large amounts of legacy `ruff` errors via a `ruff.toml` ignoring rules `extend-ignore` to keep workflows clean, and fix the `pnpm-workspace.yaml` packages field if `pnpm install` throws an error.
