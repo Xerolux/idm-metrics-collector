@@ -3,21 +3,23 @@
     class="bg-white rounded-lg p-2 h-full flex flex-col shadow-sm border border-gray-200 relative"
   >
     <div v-if="editMode" class="absolute top-2 right-2 z-10 flex gap-1">
-      <button type="button"
+      <button
+        type="button"
         @click="openConfig"
         class="p-1.5 bg-white hover:bg-gray-100 rounded shadow text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
         title="Bearbeiten"
         aria-label="Bearbeiten"
       >
-        <i class="pi pi-pencil text-xs"></i>
+        <i class="pi pi-pencil text-xs" aria-hidden="true"></i>
       </button>
-      <button type="button"
+      <button
+        type="button"
         @click="confirmDelete"
         class="p-1.5 bg-white hover:bg-red-50 rounded shadow text-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500"
         title="Löschen"
         aria-label="Löschen"
       >
-        <i class="pi pi-trash text-xs"></i>
+        <i class="pi pi-trash text-xs" aria-hidden="true"></i>
       </button>
     </div>
 
@@ -27,13 +29,18 @@
         <span class="text-xs text-gray-500">Status-Verlauf - letzte {{ displayHours }}</span>
       </div>
       <div class="flex items-center gap-1">
-        <button type="button"
+        <button
+          type="button"
           @click="toggleFullscreen"
           class="text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500 rounded p-0.5"
           title="Vollbild umschalten"
           aria-label="Vollbild umschalten"
         >
-          <i :class="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-expand'" class="text-xs"></i>
+          <i
+            :class="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-expand'"
+            class="text-xs"
+            aria-hidden="true"
+          ></i>
         </button>
       </div>
     </div>
@@ -47,13 +54,14 @@
       }"
     >
       <div v-if="isFullscreen" class="absolute top-4 right-4 z-50">
-        <button type="button"
+        <button
+          type="button"
           @click="toggleFullscreen"
           class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
           title="Vollbild schließen"
           aria-label="Vollbild schließen"
         >
-          <i class="pi pi-times text-lg"></i>
+          <i class="pi pi-times text-lg" aria-hidden="true"></i>
         </button>
       </div>
 

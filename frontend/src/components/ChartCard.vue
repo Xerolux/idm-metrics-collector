@@ -3,21 +3,23 @@
     class="glass-card rounded-lg p-2 h-full flex flex-col shadow-sm border border-gray-200 relative"
   >
     <div v-if="editMode" class="absolute top-2 right-2 z-10 flex gap-1">
-      <button type="button"
+      <button
+        type="button"
         @click="openConfig"
         class="p-1.5 bg-white hover:bg-gray-100 rounded shadow text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500"
         title="Bearbeiten"
         aria-label="Bearbeiten"
       >
-        <i class="pi pi-pencil text-xs"></i>
+        <i class="pi pi-pencil text-xs" aria-hidden="true"></i>
       </button>
-      <button type="button"
+      <button
+        type="button"
         @click="confirmDelete"
         class="p-1.5 bg-white hover:bg-red-50 rounded shadow text-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500"
         title="Löschen"
         aria-label="Löschen"
       >
-        <i class="pi pi-trash text-xs"></i>
+        <i class="pi pi-trash text-xs" aria-hidden="true"></i>
       </button>
     </div>
 
@@ -27,22 +29,28 @@
         <span class="text-xs text-gray-500">Verlauf - letzte {{ displayHours }}</span>
       </div>
       <div class="flex items-center gap-1">
-        <button type="button"
+        <button
+          type="button"
           @click="resetZoom"
           class="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
           title="Zoom zurücksetzen"
           aria-label="Zoom zurücksetzen"
           v-if="isZoomed"
         >
-          <i class="pi pi-times text-xs"></i>
+          <i class="pi pi-times text-xs" aria-hidden="true"></i>
         </button>
-        <button type="button"
+        <button
+          type="button"
           @click="toggleFullscreen"
           class="text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500 rounded p-0.5"
           title="Vollbild umschalten"
           aria-label="Vollbild umschalten"
         >
-          <i :class="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-expand'" class="text-xs"></i>
+          <i
+            :class="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-expand'"
+            class="text-xs"
+            aria-hidden="true"
+          ></i>
         </button>
       </div>
     </div>
@@ -56,13 +64,14 @@
       }"
     >
       <div v-if="isFullscreen" class="absolute top-4 right-4 z-50">
-        <button type="button"
+        <button
+          type="button"
           @click="toggleFullscreen"
           class="p-2 bg-gray-100 hover:bg-gray-200 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
           title="Vollbild schließen"
           aria-label="Vollbild schließen"
         >
-          <i class="pi pi-times text-lg"></i>
+          <i class="pi pi-times text-lg" aria-hidden="true"></i>
         </button>
       </div>
 
@@ -74,7 +83,7 @@
           class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm"
         >
           <div class="text-center">
-            <i class="pi pi-info-circle text-2xl mb-2"></i>
+            <i class="pi pi-info-circle text-2xl mb-2" aria-hidden="true"></i>
             <p>Keine Daten verfügbar</p>
             <p class="text-xs mt-1" v-if="queries && queries.length === 0">
               Ziehe Sensoren aus der linken Sidebar in diesen Chart
@@ -86,7 +95,7 @@
           v-if="isLoading"
           class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm"
         >
-          <i class="pi pi-spin pi-spinner text-2xl"></i>
+          <i class="pi pi-spin pi-spinner text-2xl" aria-hidden="true"></i>
         </div>
         <Line
           v-if="!isLoading"
@@ -205,8 +214,11 @@ const chartOptions = computed(() => {
     title: (context) => {
       if (context[0]?.parsed.x) {
         return new Date(context[0].parsed.x).toLocaleString('de-DE', {
-          day: '2-digit', month: '2-digit', year: 'numeric',
-          hour: '2-digit', minute: '2-digit'
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
         })
       }
       return ''
@@ -225,7 +237,13 @@ const chartOptions = computed(() => {
       borderColor: t.color || 'red',
       borderWidth: 2,
       borderDash: [6, 6],
-      label: { display: true, content: t.label || `Threshold: ${t.value}`, position: 'end', backgroundColor: t.color || 'red', font: { size: 10 } }
+      label: {
+        display: true,
+        content: t.label || `Threshold: ${t.value}`,
+        position: 'end',
+        backgroundColor: t.color || 'red',
+        font: { size: 10 }
+      }
     }
     return acc
   }, {})
@@ -239,7 +257,16 @@ const chartOptions = computed(() => {
       borderColor: a.color,
       borderWidth: 2,
       borderDash: [4, 4],
-      label: { display: true, content: a.text, position: 'start', backgroundColor: a.color, color: '#fff', font: { size: 10 }, xAdjust: 5, yAdjust: -10 }
+      label: {
+        display: true,
+        content: a.text,
+        position: 'start',
+        backgroundColor: a.color,
+        color: '#fff',
+        font: { size: 10 },
+        xAdjust: 5,
+        yAdjust: -10
+      }
     }
     return acc
   }, {})
@@ -251,7 +278,8 @@ const chartOptions = computed(() => {
     plugins: {
       legend: { display: false },
       tooltip: {
-        mode: 'index', intersect: false,
+        mode: 'index',
+        intersect: false,
         backgroundColor: colors.background,
         titleColor: colors.title,
         bodyColor: colors.body,
@@ -273,14 +301,34 @@ const chartOptions = computed(() => {
       x: {
         display: true,
         type: 'time',
-        time: { tooltipFormat: 'dd.MM.yyyy HH:mm', displayFormats: { hour: 'HH:mm', day: 'dd.MM' } },
+        time: {
+          tooltipFormat: 'dd.MM.yyyy HH:mm',
+          displayFormats: { hour: 'HH:mm', day: 'dd.MM' }
+        },
         grid: { display: true, color: colors.grid },
         ticks: { maxTicksLimit: 8, maxRotation: 0, color: colors.ticks, font: { size: 10 } }
       },
-      y: { display: true, position: 'left', grid: { color: colors.grid }, ticks: { color: colors.ticks, font: { size: 10 } } },
-      ...(isDual ? { y1: { display: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: colors.ticks, font: { size: 10 } } } } : {})
+      y: {
+        display: true,
+        position: 'left',
+        grid: { color: colors.grid },
+        ticks: { color: colors.ticks, font: { size: 10 } }
+      },
+      ...(isDual
+        ? {
+            y1: {
+              display: true,
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              ticks: { color: colors.ticks, font: { size: 10 } }
+            }
+          }
+        : {})
     },
-    elements: { point: { radius: 2, hitRadius: 10, hoverRadius: 4 }, line: { tension: 0.4, borderWidth: 2 } }
+    elements: {
+      point: { radius: 2, hitRadius: 10, hoverRadius: 4 },
+      line: { tension: 0.4, borderWidth: 2 }
+    }
   }
 })
 

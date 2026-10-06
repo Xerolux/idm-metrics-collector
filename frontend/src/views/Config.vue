@@ -938,7 +938,6 @@
               </div>
             </div>
           </div>
-
         </div>
 
         <!-- Footer (Save Button) inside the content area to be sticky at bottom -->
