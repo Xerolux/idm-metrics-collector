@@ -98,13 +98,14 @@ const iconClasses = computed(() => {
           Status-Code: {{ error.response.status }}
         </div>
       </div>
-      <button type="button"
+      <button
+        type="button"
         v-if="dismissible"
         @click="$emit('dismiss')"
         class="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
         aria-label="Schließen"
       >
-        <i class="pi pi-times"></i>
+        <i class="pi pi-times" aria-hidden="true"></i>
       </button>
     </div>
   </div>

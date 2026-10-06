@@ -4,6 +4,7 @@
 """Test Modbus connection to IDM Heat Pump."""
 
 import sys
+
 from pymodbus.client import ModbusTcpClient
 
 # Connection settings

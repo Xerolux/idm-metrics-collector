@@ -10,7 +10,8 @@
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">Kategorie</label>
         <div class="flex flex-wrap gap-2">
-          <button type="button"
+          <button
+            type="button"
             v-for="cat in categories"
             :key="cat.id"
             @click="selectedCategory = cat.id"
@@ -48,7 +49,7 @@
               <h4 class="font-semibold text-gray-900 truncate">{{ template.name }}</h4>
               <p class="text-sm text-gray-500 mt-1">{{ template.description }}</p>
               <div class="mt-2 text-xs text-gray-400">
-                <i class="pi pi-chart-bar mr-1"></i>
+                <i class="pi pi-chart-bar mr-1" aria-hidden="true"></i>
                 {{ template.charts.length }} Charts
               </div>
             </div>
@@ -65,7 +66,7 @@
             :key="chart.title"
             class="flex items-center gap-2"
           >
-            <i class="pi pi-chart-line text-gray-400"></i>
+            <i class="pi pi-chart-line text-gray-400" aria-hidden="true"></i>
             <span class="truncate">{{ chart.title }}</span>
           </div>
         </div>
