@@ -1,0 +1,3 @@
+
+[lint]
+extend-ignore = ["BLE001"]
