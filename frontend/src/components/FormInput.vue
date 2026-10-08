@@ -69,6 +69,8 @@ const isValid = computed(() => {
 })
 
 const inputId = useId()
+const errorId = useId()
+const helpId = useId()
 
 const inputClasses = computed(() => {
   const classes = [
@@ -110,17 +112,25 @@ const inputClasses = computed(() => {
       :max="max"
       :step="step"
       :class="inputClasses"
+      :aria-invalid="!isValid ? 'true' : undefined"
+      :aria-describedby="error ? errorId : helpText ? helpId : undefined"
       @input="inputValue = $event.target.value"
       @blur="emit('blur')"
       @focus="emit('focus')"
     />
 
-    <div v-if="error" class="text-xs text-error-400 flex items-center gap-1">
-      <i class="pi pi-exclamation-circle"></i>
+    <div
+      v-if="error"
+      :id="errorId"
+      role="alert"
+      aria-live="assertive"
+      class="text-xs text-error-400 flex items-center gap-1"
+    >
+      <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
       {{ error }}
     </div>
 
-    <div v-else-if="helpText" class="text-xs text-gray-400">
+    <div v-else-if="helpText" :id="helpId" class="text-xs text-gray-400">
       {{ helpText }}
     </div>
 
