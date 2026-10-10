@@ -343,6 +343,8 @@ class MQTTPublisher:
 
         try:
             # Publish each sensor value to its own topic
+            # Optimization: evaluate time once for the entire batch
+            current_timestamp = int(time.time())
             for sensor_name, value in data.items():
                 # Skip the string-representation variants of enums
                 if sensor_name.endswith("_str"):
@@ -361,7 +363,7 @@ class MQTTPublisher:
                     unit = getattr(sensor_def, "unit", "")
 
                 # Prepare payload for individual sensor topic
-                payload = {"value": value, "unit": unit, "timestamp": int(time.time())}
+                payload = {"value": value, "unit": unit, "timestamp": current_timestamp}
 
                 # For enums, add the string representation if it exists
                 if f"{sensor_name}_str" in data:
