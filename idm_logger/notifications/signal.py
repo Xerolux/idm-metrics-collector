@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 import logging
 import subprocess
-from typing import Iterable, List
+from collections.abc import Iterable
 from shutil import which
 from .base import NotificationProvider
 from ..config import config
@@ -15,7 +15,7 @@ class SignalProvider(NotificationProvider):
     def name(self) -> str:
         return "signal"
 
-    def _normalize_recipients(self, value) -> List[str]:
+    def _normalize_recipients(self, value) -> list[str]:
         if not value:
             return []
         if isinstance(value, str):

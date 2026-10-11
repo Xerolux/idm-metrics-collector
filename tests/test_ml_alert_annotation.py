@@ -56,7 +56,7 @@ class TestMLAlertAnnotation(unittest.TestCase):
 
         # Import web
         import importlib
-        import idm_logger.web as web
+        from idm_logger import web
 
         importlib.reload(web)
 

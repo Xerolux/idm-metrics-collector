@@ -2086,7 +2086,7 @@ def config_page():
                 if not valid:
                     return jsonify({"error": err}), 400
                 config.data["mqtt"]["username"] = data["mqtt_username"]
-            if "mqtt_password" in data and data["mqtt_password"]:
+            if data.get("mqtt_password"):
                 # Passwords can contain special chars, just limit length
                 if len(data["mqtt_password"]) > _MAX_STRING_LENGTH:
                     return jsonify({"error": "MQTT Passwort zu lang"}), 400
@@ -2185,7 +2185,7 @@ def config_page():
                     return jsonify({"error": "Ungültiger SMTP Port"}), 400
             if "email_username" in data:
                 config.data["email"]["username"] = data["email_username"]
-            if "email_password" in data and data["email_password"]:
+            if data.get("email_password"):
                 config.data["email"]["password"] = data["email_password"]
             if "email_sender" in data:
                 config.data["email"]["sender"] = data["email_sender"]
@@ -2202,7 +2202,7 @@ def config_page():
                 config.data["webdav"]["url"] = data["webdav_url"]
             if "webdav_username" in data:
                 config.data["webdav"]["username"] = data["webdav_username"]
-            if "webdav_password" in data and data["webdav_password"]:
+            if data.get("webdav_password"):
                 config.data["webdav"]["password"] = data["webdav_password"]
 
             # AI

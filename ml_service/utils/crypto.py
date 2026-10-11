@@ -83,7 +83,7 @@ def load_encrypted_model(filepath):
         # 2. Verify signature
         # Reconstruct message to sign: payload + "." + canonical_json(metadata)
         metadata_json = json.dumps(metadata, sort_keys=True)
-        msg = f"{payload_b64}.{metadata_json}".encode("utf-8")
+        msg = f"{payload_b64}.{metadata_json}".encode()
 
         expected_sig = hmac.new(key, msg, hashlib.sha256).hexdigest()
 

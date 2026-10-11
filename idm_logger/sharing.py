@@ -8,7 +8,6 @@ with optional authentication and view-only mode.
 
 import secrets
 import logging
-from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -23,8 +22,8 @@ class ShareToken:
         token_id: str,
         dashboard_id: str,
         created_by: str,
-        expires_at: Optional[int] = None,
-        password: Optional[str] = None,
+        expires_at: int | None = None,
+        password: str | None = None,
         is_public: bool = False,
     ):
         """
@@ -90,7 +89,7 @@ class SharingManager:
             config: Configuration object
         """
         self.config = config
-        self.tokens: Dict[str, ShareToken] = {}
+        self.tokens: dict[str, ShareToken] = {}
         self._load_tokens()
 
     def _load_tokens(self):
@@ -145,8 +144,8 @@ class SharingManager:
         self,
         dashboard_id: str,
         created_by: str,
-        expires_in_days: Optional[int] = None,
-        password: Optional[str] = None,
+        expires_in_days: int | None = None,
+        password: str | None = None,
         is_public: bool = False,
     ) -> ShareToken:
         """
@@ -190,7 +189,7 @@ class SharingManager:
 
         return token
 
-    def get_token(self, token_id: str) -> Optional[ShareToken]:
+    def get_token(self, token_id: str) -> ShareToken | None:
         """
         Get a share token by ID.
 
@@ -202,7 +201,7 @@ class SharingManager:
         """
         return self.tokens.get(token_id)
 
-    def validate_token(self, token_id: str, password: Optional[str] = None) -> bool:
+    def validate_token(self, token_id: str, password: str | None = None) -> bool:
         """
         Validate a share token.
 
@@ -256,7 +255,7 @@ class SharingManager:
             return True
         return False
 
-    def get_tokens_for_dashboard(self, dashboard_id: str) -> List[ShareToken]:
+    def get_tokens_for_dashboard(self, dashboard_id: str) -> list[ShareToken]:
         """
         Get all share tokens for a dashboard.
 
@@ -272,7 +271,7 @@ class SharingManager:
             if token.dashboard_id == dashboard_id
         ]
 
-    def get_all_tokens(self) -> List[ShareToken]:
+    def get_all_tokens(self) -> list[ShareToken]:
         """
         Get all share tokens.
 
