@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class NotificationManager:
     def __init__(self):
-        self.providers: List[NotificationProvider] = [
+        self.providers: list[NotificationProvider] = [
             SignalProvider(),
             TelegramProvider(),
             DiscordProvider(),

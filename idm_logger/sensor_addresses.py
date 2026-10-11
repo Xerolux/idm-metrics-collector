@@ -102,7 +102,7 @@ def _decode_registers(
 
 
 def _encode_value(
-    value: int | float, datatype: str, byteorder: str = "big", wordorder: str = "little"
+    value: float, datatype: str, byteorder: str = "big", wordorder: str = "little"
 ) -> list[int]:
     """Encode value to registers using struct (replacement for BinaryPayloadBuilder)."""
     # Pack value to bytes based on datatype
@@ -178,7 +178,7 @@ class BaseSensorAddress(ABC, Generic[_T]):
             registers, self.datatype, byteorder="big", wordorder="little"
         )
 
-    def _encode_raw(self, value: int | float) -> list[int]:
+    def _encode_raw(self, value: float) -> list[int]:
         return _encode_value(value, self.datatype, byteorder="big", wordorder="little")
 
     @abstractmethod

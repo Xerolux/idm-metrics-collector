@@ -40,7 +40,7 @@ class TestMLServiceLogic(unittest.TestCase):
             self.torch_patcher = None
 
         try:
-            import ml_service.main as main
+            from ml_service import main
             import ml_service.config as ml_config
 
             importlib.reload(ml_config)

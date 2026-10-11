@@ -287,7 +287,6 @@ class MQTTPublisher:
                     payload["value_template"] = (
                         "{{ value_json.value_str }}"  # Use string representation for select
                     )
-                    pass
 
                 # Numerical -> Number
                 elif (
