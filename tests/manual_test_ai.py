@@ -52,7 +52,7 @@ class TestAIModels(unittest.TestCase):
     def test_isolation_forest(self):
         print("\nTesting Isolation Forest...")
         try:
-            from sklearn.ensemble import IsolationForest  # noqa: F401
+            from sklearn.ensemble import IsolationForest
         except ImportError:
             print("Skipping Isolation Forest test (sklearn not installed)")
             return
