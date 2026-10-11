@@ -1,10 +1,11 @@
-import os
-import json
 import base64
-import hmac
 import hashlib
-import pickle
+import hmac
 import io
+import json
+import os
+import pickle
+
 from cryptography.fernet import Fernet
 
 
@@ -30,20 +31,19 @@ class RestrictedUnpickler(pickle.Unpickler):
             return super().find_class(module, name)
 
         # Handle builtins safely
-        if module == "builtins":
-            if name in {
-                "dict",
-                "list",
-                "set",
-                "tuple",
-                "str",
-                "int",
-                "float",
-                "bool",
-                "bytes",
-                "NoneType",
-            }:
-                return super().find_class(module, name)
+        if module == "builtins" and name in {
+            "dict",
+            "list",
+            "set",
+            "tuple",
+            "str",
+            "int",
+            "float",
+            "bool",
+            "bytes",
+            "NoneType",
+        }:
+            return super().find_class(module, name)
 
         raise pickle.UnpicklingError(f"Global '{module}.{name}' is forbidden")
 
@@ -83,7 +83,7 @@ def load_encrypted_model(filepath):
         # 2. Verify signature
         # Reconstruct message to sign: payload + "." + canonical_json(metadata)
         metadata_json = json.dumps(metadata, sort_keys=True)
-        msg = f"{payload_b64}.{metadata_json}".encode("utf-8")
+        msg = f"{payload_b64}.{metadata_json}".encode()
 
         expected_sig = hmac.new(key, msg, hashlib.sha256).hexdigest()
 
