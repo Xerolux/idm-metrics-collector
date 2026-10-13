@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2024-10-24 - Vue Dynamic ARIA Notifications
+**Learning:** In Vue, `role="alert"` (with `aria-live="assertive"`) should be used for dynamic validation errors, while `role="status"` (with `aria-live="polite"`) is better for success messages. When using UI libraries like PrimeVue, decorative icons inside these dynamic messages (e.g., `pi-check-circle`, `pi-exclamation-circle`) must be explicitly hidden from screen readers using `aria-hidden="true"` to prevent confusing and redundant announcements alongside the text.
+**Action:** Always add `aria-live` attributes according to message priority, and add `aria-hidden="true"` to all decorative icons injected into dynamic text blocks, especially within reusable components like `ErrorDisplay.vue`.
