@@ -1,12 +1,12 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-import logging
+import logging  # noqa: I001
 import requests
 import os
 import queue
 import threading
 import time
-from typing import List, Union, Dict
+from typing import List, Union, Dict  # noqa: UP035
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -104,12 +104,12 @@ class MetricsWriter:
                     batch = []
                     last_send = time.time()
                 continue
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error in metrics worker: {e}")
                 if batch:
                     try:
                         self._send_with_retry(batch, MAX_RETRIES, RETRY_BASE_DELAY)
-                    except Exception as e:
+                    except Exception as e:  # noqa: BLE001
                         logger.warning(
                             f"Error flushing metrics after worker error: {e}"
                         )
@@ -118,7 +118,7 @@ class MetricsWriter:
         if batch:
             try:
                 self._send_with_retry(batch, MAX_RETRIES, RETRY_BASE_DELAY)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Error flushing metrics on exit: {e}")
 
     def _send_with_retry(self, data, max_retries=3, base_delay=0.5):
@@ -142,7 +142,7 @@ class MetricsWriter:
         s = s.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
         return s
 
-    def _send_data(self, data: Union[Dict, List[Dict]]) -> bool:
+    def _send_data(self, data: Union[Dict, List[Dict]]) -> bool:  # noqa: UP006, UP007
         items = data if isinstance(data, list) else [data]
         lines = []
 
@@ -181,7 +181,7 @@ class MetricsWriter:
                 )
                 self._connected = False
                 return False
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Exception writing metrics: {e}")
             self._connected = False
             return False
