@@ -32,3 +32,6 @@
 ## 2026-04-09 - Optimize Modbus Struct Pack/Unpack Loops
 **Learning:** In Python loops handling struct operations (like encoding/decoding Modbus registers), manual string concatenation and list slicing inside the loop is very slow and memory-intensive. However, using vectorized C-level `struct.pack` and `struct.unpack` with format multipliers (e.g., `f"{fmt_char}{len(registers)}H"`) to pack/unpack items concurrently significantly reduces CPU time and memory allocation overhead on hot paths, cutting execution times by over 30% for these methods.
 **Action:** Always prefer vectorized `struct` operations with format multipliers over manual iterations and slicing when parsing arrays of binary registers in performance-sensitive contexts.
+## 2026-04-10 - Optimizing Python Hot Loops with Type Checking
+**Learning:** Checking `isinstance(value, bool)` and then subsequently doing a separate `isinstance(value, (int, float))` inside a hot inner loop formatting thousands of telemetry metrics caused redundant type checking overhead. Furthermore, casting `int(value)` is slower than `1 if value else 0`.
+**Action:** Use `elif` to skip redundant branch evaluation for types, and use inline conditionals for fast boolean to integer casting in tight formatting loops.
