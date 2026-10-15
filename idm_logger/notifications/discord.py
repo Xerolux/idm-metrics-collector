@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: MIT
 import logging
 import requests
+
+# Shared session for HTTP connection pooling to metrics DB and external APIs
+http_client = requests.Session()
 from .base import NotificationProvider
 from ..config import config
 
@@ -24,7 +27,7 @@ class DiscordProvider(NotificationProvider):
             return False
 
         try:
-            response = requests.post(webhook_url, json={"content": message}, timeout=10)
+            response = http_client.post(webhook_url, json={"content": message}, timeout=10)
             if not response.ok:
                 logger.error(f"Discord Webhook error: {response.text}")
                 return False

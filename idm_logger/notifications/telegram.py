@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: MIT
 import logging
 import requests
+
+# Shared session for HTTP connection pooling to metrics DB and external APIs
+http_client = requests.Session()
 from .base import NotificationProvider
 from ..config import config
 
@@ -32,7 +35,7 @@ class TelegramProvider(NotificationProvider):
 
         for chat_id in chat_ids:
             try:
-                response = requests.post(
+                response = http_client.post(
                     url, json={"chat_id": chat_id, "text": message}, timeout=10
                 )
                 if not response.ok:

@@ -1,6 +1,9 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import requests
+
+# Shared session for HTTP connection pooling to metrics DB and external APIs
+http_client = requests.Session()
 from urllib.parse import urljoin
 
 
@@ -33,7 +36,7 @@ def upload(text, url="https://paste.blueml.eu"):
 
     try:
         # POST to /upload endpoint - MicroBin returns 302 redirect to the paste URL
-        resp = requests.post(
+        resp = http_client.post(
             upload_url,
             files=form_fields,
             timeout=15,
