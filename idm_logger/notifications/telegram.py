@@ -3,6 +3,7 @@
 import logging
 import requests
 
+# Shared session for HTTP connection pooling to metrics DB and external APIs
 http_client = requests.Session()
 from .base import NotificationProvider
 from ..config import config

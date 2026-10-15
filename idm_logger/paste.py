@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 import requests
 
+# Shared session for HTTP connection pooling to metrics DB and external APIs
 http_client = requests.Session()
 from urllib.parse import urljoin
 

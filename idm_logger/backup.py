@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Dict, Any
 import requests
 
+# Shared session for HTTP connection pooling to metrics DB and external APIs
 http_client = requests.Session()
 import threading
 
