@@ -61,9 +61,6 @@ jobs:
 
   frontend-check:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
     - uses: actions/checkout@v4
 
@@ -78,10 +75,13 @@ jobs:
         # No cache to ensure fresh builds
 
     - name: Install dependencies
+      working-directory: frontend
       run: pnpm install
 
     - name: Lint
+      working-directory: frontend
       run: pnpm run lint
 
     - name: Build
+      working-directory: frontend
       run: pnpm run build
