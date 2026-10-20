@@ -3,8 +3,9 @@
 # SPDX-License-Identifier: MIT
 """Test individual sensor reads to find which addresses work."""
 
-import sys
 import logging
+import sys
+
 from pymodbus.client import ModbusTcpClient
 
 logging.basicConfig(level=logging.WARNING)
