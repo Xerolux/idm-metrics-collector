@@ -144,8 +144,18 @@
 
       <!-- Quality Options (PNG only) -->
       <div v-if="exportType === 'visual' && selectedFormat === 'png'">
-        <label class="block text-sm font-medium text-gray-700 mb-2"> Qualität: {{ scale }}x </label>
-        <input v-model.number="scale" type="range" min="1" max="4" step="0.5" class="w-full" />
+        <label for="export-scale" class="block text-sm font-medium text-gray-700 mb-2">
+          Qualität: {{ scale }}x
+        </label>
+        <input
+          id="export-scale"
+          v-model.number="scale"
+          type="range"
+          min="1"
+          max="4"
+          step="0.5"
+          class="w-full"
+        />
         <div class="flex justify-between text-xs text-gray-500 mt-1">
           <span>Klein</span>
           <span>Standard</span>
@@ -175,16 +185,22 @@
         <!-- Custom Time Range (if selected) -->
         <div v-if="timeRange === 'custom'" class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Von</label>
+            <label for="export-start-date" class="block text-xs font-medium text-gray-600 mb-1"
+              >Von</label
+            >
             <input
+              id="export-start-date"
               v-model="customStartDate"
               type="datetime-local"
               class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
             />
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Bis</label>
+            <label for="export-end-date" class="block text-xs font-medium text-gray-600 mb-1"
+              >Bis</label
+            >
             <input
+              id="export-end-date"
               v-model="customEndDate"
               type="datetime-local"
               class="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
@@ -286,11 +302,7 @@
 import { ref, watch, onMounted } from 'vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
-import {
-  exportDashboard,
-  exportMetricsData,
-  exportMetricsDatabase
-} from '../utils/dashboardExport'
+import { exportDashboard, exportMetricsData, exportMetricsDatabase } from '../utils/dashboardExport'
 import api from '@/utils/api.js'
 
 const props = defineProps({
