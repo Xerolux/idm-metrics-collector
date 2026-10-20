@@ -291,7 +291,7 @@ class TestMLServiceLogic(unittest.TestCase):
             self.assertEqual(data["sensor2"], 20.0)
 
             mock_post.assert_called_once()
-            args, kwargs = mock_post.call_args
+            _args, kwargs = mock_post.call_args
             self.assertIn("data", kwargs)
             self.assertIn("query", kwargs["data"])
 

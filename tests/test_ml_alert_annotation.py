@@ -98,7 +98,7 @@ class TestMLAlertAnnotation(unittest.TestCase):
         )
 
         self.web.annotation_manager.add_annotation.assert_called()
-        args, kwargs = self.web.annotation_manager.add_annotation.call_args
+        _args, kwargs = self.web.annotation_manager.add_annotation.call_args
 
         self.assertEqual(kwargs["text"], "Test Alert")
         self.assertEqual(kwargs["tags"], ["ai", "anomaly", "heating"])

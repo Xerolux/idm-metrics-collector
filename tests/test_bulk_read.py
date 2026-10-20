@@ -96,7 +96,7 @@ def main():
     # Check if we got all sensors
     expected_keys = set(modbus.sensors.keys()) | set(modbus.binary_sensors.keys())
     # Also account for _str variants
-    actual_keys = set(k for k in data.keys() if not k.endswith("_str"))
+    actual_keys = {k for k in data if not k.endswith("_str")}
 
     missing_data = expected_keys - actual_keys
     if missing_data:

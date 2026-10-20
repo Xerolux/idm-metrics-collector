@@ -135,7 +135,7 @@ def run(playwright):
     except Exception as e:
         print(f"Verification Failed: {e}")
         page.screenshot(path="verification_failure.png")
-        raise e
+        raise
     finally:
         browser.close()
 
