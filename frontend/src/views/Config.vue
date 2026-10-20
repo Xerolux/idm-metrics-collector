@@ -938,7 +938,6 @@
               </div>
             </div>
           </div>
-
         </div>
 
         <!-- Footer (Save Button) inside the content area to be sticky at bottom -->
@@ -988,6 +987,7 @@
         <Button
           label="Speichern"
           @click="savePassword"
+          :loading="saving"
           :disabled="!newPassword || !confirmPassword || passwordMismatch"
         />
       </template>
@@ -1367,9 +1367,9 @@ const checkUpdates = async () => {
   }
 }
 
-const savePassword = () => {
+const savePassword = async () => {
+  await saveConfig()
   showPasswordDialog.value = false
-  saveConfig()
 }
 
 const loadAiStatus = async () => {
