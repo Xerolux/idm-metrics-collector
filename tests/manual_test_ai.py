@@ -1,13 +1,13 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-import unittest
-from unittest.mock import MagicMock
-import numpy as np
 import random
-from unittest.mock import patch
 
 # Mock the imports that might fail or are not needed for this isolated test
 import sys
+import unittest
+from unittest.mock import MagicMock, patch
+
+import numpy as np
 
 
 class TestAIModels(unittest.TestCase):
@@ -18,6 +18,7 @@ class TestAIModels(unittest.TestCase):
         self.patcher.start()
 
         import importlib
+
         import idm_logger.ai.models
 
         importlib.reload(idm_logger.ai.models)
