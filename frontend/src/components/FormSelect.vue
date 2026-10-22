@@ -59,6 +59,7 @@ const isValid = computed(() => {
 })
 
 const selectId = useId()
+const describedById = useId()
 
 const inputClasses = computed(() => {
   const classes = [
@@ -92,6 +93,8 @@ const inputClasses = computed(() => {
 
     <select
       :id="selectId"
+      :aria-invalid="!isValid ? 'true' : undefined"
+      :aria-describedby="error ? describedById : undefined"
       :value="selectedValue"
       :disabled="disabled"
       :class="inputClasses"
@@ -103,8 +106,14 @@ const inputClasses = computed(() => {
       </option>
     </select>
 
-    <div v-if="error" class="text-xs text-error-400 flex items-center gap-1">
-      <i class="pi pi-exclamation-circle"></i>
+    <div
+      v-if="error"
+      :id="describedById"
+      role="alert"
+      aria-live="assertive"
+      class="text-xs text-error-400 flex items-center gap-1"
+    >
+      <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
       {{ error }}
     </div>
   </div>
