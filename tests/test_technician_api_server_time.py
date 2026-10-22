@@ -1,10 +1,8 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 
-from unittest.mock import patch
-
 import pytest
-
+from unittest.mock import patch
 from idm_logger.web import app
 
 

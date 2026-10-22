@@ -1,11 +1,10 @@
 # Xerolux 2026
-import importlib
-import os
-import pickle
-import sys
 import unittest
-from unittest.mock import MagicMock, mock_open, patch
-
+from unittest.mock import MagicMock, patch, mock_open
+import sys
+import os
+import importlib
+import pickle
 from idm_logger.const import HeatPumpStatus
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -41,8 +40,8 @@ class TestMLServiceLogic(unittest.TestCase):
             self.torch_patcher = None
 
         try:
+            import ml_service.main as main
             import ml_service.config as ml_config
-            from ml_service import main
 
             importlib.reload(ml_config)
             importlib.reload(main)
@@ -291,7 +290,7 @@ class TestMLServiceLogic(unittest.TestCase):
             self.assertEqual(data["sensor2"], 20.0)
 
             mock_post.assert_called_once()
-            _args, kwargs = mock_post.call_args
+            args, kwargs = mock_post.call_args
             self.assertIn("data", kwargs)
             self.assertIn("query", kwargs["data"])
 
