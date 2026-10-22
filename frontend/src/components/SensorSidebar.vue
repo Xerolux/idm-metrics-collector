@@ -17,16 +17,17 @@
       v-model="searchQuery"
       type="text"
       placeholder="Suchen..."
+      aria-label="Sensoren suchen"
       class="w-full px-3 py-2 text-sm border border-gray-300 rounded mb-3 focus:outline-none focus:ring-2 focus:ring-teal-500"
     />
 
     <div v-if="loading" class="text-center py-8 text-gray-500 text-sm">
-      <i class="pi pi-spin pi-spinner text-2xl mb-2"></i>
+      <i class="pi pi-spin pi-spinner text-2xl mb-2" aria-hidden="true"></i>
       <p>Lade Sensoren...</p>
     </div>
 
     <div v-else-if="error" class="text-center py-8 text-red-500 text-sm">
-      <i class="pi pi-exclamation-triangle text-2xl mb-2"></i>
+      <i class="pi pi-exclamation-triangle text-2xl mb-2" aria-hidden="true"></i>
       <p>{{ error }}</p>
     </div>
 

@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2023-10-22 - Explicit Validation and Live Regions in Vue Form Components
+**Learning:** Reusable Vue 3 form components containing dynamic error/help text often fail to link these messages to the inputs, causing screen readers to miss validation context. Additionally, decorative PrimeIcons inside alert containers can cause redundant announcements if not hidden.
+**Action:** When building custom input wrappers, always use `useId()` to generate a unique ID for the input, apply `aria-invalid` reactively, link messages using `aria-describedby`, wrap error containers in `role="alert"` with `aria-live`, and apply `aria-hidden="true"` to decorative icons.

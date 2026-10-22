@@ -69,6 +69,7 @@ const isValid = computed(() => {
 })
 
 const inputId = useId()
+const describedById = useId()
 
 const inputClasses = computed(() => {
   const classes = [
@@ -102,6 +103,8 @@ const inputClasses = computed(() => {
 
     <input
       :id="inputId"
+      :aria-invalid="!isValid ? 'true' : undefined"
+      :aria-describedby="error || helpText ? describedById : undefined"
       :type="type"
       :value="inputValue"
       :placeholder="placeholder"
@@ -115,12 +118,12 @@ const inputClasses = computed(() => {
       @focus="emit('focus')"
     />
 
-    <div v-if="error" class="text-xs text-error-400 flex items-center gap-1">
-      <i class="pi pi-exclamation-circle"></i>
+    <div v-if="error" :id="describedById" role="alert" aria-live="assertive" class="text-xs text-error-400 flex items-center gap-1">
+      <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
       {{ error }}
     </div>
 
-    <div v-else-if="helpText" class="text-xs text-gray-400">
+    <div v-else-if="helpText" :id="describedById" class="text-xs text-gray-400">
       {{ helpText }}
     </div>
 
