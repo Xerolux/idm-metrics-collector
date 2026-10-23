@@ -31,20 +31,19 @@ class RestrictedUnpickler(pickle.Unpickler):
             return super().find_class(module, name)
 
         # Handle builtins safely
-        if module == "builtins":
-            if name in {
-                "dict",
-                "list",
-                "set",
-                "tuple",
-                "str",
-                "int",
-                "float",
-                "bool",
-                "bytes",
-                "NoneType",
-            }:
-                return super().find_class(module, name)
+        if module == "builtins" and name in {
+            "dict",
+            "list",
+            "set",
+            "tuple",
+            "str",
+            "int",
+            "float",
+            "bool",
+            "bytes",
+            "NoneType",
+        }:
+            return super().find_class(module, name)
 
         raise pickle.UnpicklingError(f"Global '{module}.{name}' is forbidden")
 

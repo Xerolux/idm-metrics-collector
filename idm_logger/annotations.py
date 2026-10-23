@@ -17,7 +17,7 @@ class Annotation:
         annotation_id: str,
         time: int,
         text: str,
-        tags: list[str] = None,
+        tags: list[str] | None = None,
         color: str = "#ef4444",
         dashboard_id: str | None = None,
         acknowledged: bool = False,
@@ -78,7 +78,7 @@ class AnnotationManager:
         ]
 
     def get_annotations_for_time_range(
-        self, start: int, end: int, dashboard_id: str = None
+        self, start: int, end: int, dashboard_id: str | None = None
     ) -> list[Annotation]:
         """Get annotations within a time range"""
         annotations = self.get_all_annotations()
@@ -96,9 +96,9 @@ class AnnotationManager:
         self,
         time: int,
         text: str,
-        tags: list[str] = None,
+        tags: list[str] | None = None,
         color: str = "#ef4444",
-        dashboard_id: str = None,
+        dashboard_id: str | None = None,
         acknowledged: bool = False,
     ) -> Annotation:
         """Add a new annotation"""
@@ -127,11 +127,11 @@ class AnnotationManager:
     def update_annotation(
         self,
         annotation_id: str,
-        time: int = None,
-        text: str = None,
-        tags: list[str] = None,
-        color: str = None,
-        acknowledged: bool = None,
+        time: int | None = None,
+        text: str | None = None,
+        tags: list[str] | None = None,
+        color: str | None = None,
+        acknowledged: bool | None = None,
     ) -> Annotation | None:
         """Update an existing annotation"""
         annotations = self.config.data.get("annotations", [])

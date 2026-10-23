@@ -34,8 +34,8 @@ class Autoencoder(nn.Module):
     def __init__(
         self,
         input_dim: int,
-        hidden_dim: int = None,
-        latent_dim: int = None,
+        hidden_dim: int | None = None,
+        latent_dim: int | None = None,
         dropout_rate: float = 0.15,
     ):
         super().__init__()
@@ -167,11 +167,11 @@ class AnomalyResult:
 class AutoencoderModel:
     def __init__(
         self,
-        hidden_dim: int = None,
-        latent_dim: int = None,
-        learning_rate: float = None,
-        train_steps: int = None,
-        ema_alpha: float = None,
+        hidden_dim: int | None = None,
+        latent_dim: int | None = None,
+        learning_rate: float | None = None,
+        train_steps: int | None = None,
+        ema_alpha: float | None = None,
         dropout_rate: float = 0.15,
         noise_std: float = 0.05,
         gradient_clip: float = 1.0,

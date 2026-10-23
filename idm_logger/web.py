@@ -120,7 +120,7 @@ def _validate_url(value: str) -> tuple[bool, str]:
 
 
 def _validate_string(
-    value: str, field_name: str, max_length: int = None, allow_empty: bool = True
+    value: str, field_name: str, max_length: int | None = None, allow_empty: bool = True
 ) -> tuple[bool, str]:
     """Validate generic string input."""
     if value is None:
@@ -157,7 +157,7 @@ def _internal_error_response(
     include_success_false: bool = False,
 ):
     """Return a sanitized API error response without leaking exception internals."""
-    logger.error(message, exc_info=True)
+    logger.error(message)
     payload = {"error": message}
     if include_success_false:
         payload["success"] = False
@@ -621,7 +621,7 @@ def _filter_sensitive_config(data: dict, parent_key: str = "") -> dict:
 @app.context_processor
 def inject_config():
     safe_config = _filter_sensitive_config(config.data)
-    return dict(config=safe_config)
+    return {"config": safe_config}
 
 
 @app.route("/api/setup", methods=["POST"])
@@ -2553,7 +2553,7 @@ def control_page():
             **modbus_client_instance.sensors,
             **modbus_client_instance.binary_sensors,
         }
-        for name, sensor in all_sensors.items():
+        for sensor in all_sensors.values():
             if sensor.supported_features != SensorFeatures.NONE:
                 s_info = {
                     "name": sensor.name,
@@ -2658,7 +2658,7 @@ def schedule_page():
                 **modbus_client_instance.sensors,
                 **modbus_client_instance.binary_sensors,
             }
-            for name, sensor in all_sensors.items():
+            for sensor in all_sensors.values():
                 if sensor.supported_features != SensorFeatures.NONE:
                     s_info = {
                         "name": sensor.name,
@@ -2921,7 +2921,7 @@ def create_annotation():
         if time and isinstance(time, str):
             from datetime import datetime
 
-            time = int(datetime.fromisoformat(time.replace("Z", "+00:00")).timestamp())
+            time = int(datetime.fromisoformat(time).timestamp())
         elif not time:
             from datetime import datetime
 
@@ -2968,7 +2968,7 @@ def update_annotation(annotation_id):
         if time and isinstance(time, str):
             from datetime import datetime
 
-            time = int(datetime.fromisoformat(time.replace("Z", "+00:00")).timestamp())
+            time = int(datetime.fromisoformat(time).timestamp())
 
         annotation = annotation_manager.update_annotation(
             annotation_id=annotation_id,

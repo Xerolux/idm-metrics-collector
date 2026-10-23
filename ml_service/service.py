@@ -102,7 +102,7 @@ class MLService:
             if getattr(sensor, "read_supported", True):
                 sensors.append(sensor.name)
 
-        for sensor_name, sensor in BINARY_SENSOR_ADDRESSES.items():
+        for sensor in BINARY_SENSOR_ADDRESSES.values():
             if getattr(sensor, "read_supported", True):
                 sensors.append(sensor.name)
 

@@ -109,7 +109,7 @@ class Variable:
                         # For label values queries, the metric object contains the labels
                         values.update(item["metric"].values())
 
-                return sorted(list(values))
+                return sorted(values)
         except Exception as e:
             logger.warning(f"Failed to fetch variable values: {e}")
 
@@ -147,11 +147,11 @@ class VariableManager:
         var_id: str,
         name: str,
         var_type: str,
-        query: str = None,
-        values: list[str] = None,
-        default: str = None,
+        query: str | None = None,
+        values: list[str] | None = None,
+        default: str | None = None,
         multi: bool = False,
-        regex: str = None,
+        regex: str | None = None,
     ) -> Variable:
         """Add a new variable"""
         variable = Variable(

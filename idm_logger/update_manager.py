@@ -587,7 +587,4 @@ def can_run_updates(repo_path: str | None = None) -> bool:
         return False
 
     # Check for .git directory to confirm it's a repo
-    if not (path_obj / ".git").exists():
-        return False
-
-    return True
+    return (path_obj / ".git").exists()

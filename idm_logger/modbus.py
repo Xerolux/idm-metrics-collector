@@ -378,9 +378,9 @@ class ModbusClient:
                             if not rr.isError():
                                 break
                             time.sleep(0.2)  # Wait before retry
-                        except Exception as e:
+                        except Exception:
                             if attempt == 1:
-                                raise e
+                                raise
                             time.sleep(0.2)
 
                     if rr.isError():

@@ -92,7 +92,7 @@ def get_all_readable_sensors():
         if sensor.read_supported:
             sensors.append(sensor.name)
 
-    for sensor_name, sensor in BINARY_SENSOR_ADDRESSES.items():
+    for sensor in BINARY_SENSOR_ADDRESSES.values():
         if sensor.read_supported:
             sensors.append(sensor.name)
 
@@ -185,9 +185,7 @@ def health():
 def _verify_upload_auth():
     api_key = request.headers.get("X-API-Key", "")
     expected = os.environ.get("INTERNAL_API_KEY", "")
-    if not expected or not api_key or api_key != expected:
-        return False
-    return True
+    return not (not expected or not api_key or api_key != expected)
 
 
 @health_app.route("/model/upload", methods=["POST"])
@@ -660,7 +658,7 @@ def job():
 
         min_features = int(len(SENSORS) * config.min_data_ratio)
         if len(data) < min_features:
-            missing_sensors = sorted(list(set(SENSORS) - set(data.keys())))
+            missing_sensors = sorted(set(SENSORS) - set(data.keys()))
             logger.warning(
                 f"Low data availability ({len(data)}/{len(SENSORS)} sensors, target {min_features}). Proceeding anyway to maintain data flow."
             )
