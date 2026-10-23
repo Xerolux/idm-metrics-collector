@@ -340,6 +340,7 @@ class MQTTPublisher:
 
         topic_prefix = config.get("mqtt.topic_prefix", "idm/heatpump")
         qos = config.get("mqtt.qos", 1)
+        now_ts = int(time.time())
 
         try:
             # Publish each sensor value to its own topic
@@ -361,7 +362,7 @@ class MQTTPublisher:
                     unit = getattr(sensor_def, "unit", "")
 
                 # Prepare payload for individual sensor topic
-                payload = {"value": value, "unit": unit, "timestamp": int(time.time())}
+                payload = {"value": value, "unit": unit, "timestamp": now_ts}
 
                 # For enums, add the string representation if it exists
                 if f"{sensor_name}_str" in data:
