@@ -1,7 +1,7 @@
 # Xerolux 2026
+import json
 import sys
 from pathlib import Path
-import json
 
 
 def update_version(new_version):
