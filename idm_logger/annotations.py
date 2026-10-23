@@ -7,7 +7,6 @@ Allows users to add time-based markers/annotations to charts
 """
 
 from datetime import datetime
-from typing import List, Dict, Optional
 
 
 class Annotation:
@@ -18,9 +17,9 @@ class Annotation:
         annotation_id: str,
         time: int,
         text: str,
-        tags: List[str] = None,
+        tags: list[str] | None = None,
         color: str = "#ef4444",
-        dashboard_id: Optional[str] = None,
+        dashboard_id: str | None = None,
         acknowledged: bool = False,
     ):
         self.id = annotation_id
@@ -31,7 +30,7 @@ class Annotation:
         self.dashboard_id = dashboard_id
         self.acknowledged = acknowledged
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary"""
         return {
             "id": self.id,
@@ -44,7 +43,7 @@ class Annotation:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "Annotation":
+    def from_dict(cls, data: dict) -> "Annotation":
         """Create from dictionary"""
         return cls(
             annotation_id=data.get("id"),
@@ -64,12 +63,12 @@ class AnnotationManager:
         self.config = config
         self.annotations_file = "annotations.json"
 
-    def get_all_annotations(self) -> List[Annotation]:
+    def get_all_annotations(self) -> list[Annotation]:
         """Get all annotations"""
         data = self.config.data.get("annotations", [])
         return [Annotation.from_dict(a) for a in data]
 
-    def get_annotations_for_dashboard(self, dashboard_id: str) -> List[Annotation]:
+    def get_annotations_for_dashboard(self, dashboard_id: str) -> list[Annotation]:
         """Get annotations for a specific dashboard"""
         all_annotations = self.get_all_annotations()
         return [
@@ -79,8 +78,8 @@ class AnnotationManager:
         ]
 
     def get_annotations_for_time_range(
-        self, start: int, end: int, dashboard_id: str = None
-    ) -> List[Annotation]:
+        self, start: int, end: int, dashboard_id: str | None = None
+    ) -> list[Annotation]:
         """Get annotations within a time range"""
         annotations = self.get_all_annotations()
 
@@ -97,9 +96,9 @@ class AnnotationManager:
         self,
         time: int,
         text: str,
-        tags: List[str] = None,
+        tags: list[str] | None = None,
         color: str = "#ef4444",
-        dashboard_id: str = None,
+        dashboard_id: str | None = None,
         acknowledged: bool = False,
     ) -> Annotation:
         """Add a new annotation"""
@@ -128,12 +127,12 @@ class AnnotationManager:
     def update_annotation(
         self,
         annotation_id: str,
-        time: int = None,
-        text: str = None,
-        tags: List[str] = None,
-        color: str = None,
-        acknowledged: bool = None,
-    ) -> Optional[Annotation]:
+        time: int | None = None,
+        text: str | None = None,
+        tags: list[str] | None = None,
+        color: str | None = None,
+        acknowledged: bool | None = None,
+    ) -> Annotation | None:
         """Update an existing annotation"""
         annotations = self.config.data.get("annotations", [])
 
@@ -180,7 +179,7 @@ class AnnotationManager:
             self.config.save()
         return updated
 
-    def get_annotation(self, annotation_id: str) -> Optional[Annotation]:
+    def get_annotation(self, annotation_id: str) -> Annotation | None:
         """Get a specific annotation by ID"""
         annotations = self.get_all_annotations()
         for annotation in annotations:
