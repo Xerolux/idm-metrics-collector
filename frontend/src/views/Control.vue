@@ -14,9 +14,13 @@
     >
       <Card v-for="sensor in sensors" :key="sensor.name" class="bg-gray-800 text-white">
         <template #title>
-          <div class="text-base sm:text-lg font-medium truncate" :title="sensor.name">
+          <label
+            :for="'sensor-' + sensor.name"
+            class="text-base sm:text-lg font-medium truncate block cursor-pointer"
+            :title="sensor.name"
+          >
             {{ sensor.name }}
-          </div>
+          </label>
         </template>
         <template #content>
           <div class="flex flex-col gap-3">
@@ -27,7 +31,7 @@
               v-if="sensor.eeprom_sensitive"
               class="bg-yellow-900/50 border border-yellow-600/50 text-yellow-200 p-2 sm:p-3 rounded text-xs sm:text-sm"
             >
-              <i class="pi pi-exclamation-triangle mr-1"></i>
+              <i class="pi pi-exclamation-triangle mr-1" aria-hidden="true"></i>
               <strong>ACHTUNG:</strong> EEPROM-sensitiv! Begrenzte Schreibzyklen
             </div>
 
@@ -36,7 +40,7 @@
               v-if="sensor.cyclic_change_required"
               class="bg-info-900/50 border border-info-600/50 text-info-200 p-2 sm:p-3 rounded text-xs sm:text-sm"
             >
-              <i class="pi pi-info-circle mr-1"></i>
+              <i class="pi pi-info-circle mr-1" aria-hidden="true"></i>
               <strong>HINWEIS:</strong> Zyklische Änderung empfohlen
             </div>
 
@@ -48,11 +52,24 @@
                 optionValue="value"
                 placeholder="Wert wählen"
                 class="w-full"
+                :inputId="'sensor-' + sensor.name"
               />
             </div>
             <div v-else class="flex flex-col gap-2">
-              <InputText v-model="formValues[sensor.name]" type="text" placeholder="Wert" />
-              <small v-if="sensor.min !== null || sensor.max !== null" class="text-gray-500">
+              <InputText
+                v-model="formValues[sensor.name]"
+                type="text"
+                placeholder="Wert"
+                :id="'sensor-' + sensor.name"
+                :aria-describedby="
+                  sensor.min !== null || sensor.max !== null ? 'desc-' + sensor.name : undefined
+                "
+              />
+              <small
+                v-if="sensor.min !== null || sensor.max !== null"
+                :id="'desc-' + sensor.name"
+                class="text-gray-500"
+              >
                 Bereich: {{ sensor.min ?? '-∞' }} bis {{ sensor.max ?? '+∞' }}
               </small>
             </div>
