@@ -1,7 +1,9 @@
 # Xerolux 2026
-from playwright.sync_api import sync_playwright, expect
 import json
+import sys
 import time
+
+from playwright.sync_api import expect, sync_playwright
 
 
 def verify_ux_labels():
@@ -126,10 +128,10 @@ def verify_ux_labels():
         try:
             expect(page.get_by_text("UX Test Dashboard")).to_be_visible(timeout=10000)
             print("Dashboard loaded successfully.")
-        except Exception as e:
+        except Exception:
             print("Dashboard failed to load.")
             page.screenshot(path="dashboard_load_fail.png")
-            raise e
+            raise
 
         # Handle auto-opened Alarm Dialog
         # It opens because we mocked anomalies
@@ -250,11 +252,11 @@ def verify_ux_labels():
             for f in failures:
                 print(f"- {f}")
             page.screenshot(path="verification_failures.png")
-            exit(1)
+            sys.exit(1)
         else:
             print("\nVerification PASSED! All buttons have accessible labels.")
             page.screenshot(path="verification_success.png")
-            exit(0)
+            sys.exit(0)
 
 
 if __name__ == "__main__":
