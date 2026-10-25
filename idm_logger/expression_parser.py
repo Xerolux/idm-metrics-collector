@@ -13,10 +13,10 @@ Supports operations like:
 """
 
 import ast
-import re
-from typing import List, Dict, Union
-import operator
 import logging
+import operator
+import re
+from typing import Dict, List, Union
 
 logger = logging.getLogger(__name__)
 

@@ -6,11 +6,12 @@ Provides functionality for creating shareable links to dashboards
 with optional authentication and view-only mode.
 """
 
-import secrets
 import logging
-from typing import Dict, List, Optional
+import secrets
 from datetime import datetime, timedelta
-from werkzeug.security import generate_password_hash, check_password_hash
+from typing import Dict, List, Optional
+
+from werkzeug.security import check_password_hash, generate_password_hash
 
 logger = logging.getLogger(__name__)
 

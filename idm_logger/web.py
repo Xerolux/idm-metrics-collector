@@ -1,68 +1,72 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-from flask import (
-    Flask,
-    request,
-    jsonify,
-    session,
-    abort,
-    send_from_directory,
-    send_file,
-    Response,
-    stream_with_context,
-)
-from flask_socketio import SocketIO
-from waitress import serve
-from flasgger import Swagger
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from werkzeug.middleware.proxy_fix import ProxyFix
-from werkzeug.utils import secure_filename
-from .technician_auth import calculate_codes
-from .config import config
-from .sensor_addresses import SensorFeatures
-from .const import HEAT_PUMP_MODELS, HEAT_PUMP_MANUFACTURERS
-from .log_handler import memory_handler
-from .backup import backup_manager, BACKUP_DIR
-from .mqtt import mqtt_publisher
-from .modbus import ModbusClient
-from .scheduler import Scheduler
-from .signal_notifications import send_signal_message
-from .notifications import notification_manager
-from .update_manager import (
-    check_for_update,
-    perform_update as run_update,
-    get_current_version,
-    get_file_version,
-    can_run_updates,
-    can_run_docker_updates,
-    check_docker_updates,
-)
-from .alerts import alert_manager
-from .dashboard_config import dashboard_manager
-from .templates import get_alert_templates
-from .annotations import AnnotationManager
-from .variables import VariableManager
-from .expression_parser import ExpressionParser
-from .websocket_handler import websocket_handler
-from .sharing import SharingManager
-from .paste import upload
-from shutil import which
-import threading
-import logging
-import json
-import requests
-import functools
-import os
-import signal
 import atexit
-import ipaddress
-import time
-import re
-import pandas as pd
+import functools
 import io
+import ipaddress
+import json
+import logging
+import os
+import re
+import signal
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
+from shutil import which
+
+import pandas as pd
+import requests
+from flasgger import Swagger
+from flask import (
+    Flask,
+    Response,
+    abort,
+    jsonify,
+    request,
+    send_file,
+    send_from_directory,
+    session,
+    stream_with_context,
+)
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_socketio import SocketIO
+from waitress import serve
+from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.utils import secure_filename
+
+from .alerts import alert_manager
+from .annotations import AnnotationManager
+from .backup import BACKUP_DIR, backup_manager
+from .config import config
+from .const import HEAT_PUMP_MANUFACTURERS, HEAT_PUMP_MODELS
+from .dashboard_config import dashboard_manager
+from .expression_parser import ExpressionParser
+from .log_handler import memory_handler
+from .modbus import ModbusClient
+from .mqtt import mqtt_publisher
+from .notifications import notification_manager
+from .paste import upload
+from .scheduler import Scheduler
+from .sensor_addresses import SensorFeatures
+from .sharing import SharingManager
+from .signal_notifications import send_signal_message
+from .technician_auth import calculate_codes
+from .templates import get_alert_templates
+from .update_manager import (
+    can_run_docker_updates,
+    can_run_updates,
+    check_docker_updates,
+    check_for_update,
+    get_current_version,
+    get_file_version,
+)
+from .update_manager import (
+    perform_update as run_update,
+)
+from .variables import VariableManager
+from .websocket_handler import websocket_handler
 
 logger = logging.getLogger(__name__)
 

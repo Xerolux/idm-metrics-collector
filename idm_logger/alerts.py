@@ -1,10 +1,11 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
+import logging
 import threading
 import time
-import logging
 import uuid
-from typing import Dict, Any
+from typing import Any, Dict
+
 from .db import db
 from .notifications import notification_manager
 

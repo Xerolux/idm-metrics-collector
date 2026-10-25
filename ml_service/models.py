@@ -1,11 +1,11 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import math
-import threading
 import random
+import threading
 from collections import deque
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn as nn

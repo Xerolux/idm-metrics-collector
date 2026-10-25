@@ -1,7 +1,7 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-from abc import ABC, abstractmethod
 import logging
+from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
 

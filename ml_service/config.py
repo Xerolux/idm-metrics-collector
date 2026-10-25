@@ -1,6 +1,6 @@
+import os
 from dataclasses import dataclass, field
 from typing import List
-import os
 
 
 def _parse_list(value: str, item_type: type = str) -> List:

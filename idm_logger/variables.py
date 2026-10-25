@@ -11,10 +11,11 @@ Types:
 - interval: Time intervals (1h, 6h, 24h, 7d, etc.)
 """
 
-from typing import List, Dict, Optional, Any
-import requests
 import logging
 import re
+from typing import Any, Dict, List, Optional
+
+import requests
 
 logger = logging.getLogger(__name__)
 
