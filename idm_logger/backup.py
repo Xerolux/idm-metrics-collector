@@ -6,16 +6,17 @@ import json
 import logging
 import os
 import re
-import zipfile
 import shutil
 import subprocess
+import threading
+import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any
-import requests
-import threading
+from typing import Any, Dict
 
-from .config import config, DATA_DIR
+import requests
+
+from .config import DATA_DIR, config
 from .db import db
 
 try:

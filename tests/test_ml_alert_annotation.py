@@ -57,7 +57,7 @@ class TestMLAlertAnnotation(unittest.TestCase):
         # Import web
         import importlib
 
-        from idm_logger import web
+        import idm_logger.web as web
 
         importlib.reload(web)
 
@@ -98,7 +98,7 @@ class TestMLAlertAnnotation(unittest.TestCase):
         )
 
         self.web.annotation_manager.add_annotation.assert_called()
-        _args, kwargs = self.web.annotation_manager.add_annotation.call_args
+        args, kwargs = self.web.annotation_manager.add_annotation.call_args
 
         self.assertEqual(kwargs["text"], "Test Alert")
         self.assertEqual(kwargs["tags"], ["ai", "anomaly", "heating"])

@@ -22,14 +22,14 @@ logger = logging.getLogger("ml-service")
 
 try:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    from idm_logger.const import HeatPumpStatus
     from idm_logger.sensor_addresses import (
-        COMMON_SENSORS,
         BINARY_SENSOR_ADDRESSES,
+        COMMON_SENSORS,
         HeatingCircuit,
         heating_circuit_sensors,
         zone_sensors,
     )
-    from idm_logger.const import HeatPumpStatus
 except ImportError:
     logger.warning("Could not import idm_logger modules, using defaults")
     COMMON_SENSORS = []

@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: MIT
 """Dashboard configuration management."""
 
-import uuid
 import logging
-from typing import Dict, List, Any, Optional
+import uuid
+from typing import Any, Dict, List, Optional
+
 from .config import config
 
 logger = logging.getLogger(__name__)

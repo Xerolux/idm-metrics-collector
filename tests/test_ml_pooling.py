@@ -24,7 +24,7 @@ class TestMLServicePooling(unittest.TestCase):
         self.addCleanup(self.patcher.stop)
 
         import ml_service.config as ml_config
-        from ml_service import main
+        import ml_service.main as main
 
         importlib.reload(ml_config)
         importlib.reload(main)

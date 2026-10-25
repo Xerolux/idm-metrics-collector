@@ -1,10 +1,10 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import logging
-import re
-import subprocess
-import shutil
 import os
+import re
+import shutil
+import subprocess
 from typing import Iterable, List
 
 from .config import config

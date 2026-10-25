@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: MIT
 import logging
 import os
+import re
 import subprocess
 from pathlib import Path
-from typing import Dict, Any, Tuple, Optional
-import re
+from typing import Any, Dict, Optional, Tuple
 
 import requests
+
 from .config import config
 
 logger = logging.getLogger(__name__)

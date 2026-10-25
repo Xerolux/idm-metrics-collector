@@ -3,16 +3,17 @@
 import logging
 import threading
 import time
+
 from pymodbus.client import ModbusTcpClient
 
 from .config import config
 from .sensor_addresses import (
     BINARY_SENSOR_ADDRESSES,
     COMMON_SENSORS,
-    heating_circuit_sensors,
-    zone_sensors,
     HeatingCircuit,
     SensorFeatures,
+    heating_circuit_sensors,
+    zone_sensors,
 )
 
 logger = logging.getLogger(__name__)

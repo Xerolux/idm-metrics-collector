@@ -7,7 +7,7 @@ Allows users to add time-based markers/annotations to charts
 """
 
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 
 class Annotation:

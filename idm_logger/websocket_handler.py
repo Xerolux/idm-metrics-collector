@@ -8,8 +8,9 @@ to connected clients without requiring polling.
 
 import logging
 from typing import Dict, Set
-from flask_socketio import emit, join_room, leave_room
+
 from flask import request
+from flask_socketio import emit, join_room, leave_room
 
 logger = logging.getLogger(__name__)
 

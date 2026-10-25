@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: MIT
 import logging
 import subprocess
-from typing import Iterable, List
 from shutil import which
-from .base import NotificationProvider
+from typing import Iterable, List
+
 from ..config import config
+from .base import NotificationProvider
 
 logger = logging.getLogger(__name__)
 

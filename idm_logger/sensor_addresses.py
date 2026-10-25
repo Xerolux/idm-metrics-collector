@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: MIT
 """Sensor addresses."""
 
+import logging
+import struct
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, IntEnum, IntFlag
@@ -24,9 +26,6 @@ from .const import (
     ValveStateStorageHeatSource,
     ZoneMode,
 )
-
-import logging
-import struct
 
 LOGGER = logging.getLogger(__name__)
 
