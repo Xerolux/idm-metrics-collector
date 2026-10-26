@@ -51,12 +51,17 @@
         </Card>
 
         <Card
-          class="bg-gray-800 text-white border-dashed border-2 border-gray-600 flex justify-center items-center cursor-pointer hover:bg-gray-700 transition-colors"
+          class="bg-gray-800 text-white border-dashed border-2 border-gray-600 flex justify-center items-center cursor-pointer hover:bg-gray-700 transition-colors focus-visible:ring-2 outline-none"
           @click="showAddDialog = true"
+          role="button"
+          tabindex="0"
+          aria-label="Zeitplan hinzufügen"
+          @keydown.enter.self="showAddDialog = true"
+          @keydown.space.prevent.self="showAddDialog = true"
         >
           <template #content>
             <div class="flex flex-col items-center justify-center h-full py-8 text-gray-400">
-              <i class="pi pi-plus text-4xl mb-2"></i>
+              <i class="pi pi-plus text-4xl mb-2" aria-hidden="true"></i>
               <span>Zeitplan hinzufügen</span>
             </div>
           </template>

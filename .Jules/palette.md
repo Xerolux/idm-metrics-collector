@@ -4,3 +4,6 @@
 ## 2024-05-19 - Adding ARIA labels to Vue/PrimeVue icon-only buttons
 **Learning:** In the Vue/PrimeVue framework used in this app, adding `v-tooltip` or a standard `title` to an icon-only `<Button>` is visually helpful but does not consistently expose the element's purpose to screen readers. We must explicitly apply `aria-label` directly to the `<Button>` component for proper keyboard navigation and screen reader accessibility.
 **Action:** When creating or reviewing icon-only UI elements, always verify that `aria-label` is present alongside visual hints like `v-tooltip` or `title`.
+## 2023-11-20 - Card Components Used as Buttons
+**Learning:** In the Vue frontend (PrimeVue), generic UI layout components like `Card` are often given click handlers to act as large action buttons (e.g. "Add Schedule"). This makes them completely inaccessible via keyboard.
+**Action:** Always add `role="button"`, `tabindex="0"`, `focus-visible:ring-2 outline-none` to make them visible to screen readers and keyboard navigation, and add `@keydown.enter.self` and `@keydown.space.prevent.self` to enable activation without breaking native browser behaviors like page scrolling. Decorative interior icons should receive `aria-hidden="true"`.
