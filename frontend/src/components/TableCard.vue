@@ -9,7 +9,7 @@
         title="Bearbeiten"
         aria-label="Bearbeiten"
       >
-        <i class="pi pi-pencil text-xs"></i>
+        <i class="pi pi-pencil text-xs" aria-hidden="true"></i>
       </button>
       <button type="button"
         @click="confirmDelete"
@@ -17,7 +17,7 @@
         title="Löschen"
         aria-label="Löschen"
       >
-        <i class="pi pi-trash text-xs"></i>
+        <i class="pi pi-trash text-xs" aria-hidden="true"></i>
       </button>
     </div>
 
@@ -33,7 +33,7 @@
           title="Vollbild umschalten"
           aria-label="Vollbild umschalten"
         >
-          <i :class="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-expand'" class="text-xs"></i>
+          <i :class="isFullscreen ? 'pi pi-window-minimize' : 'pi pi-expand'" class="text-xs" aria-hidden="true"></i>
         </button>
       </div>
     </div>
@@ -53,7 +53,7 @@
           title="Vollbild schließen"
           aria-label="Vollbild schließen"
         >
-          <i class="pi pi-times text-lg"></i>
+          <i class="pi pi-times text-lg" aria-hidden="true"></i>
         </button>
       </div>
 
@@ -97,6 +97,7 @@
                   v-if="sortBy === column.key"
                   class="ml-1"
                   :class="sortOrder === 'asc' ? 'pi pi-sort-amount-up' : 'pi pi-sort-amount-down'"
+                  aria-hidden="true"
                 />
               </th>
             </tr>
