@@ -1,10 +1,10 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
+import json
+import os
+import sys
 import unittest
 from unittest.mock import MagicMock, patch
-import json
-import sys
-import os
 
 # Ensure we can import idm_logger
 sys.path.append(os.getcwd())
@@ -17,7 +17,7 @@ class TestAiStatus(unittest.TestCase):
         web.app.config["TESTING"] = True
         self.app = web.app.test_client()
 
-    @patch("idm_logger.web.requests.get")
+    @patch("idm_logger.web.http_client.get")
     def test_get_ai_status_standard(self, mock_get):
         # Scenario 1: Standard metrics response
         mock_response = MagicMock()
@@ -53,7 +53,7 @@ class TestAiStatus(unittest.TestCase):
         self.assertEqual(data["score"], 0.123)
         self.assertEqual(data["last_update"], 1600000000)
 
-    @patch("idm_logger.web.requests.get")
+    @patch("idm_logger.web.http_client.get")
     def test_get_ai_status_influx_style(self, mock_get):
         # Scenario 2: InfluxDB style metrics (suffix _value)
         # This currently FAILS with existing code, which expects exact match
@@ -99,7 +99,7 @@ class TestAiStatus(unittest.TestCase):
         self.assertEqual(data["score"], 0.456)
         self.assertTrue(data["is_anomaly"])
 
-    @patch("idm_logger.web.requests.get")
+    @patch("idm_logger.web.http_client.get")
     def test_get_ai_status_empty(self, mock_get):
         # Scenario 3: Empty result (no data in instant query)
         mock_response = MagicMock()
