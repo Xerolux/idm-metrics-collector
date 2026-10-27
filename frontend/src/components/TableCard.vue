@@ -97,8 +97,7 @@
                   v-if="sortBy === column.key"
                   class="ml-1"
                   :class="sortOrder === 'asc' ? 'pi pi-sort-amount-up' : 'pi pi-sort-amount-down'"
-                  aria-hidden="true"
-                />
+                aria-hidden="true"></i>
               </th>
             </tr>
           </thead>
