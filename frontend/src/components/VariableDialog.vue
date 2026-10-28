@@ -8,22 +8,25 @@
     <div class="space-y-4">
       <!-- Variable ID -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1"> Variable ID * </label>
+        <label :for="`${formId}-vid`" class="block text-sm font-medium text-gray-700 mb-1"> Variable ID * </label>
         <InputText
+          :id="`${formId}-vid`"
+          :aria-describedby="`${formId}-vid-help`"
           v-model="localVariable.id"
           placeholder="z.B. circuit, period, sensor_id"
           :disabled="!!variable"
           class="w-full"
         />
-        <p class="text-xs text-gray-500 mt-1">
+        <p :id="`${formId}-vid-help`" class="text-xs text-gray-500 mt-1">
           Wird in Queries als ${{ '{variable_id}' }} oder ${{ '{variable_id}' }} verwendet
         </p>
       </div>
 
       <!-- Name -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1"> Name * </label>
+        <label :for="`${formId}-name`" class="block text-sm font-medium text-gray-700 mb-1"> Name * </label>
         <InputText
+          :id="`${formId}-name`"
           v-model="localVariable.name"
           placeholder="z.B. Heizkreis, Zeitraum, Sensor"
           class="w-full"
@@ -32,8 +35,9 @@
 
       <!-- Type -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1"> Typ * </label>
+        <label :for="`${formId}-type`" class="block text-sm font-medium text-gray-700 mb-1"> Typ * </label>
         <Select
+          :inputId="`${formId}-type`"
           v-model="localVariable.type"
           :options="typeOptions"
           optionLabel="label"
@@ -45,27 +49,29 @@
 
       <!-- Query (for type=query) -->
       <div v-if="localVariable.type === 'query'">
-        <label class="block text-sm font-medium text-gray-700 mb-1"> Query </label>
+        <label :for="`${formId}-query`" class="block text-sm font-medium text-gray-700 mb-1"> Query </label>
         <Textarea
+          :id="`${formId}-query`"
+          :aria-describedby="`${formId}-query-help`"
           v-model="localVariable.query"
           placeholder="z.B. query_result{circuit='A'}"
           rows="3"
           class="w-full"
         />
-        <p class="text-xs text-gray-500 mt-1">Metric query to fetch possible values</p>
+        <p :id="`${formId}-query-help`" class="text-xs text-gray-500 mt-1">Metric query to fetch possible values</p>
       </div>
 
       <!-- Values (for type=custom) -->
       <div v-if="localVariable.type === 'custom'">
-        <label class="block text-sm font-medium text-gray-700 mb-1"> Werte </label>
-        <Chips v-model="localVariable.values" placeholder="Werte hinzufügen" class="w-full" />
-        <p class="text-xs text-gray-500 mt-1">Vordefinierte Werte für das Select</p>
+        <label :for="`${formId}-values`" class="block text-sm font-medium text-gray-700 mb-1"> Werte </label>
+        <Chips :inputId="`${formId}-values`" :aria-describedby="`${formId}-values-help`" v-model="localVariable.values" placeholder="Werte hinzufügen" class="w-full" />
+        <p :id="`${formId}-values-help`" class="text-xs text-gray-500 mt-1">Vordefinierte Werte für das Select</p>
       </div>
 
       <!-- Default Value -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1"> Standardwert </label>
-        <InputText v-model="localVariable.default" placeholder="Standardwert" class="w-full" />
+        <label :for="`${formId}-default`" class="block text-sm font-medium text-gray-700 mb-1"> Standardwert </label>
+        <InputText :id="`${formId}-default`" v-model="localVariable.default" placeholder="Standardwert" class="w-full" />
       </div>
 
       <!-- Options -->
@@ -92,7 +98,7 @@
 
 <script setup>
 // Xerolux 2026
-import { ref, watch } from 'vue'
+import { ref, watch, useId } from 'vue'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
@@ -102,6 +108,8 @@ import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
 import api from '@/utils/api.js'
+
+const formId = useId()
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
