@@ -341,6 +341,10 @@ class MQTTPublisher:
         topic_prefix = config.get("mqtt.topic_prefix", "idm/heatpump")
         qos = config.get("mqtt.qos", 1)
 
+        # ⚡ Bolt: Evaluate time.time() once per batch to avoid redundant syscalls
+        current_time = time.time()
+        current_timestamp = int(current_time)
+
         try:
             # Publish each sensor value to its own topic
             for sensor_name, value in data.items():
@@ -361,7 +365,7 @@ class MQTTPublisher:
                     unit = getattr(sensor_def, "unit", "")
 
                 # Prepare payload for individual sensor topic
-                payload = {"value": value, "unit": unit, "timestamp": int(time.time())}
+                payload = {"value": value, "unit": unit, "timestamp": current_timestamp}
 
                 # For enums, add the string representation if it exists
                 if f"{sensor_name}_str" in data:
@@ -381,7 +385,7 @@ class MQTTPublisher:
             state_topic = f"{topic_prefix}/state"
             self.client.publish(state_topic, json.dumps(data), qos=qos, retain=True)
 
-            self.last_publish_time = time.time()
+            self.last_publish_time = current_time
             logger.debug(f"Published {len(data)} values to MQTT")
 
         except Exception as e:
