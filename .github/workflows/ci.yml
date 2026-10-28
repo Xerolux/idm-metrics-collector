@@ -36,6 +36,7 @@ jobs:
       with:
         version: 9
         run_install: false
+        package_json_file: frontend/package.json
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -72,6 +73,7 @@ jobs:
       with:
         version: 9
         run_install: false
+        package_json_file: frontend/package.json
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
