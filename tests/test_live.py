@@ -4,9 +4,9 @@
 """Live test script for IDM heat pump - READ ONLY"""
 
 import logging
-import sys
-import struct
 import os
+import struct
+import sys
 
 import pytest
 
