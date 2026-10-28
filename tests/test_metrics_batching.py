@@ -1,10 +1,8 @@
 # Xerolux 2026
-import queue
-from unittest.mock import MagicMock, patch
-
 import pytest
-
+from unittest.mock import MagicMock, patch
 from idm_logger.metrics import MetricsWriter
+import queue
 
 
 class TestMetricsBatching:
@@ -27,7 +25,7 @@ class TestMetricsBatching:
 
         # Check if post was called
         mock_requests.post.assert_called_once()
-        _args, kwargs = mock_requests.post.call_args
+        args, kwargs = mock_requests.post.call_args
         data = kwargs["data"]
 
         # Verify Line Protocol format - now includes tags
@@ -49,7 +47,7 @@ class TestMetricsBatching:
         writer._send_data(data)
 
         mock_requests.post.assert_called_once()
-        _args, kwargs = mock_requests.post.call_args
+        args, kwargs = mock_requests.post.call_args
         payload = kwargs["data"]
 
         assert "idm_heatpump" in payload

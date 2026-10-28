@@ -1,8 +1,8 @@
 # Xerolux 2026
-import os
-import sys
 import unittest
 from unittest.mock import MagicMock, patch
+import sys
+import os
 
 sys.path.append(os.getcwd())
 
