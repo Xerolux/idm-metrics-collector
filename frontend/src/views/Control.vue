@@ -27,7 +27,7 @@
               v-if="sensor.eeprom_sensitive"
               class="bg-yellow-900/50 border border-yellow-600/50 text-yellow-200 p-2 sm:p-3 rounded text-xs sm:text-sm"
             >
-              <i class="pi pi-exclamation-triangle mr-1"></i>
+              <i class="pi pi-exclamation-triangle mr-1" aria-hidden="true"></i>
               <strong>ACHTUNG:</strong> EEPROM-sensitiv! Begrenzte Schreibzyklen
             </div>
 
@@ -36,7 +36,7 @@
               v-if="sensor.cyclic_change_required"
               class="bg-info-900/50 border border-info-600/50 text-info-200 p-2 sm:p-3 rounded text-xs sm:text-sm"
             >
-              <i class="pi pi-info-circle mr-1"></i>
+              <i class="pi pi-info-circle mr-1" aria-hidden="true"></i>
               <strong>HINWEIS:</strong> Zyklische Änderung empfohlen
             </div>
 

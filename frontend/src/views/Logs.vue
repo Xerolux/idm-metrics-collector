@@ -22,7 +22,7 @@
     </div>
 
     <div v-if="loading && logs.length === 0" class="flex justify-center">
-      <i class="pi pi-spin pi-spinner text-4xl"></i>
+      <i class="pi pi-spin pi-spinner text-4xl" aria-hidden="true"></i>
     </div>
 
     <div v-else class="bg-gray-800 rounded p-4 font-mono text-sm h-[600px] overflow-y-auto">

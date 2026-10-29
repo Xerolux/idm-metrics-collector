@@ -3,7 +3,7 @@
     <h1 class="text-2xl font-bold mb-4">Zeitplan</h1>
 
     <div v-if="loading" class="flex justify-center">
-      <i class="pi pi-spin pi-spinner text-4xl"></i>
+      <i class="pi pi-spin pi-spinner text-4xl" aria-hidden="true"></i>
     </div>
 
     <div v-else class="flex flex-col gap-6">
@@ -56,7 +56,7 @@
         >
           <template #content>
             <div class="flex flex-col items-center justify-center h-full py-8 text-gray-400">
-              <i class="pi pi-plus text-4xl mb-2"></i>
+              <i class="pi pi-plus text-4xl mb-2" aria-hidden="true"></i>
               <span>Zeitplan hinzufügen</span>
             </div>
           </template>
