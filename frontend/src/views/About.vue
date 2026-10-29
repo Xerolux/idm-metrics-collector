@@ -14,7 +14,7 @@ const privacyDialog = ref(null)
       <Card class="shadow-lg">
         <template #title>
           <div class="flex items-center gap-2">
-            <i class="pi pi-info-circle text-2xl text-blue-500"></i>
+            <i class="pi pi-info-circle text-2xl text-blue-500" aria-hidden="true"></i>
             <span>Über IDM Metrics Collector</span>
           </div>
         </template>
@@ -110,7 +110,7 @@ const privacyDialog = ref(null)
         <template #footer>
           <div class="text-center text-xs text-gray-300">
             Erstellt mit
-            <i class="pi pi-heart-fill text-red-500 mx-1" style="font-size: 0.7rem"></i> von xerolux
+            <i class="pi pi-heart-fill text-red-500 mx-1" style="font-size: 0.7rem" aria-hidden="true"></i> von xerolux
           </div>
         </template>
       </Card>
