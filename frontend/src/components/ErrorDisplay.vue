@@ -104,7 +104,7 @@ const iconClasses = computed(() => {
         class="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/10"
         aria-label="Schließen"
       >
-        <i class="pi pi-times"></i>
+        <i aria-hidden="true" class="pi pi-times"></i>
       </button>
     </div>
   </div>

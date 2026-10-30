@@ -104,7 +104,7 @@ const inputClasses = computed(() => {
     </select>
 
     <div v-if="error" class="text-xs text-error-400 flex items-center gap-1">
-      <i class="pi pi-exclamation-circle"></i>
+      <i aria-hidden="true" class="pi pi-exclamation-circle"></i>
       {{ error }}
     </div>
   </div>

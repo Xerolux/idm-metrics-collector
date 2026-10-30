@@ -5,7 +5,7 @@
       <Card class="bg-gray-800 text-white">
         <template #title>
           <div class="flex items-center gap-2">
-            <i class="pi pi-key text-yellow-400"></i>
+            <i aria-hidden="true" class="pi pi-key text-yellow-400"></i>
             <span>Technikercode Generator</span>
           </div>
         </template>

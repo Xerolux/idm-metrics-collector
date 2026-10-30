@@ -3,7 +3,7 @@
     <h1 class="text-2xl font-bold mb-2 flex-shrink-0">Konfiguration</h1>
 
     <div v-if="loading" class="flex justify-center items-center h-full">
-      <i class="pi pi-spin pi-spinner text-4xl"></i>
+      <i aria-hidden="true" class="pi pi-spin pi-spinner text-4xl"></i>
     </div>
 
     <div v-else class="flex flex-col lg:flex-row gap-6 h-full overflow-hidden">
@@ -177,7 +177,7 @@
             <Fieldset legend="Lokale KI & Datenschutz" :toggleable="true">
               <div class="flex flex-col gap-4">
                 <div class="bg-green-900/20 border border-green-600/50 p-4 rounded flex gap-3">
-                  <i class="pi pi-lock text-green-400 text-xl mt-1"></i>
+                  <i aria-hidden="true" class="pi pi-lock text-green-400 text-xl mt-1"></i>
                   <div>
                     <strong class="text-green-300">100 % lokale Verarbeitung</strong>
                     <p class="text-sm text-gray-200 mt-1">
@@ -466,7 +466,7 @@
                 <div
                   class="bg-blue-900/20 border border-blue-600/50 p-4 rounded flex items-start gap-3"
                 >
-                  <i class="pi pi-info-circle text-blue-400 text-xl mt-1"></i>
+                  <i aria-hidden="true" class="pi pi-info-circle text-blue-400 text-xl mt-1"></i>
                   <div class="text-sm text-blue-200">
                     Die Anomalieerkennung läuft nun als eigenständiger
                     <strong>ml-service</strong> Container. Er nutzt einen PyTorch
@@ -514,7 +514,7 @@
 
                 <div class="bg-gray-800 p-4 rounded border border-gray-700 mt-4">
                   <h4 class="font-bold text-lg mb-2 flex items-center gap-2">
-                    <i class="pi pi-chart-line"></i> Service Status
+                    <i aria-hidden="true" class="pi pi-chart-line"></i> Service Status
                   </h4>
                   <div v-if="aiStatus" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div class="flex justify-between border-b border-gray-700 py-2">
@@ -555,7 +555,7 @@
                     </div>
                   </div>
                   <div v-else class="text-center py-4 text-gray-500">
-                    <i class="pi pi-spin pi-spinner mr-2"></i> Lade Status...
+                    <i aria-hidden="true" class="pi pi-spin pi-spinner mr-2"></i> Lade Status...
                   </div>
                 </div>
               </div>
@@ -613,7 +613,7 @@
                 <div
                   class="bg-yellow-900/20 border border-yellow-600/50 p-3 rounded text-yellow-200 text-sm flex items-start gap-2"
                 >
-                  <i class="pi pi-exclamation-triangle mt-0.5"></i>
+                  <i aria-hidden="true" class="pi pi-exclamation-triangle mt-0.5"></i>
                   <span
                     >Deine IP ist <strong>{{ currentClientIP }}</strong
                     >. Füge diese zur Whitelist hinzu, sonst sperrst du dich aus!</span
@@ -657,7 +657,7 @@
                 class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3"
               >
                 <h3 class="font-bold text-lg flex items-center gap-2">
-                  <i class="pi pi-refresh"></i> Update Status
+                  <i aria-hidden="true" class="pi pi-refresh"></i> Update Status
                 </h3>
                 <div class="flex items-center justify-between bg-gray-900/50 p-3 rounded">
                   <div>
@@ -677,7 +677,7 @@
                 <!-- Docker Image Status -->
                 <div v-if="updateStatus.docker" class="bg-gray-900/50 p-3 rounded mt-2">
                   <div class="flex items-center gap-2 mb-2">
-                    <i class="pi pi-box text-blue-400"></i>
+                    <i aria-hidden="true" class="pi pi-box text-blue-400"></i>
                     <span class="text-sm font-bold text-white">Docker Images</span>
                     <span
                       v-if="updateStatus.docker.updates_available"
@@ -722,7 +722,7 @@
                   class="bg-blue-900/20 border border-blue-600/50 p-3 rounded mt-2 flex flex-col gap-2"
                 >
                   <div class="flex items-center gap-2 text-blue-300 text-sm font-semibold">
-                    <i class="pi pi-info-circle"></i>
+                    <i aria-hidden="true" class="pi pi-info-circle"></i>
                     <span>Neue Version verfügbar!</span>
                   </div>
                   <p class="text-sm text-gray-100">
@@ -734,7 +734,7 @@
                 <!-- Update Info -->
                 <div class="bg-gray-900/50 p-3 rounded mt-2">
                   <div class="flex items-center gap-2 mb-2">
-                    <i class="pi pi-sync text-green-400"></i>
+                    <i aria-hidden="true" class="pi pi-sync text-green-400"></i>
                     <span class="text-sm font-bold text-white">Manuelle Updates</span>
                   </div>
                   <p class="text-sm text-gray-100 mb-2">
@@ -766,7 +766,7 @@
               <!-- Backup Actions -->
               <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3">
                 <h3 class="font-bold text-lg flex items-center gap-2">
-                  <i class="pi pi-database"></i> Backup
+                  <i aria-hidden="true" class="pi pi-database"></i> Backup
                 </h3>
                 <div class="flex flex-col gap-2 mb-2">
                   <div class="flex items-center justify-between">
@@ -919,7 +919,7 @@
                 class="bg-gray-800 rounded-lg p-4 border border-gray-700 flex flex-col gap-3 xl:col-span-2"
               >
                 <h3 class="font-bold text-lg flex items-center gap-2 text-red-400">
-                  <i class="pi pi-power-off"></i> Danger Zone
+                  <i aria-hidden="true" class="pi pi-power-off"></i> Danger Zone
                 </h3>
                 <div class="flex gap-4">
                   <Button
@@ -1001,7 +1001,7 @@
     >
       <div class="flex flex-col gap-4">
         <div class="flex items-start gap-3">
-          <i class="pi pi-exclamation-triangle text-red-500 text-2xl"></i>
+          <i aria-hidden="true" class="pi pi-exclamation-triangle text-red-500 text-2xl"></i>
           <div class="flex flex-col gap-2">
             <span class="font-bold text-lg">Bist du dir absolut sicher?</span>
             <p class="text-gray-300">
@@ -1034,7 +1034,7 @@
       <div class="flex flex-col gap-4">
         <div class="bg-blue-900/20 border border-blue-600/50 p-3 rounded">
           <div class="flex items-center gap-2 text-blue-300 mb-2">
-            <i class="pi pi-info-circle"></i>
+            <i aria-hidden="true" class="pi pi-info-circle"></i>
             <span class="font-bold">Wichtiger Hinweis</span>
           </div>
           <p class="text-sm text-gray-300">
@@ -1046,7 +1046,7 @@
 
         <div>
           <h4 class="font-bold mb-2 flex items-center gap-2">
-            <i class="pi pi-terminal text-green-400"></i>
+            <i aria-hidden="true" class="pi pi-terminal text-green-400"></i>
             Manuelles Update via Terminal
           </h4>
           <div class="bg-gray-900 p-3 rounded font-mono text-sm text-green-400 overflow-x-auto">
@@ -1060,7 +1060,7 @@
         </div>
 
         <div class="text-xs text-gray-300">
-          <i class="pi pi-lightbulb mr-1"></i>
+          <i aria-hidden="true" class="pi pi-lightbulb mr-1"></i>
           Nach dem Update wird die Seite automatisch neu geladen sobald der Container wieder
           erreichbar ist.
         </div>

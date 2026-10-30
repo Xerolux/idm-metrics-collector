@@ -10,11 +10,11 @@
         title="Vollbild umschalten"
         aria-label="Vollbild umschalten"
       >
-        <i class="pi pi-expand text-xs"></i>
+        <i aria-hidden="true" class="pi pi-expand text-xs"></i>
       </button>
     </div>
     <div v-if="loading" class="flex-grow flex items-center justify-center">
-      <i class="pi pi-spin pi-spinner text-gray-400 text-xl"></i>
+      <i aria-hidden="true" class="pi pi-spin pi-spinner text-gray-400 text-xl"></i>
     </div>
     <div v-else-if="error" class="flex-grow flex items-center justify-center">
       <span class="text-xs text-red-500">{{ error }}</span>
