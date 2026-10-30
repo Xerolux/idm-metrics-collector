@@ -9,7 +9,7 @@
         title="Bearbeiten"
         aria-label="Bearbeiten"
       >
-        <i class="pi pi-pencil text-xs"></i>
+        <i aria-hidden="true" class="pi pi-pencil text-xs"></i>
       </button>
       <button type="button"
         @click="confirmDelete"
@@ -17,7 +17,7 @@
         title="Löschen"
         aria-label="Löschen"
       >
-        <i class="pi pi-trash text-xs"></i>
+        <i aria-hidden="true" class="pi pi-trash text-xs"></i>
       </button>
     </div>
 
@@ -53,7 +53,7 @@
           title="Vollbild schließen"
           aria-label="Vollbild schließen"
         >
-          <i class="pi pi-times text-lg"></i>
+          <i aria-hidden="true" class="pi pi-times text-lg"></i>
         </button>
       </div>
 

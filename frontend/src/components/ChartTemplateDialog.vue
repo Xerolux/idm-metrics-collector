@@ -48,7 +48,7 @@
               <h4 class="font-semibold text-gray-900 truncate">{{ template.name }}</h4>
               <p class="text-sm text-gray-500 mt-1">{{ template.description }}</p>
               <div class="mt-2 text-xs text-gray-400">
-                <i class="pi pi-chart-bar mr-1"></i>
+                <i aria-hidden="true" class="pi pi-chart-bar mr-1"></i>
                 {{ template.charts.length }} Charts
               </div>
             </div>
@@ -65,7 +65,7 @@
             :key="chart.title"
             class="flex items-center gap-2"
           >
-            <i class="pi pi-chart-line text-gray-400"></i>
+            <i aria-hidden="true" class="pi pi-chart-line text-gray-400"></i>
             <span class="truncate">{{ chart.title }}</span>
           </div>
         </div>
