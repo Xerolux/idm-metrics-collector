@@ -148,20 +148,24 @@ class MetricsWriter:
 
         tags = self._get_tags()
 
+        # ⚡ Bolt Optimization: Pre-calculate common Line Protocol prefix to avoid redundant string formatting per record
+        prefix = f"idm_heatpump{tags} "
+
         for measurements in items:
             fields = []
 
             for key, value in measurements.items():
                 if key.endswith("_str"):
                     continue
+
+                # ⚡ Bolt Optimization: Streamlined type checking using elif and inline booleans to minimize processing overhead per metric
                 if isinstance(value, bool):
-                    value = int(value)
-                if isinstance(value, (int, float)):
+                    fields.append(f"{key}={1 if value else 0}")
+                elif isinstance(value, (int, float)):
                     fields.append(f"{key}={value}")
 
             if fields:
-                field_str = ",".join(fields)
-                lines.append(f"idm_heatpump{tags} {field_str}")
+                lines.append(f"{prefix}{','.join(fields)}")
 
         if not lines:
             return False

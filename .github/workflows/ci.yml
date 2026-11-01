@@ -35,6 +35,7 @@ jobs:
     - uses: pnpm/action-setup@v4
       with:
         version: 9
+        package_json_file: frontend/package.json
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -53,7 +54,7 @@ jobs:
     - name: Run Root Tests
       run: |
         if ls tests/test_*.py >/dev/null 2>&1; then
-          pytest -q tests
+          PYTHONPATH=. pytest -q tests
         else
           echo "No root tests found."
         fi
@@ -70,6 +71,7 @@ jobs:
     - uses: pnpm/action-setup@v4
       with:
         version: 9
+        package_json_file: frontend/package.json
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
