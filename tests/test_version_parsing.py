@@ -1,6 +1,7 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
 import unittest
+
 from idm_logger.update_manager import _parse_version
 
 

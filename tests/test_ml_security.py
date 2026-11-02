@@ -1,8 +1,9 @@
 # Xerolux 2026
 import unittest
 from unittest.mock import patch
-from idm_logger.web import app
+
 from idm_logger.config import config
+from idm_logger.web import app
 
 
 class TestMLSecurity(unittest.TestCase):

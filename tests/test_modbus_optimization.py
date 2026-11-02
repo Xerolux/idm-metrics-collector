@@ -1,8 +1,8 @@
 # Xerolux 2026
 # SPDX-License-Identifier: MIT
-import unittest
-import sys
 import os
+import sys
+import unittest
 from unittest.mock import MagicMock, patch
 
 # Add the project directory to path
